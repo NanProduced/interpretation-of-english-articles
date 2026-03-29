@@ -1,0 +1,34 @@
+.DS_Store
+Thumbs.db
+
+# Node / frontend
+client/node_modules/
+client/dist/
+client/.temp/
+client/.cache/
+client/.taro/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Python / backend
+server/.venv/
+server/.pytest_cache/
+server/.mypy_cache/
+server/.ruff_cache/
+server/__pycache__/
+server/**/*.pyc
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE / tool state
+.idea/
+.vscode/
+.serena/cache/
+
+# WeChat DevTools
+project.private.config.json
+
