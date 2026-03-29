@@ -77,6 +77,26 @@ class VocabularyAnnotation(BaseModel):
     scene_tags: list[str] = Field(default_factory=list)
 
 
+class CoreVocabularyAnnotation(BaseModel):
+    """core_agent 内部使用的精简词汇标注。
+
+    最终响应里的 `priority/default_visible` 由后处理统一补齐，
+    不要求模型在第一跳就把所有展示字段一起生成。
+    """
+
+    annotation_id: str
+    surface: str
+    lemma: str
+    span: TextSpan
+    sentence_id: str
+    phrase_type: Literal["word", "phrase"] = "word"
+    context_gloss_zh: str
+    short_explanation_zh: str
+    objective_level: Literal["basic", "intermediate", "advanced"]
+    exam_tags: list[str] = Field(default_factory=list)
+    scene_tags: list[str] = Field(default_factory=list)
+
+
 class SentenceComponent(BaseModel):
     label: Literal[
         "subject",
@@ -104,6 +124,19 @@ class GrammarAnnotation(BaseModel):
     default_visible: bool
 
 
+class CoreGrammarAnnotation(BaseModel):
+    """core_agent 内部使用的精简语法标注。"""
+
+    annotation_id: str
+    type: Literal["grammar_point", "sentence_component", "error_flag"]
+    sentence_id: str
+    span: TextSpan | None = None
+    label: str
+    short_explanation_zh: str
+    components: list[SentenceComponent] = Field(default_factory=list)
+    objective_level: Literal["basic", "intermediate", "advanced"]
+
+
 class DifficultSentenceChunk(BaseModel):
     order: int = Field(ge=1)
     label: str
@@ -121,6 +154,19 @@ class DifficultSentenceAnnotation(BaseModel):
     objective_level: Literal["basic", "intermediate", "advanced"]
     priority: Literal["core", "expand", "reference"]
     default_visible: bool
+
+
+class CoreDifficultSentenceAnnotation(BaseModel):
+    """core_agent 内部使用的精简长难句标注。"""
+
+    annotation_id: str
+    sentence_id: str
+    span: TextSpan
+    trigger_reason: list[str] = Field(default_factory=list)
+    main_clause: str
+    chunks: list[DifficultSentenceChunk] = Field(default_factory=list)
+    reading_path_zh: str
+    objective_level: Literal["basic", "intermediate", "advanced"]
 
 
 class AnalysisAnnotations(BaseModel):
@@ -180,10 +226,9 @@ class SentenceDifficultyAssessment(BaseModel):
 
 
 class CoreAgentOutput(BaseModel):
-    sentence_difficulties: list[SentenceDifficultyAssessment] = Field(default_factory=list)
-    vocabulary: list[VocabularyAnnotation] = Field(default_factory=list)
-    grammar: list[GrammarAnnotation] = Field(default_factory=list)
-    difficult_sentences: list[DifficultSentenceAnnotation] = Field(default_factory=list)
+    vocabulary: list[CoreVocabularyAnnotation] = Field(default_factory=list)
+    grammar: list[CoreGrammarAnnotation] = Field(default_factory=list)
+    difficult_sentences: list[CoreDifficultSentenceAnnotation] = Field(default_factory=list)
 
 
 class TranslationAgentOutput(BaseModel):

@@ -84,5 +84,6 @@ def get_guardrails_agent() -> Agent[GuardrailsDeps, GuardrailsAssessment] | None
         name="preprocess_guardrails_v0",
         retries=2,
         output_retries=2,
-        instrument=True,
+        # tracing 统一由 LangGraph + LangSmith 手工接管，避免 PydanticAI 自己再起独立 root trace。
+        instrument=False,
     )

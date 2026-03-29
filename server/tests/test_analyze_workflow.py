@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.schemas.analysis import AnalysisResult
+from app.workflow import analyze_nodes as analyze_nodes
 from app.schemas.preprocess import (
     DetectionResult,
     LanguageDetection,
@@ -18,9 +19,6 @@ from app.schemas.preprocess import (
     SegmentationResult,
     TextTypeDetection,
 )
-from app.workflow import analyze as analyze_workflow
-
-
 async def _fake_preprocess(*args, **kwargs) -> PreprocessResult:
     return PreprocessResult(
         request=PreprocessRequestMeta(
@@ -95,9 +93,9 @@ async def _raise_translation(*args, **kwargs):
 
 
 def test_analyze_route_returns_complete_payload_with_fallback(monkeypatch) -> None:
-    monkeypatch.setattr(analyze_workflow, "run_preprocess_v0", _fake_preprocess)
-    monkeypatch.setattr(analyze_workflow, "run_core_agent", _raise_core)
-    monkeypatch.setattr(analyze_workflow, "run_translation_agent", _raise_translation)
+    monkeypatch.setattr(analyze_nodes, "run_preprocess_v0", _fake_preprocess)
+    monkeypatch.setattr(analyze_nodes, "run_core_llm", _raise_core)
+    monkeypatch.setattr(analyze_nodes, "run_translation_llm", _raise_translation)
     client = TestClient(app)
 
     response = client.post(
