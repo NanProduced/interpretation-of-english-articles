@@ -95,6 +95,15 @@
 
 微信小程序本身不是后端运行环境，因此模型调用、API Key、Workflow、未来的 RAG 都必须放在后端。
 
+## 环境约定
+
+当前约定采用双环境结构：
+
+- `client/` 使用 `pnpm`
+- `server/` 使用 `uv + .venv`
+
+后端虚拟环境固定放在 `server/.venv/`，不要与全局 Python 或前端依赖混用。
+
 ## 建议的里程碑顺序
 
 1. 先完成后端输出 Schema 和最小 Workflow 原型。
@@ -105,7 +114,12 @@
 
 ## 本地参考文档
 
-- [项目简述](./docs/project-brief.md)
+- [文档说明](./docs/README.md)
+- [产品需求摘要](./docs/product/prd-summary.md)
+- [初版用户配置草案 v0.1.0-draft](./docs/product/user-config-v0-draft.md)
+- [Workflow 摘要](./docs/workflow/workflow-overview.md)
+- [输出 Schema 草案 v0.1.0-draft](./docs/workflow/schema-v0-draft.md)
+- [微信小程序技术边界](./docs/architecture/mini-program-boundaries.md)
 - [前端说明](./client/README.md)
 - [后端说明](./server/README.md)
 
