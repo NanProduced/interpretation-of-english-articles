@@ -2,47 +2,104 @@
 
 来源文档：`AI 解读 Workflow 流程设计（草图）`
 
-注意：该源文档仍未定稿。本文档只迁入当前已形成共识的部分，作为后端实现和验证的起点，而不是最终定版。
+注意：源文档仍未定稿。本文档只保留当前 V0 原型已经落地或已经明确作为下一步目标的部分，避免把“未来设想”误写成“当前实现”。
 
 ## 文档定位
 
-本文档描述后端 AI 解读 Workflow 的业务骨架，目标是指导最小可运行版本的搭建与后续迭代。
+本文档描述后端 AI 解读 Workflow 的当前业务骨架，用于约束代码实现、联调和后续迭代。
 
-当前原则是：
+当前原则：
 
 - 先做最小完成体
-- 先验证输出质量和结构稳定性
-- 再根据真实测试结果迭代 prompt、节点拆分和富化策略
+- 先验证结构稳定性和可调试性
+- 再逐步提升内容质量
 
 ## Workflow 的职责
 
-Workflow 的职责是把：
+Workflow 负责把：
 
 - 英文文章文本
 - 用户配置
 - 请求元信息
 
-转换为：
+转成可解析、可渲染、可存储、可追踪的结构化 JSON。
 
-- 可解析
-- 可渲染
-- 可存储
-- 可版本化
-
-的结构化 JSON 输出。
-
-它不负责：
+它当前不负责：
 
 - 前端渲染
 - 账号体系
-- 长期数据运营逻辑
-- 词典型确定性知识的完整生成
+- 词典服务
+- 篇章分析产出
+
+## 当前实现状态
+
+### 已实现：preprocess_v0
+
+当前 [server/app/workflow/preprocess.py](/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/workflow/preprocess.py) 已实现 5 个节点的线性子图：
+
+1. `normalize`
+2. `segment`
+3. `detect`
+4. `guardrails`
+5. `finalize`
+
+职责：
+
+- 规范化输入文本
+- 切分段落与句子
+- 检测语言比例、文本类型、噪音与截断风险
+- 通过 guardrails 做质量评估与分流判断
+- 组装 `PreprocessResult`
+
+### 已实现：analyze_v0
+
+当前 [server/app/workflow/analyze.py](/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/workflow/analyze.py) 已实现主图：
+
+1. `preprocess`
+2. `router`
+3. `core`
+4. `translation`
+5. `merge`
+6. `enrich`
+7. `validate`
+
+另外包含两个收口节点：
+
+- `finalize_success`
+- `finalize_rejected`
+
+职责：
+
+- 复用 preprocess 子图
+- 按输入质量决定继续或拒绝
+- 调用核心标注 agent 与翻译 agent
+- 合并结果
+- 按 profile 做优先级富化
+- 做最小结构校验
+
+## 当前 V0 输出能力
+
+当前 `/analyze` 已能稳定返回：
+
+- `article`
+- `annotations.vocabulary`
+- `annotations.grammar`
+- `annotations.difficult_sentences`
+- `translations`
+- `warnings`
+- `metrics`
+
+其中：
+
+- `core_agent` 负责词汇、语法、长难句
+- `translation_agent` 负责逐句翻译、全文翻译、关键短语翻译
+- `discourse` 仍固定为 `null`
 
 ## 当前核心设计原则
 
 ### 1. Schema 优先
 
-输出结构必须先稳定，内容丰富度可以后补。前端和后端之间的第一约束是 Schema。
+前后端的第一约束是 Schema，不是 prompt。
 
 ### 2. AI 只做语境相关任务
 
@@ -51,131 +108,68 @@ Workflow 的职责是把：
 - 语境义判断
 - 语法结构分析
 - 长难句拆解
-- 翻译风格把控
+- 翻译生成
 
-尽量不用 AI 负责：
+尽量不由 AI 负责：
 
 - 音标
-- 基础释义
+- 基础词典释义
 - 词表命中
 - 规则映射
 
-### 3. 少轮调用优先
+### 3. 可降级优先于“全成功”
 
-在输出质量可接受的前提下，优先使用少量、可控、并行的调用，而不是过度拆分成大量 Agent。
+当前代码已经允许：
 
-### 4. 可校验、可重试、可降级
+- preprocess fallback
+- core agent fallback
+- translation agent fallback
 
-Workflow 必须具备：
+目标是先保证链路完整可回包，再继续优化质量。
 
-- 输出校验
-- 有上限的重试
-- 明确的失败路径
-- 必要时的降级结果
+### 4. profile 影响展示优先级，不改变基础结构
 
-## 当前流程骨架
+当前 `enrich` 节点会根据 `profile_key` 调整：
 
-当前共识流程：
+- `priority`
+- `default_visible`
 
-1. 合规审核
-2. 文本预处理
-3. Router 按 profile 和文本质量分流
-4. 进入核心分析 Agent
-5. 合并结果
-6. 规则富化
-7. 输出校验
-8. 返回结构化 JSON
+但不会改变基础字段结构。
 
-## 当前推荐的 Agent 切分
+## 当前与草图文档的差异
 
-### core_agent
+以下内容在草图里已经提出，但当前 V0 还没有实现：
 
-负责：
+- `discourse_agent`
+- 更复杂的条件路由
+- 更强的重试策略
+- 更完整的富化链路
+- 更细的输出校验体系
 
-- 词汇标注
-- 语法分析
-- 长难句识别与拆解
+以下内容在草图里写得更理想化，但当前 V0 实现更克制：
 
-这三者耦合较强，当前建议放在同一个核心 Agent 中。
+- 预处理目前只做轻量规范化，没有真正剥离 HTML，也没有做 Unicode 规范化
+- validate 节点当前只做最小一致性校验，不做更复杂的语义级校验
 
-### translation_agent
-
-负责：
-
-- 逐句翻译
-- 全文翻译
-- 关键短语翻译
-
-翻译与标注耦合相对较弱，适合独立并行执行。
-
-### discourse_agent
-
-负责：
-
-- 段落大意
-- 文章结构
-- 逻辑连接词
-- 主题句
-
-这是高阶能力，当前不作为最小版本的强依赖。
-
-## Profile 策略
-
-当前共识不是“按水平裁剪输出内容”，而是：
-
-- 先做尽可能完整的标注
-- 再根据用户 profile 做解释风格和展示优先级映射
-
-这意味着不同用户可以共享一份基础分析结果，只在后处理阶段做优先级差异化。
-
-## 预处理原则
-
-V1 只允许做不会改变原文语义的清理：
-
-- 去除 HTML 标签
-- 空白归一化
-- Unicode 规范化
-
-V1 不应直接改写用户原文，也不应默默修正语法错误。
-
-如果文本质量较差，应优先：
-
-- 标记问题
-- 触发降级
-- 向用户解释风险
-
-## 当前最值得警惕的工程问题
+## 当前最值得关注的工程点
 
 ### 1. span 对齐
 
-如果标注和原文位置无法稳定对齐，前端渲染会直接失真。
+所有标注都依赖 `article.render_text`，这是当前前端渲染能否稳定的关键。
 
 ### 2. 输出结构稳定性
 
-即使内容“看起来不错”，只要结构不稳定，就无法支撑可维护的结果页。
+当前 V0 已经有正式结构，但字段稳定性仍需要通过样本持续验证。
 
-### 3. 长文延迟
+### 3. 降级质量
 
-小程序用户对等待很敏感，Workflow 需要从一开始就考虑并行、降级和按需加载。
-
-## 当前未定项
-
-以下内容仍需要在最小 Workflow 跑通后通过测试继续收敛：
-
-- 最终输出 Schema 细节
-- 校验失败后的重试策略
-- 降级策略
-- 各节点的延迟预算
-- token 预算
-- 缓存策略
-- 模型分层与 fallback 策略
+fallback 已打通，但 fallback 内容只是保底结构，不代表最终产品质量。
 
 ## 当前实施建议
 
-当前后端实现应遵循下面的顺序：
+后续继续推进时，建议按这个顺序：
 
-1. 先定义最小输出 Schema
-2. 先跑通 `core_agent + translation_agent`
-3. 先建立最小校验与健康测试
-4. 再决定是否需要新增 Agent、RAG 和更复杂的富化链路
-
+1. 用样本持续调试 `core_agent_v0`
+2. 用样本持续调试 `translation_agent_v0`
+3. 收敛 warning、fallback 和 validate 规则
+4. 再决定是否引入 `discourse_agent` 或更复杂的路由
