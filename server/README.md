@@ -47,10 +47,16 @@ uv run uvicorn app.main:app --reload
 - `CORE_MODEL_PROFILE` -> `analysis_core`
 - `TRANSLATION_MODEL_PROFILE` -> `analysis_translation`
 
-profile 示例：
+### 配置方式
 
-```bash
-MODEL_PROFILES_JSON='{
+支持两种配置方式：
+
+#### 方式一：外部 JSON 文件（推荐）
+
+创建 `config/model-profiles.json`：
+
+```json
+{
   "local_qwen": {
     "provider": "openai_compatible",
     "model_name": "Qwen/Qwen3-8B",
@@ -63,10 +69,24 @@ MODEL_PROFILES_JSON='{
     "base_url": "https://api.minimax.io/v1",
     "api_key": "your-minimax-key"
   }
-}'
+}
 ```
 
-部署默认切换示例：
+在 `.env` 中引用：
+
+```bash
+MODEL_PROFILES_JSON="config/model-profiles.json"
+```
+
+#### 方式二：内联 JSON
+
+```bash
+MODEL_PROFILES_JSON="{\"local_qwen\":{\"provider\":\"openai_compatible\",\"model_name\":\"Qwen/Qwen3-8B\",\"base_url\":\"http://127.0.0.1:8000/v1\"}}"
+```
+
+详细说明见 [模型配置教程](../docs/operations/model-configuration-usage.md)。
+
+### 部署默认切换示例
 
 ```bash
 DEFAULT_MODEL_PROFILE=local_qwen
@@ -74,7 +94,7 @@ CORE_MODEL_PROFILE=minimax_m27
 TRANSLATION_MODEL_PROFILE=minimax_m27
 ```
 
-服务端 preset 示例：
+### 服务端 preset 示例
 
 ```bash
 MODEL_PRESETS_JSON='{
@@ -87,7 +107,7 @@ MODEL_PRESETS_JSON='{
 }'
 ```
 
-请求级 runtime override 示例：
+### 请求级 runtime override 示例
 
 ```json
 {

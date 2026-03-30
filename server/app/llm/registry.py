@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from functools import lru_cache
 
 from app.config.settings import Settings
@@ -16,7 +17,12 @@ def _parse_mapping(raw: str, env_name: str) -> dict[str, object]:
     if not raw.strip():
         return {}
 
-    payload = json.loads(raw)
+    if os.path.isfile(raw):
+        with open(raw, encoding="utf-8") as f:
+            payload = json.load(f)
+    else:
+        payload = json.loads(raw)
+
     if not isinstance(payload, dict):
         raise ValueError(f"{env_name} must be a JSON object keyed by name")
     return payload

@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _get_project_root() -> Path:
+    return Path(__file__).parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -27,6 +33,15 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    def resolve_config_path(self, path: str) -> str:
+        if not path:
+            return path
+        if os.path.isabs(path):
+            return path
+        if path.startswith("config/"):
+            return str(_get_project_root() / path)
+        return path
 
 
 @lru_cache(maxsize=1)

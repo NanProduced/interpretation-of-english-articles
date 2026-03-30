@@ -7,14 +7,14 @@ from uuid import uuid4
 from langgraph.graph import END, START, StateGraph
 
 from app.config.settings import get_settings
-from app.llm.router import validate_model_selection
+from app.llm.router import resolve_model_config, validate_model_selection
 from app.llm.routes import (
     MODEL_ROUTE_ANALYSIS_CORE,
     MODEL_ROUTE_ANALYSIS_TRANSLATION,
     MODEL_ROUTE_PREPROCESS_GUARDRAILS,
 )
 from app.llm.runtime import dump_model_selection
-from app.llm.types import parse_model_selection
+from app.llm.types import ModelSelection, parse_model_selection
 from app.schemas.analysis import AnalysisResult, AnalyzeRequest
 from app.workflow.analyze_nodes import (
     core_node,
@@ -30,6 +30,22 @@ from app.workflow.analyze_nodes import (
 )
 from app.workflow.analyze_state import AnalyzeState
 from app.workflow.tracing import build_workflow_root_metadata, build_workflow_root_tags
+
+ALL_MODEL_ROUTES = (
+    MODEL_ROUTE_PREPROCESS_GUARDRAILS,
+    MODEL_ROUTE_ANALYSIS_CORE,
+    MODEL_ROUTE_ANALYSIS_TRANSLATION,
+)
+
+
+def _collect_model_names(settings, model_selection: ModelSelection | None) -> list[str]:
+    """收集所有配置的模型名称用于 LangSmith tags。"""
+    model_names = []
+    for route in ALL_MODEL_ROUTES:
+        model_config = resolve_model_config(settings, route, model_selection)
+        if model_config and model_config.model_name:
+            model_names.append(model_config.model_name)
+    return model_names
 
 ANALYZE_SCHEMA_VERSION = "0.1.0"
 ANALYZE_WORKFLOW_VERSION = "analyze_v0"
@@ -83,11 +99,15 @@ async def run_analyze_v0(payload: AnalyzeRequest) -> AnalysisResult:
             MODEL_ROUTE_ANALYSIS_TRANSLATION,
         ),
     )
+    settings = get_settings()
+    model_names = _collect_model_names(settings, model_selection)
+    workflow_tags = build_workflow_root_tags(ANALYZE_WORKFLOW_VERSION)
+    all_tags = workflow_tags + model_names
     result = await graph.ainvoke(
         {"payload": normalized_payload},
         config={
             "run_name": ANALYZE_WORKFLOW_VERSION,
-            "tags": build_workflow_root_tags(ANALYZE_WORKFLOW_VERSION),
+            "tags": all_tags,
             "configurable": {
                 "model_selection": dump_model_selection(model_selection),
             },

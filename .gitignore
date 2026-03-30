@@ -23,6 +23,7 @@ server/**/*.pyc
 .env
 .env.*
 !.env.example
+config/
 
 # IDE / tool state
 .idea/
@@ -31,4 +32,13 @@ server/**/*.pyc
 
 # WeChat DevTools
 project.private.config.json
+
+# samples
+.sample/
+
+.screenshot/
+
+.gemini/
+.serena/
+.agents/
 

@@ -122,6 +122,7 @@
 - [输出 Schema 草案 v0.1.0-draft](./docs/workflow/schema-v0-draft.md)
 - [微信小程序技术边界](./docs/architecture/mini-program-boundaries.md)
 - [LangSmith 使用规范](./docs/operations/langsmith-usage.md)
+- [模型配置教程](./docs/operations/model-configuration-usage.md)
 - [前端说明](./client/README.md)
 - [后端说明](./server/README.md)
 

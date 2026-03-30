@@ -32,10 +32,11 @@
 - 新增模型时，只追加 profile，不复制 route/agent 逻辑。
 - 运行时实验统一通过请求里的 `model_selection` 或服务端 `MODEL_PRESETS_JSON`，不通过改 legacy env。
 - 对外 schema 和内部 schema 必须分层，内部 agent DTO 不直接暴露给 API。
+- `MODEL_PROFILES_JSON` 支持两种方式：外部 JSON 文件（推荐）或内联 JSON。
 
 ## 新增模型流程
 
-1. 在 `MODEL_PROFILES_JSON` 增加一个 profile。
+1. 在 `MODEL_PROFILES_JSON`（推荐使用 `config/model-profiles.json`）增加一个 profile。
 2. 如需服务端命名实验方案，在 `MODEL_PRESETS_JSON` 增加 preset。
 3. 如需部署默认切换，修改 `DEFAULT_MODEL_PROFILE` 或节点级 `*_MODEL_PROFILE`。
 4. 如需支持新 provider，在 `app/llm/provider_factory.py` 增加 builder，并补测试。
