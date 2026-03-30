@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.llm.model_selection import ModelSelection
 
 PREPROCESS_SCHEMA_VERSION = "0.1.0"
 
@@ -41,6 +42,7 @@ class PreprocessAnalyzeRequest(BaseModel):
     profile_key: str = "general"
     source_type: Literal["user_input", "daily_article", "ocr"] = "user_input"
     request_id: str | None = None
+    model_selection: ModelSelection | None = None
 
 
 class NormalizedText(BaseModel):

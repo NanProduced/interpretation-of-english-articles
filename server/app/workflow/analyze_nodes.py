@@ -1,13 +1,18 @@
-from __future__ import annotations
-
 import logging
 from typing import Literal
 
+from langchain_core.runnables import RunnableConfig
 from langsmith import get_current_run_tree, traceable
 
 from app.agents.core_v0 import CoreAgentDeps, run_core_agent_raw
+from app.agents.model_factory import (
+    MODEL_ROUTE_ANALYSIS_CORE,
+    MODEL_ROUTE_ANALYSIS_TRANSLATION,
+    resolve_model_config,
+)
 from app.agents.translation_v0 import TranslationAgentDeps, run_translation_agent_raw
 from app.config.settings import get_settings
+from app.llm.model_selection import parse_model_selection
 from app.schemas.analysis import (
     AnalysisAnnotations,
     AnalysisMetrics,
@@ -32,21 +37,28 @@ from app.workflow.analyze_state import AnalyzeState
 from app.workflow.preprocess import run_preprocess_v0
 from app.workflow.tracing import build_llm_trace_metadata, build_usage_metadata, infer_model_provider
 
-
 logger = logging.getLogger(__name__)
 ANALYZE_WORKFLOW_VERSION = "analyze_v0"
 ANALYZE_TRACE_SCOPE = "analyze_local_debug"
 
 
-async def preprocess_node(state: AnalyzeState) -> AnalyzeState:
+def _config_model_selection(config: RunnableConfig | None):
+    configurable = (config or {}).get("configurable", {})
+    return parse_model_selection(configurable.get("model_selection"))
+
+
+async def preprocess_node(state: AnalyzeState, config: RunnableConfig | None = None) -> AnalyzeState:
     payload = state["payload"]
+    model_selection = _config_model_selection(config)
     preprocess = await run_preprocess_v0(
         PreprocessAnalyzeRequest(
             text=payload.text,
             profile_key=payload.profile_key,
             source_type=payload.source_type,
             request_id=payload.request_id,
-        )
+            model_selection=model_selection,
+        ),
+        model_selection=model_selection,
     )
     warnings = [AnalysisWarning(code=item.code, message_zh=item.message_zh) for item in preprocess.warnings]
     return {"preprocess": preprocess, "warnings": warnings}
@@ -79,47 +91,51 @@ async def router_node(state: AnalyzeState) -> AnalyzeState:
 
 def build_core_trace_metadata(
     state: AnalyzeState,
+    selection=None,
     *,
     chunk_index: int | None = None,
     chunk_count: int | None = None,
 ) -> dict[str, object]:
-    """构建 core 节点真实 llm 调用的 trace metadata。"""
     settings = get_settings()
+    model_config = resolve_model_config(settings, MODEL_ROUTE_ANALYSIS_CORE, selection)
     return build_llm_trace_metadata(
         workflow_version=ANALYZE_WORKFLOW_VERSION,
         request_id=state["payload"].request_id or state["preprocess"].request.request_id,
         profile_key=state["payload"].profile_key,
         source_type=state["payload"].source_type,
         trace_scope=ANALYZE_TRACE_SCOPE,
-        model_name=settings.analysis_model_name or settings.guardrails_model_name or "unconfigured",
-        model_provider=infer_model_provider(settings.analysis_base_url or settings.guardrails_base_url or "http://localhost"),
+        model_name=model_config.model_name if model_config else "unconfigured",
+        model_provider=infer_model_provider(model_config.base_url if model_config else "http://localhost"),
         extra={
             "node": "core_agent_v0",
+            "model_profile": model_config.profile_name if model_config else "unconfigured",
             "chunk_index": chunk_index,
             "chunk_count": chunk_count,
         },
     )
 
 
-def build_translation_trace_metadata(state: AnalyzeState) -> dict[str, object]:
-    """构建 translation 节点真实 llm 调用的 trace metadata。"""
+def build_translation_trace_metadata(state: AnalyzeState, selection=None) -> dict[str, object]:
     settings = get_settings()
+    model_config = resolve_model_config(settings, MODEL_ROUTE_ANALYSIS_TRANSLATION, selection)
     return build_llm_trace_metadata(
         workflow_version=ANALYZE_WORKFLOW_VERSION,
         request_id=state["payload"].request_id or state["preprocess"].request.request_id,
         profile_key=state["payload"].profile_key,
         source_type=state["payload"].source_type,
         trace_scope=ANALYZE_TRACE_SCOPE,
-        model_name=settings.analysis_model_name or settings.guardrails_model_name or "unconfigured",
-        model_provider=infer_model_provider(settings.analysis_base_url or settings.guardrails_base_url or "http://localhost"),
-        extra={"node": "translation_agent_v0"},
+        model_name=model_config.model_name if model_config else "unconfigured",
+        model_provider=infer_model_provider(model_config.base_url if model_config else "http://localhost"),
+        extra={
+            "node": "translation_agent_v0",
+            "model_profile": model_config.profile_name if model_config else "unconfigured",
+        },
     )
 
 
 @traceable(name="core_llm_call", run_type="llm")
-async def run_core_llm(*, deps: CoreAgentDeps, metadata: dict[str, object]) -> CoreAgentOutput:
-    """在 analyze workflow 下创建 core 节点的 llm 子 span。"""
-    result = await run_core_agent_raw(deps)
+async def run_core_llm(*, deps: CoreAgentDeps, metadata: dict[str, object], model_selection=None) -> CoreAgentOutput:
+    result = await run_core_agent_raw(deps, model_selection=model_selection)
     current_run = get_current_run_tree()
     if current_run is not None:
         current_run.set(
@@ -131,9 +147,13 @@ async def run_core_llm(*, deps: CoreAgentDeps, metadata: dict[str, object]) -> C
 
 
 @traceable(name="translation_llm_call", run_type="llm")
-async def run_translation_llm(*, deps: TranslationAgentDeps, metadata: dict[str, object]) -> TranslationAgentOutput:
-    """在 analyze workflow 下创建 translation 节点的 llm 子 span。"""
-    result = await run_translation_agent_raw(deps)
+async def run_translation_llm(
+    *,
+    deps: TranslationAgentDeps,
+    metadata: dict[str, object],
+    model_selection=None,
+) -> TranslationAgentOutput:
+    result = await run_translation_agent_raw(deps, model_selection=model_selection)
     current_run = get_current_run_tree()
     if current_run is not None:
         current_run.set(
@@ -144,9 +164,10 @@ async def run_translation_llm(*, deps: TranslationAgentDeps, metadata: dict[str,
     return result.output
 
 
-async def core_node(state: AnalyzeState) -> AnalyzeState:
+async def core_node(state: AnalyzeState, config: RunnableConfig | None = None) -> AnalyzeState:
     preprocess = state["preprocess"]
     payload = state["payload"]
+    model_selection = _config_model_selection(config)
     deps = CoreAgentDeps(
         profile_key=payload.profile_key,
         sentences=[sentence.model_dump() for sentence in preprocess.segmentation.sentences],
@@ -155,7 +176,8 @@ async def core_node(state: AnalyzeState) -> AnalyzeState:
         return {
             "core_output": await run_core_llm(
                 deps=deps,
-                metadata=build_core_trace_metadata(state),
+                metadata=build_core_trace_metadata(state, model_selection),
+                model_selection=model_selection,
             )
         }
     except Exception as exc:
@@ -181,9 +203,10 @@ async def core_node(state: AnalyzeState) -> AnalyzeState:
         }
 
 
-async def translation_node(state: AnalyzeState) -> AnalyzeState:
+async def translation_node(state: AnalyzeState, config: RunnableConfig | None = None) -> AnalyzeState:
     preprocess = state["preprocess"]
     payload = state["payload"]
+    model_selection = _config_model_selection(config)
     deps = TranslationAgentDeps(
         profile_key=payload.profile_key,
         render_text=preprocess.normalized.clean_text,
@@ -193,7 +216,8 @@ async def translation_node(state: AnalyzeState) -> AnalyzeState:
         return {
             "translation_output": await run_translation_llm(
                 deps=deps,
-                metadata=build_translation_trace_metadata(state),
+                metadata=build_translation_trace_metadata(state, model_selection),
+                model_selection=model_selection,
             )
         }
     except Exception as exc:

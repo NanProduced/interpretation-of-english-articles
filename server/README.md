@@ -28,6 +28,63 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
+## 模型配置
+
+当前支持三层模型配置方式：
+
+- 兼容旧配置：`ANALYSIS_*` / `GUARDRAILS_*`
+- 部署默认路由：`DEFAULT_MODEL_PROFILE` + 节点级 `*_MODEL_PROFILE`
+- 运行时覆盖：请求里的 `model_selection`
+
+当前节点映射：
+
+- `PREPROCESS_MODEL_PROFILE` -> `preprocess_guardrails`
+- `CORE_MODEL_PROFILE` -> `core_agent_v0`
+- `TRANSLATION_MODEL_PROFILE` -> `translation_agent_v0`
+
+内置了一个便捷 profile：`minimax_m27`。
+
+部署默认切换示例：
+
+```bash
+CORE_MODEL_PROFILE=minimax_m27
+TRANSLATION_MODEL_PROFILE=minimax_m27
+MINIMAX_M27_API_KEY=your-key
+```
+
+服务端命名 preset 示例：
+
+```bash
+MODEL_PRESETS_JSON='{"minimax_eval":{"routes":{"analysis_core":{"profile":"minimax_m27"},"analysis_translation":{"profile":"minimax_m27"}}}}'
+```
+
+请求级 runtime override 示例：
+
+```json
+{
+  "text": "Your article here",
+  "profile_key": "exam_cet4",
+  "model_selection": {
+    "preset": "minimax_eval",
+    "routes": {
+      "analysis_translation": {
+        "profile": "minimax_m27",
+        "model_settings": {
+          "temperature": 0.2,
+          "max_tokens": 4000
+        }
+      }
+    }
+  }
+}
+```
+
+推荐做法：
+
+- env 只负责 secrets、可用 profile 和部署默认值
+- `MODEL_PRESETS_JSON` 负责服务端命名实验方案
+- `model_selection` 负责单次请求的实验、灰度和 case 复盘
+
 ## 当前对外接口
 
 - `POST /analyze`

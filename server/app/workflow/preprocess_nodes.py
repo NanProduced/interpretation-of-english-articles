@@ -1,9 +1,10 @@
-from __future__ import annotations
-
+from langchain_core.runnables import RunnableConfig
 from langsmith import get_current_run_tree, traceable
 
-from app.agents.preprocess_v0 import GuardrailsDeps, get_guardrails_agent
+from app.agents.model_factory import MODEL_ROUTE_PREPROCESS_GUARDRAILS, resolve_model_config
+from app.agents.preprocess_v0 import GuardrailsDeps, get_guardrails_agent, run_guardrails_agent
 from app.config.settings import get_settings
+from app.llm.model_selection import parse_model_selection
 from app.schemas.preprocess import (
     DetectionResult,
     PreprocessRequestMeta,
@@ -22,25 +23,34 @@ from app.workflow.preprocess_helpers import (
 from app.workflow.preprocess_state import PreprocessState
 from app.workflow.tracing import build_llm_trace_metadata, build_usage_metadata, infer_model_provider
 
-
 PREPROCESS_TRACE_SCOPE = "preprocess_local_debug"
 PREPROCESS_SAMPLE_BUCKET = "ad_hoc_local"
 
 
-def build_guardrails_trace_metadata(state: PreprocessState, detection: DetectionResult) -> dict[str, object]:
-    """构建 guardrails llm 子 span 的最小 metadata。"""
+def _config_model_selection(config: RunnableConfig | None):
+    configurable = (config or {}).get("configurable", {})
+    return parse_model_selection(configurable.get("model_selection"))
+
+
+def build_guardrails_trace_metadata(
+    state: PreprocessState,
+    detection: DetectionResult,
+    selection=None,
+) -> dict[str, object]:
     settings = get_settings()
+    model_config = resolve_model_config(settings, MODEL_ROUTE_PREPROCESS_GUARDRAILS, selection)
     return build_llm_trace_metadata(
         workflow_version="preprocess_v0",
         request_id=state["request_id"],
         profile_key=state["payload"].profile_key,
         source_type=state["payload"].source_type,
         trace_scope=PREPROCESS_TRACE_SCOPE,
-        model_name=settings.guardrails_model_name or "unconfigured",
-        model_provider=infer_model_provider(settings.guardrails_base_url),
+        model_name=model_config.model_name if model_config else "unconfigured",
+        model_provider=infer_model_provider(model_config.base_url if model_config else "http://localhost"),
         extra={
             "sample_bucket": PREPROCESS_SAMPLE_BUCKET,
             "node": "preprocess_guardrails",
+            "model_profile": model_config.profile_name if model_config else "unconfigured",
             "text_type_predicted": detection.text_type.predicted_type,
         },
     )
@@ -52,13 +62,9 @@ async def run_guardrails_llm(
     clean_text: str,
     deps: GuardrailsDeps,
     metadata: dict[str, object],
+    model_selection=None,
 ):
-    """在 LangGraph trace 下创建 llm 子 span。"""
-    agent = get_guardrails_agent()
-    if agent is None:
-        raise RuntimeError("Guardrails agent is not configured.")
-
-    result = await agent.run(clean_text, deps=deps)
+    result = await run_guardrails_agent(clean_text, deps, model_selection=model_selection)
     current_run = get_current_run_tree()
     if current_run is not None:
         current_run.set(
@@ -85,13 +91,12 @@ async def detect_node(state: PreprocessState) -> PreprocessState:
     return {"detection": DetectionResult(language=language, text_type=text_type, noise=noise)}
 
 
-async def guardrails_node(state: PreprocessState) -> PreprocessState:
+async def guardrails_node(state: PreprocessState, config: RunnableConfig | None = None) -> PreprocessState:
     detection = state["detection"]
     segmentation = state["segmentation"]
     payload = state["payload"]
-    agent = get_guardrails_agent()
-
-    if agent is None:
+    model_selection = _config_model_selection(config)
+    if get_guardrails_agent() is None:
         return {"assessment": build_fallback_assessment(detection)}
 
     deps = GuardrailsDeps(
@@ -110,7 +115,8 @@ async def guardrails_node(state: PreprocessState) -> PreprocessState:
         assessment = await run_guardrails_llm(
             clean_text=state["normalized"].clean_text,
             deps=deps,
-            metadata=build_guardrails_trace_metadata(state, detection),
+            metadata=build_guardrails_trace_metadata(state, detection, model_selection),
+            model_selection=model_selection,
         )
         return {"assessment": assessment}
     except Exception:

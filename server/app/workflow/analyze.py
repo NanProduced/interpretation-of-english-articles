@@ -9,6 +9,14 @@ from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
 
+from app.agents.model_factory import (
+    MODEL_ROUTE_ANALYSIS_CORE,
+    MODEL_ROUTE_ANALYSIS_TRANSLATION,
+    MODEL_ROUTE_PREPROCESS_GUARDRAILS,
+    validate_model_selection,
+)
+from app.config.settings import get_settings
+from app.llm.model_selection import parse_model_selection
 from app.schemas.analysis import AnalysisResult, AnalyzeRequest
 from app.workflow.analyze_nodes import (
     core_node,
@@ -70,11 +78,24 @@ async def run_analyze_v0(payload: AnalyzeRequest) -> AnalysisResult:
     graph = build_analyze_graph()
     request_id = payload.request_id or str(uuid4())
     normalized_payload = payload if payload.request_id else payload.model_copy(update={"request_id": request_id})
+    model_selection = parse_model_selection(normalized_payload.model_selection)
+    validate_model_selection(
+        get_settings(),
+        model_selection,
+        (
+            MODEL_ROUTE_PREPROCESS_GUARDRAILS,
+            MODEL_ROUTE_ANALYSIS_CORE,
+            MODEL_ROUTE_ANALYSIS_TRANSLATION,
+        ),
+    )
     result = await graph.ainvoke(
         {"payload": normalized_payload},
         config={
             "run_name": ANALYZE_WORKFLOW_VERSION,
             "tags": build_workflow_root_tags(ANALYZE_WORKFLOW_VERSION),
+            "configurable": {
+                "model_selection": model_selection.model_dump(exclude_none=True) if model_selection else None,
+            },
             "metadata": build_workflow_root_metadata(
                 workflow_version=ANALYZE_WORKFLOW_VERSION,
                 schema_version=ANALYZE_SCHEMA_VERSION,
@@ -83,7 +104,11 @@ async def run_analyze_v0(payload: AnalyzeRequest) -> AnalysisResult:
                 source_type=normalized_payload.source_type,
                 trace_scope=ANALYZE_TRACE_SCOPE,
                 sample_bucket=ANALYZE_SAMPLE_BUCKET,
-                extra={"discourse_enabled": normalized_payload.discourse_enabled},
+                extra={
+                    "discourse_enabled": normalized_payload.discourse_enabled,
+                    "model_preset": model_selection.preset if model_selection else None,
+                    "runtime_model_selection": bool(model_selection),
+                },
             ),
         },
     )

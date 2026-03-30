@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.llm.model_selection import ModelSelection
 from app.schemas.preprocess import TextSpan
 
 
@@ -16,6 +17,7 @@ class AnalyzeRequest(BaseModel):
     source_type: Literal["user_input", "daily_article", "ocr"] = "user_input"
     request_id: str | None = None
     discourse_enabled: bool = False
+    model_selection: ModelSelection | None = None
 
 
 class AnalyzeRequestMeta(BaseModel):

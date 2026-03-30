@@ -5,14 +5,14 @@ from functools import lru_cache
 
 from pydantic_ai import Agent, RunContext
 
+from app.agents.model_factory import MODEL_ROUTE_PREPROCESS_GUARDRAILS, build_model_for_route
 from app.config.settings import get_settings
-from app.agents.model_factory import build_guardrails_model
+from app.llm.model_selection import ModelSelection
 from app.schemas.preprocess import GuardrailsAssessment
 
 
 @dataclass
 class GuardrailsDeps:
-    # 这一层只保留 guardrails 判定真正依赖的上下文，避免把整份复杂状态直接塞进 Prompt。
     profile_key: str
     paragraph_count: int
     sentence_count: int
@@ -22,11 +22,6 @@ class GuardrailsDeps:
     has_html: bool
     has_code_like_content: bool
     appears_truncated: bool
-
-
-def _build_model():
-    settings = get_settings()
-    return build_guardrails_model(settings)
 
 
 def _instructions(ctx: RunContext[GuardrailsDeps]) -> str:
@@ -70,20 +65,27 @@ def _instructions(ctx: RunContext[GuardrailsDeps]) -> str:
 
 
 @lru_cache(maxsize=1)
-def get_guardrails_agent() -> Agent[GuardrailsDeps, GuardrailsAssessment] | None:
-    model = _build_model()
-    if model is None:
-        return None
-
-    # Agent 本身只负责“判断是否适合进入后续流程”，不负责完整文章解读。
+def get_guardrails_agent() -> Agent[GuardrailsDeps, GuardrailsAssessment]:
     return Agent[GuardrailsDeps, GuardrailsAssessment](
-        model=model,
+        model=None,
         output_type=GuardrailsAssessment,
         deps_type=GuardrailsDeps,
         instructions=_instructions,
         name="preprocess_guardrails_v0",
         retries=2,
         output_retries=2,
-        # tracing 统一由 LangGraph + LangSmith 手工接管，避免 PydanticAI 自己再起独立 root trace。
         instrument=False,
     )
+
+
+async def run_guardrails_agent(
+    clean_text: str,
+    deps: GuardrailsDeps,
+    model_selection: ModelSelection | None = None,
+):
+    agent = get_guardrails_agent()
+    model, _ = build_model_for_route(get_settings(), MODEL_ROUTE_PREPROCESS_GUARDRAILS, model_selection)
+    if model is None:
+        raise RuntimeError("guardrails model is not configured")
+
+    return await agent.run(clean_text, deps=deps, model=model)

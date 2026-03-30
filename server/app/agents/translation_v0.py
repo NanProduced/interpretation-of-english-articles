@@ -6,8 +6,9 @@ from functools import lru_cache
 
 from pydantic_ai import Agent, AgentRunResult, RunContext
 
-from app.agents.model_factory import build_analysis_model
+from app.agents.model_factory import MODEL_ROUTE_ANALYSIS_TRANSLATION, build_model_for_route
 from app.config.settings import get_settings
+from app.llm.model_selection import ModelSelection
 from app.schemas.analysis import TranslationAgentOutput
 
 
@@ -43,7 +44,6 @@ Rules:
 
 
 def _prompt(deps: TranslationAgentDeps) -> str:
-    # translation_agent 只关心正文和句子结构，不重复处理 profile 之外的上下文。
     return json.dumps(
         {
             "render_text": deps.render_text,
@@ -54,33 +54,34 @@ def _prompt(deps: TranslationAgentDeps) -> str:
 
 
 @lru_cache(maxsize=1)
-def get_translation_agent() -> Agent[TranslationAgentDeps, TranslationAgentOutput] | None:
-    model = build_analysis_model(get_settings())
-    if model is None:
-        return None
-
-    # 翻译拆成独立 agent，便于后续单独优化 prompt、模型和降级策略。
+def get_translation_agent() -> Agent[TranslationAgentDeps, TranslationAgentOutput]:
     return Agent[TranslationAgentDeps, TranslationAgentOutput](
-        model=model,
+        model=None,
         output_type=TranslationAgentOutput,
         deps_type=TranslationAgentDeps,
         instructions=_instructions,
         name="translation_agent_v0",
         retries=2,
         output_retries=2,
-        # tracing 统一由 workflow 层控制，避免 agent 自己生成并列 root trace。
         instrument=False,
     )
 
 
-async def run_translation_agent_raw(deps: TranslationAgentDeps) -> AgentRunResult[TranslationAgentOutput]:
+async def run_translation_agent_raw(
+    deps: TranslationAgentDeps,
+    model_selection: ModelSelection | None = None,
+) -> AgentRunResult[TranslationAgentOutput]:
     agent = get_translation_agent()
-    if agent is None:
+    model, _ = build_model_for_route(get_settings(), MODEL_ROUTE_ANALYSIS_TRANSLATION, model_selection)
+    if model is None:
         raise RuntimeError("analysis model is not configured")
 
-    return await agent.run(_prompt(deps), deps=deps)
+    return await agent.run(_prompt(deps), deps=deps, model=model)
 
 
-async def run_translation_agent(deps: TranslationAgentDeps) -> TranslationAgentOutput:
-    result = await run_translation_agent_raw(deps)
+async def run_translation_agent(
+    deps: TranslationAgentDeps,
+    model_selection: ModelSelection | None = None,
+) -> TranslationAgentOutput:
+    result = await run_translation_agent_raw(deps, model_selection=model_selection)
     return result.output

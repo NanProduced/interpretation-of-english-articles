@@ -118,3 +118,20 @@ def test_analyze_route_returns_complete_payload_with_fallback(monkeypatch) -> No
     assert any(item["code"] == "TRANSLATION_AGENT_FALLBACK" for item in body["warnings"])
     assert body["annotations"]["grammar"][0]["priority"] in {"core", "expand", "reference"}
     assert isinstance(body["annotations"]["grammar"][0]["default_visible"], bool)
+
+
+def test_analyze_route_rejects_unknown_model_preset() -> None:
+    client = TestClient(app)
+
+    response = client.post(
+        "/analyze",
+        json={
+            "text": "This is a test article.",
+            "profile_key": "exam_cet4",
+            "source_type": "user_input",
+            "model_selection": {"preset": "missing_preset"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert "Unknown model preset" in response.json()["detail"]
