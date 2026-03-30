@@ -1,19 +1,9 @@
 from __future__ import annotations
 
-from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_ai.settings import ModelSettings
 
-MODEL_ROUTE_PREPROCESS_GUARDRAILS = "preprocess_guardrails"
-MODEL_ROUTE_ANALYSIS_CORE = "analysis_core"
-MODEL_ROUTE_ANALYSIS_TRANSLATION = "analysis_translation"
-
-ModelRoute = Literal[
-    "preprocess_guardrails",
-    "analysis_core",
-    "analysis_translation",
-]
+from app.llm.routes import ModelRoute
 
 
 class RunModelSettings(BaseModel):
@@ -31,7 +21,7 @@ class RunModelSettings(BaseModel):
     extra_headers: dict[str, str] | None = None
     extra_body: dict[str, object] | None = None
 
-    def merged_with(self, override: RunModelSettings | None) -> RunModelSettings:
+    def merged_with(self, override: "RunModelSettings | None") -> "RunModelSettings":
         if override is None:
             return self.model_copy(deep=True)
         merged = self.model_dump(exclude_none=True)
@@ -48,13 +38,19 @@ class RunModelSettings(BaseModel):
 class ModelProfileConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    model_name: str = ""
+    provider: str = "openai_compatible"
+    model_name: str
     base_url: str = ""
     api_key: str = ""
     model_settings: RunModelSettings | None = None
+    provider_options: dict[str, object] = Field(default_factory=dict)
 
     def is_configured(self) -> bool:
-        return bool(self.model_name and self.base_url)
+        if not self.model_name:
+            return False
+        if self.provider == "openai_compatible":
+            return bool(self.base_url)
+        return True
 
 
 class RouteModelSelection(BaseModel):
@@ -77,6 +73,30 @@ class ModelPresetConfig(ModelSelection):
     pass
 
 
+class ModelRegistry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    default_profile: str | None = None
+    route_defaults: dict[ModelRoute, str] = Field(default_factory=dict)
+    profiles: dict[str, ModelProfileConfig] = Field(default_factory=dict)
+    presets: dict[str, ModelPresetConfig] = Field(default_factory=dict)
+
+
+class ResolvedModelConfig(BaseModel):
+    route: ModelRoute
+    profile_name: str
+    provider: str
+    model_name: str
+    base_url: str = ""
+    api_key: str = ""
+    provider_options: dict[str, object] = Field(default_factory=dict)
+    fallback_profiles: list[str] = Field(default_factory=list)
+    model_settings: RunModelSettings | None = None
+
+    def cache_key(self) -> str:
+        return self.model_dump_json(exclude_none=True)
+
+
 def parse_model_selection(raw: object) -> ModelSelection | None:
     if raw is None:
         return None
@@ -85,3 +105,4 @@ def parse_model_selection(raw: object) -> ModelSelection | None:
     if isinstance(raw, dict) and not raw:
         return None
     return ModelSelection.model_validate(raw)
+

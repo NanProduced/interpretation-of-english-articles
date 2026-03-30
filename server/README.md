@@ -30,32 +30,61 @@ uv run uvicorn app.main:app --reload
 
 ## 模型配置
 
-当前支持三层模型配置方式：
+当前只保留一套生产化模型配置路径：
 
-- 兼容旧配置：`ANALYSIS_*` / `GUARDRAILS_*`
-- 部署默认路由：`DEFAULT_MODEL_PROFILE` + 节点级 `*_MODEL_PROFILE`
-- 运行时覆盖：请求里的 `model_selection`
+- `MODEL_PROFILES_JSON`
+  声明所有可用 profile。profile 是 provider + model + provider-specific 配置的组合。
+- `DEFAULT_MODEL_PROFILE` 与节点级 `*_MODEL_PROFILE`
+  声明部署默认路由。
+- `MODEL_PRESETS_JSON`
+  声明服务端可复用的命名实验方案。
+- 请求里的 `model_selection`
+  声明单次请求的 runtime override。
 
 当前节点映射：
 
 - `PREPROCESS_MODEL_PROFILE` -> `preprocess_guardrails`
-- `CORE_MODEL_PROFILE` -> `core_agent_v0`
-- `TRANSLATION_MODEL_PROFILE` -> `translation_agent_v0`
+- `CORE_MODEL_PROFILE` -> `analysis_core`
+- `TRANSLATION_MODEL_PROFILE` -> `analysis_translation`
 
-内置了一个便捷 profile：`minimax_m27`。
+profile 示例：
+
+```bash
+MODEL_PROFILES_JSON='{
+  "local_qwen": {
+    "provider": "openai_compatible",
+    "model_name": "Qwen/Qwen3-8B",
+    "base_url": "http://127.0.0.1:8000/v1",
+    "api_key": ""
+  },
+  "minimax_m27": {
+    "provider": "openai_compatible",
+    "model_name": "MiniMax-M2.7",
+    "base_url": "https://api.minimax.io/v1",
+    "api_key": "your-minimax-key"
+  }
+}'
+```
 
 部署默认切换示例：
 
 ```bash
+DEFAULT_MODEL_PROFILE=local_qwen
 CORE_MODEL_PROFILE=minimax_m27
 TRANSLATION_MODEL_PROFILE=minimax_m27
-MINIMAX_M27_API_KEY=your-key
 ```
 
-服务端命名 preset 示例：
+服务端 preset 示例：
 
 ```bash
-MODEL_PRESETS_JSON='{"minimax_eval":{"routes":{"analysis_core":{"profile":"minimax_m27"},"analysis_translation":{"profile":"minimax_m27"}}}}'
+MODEL_PRESETS_JSON='{
+  "minimax_eval": {
+    "routes": {
+      "analysis_core": {"profile": "minimax_m27"},
+      "analysis_translation": {"profile": "minimax_m27"}
+    }
+  }
+}'
 ```
 
 请求级 runtime override 示例：
@@ -81,9 +110,31 @@ MODEL_PRESETS_JSON='{"minimax_eval":{"routes":{"analysis_core":{"profile":"minim
 
 推荐做法：
 
-- env 只负责 secrets、可用 profile 和部署默认值
-- `MODEL_PRESETS_JSON` 负责服务端命名实验方案
-- `model_selection` 负责单次请求的实验、灰度和 case 复盘
+- env 只负责注册 profile 和部署默认值
+- preset 只负责实验方案
+- request 只负责单次 case 的运行时切换
+- 不再使用 legacy `ANALYSIS_*` / `GUARDRAILS_*` 配置
+
+## 目录约定
+
+- `app/config`
+  只放原始配置读取
+- `app/llm`
+  负责 profile registry、route resolution、provider factory、agent runtime injection
+- `app/agents`
+  只放 agent blueprint
+- `app/services`
+  放纯业务逻辑和 agent runner
+- `app/workflow`
+  只做 LangGraph 编排与 tracing
+- `app/schemas/common.py`
+  放共享值对象
+- `app/schemas/internal`
+  放内部 DTO
+- `app/schemas/analysis.py` / `app/schemas/preprocess.py`
+  放对外 API schema
+
+详细规范见 `ARCHITECTURE.md`。
 
 ## 当前对外接口
 

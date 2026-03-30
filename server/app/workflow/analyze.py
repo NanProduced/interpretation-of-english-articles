@@ -1,7 +1,4 @@
-"""analyze workflow 入口。
-
-这个文件只保留 graph 装配和对外入口，避免把 helper、node、fallback 和 tracing 细节继续堆在一起。
-"""
+"""analyze workflow 入口。"""
 
 from __future__ import annotations
 
@@ -9,14 +6,15 @@ from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
 
-from app.agents.model_factory import (
+from app.config.settings import get_settings
+from app.llm.router import validate_model_selection
+from app.llm.routes import (
     MODEL_ROUTE_ANALYSIS_CORE,
     MODEL_ROUTE_ANALYSIS_TRANSLATION,
     MODEL_ROUTE_PREPROCESS_GUARDRAILS,
-    validate_model_selection,
 )
-from app.config.settings import get_settings
-from app.llm.model_selection import parse_model_selection
+from app.llm.runtime import dump_model_selection
+from app.llm.types import parse_model_selection
 from app.schemas.analysis import AnalysisResult, AnalyzeRequest
 from app.workflow.analyze_nodes import (
     core_node,
@@ -33,7 +31,6 @@ from app.workflow.analyze_nodes import (
 from app.workflow.analyze_state import AnalyzeState
 from app.workflow.tracing import build_workflow_root_metadata, build_workflow_root_tags
 
-
 ANALYZE_SCHEMA_VERSION = "0.1.0"
 ANALYZE_WORKFLOW_VERSION = "analyze_v0"
 ANALYZE_TRACE_SCOPE = "analyze_local_debug"
@@ -41,7 +38,6 @@ ANALYZE_SAMPLE_BUCKET = "ad_hoc_local"
 
 
 def build_analyze_graph():
-    """构建 analyze v0 的 LangGraph。"""
     graph = StateGraph(AnalyzeState)
     graph.add_node("preprocess", preprocess_node)
     graph.add_node("router", router_node)
@@ -74,7 +70,6 @@ def build_analyze_graph():
 
 
 async def run_analyze_v0(payload: AnalyzeRequest) -> AnalysisResult:
-    """执行 analyze v0，并使用和 preprocess 一致的顶层 tracing 规范。"""
     graph = build_analyze_graph()
     request_id = payload.request_id or str(uuid4())
     normalized_payload = payload if payload.request_id else payload.model_copy(update={"request_id": request_id})
@@ -94,7 +89,7 @@ async def run_analyze_v0(payload: AnalyzeRequest) -> AnalysisResult:
             "run_name": ANALYZE_WORKFLOW_VERSION,
             "tags": build_workflow_root_tags(ANALYZE_WORKFLOW_VERSION),
             "configurable": {
-                "model_selection": model_selection.model_dump(exclude_none=True) if model_selection else None,
+                "model_selection": dump_model_selection(model_selection),
             },
             "metadata": build_workflow_root_metadata(
                 workflow_version=ANALYZE_WORKFLOW_VERSION,

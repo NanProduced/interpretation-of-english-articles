@@ -4,12 +4,9 @@ import json
 from dataclasses import dataclass
 from functools import lru_cache
 
-from pydantic_ai import Agent, AgentRunResult, RunContext
+from pydantic_ai import Agent, RunContext
 
-from app.agents.model_factory import MODEL_ROUTE_ANALYSIS_CORE, build_model_for_route
-from app.config.settings import get_settings
-from app.llm.model_selection import ModelSelection
-from app.schemas.analysis import CoreAgentOutput
+from app.schemas.internal.analysis import CoreAgentOutput
 
 
 @dataclass
@@ -60,9 +57,12 @@ def _prompt(deps: CoreAgentDeps) -> str:
     )
 
 
+def build_core_prompt(deps: CoreAgentDeps) -> str:
+    return _prompt(deps)
+
+
 @lru_cache(maxsize=1)
 def get_core_agent() -> Agent[CoreAgentDeps, CoreAgentOutput]:
-    # Agent 蓝图与模型解耦，真正的模型在 run 时按当前请求路由注入。
     return Agent[CoreAgentDeps, CoreAgentOutput](
         model=None,
         output_type=CoreAgentOutput,
@@ -73,20 +73,3 @@ def get_core_agent() -> Agent[CoreAgentDeps, CoreAgentOutput]:
         output_retries=2,
         instrument=False,
     )
-
-
-async def run_core_agent_raw(
-    deps: CoreAgentDeps,
-    model_selection: ModelSelection | None = None,
-) -> AgentRunResult[CoreAgentOutput]:
-    agent = get_core_agent()
-    model, _ = build_model_for_route(get_settings(), MODEL_ROUTE_ANALYSIS_CORE, model_selection)
-    if model is None:
-        raise RuntimeError("analysis model is not configured")
-
-    return await agent.run(_prompt(deps), deps=deps, model=model)
-
-
-async def run_core_agent(deps: CoreAgentDeps, model_selection: ModelSelection | None = None) -> CoreAgentOutput:
-    result = await run_core_agent_raw(deps, model_selection=model_selection)
-    return result.output

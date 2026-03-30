@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from app.agents.model_factory import ModelSelectionError
+from app.llm.router import ModelSelectionError
 from app.schemas.analysis import AnalyzeRequest, AnalysisResult
 from app.workflow.analyze import run_analyze_v0
 

@@ -4,15 +4,12 @@ from typing import Literal
 from langchain_core.runnables import RunnableConfig
 from langsmith import get_current_run_tree, traceable
 
-from app.agents.core_v0 import CoreAgentDeps, run_core_agent_raw
-from app.agents.model_factory import (
-    MODEL_ROUTE_ANALYSIS_CORE,
-    MODEL_ROUTE_ANALYSIS_TRANSLATION,
-    resolve_model_config,
-)
-from app.agents.translation_v0 import TranslationAgentDeps, run_translation_agent_raw
+from app.agents.core_v0 import CoreAgentDeps
+from app.agents.translation_v0 import TranslationAgentDeps
 from app.config.settings import get_settings
-from app.llm.model_selection import parse_model_selection
+from app.llm.router import resolve_model_config
+from app.llm.routes import MODEL_ROUTE_ANALYSIS_CORE, MODEL_ROUTE_ANALYSIS_TRANSLATION
+from app.llm.runtime import get_model_selection
 from app.schemas.analysis import (
     AnalysisAnnotations,
     AnalysisMetrics,
@@ -21,21 +18,17 @@ from app.schemas.analysis import (
     AnalysisTranslations,
     AnalysisWarning,
     AnalyzeRequestMeta,
-    CoreAgentOutput,
-    TranslationAgentOutput,
 )
+from app.schemas.internal.analysis import CoreAgentOutput, TranslationAgentOutput
 from app.schemas.preprocess import PreprocessAnalyzeRequest
-from app.workflow.analyze_helpers import (
-    build_article,
-    build_merged_result,
-    default_visible_by_priority,
-    fallback_core,
-    fallback_translation,
-    priority_by_profile,
-)
+from app.services.analysis.article import build_article
+from app.services.analysis.fallbacks import fallback_core, fallback_translation
+from app.services.analysis.policy import default_visible_by_priority, priority_by_profile
+from app.services.analysis.result_builder import build_merged_result
+from app.services.analysis.runners import run_core_agent_raw, run_translation_agent_raw
 from app.workflow.analyze_state import AnalyzeState
 from app.workflow.preprocess import run_preprocess_v0
-from app.workflow.tracing import build_llm_trace_metadata, build_usage_metadata, infer_model_provider
+from app.workflow.tracing import build_llm_trace_metadata, build_usage_metadata
 
 logger = logging.getLogger(__name__)
 ANALYZE_WORKFLOW_VERSION = "analyze_v0"
@@ -43,8 +36,7 @@ ANALYZE_TRACE_SCOPE = "analyze_local_debug"
 
 
 def _config_model_selection(config: RunnableConfig | None):
-    configurable = (config or {}).get("configurable", {})
-    return parse_model_selection(configurable.get("model_selection"))
+    return get_model_selection(config)
 
 
 async def preprocess_node(state: AnalyzeState, config: RunnableConfig | None = None) -> AnalyzeState:
@@ -105,7 +97,7 @@ def build_core_trace_metadata(
         source_type=state["payload"].source_type,
         trace_scope=ANALYZE_TRACE_SCOPE,
         model_name=model_config.model_name if model_config else "unconfigured",
-        model_provider=infer_model_provider(model_config.base_url if model_config else "http://localhost"),
+        model_provider=model_config.provider if model_config else "unconfigured",
         extra={
             "node": "core_agent_v0",
             "model_profile": model_config.profile_name if model_config else "unconfigured",
@@ -125,7 +117,7 @@ def build_translation_trace_metadata(state: AnalyzeState, selection=None) -> dic
         source_type=state["payload"].source_type,
         trace_scope=ANALYZE_TRACE_SCOPE,
         model_name=model_config.model_name if model_config else "unconfigured",
-        model_provider=infer_model_provider(model_config.base_url if model_config else "http://localhost"),
+        model_provider=model_config.provider if model_config else "unconfigured",
         extra={
             "node": "translation_agent_v0",
             "model_profile": model_config.profile_name if model_config else "unconfigured",
@@ -197,7 +189,7 @@ async def core_node(state: AnalyzeState, config: RunnableConfig | None = None) -
             }
         )
         return {
-            "core_output": fallback_core(preprocess, payload.profile_key),
+            "core_output": fallback_core(preprocess),
             "warnings": warnings,
             "status": status,
         }

@@ -4,12 +4,9 @@ import json
 from dataclasses import dataclass
 from functools import lru_cache
 
-from pydantic_ai import Agent, AgentRunResult, RunContext
+from pydantic_ai import Agent, RunContext
 
-from app.agents.model_factory import MODEL_ROUTE_ANALYSIS_TRANSLATION, build_model_for_route
-from app.config.settings import get_settings
-from app.llm.model_selection import ModelSelection
-from app.schemas.analysis import TranslationAgentOutput
+from app.schemas.internal.analysis import TranslationAgentOutput
 
 
 @dataclass
@@ -53,6 +50,10 @@ def _prompt(deps: TranslationAgentDeps) -> str:
     )
 
 
+def build_translation_prompt(deps: TranslationAgentDeps) -> str:
+    return _prompt(deps)
+
+
 @lru_cache(maxsize=1)
 def get_translation_agent() -> Agent[TranslationAgentDeps, TranslationAgentOutput]:
     return Agent[TranslationAgentDeps, TranslationAgentOutput](
@@ -65,23 +66,3 @@ def get_translation_agent() -> Agent[TranslationAgentDeps, TranslationAgentOutpu
         output_retries=2,
         instrument=False,
     )
-
-
-async def run_translation_agent_raw(
-    deps: TranslationAgentDeps,
-    model_selection: ModelSelection | None = None,
-) -> AgentRunResult[TranslationAgentOutput]:
-    agent = get_translation_agent()
-    model, _ = build_model_for_route(get_settings(), MODEL_ROUTE_ANALYSIS_TRANSLATION, model_selection)
-    if model is None:
-        raise RuntimeError("analysis model is not configured")
-
-    return await agent.run(_prompt(deps), deps=deps, model=model)
-
-
-async def run_translation_agent(
-    deps: TranslationAgentDeps,
-    model_selection: ModelSelection | None = None,
-) -> TranslationAgentOutput:
-    result = await run_translation_agent_raw(deps, model_selection=model_selection)
-    return result.output

@@ -5,9 +5,6 @@ from functools import lru_cache
 
 from pydantic_ai import Agent, RunContext
 
-from app.agents.model_factory import MODEL_ROUTE_PREPROCESS_GUARDRAILS, build_model_for_route
-from app.config.settings import get_settings
-from app.llm.model_selection import ModelSelection
 from app.schemas.preprocess import GuardrailsAssessment
 
 
@@ -76,16 +73,3 @@ def get_guardrails_agent() -> Agent[GuardrailsDeps, GuardrailsAssessment]:
         output_retries=2,
         instrument=False,
     )
-
-
-async def run_guardrails_agent(
-    clean_text: str,
-    deps: GuardrailsDeps,
-    model_selection: ModelSelection | None = None,
-):
-    agent = get_guardrails_agent()
-    model, _ = build_model_for_route(get_settings(), MODEL_ROUTE_PREPROCESS_GUARDRAILS, model_selection)
-    if model is None:
-        raise RuntimeError("guardrails model is not configured")
-
-    return await agent.run(clean_text, deps=deps, model=model)

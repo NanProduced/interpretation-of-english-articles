@@ -1,12 +1,4 @@
-"""preprocess workflow 入口。
-
-这个文件只负责：
-- 暴露测试和其他模块需要复用的公共函数
-- 组装 LangGraph
-- 提供 `run_preprocess_v0` 入口
-
-节点实现、纯文本处理和 tracing 细节已经拆到独立模块，避免继续堆在一个文件里。
-"""
+"""preprocess workflow 入口。"""
 
 from __future__ import annotations
 
@@ -14,19 +6,16 @@ from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
 
-from app.agents.model_factory import MODEL_ROUTE_PREPROCESS_GUARDRAILS, validate_model_selection
 from app.config.settings import get_settings
-from app.llm.model_selection import ModelSelection, parse_model_selection
+from app.llm.router import validate_model_selection
+from app.llm.routes import MODEL_ROUTE_PREPROCESS_GUARDRAILS
+from app.llm.runtime import dump_model_selection
+from app.llm.types import ModelSelection, parse_model_selection
 from app.schemas.preprocess import PreprocessAnalyzeRequest, PreprocessResult
-from app.workflow.preprocess_helpers import (
-    build_fallback_assessment,
-    detect_language,
-    detect_noise,
-    detect_text_type,
-    normalize_text,
-    segment_text,
-    split_sentences,
-)
+from app.services.preprocess.detection import detect_language, detect_noise, detect_text_type
+from app.services.preprocess.fallbacks import build_fallback_assessment
+from app.services.preprocess.normalize import normalize_text
+from app.services.preprocess.segmentation import segment_text, split_sentences
 from app.workflow.preprocess_nodes import (
     PREPROCESS_SAMPLE_BUCKET,
     PREPROCESS_TRACE_SCOPE,
@@ -39,8 +28,6 @@ from app.workflow.preprocess_nodes import (
 )
 from app.workflow.preprocess_state import PreprocessState
 from app.workflow.tracing import build_workflow_root_metadata, build_workflow_root_tags
-from app.agents.preprocess_v0 import get_guardrails_agent
-
 
 PREPROCESS_SCHEMA_VERSION = "0.1.0"
 PREPROCESS_WORKFLOW_VERSION = "preprocess_v0"
@@ -48,7 +35,6 @@ _build_guardrails_trace_metadata = build_guardrails_trace_metadata
 
 
 def build_preprocess_graph():
-    """构建 preprocess v0 的 LangGraph。"""
     graph = StateGraph(PreprocessState)
     graph.add_node("normalize", normalize_node)
     graph.add_node("segment", segment_node)
@@ -69,7 +55,6 @@ async def run_preprocess_v0(
     payload: PreprocessAnalyzeRequest,
     model_selection: ModelSelection | None = None,
 ) -> PreprocessResult:
-    """执行 preprocess v0，并为 LangSmith 建立统一的顶层 trace。"""
     graph = build_preprocess_graph()
     request_id = payload.request_id or str(uuid4())
     normalized_payload = payload if payload.request_id else payload.model_copy(update={"request_id": request_id})
@@ -89,7 +74,7 @@ async def run_preprocess_v0(
             "run_name": PREPROCESS_WORKFLOW_VERSION,
             "tags": build_workflow_root_tags(PREPROCESS_WORKFLOW_VERSION),
             "configurable": {
-                "model_selection": normalized_selection.model_dump(exclude_none=True) if normalized_selection else None,
+                "model_selection": dump_model_selection(normalized_selection),
             },
             "metadata": build_workflow_root_metadata(
                 workflow_version=PREPROCESS_WORKFLOW_VERSION,
@@ -122,7 +107,6 @@ __all__ = [
     "detect_language",
     "detect_noise",
     "detect_text_type",
-    "get_guardrails_agent",
     "normalize_text",
     "run_preprocess_v0",
     "segment_text",

@@ -1,35 +1,32 @@
 from langchain_core.runnables import RunnableConfig
 from langsmith import get_current_run_tree, traceable
 
-from app.agents.model_factory import MODEL_ROUTE_PREPROCESS_GUARDRAILS, resolve_model_config
-from app.agents.preprocess_v0 import GuardrailsDeps, get_guardrails_agent, run_guardrails_agent
+from app.agents.preprocess_v0 import GuardrailsDeps
 from app.config.settings import get_settings
-from app.llm.model_selection import parse_model_selection
+from app.llm.router import resolve_model_config
+from app.llm.routes import MODEL_ROUTE_PREPROCESS_GUARDRAILS
+from app.llm.runtime import get_model_selection
 from app.schemas.preprocess import (
     DetectionResult,
     PreprocessRequestMeta,
     PreprocessResult,
     PreprocessWarning,
 )
-from app.workflow.preprocess_helpers import (
-    build_fallback_assessment,
-    detect_language,
-    detect_noise,
-    detect_text_type,
-    hydrate_issues,
-    normalize_text,
-    segment_text,
-)
+from app.services.preprocess.detection import detect_language, detect_noise, detect_text_type
+from app.services.preprocess.fallbacks import build_fallback_assessment
+from app.services.preprocess.issues import hydrate_issues
+from app.services.preprocess.normalize import normalize_text
+from app.services.preprocess.runners import run_guardrails_agent
+from app.services.preprocess.segmentation import segment_text
 from app.workflow.preprocess_state import PreprocessState
-from app.workflow.tracing import build_llm_trace_metadata, build_usage_metadata, infer_model_provider
+from app.workflow.tracing import build_llm_trace_metadata, build_usage_metadata
 
 PREPROCESS_TRACE_SCOPE = "preprocess_local_debug"
 PREPROCESS_SAMPLE_BUCKET = "ad_hoc_local"
 
 
 def _config_model_selection(config: RunnableConfig | None):
-    configurable = (config or {}).get("configurable", {})
-    return parse_model_selection(configurable.get("model_selection"))
+    return get_model_selection(config)
 
 
 def build_guardrails_trace_metadata(
@@ -46,7 +43,7 @@ def build_guardrails_trace_metadata(
         source_type=state["payload"].source_type,
         trace_scope=PREPROCESS_TRACE_SCOPE,
         model_name=model_config.model_name if model_config else "unconfigured",
-        model_provider=infer_model_provider(model_config.base_url if model_config else "http://localhost"),
+        model_provider=model_config.provider if model_config else "unconfigured",
         extra={
             "sample_bucket": PREPROCESS_SAMPLE_BUCKET,
             "node": "preprocess_guardrails",
@@ -96,7 +93,7 @@ async def guardrails_node(state: PreprocessState, config: RunnableConfig | None 
     segmentation = state["segmentation"]
     payload = state["payload"]
     model_selection = _config_model_selection(config)
-    if get_guardrails_agent() is None:
+    if resolve_model_config(get_settings(), MODEL_ROUTE_PREPROCESS_GUARDRAILS, model_selection) is None:
         return {"assessment": build_fallback_assessment(detection)}
 
     deps = GuardrailsDeps(

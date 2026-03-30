@@ -39,17 +39,6 @@ def build_workflow_root_metadata(
         metadata.update(extra)
     return {key: value for key, value in metadata.items() if value is not None}
 
-
-def infer_model_provider(base_url: str) -> str:
-    """根据模型网关地址推断 provider 类型。"""
-    normalized = base_url.strip().lower()
-    if "minimax" in normalized or "minimax.io" in normalized:
-        return "minimax"
-    if normalized.startswith("http://127.0.0.1") or normalized.startswith("http://localhost"):
-        return "local_vllm"
-    return "openai_compatible"
-
-
 def build_llm_trace_metadata(
     *,
     workflow_version: str,

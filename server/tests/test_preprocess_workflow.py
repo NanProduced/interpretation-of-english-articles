@@ -44,7 +44,7 @@ def test_detect_helpers_flag_noise_and_language() -> None:
 
 
 def test_run_preprocess_v0_returns_fallback_output(monkeypatch) -> None:
-    monkeypatch.setattr(preprocess_nodes, "get_guardrails_agent", lambda: None)
+    monkeypatch.setattr(preprocess_nodes, "resolve_model_config", lambda *args, **kwargs: None)
     payload = PreprocessAnalyzeRequest(
         text="<div>This is a test article. It has HTML noise.</div>",
         profile_key="exam_cet4",

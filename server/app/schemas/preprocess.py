@@ -3,7 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.llm.model_selection import ModelSelection
+from app.llm.types import ModelSelection
+from app.schemas.common import TextSpan
 
 PREPROCESS_SCHEMA_VERSION = "0.1.0"
 
@@ -24,11 +25,6 @@ class RoutingDecisionType(str, Enum):
     FULL = "full"
     DEGRADED = "degraded"
     REJECT = "reject"
-
-
-class TextSpan(BaseModel):
-    start: int = Field(ge=0)
-    end: int = Field(gt=0)
 
 
 class PreprocessRequestMeta(BaseModel):
