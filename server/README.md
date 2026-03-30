@@ -30,103 +30,20 @@ uv run uvicorn app.main:app --reload
 
 ## 模型配置
 
-当前只保留一套生产化模型配置路径：
+详细说明见 [模型配置教程](../docs/operations/model-configuration-usage.md)。
 
-- `MODEL_PROFILES_JSON`
-  声明所有可用 profile。profile 是 provider + model + provider-specific 配置的组合。
-- `DEFAULT_MODEL_PROFILE` 与节点级 `*_MODEL_PROFILE`
-  声明部署默认路由。
-- `MODEL_PRESETS_JSON`
-  声明服务端可复用的命名实验方案。
-- 请求里的 `model_selection`
-  声明单次请求的 runtime override。
+核心概念：
 
-当前节点映射：
+- `MODEL_PROFILES_JSON` - 声明所有可用 profile
+- `DEFAULT_MODEL_PROFILE` / `*_MODEL_PROFILE` - 声明部署默认路由
+- `MODEL_PRESETS_JSON` - 声明服务端可复用的命名实验方案
+- 请求里的 `model_selection` - 声明单次请求的 runtime override
+
+节点映射：
 
 - `PREPROCESS_MODEL_PROFILE` -> `preprocess_guardrails`
 - `CORE_MODEL_PROFILE` -> `analysis_core`
 - `TRANSLATION_MODEL_PROFILE` -> `analysis_translation`
-
-### 配置方式
-
-支持两种配置方式：
-
-#### 方式一：外部 JSON 文件（推荐）
-
-创建 `config/model-profiles.json`：
-
-```json
-{
-  "local_qwen": {
-    "provider": "openai_compatible",
-    "model_name": "Qwen/Qwen3-8B",
-    "base_url": "http://127.0.0.1:8000/v1",
-    "api_key": ""
-  },
-  "minimax_m27": {
-    "provider": "openai_compatible",
-    "model_name": "MiniMax-M2.7",
-    "base_url": "https://api.minimax.io/v1",
-    "api_key": "your-minimax-key"
-  }
-}
-```
-
-在 `.env` 中引用：
-
-```bash
-MODEL_PROFILES_JSON="config/model-profiles.json"
-```
-
-#### 方式二：内联 JSON
-
-```bash
-MODEL_PROFILES_JSON="{\"local_qwen\":{\"provider\":\"openai_compatible\",\"model_name\":\"Qwen/Qwen3-8B\",\"base_url\":\"http://127.0.0.1:8000/v1\"}}"
-```
-
-详细说明见 [模型配置教程](../docs/operations/model-configuration-usage.md)。
-
-### 部署默认切换示例
-
-```bash
-DEFAULT_MODEL_PROFILE=local_qwen
-CORE_MODEL_PROFILE=minimax_m27
-TRANSLATION_MODEL_PROFILE=minimax_m27
-```
-
-### 服务端 preset 示例
-
-```bash
-MODEL_PRESETS_JSON='{
-  "minimax_eval": {
-    "routes": {
-      "analysis_core": {"profile": "minimax_m27"},
-      "analysis_translation": {"profile": "minimax_m27"}
-    }
-  }
-}'
-```
-
-### 请求级 runtime override 示例
-
-```json
-{
-  "text": "Your article here",
-  "profile_key": "exam_cet4",
-  "model_selection": {
-    "preset": "minimax_eval",
-    "routes": {
-      "analysis_translation": {
-        "profile": "minimax_m27",
-        "model_settings": {
-          "temperature": 0.2,
-          "max_tokens": 4000
-        }
-      }
-    }
-  }
-}
-```
 
 推荐做法：
 
@@ -155,6 +72,76 @@ MODEL_PRESETS_JSON='{
   放对外 API schema
 
 详细规范见 `ARCHITECTURE.md`。
+
+## 命名规范
+
+后端 workflow、schema 与前端渲染契约必须使用统一命名，避免文档、代码和 API 漂移。
+
+### 通用规则
+
+- 版本号不进入业务命名。
+  版本只出现在文档名、trace metadata、变更记录中；不要出现在 node 名、schema 类名、JSON 字段名里。
+- Python 函数、LangGraph node 名、JSON 字段名统一使用 `snake_case`。
+- Pydantic 模型类名使用 `PascalCase`。
+- 动作用动词开头，数据用名词短语。
+- 命名要表达职责，不使用 `data`、`info`、`helper`、`thing` 这类宽泛词。
+
+### Graph / Workflow
+
+- workflow 名使用名词短语，例如：`article_analysis`
+- node 名使用 `verb_object`，例如：
+  - `prepare_input`
+  - `derive_user_rules`
+  - `generate_annotations`
+  - `assemble_result`
+
+不要使用：
+
+- 带版本号的 node 名，例如 `teach_v1`
+- 含糊的 node 名，例如 `merge_node`、`finalize_success_node`
+
+### State / Schema / JSON
+
+- state key 与 JSON 对象使用名词短语，例如：
+  - `preprocess_result`
+  - `user_rules`
+  - `annotation_draft`
+  - `analysis_result`
+- 布尔字段统一使用前缀：
+  - `is_*`
+  - `has_*`
+  - `should_*`
+  - `can_*`
+- 计数字段统一使用 `*_count`
+- 比率字段统一使用 `*_ratio`
+- 分数字段统一使用 `*_score`
+- 时间字段统一使用 `*_ms`
+
+### Span / Anchor
+
+- 坐标空间必须显式命名，不允许长期保留含糊的裸 `span`
+- 推荐字段：
+  - `render_span`
+  - `sentence_span`
+  - `anchor_text`
+  - `anchor_occurrence`
+- `render_text` 是唯一渲染基准文本
+
+### 渲染契约
+
+- 标注主体字段与渲染字段分层命名：
+  - `vocabulary_annotations`
+  - `grammar_annotations`
+  - `sentence_annotations`
+  - `render_marks`
+- 展示相关字段统一使用：
+  - `display_mode`
+  - `display_priority`
+  - `display_group`
+  - `is_default_visible`
+  - `render_index`
+
+当前 workflow 设计以 [Workflow V0 回顾](../docs/workflow/v0/v0-retrospective-report.md) 和 [Workflow V1 设计](../docs/workflow/v1/workflow-v1-design.md) 为准。
 
 ## 当前对外接口
 

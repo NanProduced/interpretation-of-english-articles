@@ -116,10 +116,8 @@
 
 - [文档说明](./docs/README.md)
 - [产品需求摘要](./docs/product/prd-summary.md)
-- [初版用户配置草案 v0.1.0-draft](./docs/product/user-config-v0-draft.md)
-- [Workflow 摘要](./docs/workflow/workflow-overview.md)
-- [输入规范与预处理 Schema 草案 v0.1.0-draft](./docs/workflow/preprocess-schema-v0-draft.md)
-- [输出 Schema 草案 v0.1.0-draft](./docs/workflow/schema-v0-draft.md)
+- [Workflow V0 架构回顾与问题诊断报告](./docs/workflow/v0/v0-retrospective-report.md)
+- [Workflow V1 设计草案](./docs/workflow/v1/workflow-v1-design.md)
 - [微信小程序技术边界](./docs/architecture/mini-program-boundaries.md)
 - [LangSmith 使用规范](./docs/operations/langsmith-usage.md)
 - [模型配置教程](./docs/operations/model-configuration-usage.md)
