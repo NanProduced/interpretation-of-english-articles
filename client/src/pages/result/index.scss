@@ -1,37 +1,147 @@
-.result-container {
-  padding: 32rpx;
-  min-height: 100vh;
+.result-page {
+  --note-yellow: #fef9c3;
+  --note-blue: #e0f2fe;
+  --note-purple: #f3e8ff;
+  --text-primary: #030213;
+  --text-secondary: #717182;
+  --text-translation: #94a3b8;
+  --highlight-color: #854d0e;
+
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  height: 100vh;
   background-color: #fff;
 
-  .loading-state {
-    text-align: center;
-    margin-bottom: 60rpx;
+  .nav-placeholder {
+    flex-shrink: 0;
+  }
 
-    .status-text {
-      display: block;
-      font-size: 34rpx;
-      font-weight: bold;
-      color: #333;
-    }
+  .content-scroll {
+    flex: 1;
+    .article-container {
+      padding: 40rpx 40rpx 200rpx;
+      
+      .article-title {
+        font-size: 48rpx;
+        font-weight: 800;
+        font-family: 'Georgia', serif;
+        margin-bottom: 80rpx;
+        line-height: 1.2;
+        color: var(--text-primary);
+      }
 
-    .tip {
-      display: block;
-      font-size: 26rpx;
-      color: #888;
-      margin-top: 16rpx;
+      .paragraph-block {
+        margin-bottom: 80rpx;
+        position: relative;
+        padding-left: 20rpx;
+        border-left: 4rpx solid #f1f1f1;
+
+        .para-tag {
+          position: absolute;
+          left: -20rpx;
+          top: 0;
+          writing-mode: vertical-lr;
+          font-size: 18rpx;
+          font-weight: bold;
+          color: #cbd5e1;
+          text-transform: uppercase;
+          letter-spacing: 4rpx;
+        }
+      }
+
+      .sentence-unit {
+        margin-bottom: 48rpx;
+        display: flex;
+        flex-direction: column;
+        animation: fadeInUp 0.6s ease-out both;
+
+        .en-line {
+          font-size: 38rpx;
+          line-height: 2.2;
+          color: var(--text-primary);
+          font-family: 'Georgia', serif;
+          word-spacing: 4rpx;
+
+          .word-with-note {
+            display: inline-block;
+            position: relative;
+            margin: 0 4rpx;
+            
+            .ruby-text {
+              position: absolute;
+              bottom: 100%;
+              left: 50%;
+              transform: translateX(-50%);
+              font-size: 20rpx;
+              line-height: 1;
+              color: var(--highlight-color);
+              background-color: var(--note-yellow);
+              padding: 2rpx 8rpx;
+              border-radius: 4rpx;
+              white-space: nowrap;
+              font-family: sans-serif;
+              font-weight: bold;
+              margin-bottom: -16rpx;
+            }
+
+            .surface-text {
+              border-bottom: 4rpx solid var(--note-yellow);
+            }
+          }
+
+          .chunk-main { border-bottom: 4rpx double #3b82f6; }
+          .chunk-clause { border-bottom: 2rpx dashed #a855f7; }
+          .chunk-modifier { border-bottom: 2rpx dotted #cbd5e1; }
+        }
+
+        .zh-line {
+          font-size: 28rpx;
+          color: var(--text-translation);
+          margin-top: 8rpx;
+          padding-left: 4rpx;
+          font-weight: 500;
+          transition: all 0.3s;
+          &.hidden { opacity: 0; height: 0; margin: 0; overflow: hidden; }
+        }
+      }
     }
   }
 
-  .action-bar {
-    .back-btn {
-      font-size: 28rpx;
-      color: #666;
-      background: #f0f0f0;
-      border: none;
+  .minimal-dock {
+    position: fixed;
+    bottom: 48rpx;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(3, 2, 19, 0.9);
+    backdrop-filter: blur(20rpx);
+    padding: 12rpx 32rpx;
+    border-radius: 100rpx;
+    display: flex;
+    align-items: center;
+    gap: 40rpx;
+    box-shadow: 0 20rpx 40rpx rgba(0, 0, 0, 0.2);
+    z-index: 100;
+
+    .dock-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4rpx;
+      
+      .icon { width: 40rpx; height: 40rpx; background-color: #fff; mask-size: contain; mask-repeat: no-repeat; }
+      .label { font-size: 18rpx; color: rgba(255, 255, 255, 0.6); font-weight: bold; }
+      
+      &.active {
+        .icon { background-color: #fbbf24; }
+        .label { color: #fff; }
+      }
     }
+
+    .divider { width: 1rpx; height: 40rpx; background-color: rgba(255, 255, 255, 0.1); }
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30rpx); }
+    to { opacity: 1; transform: translateY(0); }
   }
 }

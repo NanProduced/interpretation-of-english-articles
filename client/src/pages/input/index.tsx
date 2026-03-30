@@ -1,71 +1,110 @@
 import { useState } from 'react'
-import { View, Text, Button, Textarea, Radio, RadioGroup, Label } from '@tarojs/components'
+import { View, Text, Textarea, Switch } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useConfigStore, UserPurpose } from '../../stores/config'
+import { useConfigStore } from '../../stores/config'
 import './index.scss'
 
 export default function InputPage() {
   const [content, setContent] = useState('')
-  const { purpose, setPurpose } = useConfigStore()
+  const [isPaidEnabled, setIsPaidEnabled] = useState(false)
+  const { purpose } = useConfigStore()
 
-  const handlePurposeChange = (e) => {
-    setPurpose(e.detail.value as UserPurpose)
+  // 简单的单词计数（按空格拆分）
+  const wordsCount = content.trim().split(/\s+/).filter(Boolean).length
+
+  const handleBack = () => {
+    Taro.navigateBack()
+  }
+
+  const navigateToProfile = () => {
+    Taro.navigateTo({ url: '/pages/profile/index' })
   }
 
   const handleSubmit = () => {
-    if (!content.trim()) {
-      Taro.showToast({ title: '请输入文章内容', icon: 'none' })
+    if (wordsCount < 10) {
+      Taro.showToast({ title: '最少输入10个单词', icon: 'none' })
       return
     }
-    // 这里未来会调用 API
-    Taro.navigateTo({ url: '/pages/result/index' })
+    Taro.navigateTo({ url: '/pages/result/loading' })
   }
 
-  const purposes: { value: UserPurpose, label: string, desc: string }[] = [
-    { value: 'daily', label: '日常阅读', desc: '提升词汇量，适合新闻、博客' },
-    { value: 'exam', label: '考试备考', desc: '侧重语法和长难句，适合 CET/IELTS' },
-    { value: 'academic', label: '学术/专业', desc: '精准翻译，适合论文、专业文献' }
-  ]
+  // 映射目的到显示文本
+  const purposeMap = {
+    'daily': '日常阅读提升',
+    'exam': 'CET/IELTS 备考',
+    'academic': '学术/专业文献'
+  }
 
   return (
-    <View className='input-container'>
-      <View className='section-header'>
-        <Text className='title'>粘贴文章</Text>
+    <View className='input-page'>
+      {/* Header */}
+      <View className='header-bar'>
+        <View className='back-btn' onClick={handleBack} />
+        <Text className='page-title'>输入文章</Text>
+        <View className='settings-btn' onClick={navigateToProfile} />
       </View>
 
-      <View className='input-area'>
+      {/* Configuration Status */}
+      <View className='config-status' onClick={navigateToProfile}>
+        <View className='status-left'>
+          <View className='sparkle-icon-box'>
+            <View className='sparkle-icon' />
+          </View>
+          <View className='status-info'>
+            <Text className='status-label'>当前解读模式</Text>
+            <Text className='status-value'>{purposeMap[purpose] || '日常阅读'}</Text>
+          </View>
+        </View>
+        <Text className='edit-btn'>修改</Text>
+      </View>
+
+      {/* Input Area */}
+      <View className='scroll-input-area'>
         <Textarea
           className='content-textarea'
-          placeholder='在此粘贴您想要解读的英文文章内容...'
+          placeholder='在此粘贴或输入英文文章内容...'
           maxlength={5000}
           value={content}
           onInput={(e) => setContent(e.detail.value)}
+          autoHeight
         />
-        <Text className='char-count'>{content.length} / 5000</Text>
       </View>
 
-      <View className='section-header'>
-        <Text className='title'>选择阅读目的</Text>
-      </View>
+      {/* Bottom Actions */}
+      <View className='bottom-panel safe-area-bottom'>
+        <View className='paid-toggle'>
+          <View className='toggle-label'>
+            <View className='diamond-icon' />
+            <Text className='toggle-text'>开启深度篇章分析</Text>
+          </View>
+          <Switch 
+            color='#9333ea' 
+            checked={isPaidEnabled} 
+            onChange={(e) => setIsPaidEnabled(e.detail.value)}
+          />
+        </View>
 
-      <RadioGroup className='purpose-group' onChange={handlePurposeChange}>
-        {purposes.map(item => (
-          <Label key={item.value} className='purpose-label'>
-            <View className='purpose-item'>
-              <Radio value={item.value} checked={purpose === item.value} color='#07c160' />
-              <View className='purpose-info'>
-                <Text className='label-text'>{item.label}</Text>
-                <Text className='desc-text'>{item.desc}</Text>
+        <View className='action-row'>
+          <View className='stats-info'>
+            <Text className={`word-count ${wordsCount > 0 ? 'active' : ''}`}>
+              {wordsCount} words
+            </Text>
+            {wordsCount > 0 && wordsCount < 10 && (
+              <View className='error-tip'>
+                <View className='alert-icon' />
+                <Text className='error-text'>最少输入10个单词</Text>
               </View>
-            </View>
-          </Label>
-        ))}
-      </RadioGroup>
+            )}
+          </View>
 
-      <View className='action-footer'>
-        <Button className='submit-btn' onClick={handleSubmit}>
-          开始智能解读
-        </Button>
+          <View 
+            className={`submit-btn ${wordsCount >= 10 ? '' : 'disabled'}`}
+            onClick={handleSubmit}
+          >
+            <Text className='btn-text'>解读</Text>
+            <View className='arrow-icon' />
+          </View>
+        </View>
       </View>
     </View>
   )

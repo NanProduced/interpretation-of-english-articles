@@ -1,4 +1,4 @@
 export default {
-  navigationBarTitleText: '解析结果',
+  navigationBarTitleText: '开始体验',
   navigationStyle: 'custom'
 }
