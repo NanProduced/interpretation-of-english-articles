@@ -41,9 +41,7 @@ uv run uvicorn app.main:app --reload
 
 节点映射：
 
-- `PREPROCESS_MODEL_PROFILE` -> `preprocess_guardrails`
-- `CORE_MODEL_PROFILE` -> `analysis_core`
-- `TRANSLATION_MODEL_PROFILE` -> `analysis_translation`
+- `ANNOTATION_MODEL_PROFILE` -> `annotation_generation`
 
 推荐做法：
 
@@ -68,7 +66,7 @@ uv run uvicorn app.main:app --reload
   放共享值对象
 - `app/schemas/internal`
   放内部 DTO
-- `app/schemas/analysis.py` / `app/schemas/preprocess.py`
+- `app/schemas/analysis.py`
   放对外 API schema
 
 详细规范见 `ARCHITECTURE.md`。
@@ -149,26 +147,25 @@ uv run uvicorn app.main:app --reload
 
 说明：
 
-- `preprocess_v0` 仍然作为内部子 workflow 保留
-- 但它不再单独暴露 API，避免人工调试只盯着 preprocess 结果而忽略整条链路
+- V1 直接升级 `POST /analyze` 的返回结构，不保留旧响应兼容层
+- 结果页主渲染基准是 `render_text`
+- `source_text` 仅用于“查看原文”等非默认展示场景
 
 ## 当前 workflow
 
-`analyze_v0` 主流程：
+`article_analysis` 主流程：
 
-- `preprocess`
-- `router`
-- `core`
-- `translation`
-- `merge`
-- `enrich`
-- `validate`
+- `prepare_input`
+- `derive_user_rules`
+- `generate_annotations`
+- `assemble_result`
 
 其中：
 
-- `preprocess_v0` 是内部子图，负责输入规范化、切分、检测和 guardrails 判断
-- `core_agent_v0` 负责词汇、语法、长难句
-- `translation_agent_v0` 负责逐句翻译、全文翻译和关键短语翻译
+- `prepare_input` 负责输入清洗、分段分句和基础拒绝判断
+- `derive_user_rules` 负责把 `reading_goal + reading_variant` 转成规则包
+- `generate_annotations` 是唯一主教学 LLM 节点，负责词汇、语法、句级讲解与逐句翻译
+- `assemble_result` 负责锚点解析、渲染标记、全文翻译组装和最终结果收敛
 
 ## LangSmith 约定
 
@@ -185,6 +182,6 @@ uv run uvicorn app.main:app --reload
 
 - workflow 编排
 - 模型调用
-- 结构化 JSON 输出
-- 输出校验与降级控制
-- 后续数据持久化与增强能力扩展
+- 教学型结构化输出
+- 本地锚点解析与前端渲染契约生成
+- LangSmith 可观测性与后续增强能力扩展

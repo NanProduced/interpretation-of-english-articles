@@ -9,18 +9,16 @@
 | 组件 | 作用 |
 |------|------|
 | `ModelProfileConfig` | 定义单个模型的配置（provider、model_name、base_url、api_key等） |
-| `ModelPresetConfig` | 定义预设配置，可为不同路由指定不同的 profile |
+| `ModelPresetConfig` | 定义预设配置，可为路由指定 profile |
 | `ModelRegistry` | 注册表，管理所有 profiles 和 presets |
 
 ### 模型路由
 
-系统定义了三个路由：
+当前 V1 主链路只定义一个路由：
 
 | 路由 | 用途 |
 |------|------|
-| `preprocess_guardrails` | 预处理守护 rails |
-| `analysis_core` | 核心分析 |
-| `analysis_translation` | 翻译 |
+| `annotation_generation` | 主教学标注 |
 
 ### 配置优先级
 
@@ -92,10 +90,8 @@ MODEL_PROFILES_JSON="{\"minimax_m27\":{\"provider\":\"openai_compatible\",\"mode
 # 设置全局默认模型
 DEFAULT_MODEL_PROFILE="minimax_m27"
 
-# 也可以为不同路由设置不同默认模型
-PREPROCESS_MODEL_PROFILE="vllm-qwen3-8b"
-CORE_MODEL_PROFILE="minimax_m27"
-TRANSLATION_MODEL_PROFILE="minimax_m27"
+# 为主教学标注节点设置默认模型
+ANNOTATION_MODEL_PROFILE="minimax_m27"
 ```
 
 ---
@@ -122,8 +118,7 @@ TRANSLATION_MODEL_PROFILE="minimax_m27"
   "text": "Your English article...",
   "model_selection": {
     "routes": {
-      "analysis_core": {"profile": "local_qwen"},
-      "analysis_translation": {"profile": "minimax_m27"}
+      "annotation_generation": {"profile": "local_qwen"}
     }
   }
 }
@@ -140,7 +135,7 @@ TRANSLATION_MODEL_PROFILE="minimax_m27"
 }
 ```
 
-#### 方式4：组合使用（preset + 特定路由覆盖）
+#### 方式4：组合使用（preset + 路由覆盖）
 
 ```json
 {
@@ -148,7 +143,7 @@ TRANSLATION_MODEL_PROFILE="minimax_m27"
   "model_selection": {
     "preset": "minimax_eval",
     "routes": {
-      "analysis_translation": {"profile": "local_qwen"}
+      "annotation_generation": {"profile": "local_qwen"}
     }
   }
 }
@@ -163,7 +158,7 @@ TRANSLATION_MODEL_PROFILE="minimax_m27"
   "text": "Your English article...",
   "model_selection": {
     "routes": {
-      "analysis_core": {
+      "annotation_generation": {
         "profile": "local_qwen",
         "fallback_profiles": ["minimax_m27"]
       }

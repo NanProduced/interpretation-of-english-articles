@@ -16,9 +16,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     log_level: str = "INFO"
     default_model_profile: str = ""
-    preprocess_model_profile: str = ""
-    core_model_profile: str = ""
-    translation_model_profile: str = ""
+    annotation_model_profile: str = ""
     model_profiles_json: str = ""
     model_presets_json: str = ""
     langsmith_enabled: bool = False

@@ -12,15 +12,15 @@
   负责把 provider 配置构造成具体 SDK model。
 - `app/agents/`
   只定义 agent blueprint、deps、prompt，不做模型选择和运行封装。
-- `app/services/analysis` / `app/services/preprocess`
-  负责纯业务逻辑和 agent 执行封装。
+- `app/services/analysis`
+  负责输入清洗、用户规则映射、锚点解析、结果组装和 agent 执行封装。
 - `app/workflow/`
   只负责编排、节点状态流转、trace metadata。
 - `app/schemas/common.py`
   放共享值对象，例如 `TextSpan`。
 - `app/schemas/internal/`
   放 agent 与 node 之间的内部 DTO。
-- `app/schemas/analysis.py` / `app/schemas/preprocess.py`
+- `app/schemas/analysis.py`
   放对外 API schema。
 
 ## 设计规则

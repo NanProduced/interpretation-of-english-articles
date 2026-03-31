@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 
 from app.config.settings import Settings
@@ -7,6 +8,7 @@ from app.llm.provider_factory import build_model_instance
 from app.llm.registry import build_model_registry
 from app.llm.routes import ModelRoute
 from app.llm.types import (
+    ModelPresetConfig,
     ModelRegistry,
     ModelSelection,
     ResolvedModelConfig,
@@ -19,7 +21,10 @@ class ModelSelectionError(ValueError):
     """Raised when runtime routing references an unknown preset or profile."""
 
 
-def _load_preset(registry: ModelRegistry, selection: ModelSelection | None):
+def _load_preset(
+    registry: ModelRegistry,
+    selection: ModelSelection | None,
+) -> ModelPresetConfig | None:
     if selection is None or not selection.preset:
         return None
 
@@ -29,7 +34,10 @@ def _load_preset(registry: ModelRegistry, selection: ModelSelection | None):
     return preset
 
 
-def _route_override(selection: ModelSelection | None, route: ModelRoute) -> RouteModelSelection | None:
+def _route_override(
+    selection: ModelSelection | None,
+    route: ModelRoute,
+) -> RouteModelSelection | None:
     if selection is None:
         return None
     return selection.routes.get(route)
@@ -100,7 +108,11 @@ def resolve_model_config(
     selection: ModelSelection | None = None,
 ) -> ResolvedModelConfig | None:
     registry = build_model_registry(settings)
-    profile_name, preset_route, route_override = _resolve_profile_name(registry, route, selection)
+    profile_name, preset_route, route_override = _resolve_profile_name(
+        registry,
+        route,
+        selection,
+    )
     if not profile_name:
         return None
 
@@ -119,7 +131,11 @@ def resolve_model_config(
         api_key=profile.api_key,
         provider_options=profile.provider_options,
         fallback_profiles=_resolve_fallback_profiles(preset_route, route_override),
-        model_settings=_resolve_route_settings(profile.model_settings, preset_route, route_override),
+        model_settings=_resolve_route_settings(
+            profile.model_settings,
+            preset_route,
+            route_override,
+        ),
     )
 
 
@@ -138,7 +154,7 @@ def build_model_for_route(
     settings: Settings,
     route: ModelRoute,
     selection: ModelSelection | None = None,
-):
+) -> tuple[Model | str | None, ResolvedModelConfig | None]:
     model_config = resolve_model_config(settings, route, selection)
     if model_config is None:
         return None, None
@@ -176,4 +192,3 @@ def build_model_for_route(
         return primary_model, model_config
 
     return FallbackModel(primary_model, *fallback_models), model_config
-

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -23,18 +24,21 @@ def _build_openai_compatible_model(model_config: ResolvedModelConfig) -> OpenAIC
     return OpenAIChatModel(
         model_config.model_name,
         provider=provider,
-        settings=model_config.model_settings.to_pydantic_ai() if model_config.model_settings else None,
+        settings=(
+            model_config.model_settings.to_pydantic_ai()
+            if model_config.model_settings
+            else None
+        ),
     )
 
 
-PROVIDER_BUILDERS: dict[str, Callable[[ResolvedModelConfig], object | None]] = {
+PROVIDER_BUILDERS: dict[str, Callable[[ResolvedModelConfig], Model | str | None]] = {
     "openai_compatible": _build_openai_compatible_model,
 }
 
 
-def build_model_instance(model_config: ResolvedModelConfig):
+def build_model_instance(model_config: ResolvedModelConfig) -> Model | str | None:
     builder = PROVIDER_BUILDERS.get(model_config.provider)
     if builder is None:
         raise ModelProviderError(f"Unsupported model provider: {model_config.provider}")
     return builder(model_config)
-

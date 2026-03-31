@@ -4,6 +4,7 @@
 负责创建和配置 FastAPI 应用实例，包括路由注册、生命周期管理等功能。
 """
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -14,7 +15,7 @@ from app.observability.langsmith import setup_langsmith
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """
     应用生命周期管理上下文管理器。
 

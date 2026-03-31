@@ -5,11 +5,7 @@ import os
 from functools import lru_cache
 
 from app.config.settings import Settings
-from app.llm.routes import (
-    MODEL_ROUTE_ANALYSIS_CORE,
-    MODEL_ROUTE_ANALYSIS_TRANSLATION,
-    MODEL_ROUTE_PREPROCESS_GUARDRAILS,
-)
+from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
 from app.llm.types import ModelPresetConfig, ModelProfileConfig, ModelRegistry
 
 
@@ -54,26 +50,20 @@ def _load_presets(settings: Settings) -> dict[str, ModelPresetConfig]:
 def _build_model_registry_cached(
     *,
     default_profile: str,
-    preprocess_model_profile: str,
-    core_model_profile: str,
-    translation_model_profile: str,
+    annotation_model_profile: str,
     model_profiles_json: str,
     model_presets_json: str,
 ) -> ModelRegistry:
     settings = Settings(
         default_model_profile=default_profile,
-        preprocess_model_profile=preprocess_model_profile,
-        core_model_profile=core_model_profile,
-        translation_model_profile=translation_model_profile,
+        annotation_model_profile=annotation_model_profile,
         model_profiles_json=model_profiles_json,
         model_presets_json=model_presets_json,
     )
     route_defaults = {
         route: profile_name
         for route, profile_name in {
-            MODEL_ROUTE_PREPROCESS_GUARDRAILS: settings.preprocess_model_profile,
-            MODEL_ROUTE_ANALYSIS_CORE: settings.core_model_profile,
-            MODEL_ROUTE_ANALYSIS_TRANSLATION: settings.translation_model_profile,
+            MODEL_ROUTE_ANNOTATION_GENERATION: settings.annotation_model_profile,
         }.items()
         if profile_name
     }
@@ -88,9 +78,7 @@ def _build_model_registry_cached(
 def build_model_registry(settings: Settings) -> ModelRegistry:
     return _build_model_registry_cached(
         default_profile=settings.default_model_profile,
-        preprocess_model_profile=settings.preprocess_model_profile,
-        core_model_profile=settings.core_model_profile,
-        translation_model_profile=settings.translation_model_profile,
+        annotation_model_profile=settings.annotation_model_profile,
         model_profiles_json=settings.model_profiles_json,
         model_presets_json=settings.model_presets_json,
     )

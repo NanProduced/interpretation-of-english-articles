@@ -2,7 +2,6 @@ from fastapi import APIRouter
 
 from app.config.settings import get_settings
 
-
 router = APIRouter(prefix="/health", tags=["health"])
 
 

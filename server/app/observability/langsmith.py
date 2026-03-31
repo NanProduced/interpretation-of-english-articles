@@ -36,7 +36,8 @@ def setup_langsmith(settings: Settings) -> bool:
         return False
 
     # 设置 LangSmith 所需的环境变量。
-    # 当前项目以 LangGraph / LangSmith SDK tracing 为主，不再混用 PydanticAI 全局 OTel 自动 instrumentation。
+    # 当前项目以 LangGraph / LangSmith SDK tracing 为主，
+    # 不再混用 PydanticAI 全局 OTel 自动 instrumentation。
     os.environ["LANGSMITH_TRACING"] = str(settings.langsmith_tracing).lower()
     os.environ["LANGSMITH_API_KEY"] = settings.langsmith_api_key
     os.environ["LANGSMITH_PROJECT"] = settings.langsmith_project

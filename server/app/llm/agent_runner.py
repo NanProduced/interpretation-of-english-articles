@@ -10,14 +10,13 @@ from app.llm.types import ModelSelection
 
 async def run_agent_with_route(
     *,
-    agent,
+    agent: Any,
     prompt: str,
     deps: Any,
     route: ModelRoute,
     model_selection: ModelSelection | None = None,
-):
+) -> Any:
     model, _ = build_model_for_route(get_settings(), route, model_selection)
     if model is None:
         raise RuntimeError(f"model route is not configured: {route}")
     return await agent.run(prompt, deps=deps, model=model)
-

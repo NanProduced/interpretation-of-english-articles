@@ -1,77 +1,85 @@
-from app.schemas.preprocess import PreprocessResult
+from app.schemas.analysis import AnalysisResult, AnalyzeRequest
 
 
-def test_preprocess_result_schema_accepts_minimal_valid_payload() -> None:
+def test_analyze_request_rejects_goal_variant_mismatch() -> None:
+    try:
+        AnalyzeRequest.model_validate(
+            {
+                "text": "This is a test article.",
+                "reading_goal": "academic",
+                "reading_variant": "cet4",
+            }
+        )
+    except Exception as exc:
+        assert "does not match" in str(exc)
+    else:
+        raise AssertionError("expected goal/variant validation error")
+
+
+def test_analysis_result_schema_accepts_minimal_valid_payload() -> None:
     payload = {
-        "schema_version": "0.1.0",
+        "schema_version": "1.0.0",
         "request": {
             "request_id": "req-001",
-            "profile_key": "exam_cet4",
             "source_type": "user_input",
+            "reading_goal": "daily_reading",
+            "reading_variant": "intermediate_reading",
+            "profile_id": "daily_intermediate",
         },
-        "normalized": {
-            "source_text": "This is a test.",
-            "clean_text": "This is a test.",
-            "text_changed": False,
-            "normalization_actions": [],
+        "status": {
+            "state": "success",
+            "is_degraded": False,
+            "error_code": None,
+            "user_message": None,
         },
-        "segmentation": {
-            "paragraph_count": 1,
-            "sentence_count": 1,
+        "article": {
+            "source_type": "user_input",
+            "source_text": "This is a test article.",
+            "render_text": "This is a test article.",
             "paragraphs": [
                 {
                     "paragraph_id": "p1",
-                    "text": "This is a test.",
-                    "start": 0,
-                    "end": 15,
+                    "text": "This is a test article.",
+                    "render_span": {"start": 0, "end": 23},
+                    "sentence_ids": ["s1"],
                 }
             ],
             "sentences": [
                 {
                     "sentence_id": "s1",
                     "paragraph_id": "p1",
-                    "text": "This is a test.",
-                    "start": 0,
-                    "end": 15,
+                    "text": "This is a test article.",
+                    "sentence_span": {"start": 0, "end": 23},
                 }
             ],
         },
-        "detection": {
-            "language": {
-                "primary_language": "en",
-                "english_ratio": 1.0,
-                "non_english_ratio": 0.0,
-            },
-            "text_type": {
-                "predicted_type": "article",
-                "confidence": 0.95,
-            },
-            "noise": {
-                "noise_ratio": 0.0,
-                "has_html": False,
-                "has_code_like_content": False,
-                "appears_truncated": False,
-            },
+        "sanitize_report": {
+            "actions": ["collapse_spaces"],
+            "removed_segment_count": 0,
         },
-        "issues": [],
-        "quality": {
-            "score": 0.92,
-            "grade": "good",
-            "suitable_for_full_annotation": True,
-            "summary_zh": "文本质量良好，可进入完整解读。",
-        },
-        "routing": {
-            "decision": "full",
-            "should_continue": True,
-            "degrade_reason": None,
-            "reject_reason": None,
+        "vocabulary_annotations": [],
+        "grammar_annotations": [],
+        "sentence_annotations": [],
+        "render_marks": [],
+        "translations": {
+            "sentence_translations": [
+                {"sentence_id": "s1", "translation_zh": "这是一篇测试文章。"}
+            ],
+            "full_translation_zh": "这是一篇测试文章。",
         },
         "warnings": [],
+        "metrics": {
+            "vocabulary_count": 0,
+            "grammar_count": 0,
+            "sentence_note_count": 0,
+            "render_mark_count": 0,
+            "sentence_count": 1,
+            "paragraph_count": 1,
+        },
     }
 
-    result = PreprocessResult.model_validate(payload)
+    result = AnalysisResult.model_validate(payload)
 
-    assert result.schema_version == "0.1.0"
-    assert result.routing.decision.value == "full"
-    assert result.quality.grade.value == "good"
-
+    assert result.schema_version == "1.0.0"
+    assert result.request.profile_id == "daily_intermediate"
+    assert result.article.sentences[0].sentence_span.start == 0

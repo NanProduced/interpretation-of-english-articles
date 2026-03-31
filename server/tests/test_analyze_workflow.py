@@ -2,107 +2,73 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.schemas.analysis import AnalysisResult
-from app.workflow import analyze_nodes as analyze_nodes
-from app.schemas.preprocess import (
-    DetectionResult,
-    LanguageDetection,
-    NoiseDetection,
-    NormalizedText,
-    PreprocessRequestMeta,
-    PreprocessResult,
-    QualityAssessment,
-    QualityGrade,
-    RoutingDecision,
-    RoutingDecisionType,
-    SegmentedParagraph,
-    SegmentedSentence,
-    SegmentationResult,
-    TextTypeDetection,
+from app.schemas.internal.analysis import (
+    AnnotationDraft,
+    SentenceTranslationDraft,
+    TeachingOutput,
 )
-async def _fake_preprocess(*args, **kwargs) -> PreprocessResult:
-    return PreprocessResult(
-        request=PreprocessRequestMeta(
-            request_id="req-test-1",
-            profile_key="exam_cet4",
-            source_type="user_input",
-        ),
-        normalized=NormalizedText(
-            source_text="This is a test article. It has a second sentence.",
-            clean_text="This is a test article. It has a second sentence.",
-            text_changed=False,
-            normalization_actions=[],
-        ),
-        segmentation=SegmentationResult(
-            paragraph_count=1,
-            sentence_count=2,
-            paragraphs=[
-                SegmentedParagraph(
-                    paragraph_id="p1",
-                    text="This is a test article. It has a second sentence.",
-                    start=0,
-                    end=49,
-                )
-            ],
-            sentences=[
-                SegmentedSentence(
-                    sentence_id="s1",
-                    paragraph_id="p1",
-                    text="This is a test article.",
-                    start=0,
-                    end=23,
-                ),
-                SegmentedSentence(
-                    sentence_id="s2",
-                    paragraph_id="p1",
-                    text="It has a second sentence.",
-                    start=24,
-                    end=49,
-                ),
-            ],
-        ),
-        detection=DetectionResult(
-            language=LanguageDetection(primary_language="en", english_ratio=1.0, non_english_ratio=0.0),
-            text_type=TextTypeDetection(predicted_type="article", confidence=0.8),
-            noise=NoiseDetection(
-                noise_ratio=0.0,
-                has_html=False,
-                has_code_like_content=False,
-                appears_truncated=False,
+from app.workflow import analyze_nodes
+
+
+async def _fake_run_annotation_llm(*args, **kwargs) -> TeachingOutput:
+    return TeachingOutput(
+        vocabulary_annotations=[
+            AnnotationDraft(
+                sentence_id="s1",
+                anchor_text="extreme lengths",
+                title="固定搭配",
+                content="这里表示采取极端措施。",
+                pedagogy_level="core",
+            )
+        ],
+        grammar_annotations=[
+            AnnotationDraft(
+                sentence_id="s1",
+                anchor_text="are having to",
+                title="have to 结构",
+                content="这里表示不得不做某事。",
+                pedagogy_level="support",
+            )
+        ],
+        sentence_annotations=[
+            AnnotationDraft(
+                sentence_id="s2",
+                anchor_text="Disturbingly",
+                title="句首态度副词",
+                content="这里先用副词提示说话人的态度。",
+                pedagogy_level="advanced",
+            )
+        ],
+        sentence_translations=[
+            SentenceTranslationDraft(
+                sentence_id="s1",
+                translation_zh="店主不得不采取极端措施阻止巧克力被偷。",
             ),
-        ),
-        quality=QualityAssessment(
-            score=0.9,
-            grade=QualityGrade.GOOD,
-            suitable_for_full_annotation=True,
-            summary_zh="文本质量良好。",
-        ),
-        routing=RoutingDecision(
-            decision=RoutingDecisionType.FULL,
-            should_continue=True,
-        ),
-        warnings=[],
+            SentenceTranslationDraft(
+                sentence_id="s2",
+                translation_zh="令人不安的是，每天都有针对店员的暴力事件。",
+            ),
+        ],
     )
 
 
-async def _raise_core(*args, **kwargs):
-    raise RuntimeError("core failed")
+async def _raise_annotation_llm(*args, **kwargs):
+    raise RuntimeError("annotation failed")
 
 
-async def _raise_translation(*args, **kwargs):
-    raise RuntimeError("translation failed")
-
-
-def test_analyze_route_returns_complete_payload_with_fallback(monkeypatch) -> None:
-    monkeypatch.setattr(analyze_nodes, "run_preprocess_v0", _fake_preprocess)
-    monkeypatch.setattr(analyze_nodes, "run_core_llm", _raise_core)
-    monkeypatch.setattr(analyze_nodes, "run_translation_llm", _raise_translation)
+def test_analyze_route_returns_v1_payload(monkeypatch) -> None:
+    monkeypatch.setattr(analyze_nodes, "run_annotation_llm", _fake_run_annotation_llm)
     client = TestClient(app)
 
     response = client.post(
         "/analyze",
         json={
-            "text": "This is a test article. It has a second sentence.",
-            "profile_key": "exam_cet4",
+            "text": (
+                "Shopkeepers are having to go to extreme lengths to stop shoplifters. "
+                "Disturbingly, there are daily incidents of violence against workers."
+            ),
+            "reading_goal": "daily_reading",
+            "reading_variant": "beginner_reading",
             "source_type": "user_input",
         },
     )
@@ -110,14 +76,17 @@ def test_analyze_route_returns_complete_payload_with_fallback(monkeypatch) -> No
     assert response.status_code == 200
     body = response.json()
     AnalysisResult.model_validate(body)
-    assert body["status"]["state"] == "partial_success"
-    assert body["article"]["sentences"][0]["sentence_id"] == "s1"
-    assert len(body["annotations"]["grammar"]) >= 1
+    assert body["schema_version"] == "1.0.0"
+    assert body["status"]["state"] == "success"
+    assert body["request"]["reading_goal"] == "daily_reading"
+    assert body["request"]["reading_variant"] == "beginner_reading"
+    assert body["request"]["profile_id"] == "daily_beginner"
+    assert len(body["vocabulary_annotations"]) == 1
+    assert len(body["grammar_annotations"]) == 1
+    assert len(body["sentence_annotations"]) == 1
+    assert len(body["render_marks"]) == 3
     assert len(body["translations"]["sentence_translations"]) == 2
-    assert any(item["code"] == "CORE_AGENT_FALLBACK" for item in body["warnings"])
-    assert any(item["code"] == "TRANSLATION_AGENT_FALLBACK" for item in body["warnings"])
-    assert body["annotations"]["grammar"][0]["priority"] in {"core", "expand", "reference"}
-    assert isinstance(body["annotations"]["grammar"][0]["default_visible"], bool)
+    assert body["translations"]["full_translation_zh"]
 
 
 def test_analyze_route_rejects_unknown_model_preset() -> None:
@@ -127,7 +96,8 @@ def test_analyze_route_rejects_unknown_model_preset() -> None:
         "/analyze",
         json={
             "text": "This is a test article.",
-            "profile_key": "exam_cet4",
+            "reading_goal": "daily_reading",
+            "reading_variant": "intermediate_reading",
             "source_type": "user_input",
             "model_selection": {"preset": "missing_preset"},
         },
@@ -135,3 +105,25 @@ def test_analyze_route_rejects_unknown_model_preset() -> None:
 
     assert response.status_code == 422
     assert "Unknown model preset" in response.json()["detail"]
+
+
+def test_analyze_route_returns_failed_status_when_teacher_fails(monkeypatch) -> None:
+    monkeypatch.setattr(analyze_nodes, "run_annotation_llm", _raise_annotation_llm)
+    client = TestClient(app)
+
+    response = client.post(
+        "/analyze",
+        json={
+            "text": "This is a valid article. It has two sentences.",
+            "reading_goal": "exam",
+            "reading_variant": "cet4",
+            "source_type": "user_input",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"]["state"] == "failed"
+    assert body["status"]["error_code"] == "ANNOTATION_GENERATION_FAILED"
+    assert body["vocabulary_annotations"] == []
+    assert body["render_marks"] == []

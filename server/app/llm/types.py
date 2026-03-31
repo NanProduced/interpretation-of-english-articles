@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_ai.settings import ModelSettings
 
@@ -21,7 +23,7 @@ class RunModelSettings(BaseModel):
     extra_headers: dict[str, str] | None = None
     extra_body: dict[str, object] | None = None
 
-    def merged_with(self, override: "RunModelSettings | None") -> "RunModelSettings":
+    def merged_with(self, override: RunModelSettings | None) -> RunModelSettings:
         if override is None:
             return self.model_copy(deep=True)
         merged = self.model_dump(exclude_none=True)
@@ -32,7 +34,7 @@ class RunModelSettings(BaseModel):
         payload = self.model_dump(exclude_none=True)
         if not payload:
             return None
-        return ModelSettings(**payload)
+        return cast(ModelSettings, payload)
 
 
 class ModelProfileConfig(BaseModel):
@@ -105,4 +107,3 @@ def parse_model_selection(raw: object) -> ModelSelection | None:
     if isinstance(raw, dict) and not raw:
         return None
     return ModelSelection.model_validate(raw)
-

@@ -1,6 +1,6 @@
 # LangSmith 使用规范
 
-版本：`v0.3.0-draft`
+版本：`v1.0.0-draft`
 
 状态：开发中。本文档只记录当前仓库已经验证过、并且与代码保持一致的 tracing 接法。
 
@@ -10,9 +10,9 @@
 
 - 每次完整 workflow 请求只产生 1 条顶层 trace
 - 顶层 trace 直接带上最小但稳定的 metadata
-- 模型调用作为顶层 trace 的 llm 子 span
+- 本地节点与模型节点都以统一 node 命名进入同一条 trace
+- 主教学模型调用作为顶层 trace 的 llm 子 span
 - token 记录在 llm 子 span 上，并汇总到顶层 trace
-- `preprocess` / `core` / `translation` 三段真实模型调用都应出现 llm 子 span
 
 ## 当前对外联调入口
 
@@ -22,9 +22,9 @@
 
 说明：
 
-- `preprocess_v0` 仍然存在，但只作为内部子 workflow
-- `preprocess_v0` 不再单独暴露 API
-- LangSmith 人工分析也应优先看 `analyze_v0`，不要只看 preprocess 子结果
+- V1 当前只有一条主 workflow
+- 输入清洗与规则推导仍会记录为 workflow node，但不再作为独立 API 暴露
+- LangSmith 人工分析应优先看 `article_analysis`
 
 ## 官方依据
 
@@ -39,10 +39,8 @@
 - 顶层 trace 统一由 LangGraph workflow 创建
 - PydanticAI 不启用全局 instrumentation
 - 节点内部真实 llm 调用使用 `@traceable(run_type="llm")`
-- 当前已接入的 llm 子 span 名称：
-  - `guardrails_llm_call`
-  - `core_llm_call`
-  - `translation_llm_call`
+- 当前主 llm 子 span 名称：
+  - `annotation_generation_llm_call`
 
 ## 当前接法
 
@@ -58,11 +56,14 @@
 
 当前统一保留：
 
+- `workflow_name`
 - `workflow_version`
 - `schema_version`
 - `request_id`
-- `profile_key`
+- `profile_id`
 - `source_type`
+- `reading_goal`
+- `reading_variant`
 - `trace_scope`
 
 可选保留：
@@ -83,16 +84,22 @@
 
 ## 当前 workflow 过滤建议
 
-### analyze 主流程
+### article_analysis 主流程
 
 建议优先按以下字段过滤：
 
-- `workflow_version = analyze_v0`
+- `workflow_name = article_analysis`
+- `workflow_version = 1.0.0`
 - `trace_scope = analyze_local_debug`
 
-### preprocess 子流程
+### V1 关键节点
 
-如果需要排查 `analyze_v0` 里的 preprocess 子图，可在 trace 详情里看对应节点，不再通过单独 API trace 排查。
+建议重点关注以下节点：
+
+- `prepare_input`
+- `derive_user_rules`
+- `generate_annotations`
+- `assemble_result`
 
 ## 不再使用的接法
 

@@ -5,61 +5,61 @@ from typing import Any
 from pydantic_ai.usage import RunUsage
 
 
-def build_workflow_root_tags(workflow_version: str) -> list[str]:
-    """构建 workflow 顶层 trace 的最小 tags 集合。"""
-    return ["workflow", workflow_version]
+def build_workflow_root_tags(workflow_name: str, model_names: list[str] | None = None) -> list[str]:
+    tags = ["workflow", workflow_name]
+    if model_names:
+        tags.extend(model_names)
+    return tags
 
 
 def build_workflow_root_metadata(
     *,
+    workflow_name: str,
     workflow_version: str,
     schema_version: str,
-    request_id: str | None,
-    profile_key: str,
+    request_id: str,
     source_type: str,
-    trace_scope: str,
-    sample_bucket: str | None = None,
+    reading_goal: str,
+    reading_variant: str,
+    profile_id: str,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, object]:
-    """构建 workflow 顶层 trace 的最小 metadata。
-
-    只保留最常用于过滤和比对的字段，避免每条 trace 挂太多调试噪音。
-    """
     metadata: dict[str, object] = {
+        "workflow_name": workflow_name,
         "workflow_version": workflow_version,
         "schema_version": schema_version,
         "request_id": request_id,
-        "profile_key": profile_key,
         "source_type": source_type,
-        "trace_scope": trace_scope,
+        "reading_goal": reading_goal,
+        "reading_variant": reading_variant,
+        "profile_id": profile_id,
     }
-    if sample_bucket:
-        metadata["sample_bucket"] = sample_bucket
     if extra:
         metadata.update(extra)
     return {key: value for key, value in metadata.items() if value is not None}
 
+
 def build_llm_trace_metadata(
     *,
+    workflow_name: str,
     workflow_version: str,
     request_id: str,
-    profile_key: str,
     source_type: str,
-    trace_scope: str,
+    reading_goal: str,
+    reading_variant: str,
+    profile_id: str,
     model_name: str,
     model_provider: str,
     extra: dict[str, Any] | None = None,
 ) -> dict[str, object]:
-    """构建 llm 子 span 的 metadata。
-
-    `ls_provider` / `ls_model_name` 是 LangSmith 识别模型信息的约定字段。
-    """
     metadata: dict[str, object] = {
+        "workflow_name": workflow_name,
         "workflow_version": workflow_version,
         "request_id": request_id,
-        "profile_key": profile_key,
         "source_type": source_type,
-        "trace_scope": trace_scope,
+        "reading_goal": reading_goal,
+        "reading_variant": reading_variant,
+        "profile_id": profile_id,
         "model_provider": model_provider,
         "model_name": model_name,
         "ls_provider": model_provider,
@@ -71,7 +71,6 @@ def build_llm_trace_metadata(
 
 
 def build_usage_metadata(usage: RunUsage) -> dict[str, object]:
-    """把 PydanticAI usage 转成 LangSmith 可识别的 usage_metadata。"""
     input_token_details: dict[str, int] = {}
     output_token_details: dict[str, int] = {}
 

@@ -1,27 +1,17 @@
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import TypedDict
 
-from app.schemas.analysis import (
-    AnalysisResult,
-    AnalysisStatus,
-    AnalysisWarning,
-    AnalyzeRequest,
-    CoreAgentOutput,
-    TranslationAgentOutput,
-)
-from app.schemas.preprocess import PreprocessResult
+from app.schemas.analysis import AnalysisResult, AnalysisWarning, AnalyzeRequest
+from app.schemas.internal.analysis import PreparedInput, TeachingOutput, UserRules
 
 
 class AnalyzeState(TypedDict, total=False):
-    """analyze workflow 的共享状态。"""
+    """article_analysis workflow 的共享状态。"""
 
     payload: AnalyzeRequest
-    preprocess: PreprocessResult
-    route_decision: Literal["continue", "reject"]
-    core_output: CoreAgentOutput
-    translation_output: TranslationAgentOutput
+    prepared_input: PreparedInput
+    user_rules: UserRules
+    teaching_output: TeachingOutput
     warnings: list[AnalysisWarning]
-    status: AnalysisStatus
-    merged_result: AnalysisResult
     result: AnalysisResult
