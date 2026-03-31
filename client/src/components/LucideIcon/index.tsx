@@ -1,49 +1,94 @@
-import { View } from '@tarojs/components'
+import { Text } from '@tarojs/components'
 import './index.scss'
 
 /**
- * 轻量级 Lucide 图标组件 - 专为小程序优化
- * 避免引入庞大的 lucide-react 库导致的注入超时
+ * 轻量级图标组件 - 专为小程序优化
+ * 使用 Unicode 符号渲染，确保 100% 兼容
  */
 
-const ICON_PATHS = {
-  home: 'm3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
-  history: 'M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
-  user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2',
-  plus: 'M12 5v14M5 12h14',
-  chevronLeft: 'm15 18-6-6 6-6',
-  book: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
-  languages: 'm5 8 6 6m-7 0 6-6 2-3M2 5h12M7 2h1m14 20-5-10-5 10m2-4h6',
-  layers: 'm12 2 2 7 12 12 22 7 12 2M2 17 12 22 22 17M2 12 12 17 22 12',
-  sparkles: 'm12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z'
-}
-
 interface LucideIconProps {
-  name: keyof typeof ICON_PATHS;
-  size?: number;
-  color?: string;
-  strokeWidth?: number;
-  className?: string;
+  name: string
+  size?: number
+  color?: string
+  strokeWidth?: number
+  className?: string
 }
 
-export default function LucideIcon({ name, size = 24, color = 'currentColor', strokeWidth = 2, className = '' }: LucideIconProps) {
-  const path = ICON_PATHS[name]
-  
-  if (!path) return null
+// Unicode 符号映射
+const ICON_MAP: Record<string, string> = {
+  // 导航
+  chevronLeft: '\u276E',     // ◪ 左箭头
+  chevronRight: '\u276F',   // ▷ 右箭头
+  chevronDown: '\u2304',     // ▼ 下箭头
+  chevronUp: '\u2303',       // ▲ 上箭头
 
-  // 使用 mask-image 方案，这是小程序中最轻量且支持动态变色的方案
+  // 操作
+  plus: '\u002B',            // + 加号
+  x: '\u2715',               // ✕ 关闭
+  check: '\u2713',           // ✓ 对勾
+
+  // 物体
+  book: '\u{1F4D6}',         // 📖 书本
+  bookOpen: '\u{1F4D8}',     // 📘 打开的书
+  bookmark: '\u{1F516}',     // 🔖 书签
+  heart: '\u2665',           // ♥ 心形
+  thumbsUp: '\u{1F44D}',     // 👍 点赞
+  sparkles: '\u2728',        // ✨ 闪光
+  star: '\u2605',            // ★ 星星
+
+  // 状态
+  home: '\u2302',            // ⌂ 主页
+  user: '\u{1F464}',          // 👤 用户
+  history: '\u{1F551}',      // 🕐 时钟
+  settings: '\u2699',        // ⚙ 齿轮
+  volume2: '\u{1F50A}',      // 🔊 音量
+
+  // 其他
+  languages: '\u{1F310}',   // 🌐 语言
+  layers: '\u{1F3CB}',        // 🏋 图层
+  arrowRight: '\u2192',      // → 右箭头
+  arrowLeft: '\u2190',       // ← 左箭头
+}
+
+// 备用降级方案：如果 name 不存在，使用简单符号
+const FALLBACK_ICONS: Record<string, string> = {
+  chevronLeft: '<',
+  chevronRight: '>',
+  chevronDown: 'v',
+  chevronUp: '^',
+  plus: '+',
+  x: '×',
+  book: '📖',
+  bookOpen: '📘',
+  bookmark: '🔖',
+  heart: '♥',
+  thumbsUp: '👍',
+  sparkles: '✨',
+  star: '★',
+  home: '⌂',
+  user: '👤',
+  history: '🕐',
+  settings: '⚙',
+  volume2: '🔊',
+  languages: '🌐',
+  layers: '📑',
+  arrowRight: '→',
+  arrowLeft: '←',
+}
+
+export default function LucideIcon({ name, size = 24, color = '#000', className = '' }: LucideIconProps) {
+  const iconChar = ICON_MAP[name] || FALLBACK_ICONS[name] || '•'
+
   return (
-    <View 
-      className={`lucide-icon icon-${name} ${className}`}
+    <Text
+      className={`lucide-icon ${className}`}
       style={{
-        width: `${size}px`,
-        height: `${size}px`,
-        backgroundColor: color,
-        WebkitMaskImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='${strokeWidth}' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='${path.replace(/ /g, '%20')}'/%3E%3C/svg%3E")`,
-        WebkitMaskRepeat: 'no-repeat',
-        WebkitMaskPosition: 'center',
-        WebkitMaskSize: 'contain'
+        fontSize: `${size}px`,
+        color: color,
+        lineHeight: 1,
       }}
-    />
+    >
+      {iconChar}
+    </Text>
   )
 }

@@ -60,6 +60,36 @@
       .section-title { font-size: 34rpx; font-weight: bold; }
     }
 
+    .v2-entry-card {
+      margin: 0 48rpx 24rpx;
+      padding: 24rpx 28rpx;
+      background: linear-gradient(135deg, #faf5ff 0%, #f0edff 100%);
+      border: 1rpx solid rgba(139, 92, 246, 0.2);
+      border-radius: 24rpx;
+      display: flex;
+      align-items: center;
+      gap: 20rpx;
+      &:active { opacity: 0.8; }
+
+      .v2-badge {
+        width: 56rpx;
+        height: 56rpx;
+        background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+        border-radius: 16rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        .v2-badge-text { font-size: 22rpx; font-weight: bold; color: #fff; }
+      }
+
+      .v2-content {
+        flex: 1;
+        .v2-title { display: block; font-size: 28rpx; font-weight: 600; color: #030213; }
+        .v2-desc { display: block; font-size: 22rpx; color: #666; margin-top: 4rpx; }
+      }
+    }
+
     .list-content {
       padding: 0 48rpx;
       .recommend-card {

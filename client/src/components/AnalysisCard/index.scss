@@ -1,0 +1,51 @@
+.analysis-card {
+  margin: 24rpx 32rpx;
+  background: #fafafa;
+  border-radius: 12rpx;
+  border-left: 3rpx solid transparent;
+  overflow: hidden;
+  transition: all 0.2s;
+
+  &.expanded {
+    background: #fff;
+    border-left-color: #8b5cf6;
+    box-shadow: 0 2rpx 12rpx rgba(139, 92, 246, 0.08);
+  }
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 24rpx;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.card-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.toggle-icon {
+  padding: 4rpx;
+}
+
+.card-content {
+  padding: 0 24rpx 24rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.content-text {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.8;
+  padding-top: 16rpx;
+  white-space: pre-wrap;
+}

@@ -6,17 +6,8 @@
   flex-direction: column;
 
   .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     margin-bottom: 48rpx;
     .title { font-size: 48rpx; font-weight: bold; color: #030213; }
-    .clock-icon {
-      width: 48rpx; height: 48rpx;
-      background-color: #ccc;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E") no-repeat center;
-      mask-size: contain;
-    }
   }
 
   .list-area {
@@ -30,37 +21,49 @@
       box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
       &:active { transform: scale(0.98); }
 
-      .item-title {
-        display: block;
-        font-size: 32rpx;
-        font-weight: bold;
-        color: #030213;
-        line-height: 1.4;
+      .card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 16rpx;
         margin-bottom: 24rpx;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+
+        .item-title {
+          flex: 1;
+          font-size: 32rpx;
+          font-weight: bold;
+          color: #030213;
+          line-height: 1.4;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+
+        .v2-tag {
+          flex-shrink: 0;
+          background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+          border-radius: 8rpx;
+          padding: 4rpx 12rpx;
+
+          text {
+            font-size: 18rpx;
+            font-weight: bold;
+            color: #fff;
+          }
+        }
       }
 
       .item-footer {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        .date-info {
-          display: flex;
-          align-items: center;
-          gap: 12rpx;
+
+        .date-text {
           font-size: 24rpx;
           color: #999;
-          .book-icon {
-            width: 24rpx; height: 24rpx;
-            background-color: #ccc;
-            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z'/%3E%3Cpath d='M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z'/%3E%3C/svg%3E") no-repeat center;
-            mask-size: contain;
-          }
         }
+
         .config-tag {
           font-size: 20rpx;
           background-color: #f3f4f6;
@@ -79,14 +82,6 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
-    .empty-icon {
-      width: 128rpx; height: 128rpx;
-      background-color: #ececf0;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z'/%3E%3Cpath d='M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z'/%3E%3C/svg%3E") no-repeat center;
-      mask-size: 64rpx;
-      margin-bottom: 32rpx;
-      border-radius: 50%;
-    }
     .empty-text { font-size: 32rpx; font-weight: 500; color: #717182; margin-bottom: 8rpx; }
     .empty-sub { font-size: 24rpx; color: #999; }
   }

@@ -1,0 +1,141 @@
+.result-v2-page {
+  min-height: 100vh;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-tabs {
+  display: flex;
+  padding: 16rpx 32rpx;
+  gap: 8rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 16rpx 0;
+  text-align: center;
+  border-radius: 12rpx;
+  background: transparent;
+  transition: all 0.2s ease;
+
+  &.active {
+    background: rgba(66, 133, 244, 0.1);
+
+    .mode-tab-label {
+      color: #4285f4;
+      font-weight: 600;
+    }
+  }
+}
+
+.mode-tab-label {
+  font-size: 28rpx;
+  color: #666;
+  font-weight: 500;
+}
+
+.article-scroll {
+  flex: 1;
+  height: calc(100vh - 200rpx);
+}
+
+.article-container {
+  padding: 32rpx;
+}
+
+.article-header {
+  margin-bottom: 40rpx;
+  padding-bottom: 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.article-title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #030213;
+  line-height: 1.4;
+  margin-bottom: 12rpx;
+}
+
+.article-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.article-source {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.meta-divider {
+  font-size: 24rpx;
+  color: #ccc;
+}
+
+.article-level {
+  font-size: 22rpx;
+  color: #8b5cf6;
+  font-weight: 500;
+}
+
+.paragraph-block {
+  margin-bottom: 32rpx;
+}
+
+.sentence-wrapper {
+  // SentenceRow 内部管理
+}
+
+.bottom-spacer {
+  height: 100rpx;
+}
+
+.annotation-legend {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 32rpx;
+  padding: 16rpx 32rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1rpx solid #eee;
+  backdrop-filter: blur(10px);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.legend-item text {
+  font-size: 22rpx;
+  color: #666;
+}
+
+.legend-marker {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 4rpx;
+
+  &.exam {
+    background: rgba(239, 68, 68, 0.15);
+    border-left: 3rpx solid #ef4444;
+  }
+
+  &.phrase {
+    background: rgba(139, 92, 246, 0.15);
+    border-left: 3rpx solid #8b5cf6;
+  }
+
+  &.grammar {
+    background: rgba(34, 197, 94, 0.15);
+    border-left: 3rpx solid #22c55e;
+  }
+}

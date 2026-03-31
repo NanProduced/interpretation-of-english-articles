@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_serena_serena__list_dir",
+      "Bash(npm run:*)",
+      "WebSearch",
+      "WebFetch(domain:developers.weixin.qq.com)",
+      "WebFetch(domain:docs.taro.zone)",
+      "WebFetch(domain:github.com)",
+      "Bash(find C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server -name *.py -not -path */.venv/* -not -path */site-packages/*)",
+      "mcp__plugin_serena_serena__read_file",
+      "mcp__plugin_serena_serena__activate_project",
+      "mcp__plugin_serena_serena__replace_content"
+    ]
+  }
+}
