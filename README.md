@@ -1,8 +1,11 @@
-# AI 英语文章解读小程序
+# Claread透读
 
-本仓库是一个以 agentic workflow 为核心的微信小程序父工作区，面向有一定英语基础的用户，帮助他们更高效地读懂英文文章。
+英文名：`Claread`  
+中文名：`透读`
 
-这个产品的重点不是通用翻译，而是围绕英文阅读场景，输出稳定、结构化、可交互的解读结果。核心闭环是：
+本仓库是 Claread透读 的微信小程序父工作区。产品以 agentic workflow 为核心，面向有一定英语基础的用户，帮助他们更高效地读懂英文文章。
+
+Claread透读的重点不是通用翻译，而是围绕英文阅读场景，输出稳定、结构化、可交互的解读结果。核心闭环是：
 
 1. 用户提交英文文章。
 2. 后端 Workflow 执行结构化解读。
@@ -81,6 +84,7 @@
 当前仓库已经包含：
 
 - 项目基础目录骨架
+- Claread透读 的基础产品/架构文档
 - 初始本地参考文档
 - Serena 项目配置与简版记忆
 - 前后端占位入口文件
@@ -118,6 +122,7 @@
 - [产品需求摘要](./docs/product/prd-summary.md)
 - [Workflow V0 架构回顾与问题诊断报告](./docs/workflow/v0/v0-retrospective-report.md)
 - [Workflow V1 设计草案](./docs/workflow/v1/workflow-v1-design.md)
+- [Workflow V2 统一设计文档](./docs/workflow/v2/v2-unified-design.md)
 - [微信小程序技术边界](./docs/architecture/mini-program-boundaries.md)
 - [LangSmith 使用规范](./docs/operations/langsmith-usage.md)
 - [模型配置教程](./docs/operations/model-configuration-usage.md)

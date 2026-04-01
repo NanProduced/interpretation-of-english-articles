@@ -1,6 +1,6 @@
 # 前端说明
 
-这里是微信小程序前端工作区，计划使用 Taro + React + TypeScript 开发。
+这里是 Claread透读 的微信小程序前端工作区，计划使用 Taro + React + TypeScript 开发。
 
 ## 推荐技术栈
 

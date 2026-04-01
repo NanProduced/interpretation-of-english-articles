@@ -1,6 +1,6 @@
 # 后端说明
 
-这里是 AI 解读 workflow 的后端服务目录，使用 `FastAPI + LangGraph + PydanticAI`。
+这里是 Claread透读 的 AI 解读 workflow 后端服务目录，使用 `FastAPI + LangGraph + PydanticAI`。
 
 ## 技术栈
 

@@ -1,5 +1,5 @@
 /**
- * AI 英语文章解读小程序 - 数据 Schema (v0.1.0-draft)
+ * Claread透读 - 数据 Schema (v0.1.0-draft)
  * 映射自 docs/workflow/schema-v0-draft.md
  */
 

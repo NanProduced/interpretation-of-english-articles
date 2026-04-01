@@ -1,7 +1,7 @@
 [project]
 name = "english-article-interpretation-server"
 version = "0.1.0"
-description = "AI 英语文章解读小程序后端服务"
+description = "Claread透读后端服务"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
