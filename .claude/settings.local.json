@@ -10,7 +10,8 @@
       "Bash(find C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server -name *.py -not -path */.venv/* -not -path */site-packages/*)",
       "mcp__plugin_serena_serena__read_file",
       "mcp__plugin_serena_serena__activate_project",
-      "mcp__plugin_serena_serena__replace_content"
+      "mcp__plugin_serena_serena__replace_content",
+      "Bash(uv run:*)"
     ]
   }
 }

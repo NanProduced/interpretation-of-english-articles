@@ -16,12 +16,13 @@ def test_prepare_input_sanitizes_markup_links_and_code() -> None:
     assert prepared.sentences[0].text == "Hello\nVisit now."
 
 
-def test_derive_user_rules_preserves_beginner_goal_but_keeps_advanced_collapsed() -> None:
+def test_derive_user_rules_preserves_beginner_profile_and_budget() -> None:
     rules = derive_user_rules("daily_reading", "beginner_reading")
 
     assert rules.profile_id == "daily_beginner"
-    assert rules.presentation_policy.advanced_default_collapsed is True
     assert rules.annotation_budget.vocabulary_count == 5
+    assert rules.annotation_budget.grammar_count == 4
+    assert rules.annotation_budget.sentence_note_count == 2
 
 
 def test_resolve_anchor_supports_exact_and_normalized_match() -> None:

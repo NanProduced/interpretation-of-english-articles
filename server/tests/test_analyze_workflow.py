@@ -1,44 +1,44 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.schemas.analysis import AnalysisResult
+from app.schemas.analysis import RenderSceneModel
 from app.schemas.internal.analysis import (
-    AnnotationDraft,
+    InlineMarkDraft,
+    SentenceEntryDraft,
     SentenceTranslationDraft,
     TeachingOutput,
+    TextAnchor,
 )
+from app.services.analysis.input_preparation import prepare_input
+from app.services.analysis.result_assembly import assemble_result
+from app.services.analysis.user_rules import derive_user_rules
 from app.workflow import analyze_nodes
 
 
 async def _fake_run_annotation_llm(*args, **kwargs) -> TeachingOutput:
     return TeachingOutput(
-        vocabulary_annotations=[
-            AnnotationDraft(
-                sentence_id="s1",
-                anchor_text="extreme lengths",
-                title="固定搭配",
-                content="这里表示采取极端措施。",
-                pedagogy_level="core",
+        inline_marks=[
+            InlineMarkDraft(
+                anchor=TextAnchor(
+                    kind="text",
+                    sentence_id="s1",
+                    anchor_text="extreme lengths",
+                ),
+                tone="phrase",
+                render_type="background",
+                clickable=True,
             )
         ],
-        grammar_annotations=[
-            AnnotationDraft(
+        sentence_entries=[
+            SentenceEntryDraft(
                 sentence_id="s1",
-                anchor_text="are having to",
+                label="语法",
+                entry_type="grammar",
                 title="have to 结构",
                 content="这里表示不得不做某事。",
-                pedagogy_level="support",
             )
         ],
-        sentence_annotations=[
-            AnnotationDraft(
-                sentence_id="s2",
-                anchor_text="Disturbingly",
-                title="句首态度副词",
-                content="这里先用副词提示说话人的态度。",
-                pedagogy_level="advanced",
-            )
-        ],
+        cards=[],
         sentence_translations=[
             SentenceTranslationDraft(
                 sentence_id="s1",
@@ -56,7 +56,7 @@ async def _raise_annotation_llm(*args, **kwargs):
     raise RuntimeError("annotation failed")
 
 
-def test_analyze_route_returns_v1_payload(monkeypatch) -> None:
+def test_analyze_route_returns_v2_payload(monkeypatch) -> None:
     monkeypatch.setattr(analyze_nodes, "run_annotation_llm", _fake_run_annotation_llm)
     client = TestClient(app)
 
@@ -75,18 +75,15 @@ def test_analyze_route_returns_v1_payload(monkeypatch) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    AnalysisResult.model_validate(body)
-    assert body["schema_version"] == "1.0.0"
-    assert body["status"]["state"] == "success"
+    RenderSceneModel.model_validate(body)
+    assert body["schema_version"] == "2.0.0"
     assert body["request"]["reading_goal"] == "daily_reading"
     assert body["request"]["reading_variant"] == "beginner_reading"
     assert body["request"]["profile_id"] == "daily_beginner"
-    assert len(body["vocabulary_annotations"]) == 1
-    assert len(body["grammar_annotations"]) == 1
-    assert len(body["sentence_annotations"]) == 1
-    assert len(body["render_marks"]) == 3
-    assert len(body["translations"]["sentence_translations"]) == 2
-    assert body["translations"]["full_translation_zh"]
+    assert len(body["inline_marks"]) == 1
+    assert len(body["sentence_entries"]) == 1
+    assert len(body["translations"]) == 2
+    assert body["cards"] == []
 
 
 def test_analyze_route_rejects_unknown_model_preset() -> None:
@@ -107,7 +104,7 @@ def test_analyze_route_rejects_unknown_model_preset() -> None:
     assert "Unknown model preset" in response.json()["detail"]
 
 
-def test_analyze_route_returns_failed_status_when_teacher_fails(monkeypatch) -> None:
+def test_analyze_route_returns_empty_result_when_teacher_fails(monkeypatch) -> None:
     monkeypatch.setattr(analyze_nodes, "run_annotation_llm", _raise_annotation_llm)
     client = TestClient(app)
 
@@ -123,7 +120,97 @@ def test_analyze_route_returns_failed_status_when_teacher_fails(monkeypatch) -> 
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"]["state"] == "failed"
-    assert body["status"]["error_code"] == "ANNOTATION_GENERATION_FAILED"
-    assert body["vocabulary_annotations"] == []
-    assert body["render_marks"] == []
+    # V2: error is reflected in warnings
+    assert any(w.get("code") == "ANNOTATION_GENERATION_FAILED" for w in body.get("warnings", []))
+    assert body["inline_marks"] == []
+    assert body["cards"] == []
+
+
+def test_assemble_result_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
+    prepared_input = prepare_input(
+        "This sentence mentions this first. Another sentence mentions leverage clearly."
+    )
+    user_rules = derive_user_rules("daily_reading", "intermediate_reading")
+
+    baseline = assemble_result(
+        request_id="req-1",
+        source_type="user_input",
+        reading_goal="daily_reading",
+        reading_variant="intermediate_reading",
+        prepared_input=prepared_input,
+        user_rules=user_rules,
+        teaching_output=TeachingOutput(
+            inline_marks=[
+                InlineMarkDraft(
+                    anchor=TextAnchor(
+                        kind="text",
+                        sentence_id="s2",
+                        anchor_text="leverage",
+                    ),
+                    tone="focus",
+                    render_type="background",
+                    clickable=True,
+                )
+            ],
+            sentence_entries=[],
+            cards=[],
+            sentence_translations=[
+                SentenceTranslationDraft(
+                    sentence_id="s1",
+                    translation_zh="第一句先提到了 this。",
+                ),
+                SentenceTranslationDraft(
+                    sentence_id="s2",
+                    translation_zh="第二句清楚地提到了 leverage。",
+                ),
+            ],
+        ),
+    )
+
+    with_dropped_prefix = assemble_result(
+        request_id="req-2",
+        source_type="user_input",
+        reading_goal="daily_reading",
+        reading_variant="intermediate_reading",
+        prepared_input=prepared_input,
+        user_rules=user_rules,
+        teaching_output=TeachingOutput(
+            inline_marks=[
+                InlineMarkDraft(
+                    anchor=TextAnchor(
+                        kind="text",
+                        sentence_id="s1",
+                        anchor_text="this",
+                    ),
+                    tone="focus",
+                    render_type="background",
+                    clickable=True,
+                ),
+                InlineMarkDraft(
+                    anchor=TextAnchor(
+                        kind="text",
+                        sentence_id="s2",
+                        anchor_text="leverage",
+                    ),
+                    tone="focus",
+                    render_type="background",
+                    clickable=True,
+                ),
+            ],
+            sentence_entries=[],
+            cards=[],
+            sentence_translations=[
+                SentenceTranslationDraft(
+                    sentence_id="s1",
+                    translation_zh="第一句先提到了 this。",
+                ),
+                SentenceTranslationDraft(
+                    sentence_id="s2",
+                    translation_zh="第二句清楚地提到了 leverage。",
+                ),
+            ],
+        ),
+    )
+
+    assert baseline.result.inline_marks[0].id == with_dropped_prefix.result.inline_marks[0].id
+    assert with_dropped_prefix.dropped_count == 1

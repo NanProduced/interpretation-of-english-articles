@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from app.schemas.internal.analysis import (
     AnnotationBudget,
-    PresentationPolicy,
     ReadingGoal,
     ReadingVariant,
     UserRules,
@@ -26,12 +25,6 @@ def derive_user_rules(reading_goal: ReadingGoal, reading_variant: ReadingVariant
             grammar_granularity="focused",
             vocabulary_policy="exam_priority",
             annotation_budget=exam_budget,
-            presentation_policy=PresentationPolicy(
-                advanced_default_collapsed=reading_variant in {"gaokao", "cet4"},
-                vocabulary_display_mode="highlight",
-                grammar_display_mode="underline",
-                sentence_display_mode="bottom_detail",
-            ),
         )
 
     if reading_goal == "academic":
@@ -49,12 +42,6 @@ def derive_user_rules(reading_goal: ReadingGoal, reading_variant: ReadingVariant
             grammar_granularity="structural",
             vocabulary_policy="academic_priority",
             annotation_budget=academic_budget,
-            presentation_policy=PresentationPolicy(
-                advanced_default_collapsed=False,
-                vocabulary_display_mode="inline_note",
-                grammar_display_mode="highlight",
-                sentence_display_mode="bottom_detail",
-            ),
         )
 
     budget_map = {
@@ -74,9 +61,6 @@ def derive_user_rules(reading_goal: ReadingGoal, reading_variant: ReadingVariant
             sentence_note_count=3,
         ),
     }
-    sentence_display_mode = (
-        "footnote_card" if reading_variant == "beginner_reading" else "bottom_detail"
-    )
     return UserRules(
         profile_id=f"daily_{reading_variant.removesuffix('_reading')}",
         reading_goal=reading_goal,
@@ -86,10 +70,4 @@ def derive_user_rules(reading_goal: ReadingGoal, reading_variant: ReadingVariant
         grammar_granularity="focused" if reading_variant == "beginner_reading" else "balanced",
         vocabulary_policy="high_value_only",
         annotation_budget=budget_map[reading_variant],
-        presentation_policy=PresentationPolicy(
-            advanced_default_collapsed=reading_variant != "intensive_reading",
-            vocabulary_display_mode="highlight",
-            grammar_display_mode="underline",
-            sentence_display_mode=sentence_display_mode,
-        ),
     )

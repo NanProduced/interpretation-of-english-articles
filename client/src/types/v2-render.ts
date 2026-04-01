@@ -1,6 +1,6 @@
 /**
  * V2 统一渲染模型类型定义
- * 基于 v2-generative-ui-vision.md 和 v2-frontend-rendering-component-design.md
+ * 基于 docs/workflow/v2/v2-unified-design.md
  */
 
 // ============ 锚点模型 ============

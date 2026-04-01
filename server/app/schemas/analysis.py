@@ -1,22 +1,17 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Union
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from app.llm.types import ModelSelection
 from app.schemas.common import TextSpan
 from app.schemas.internal.analysis import (
-    AnnotationType,
-    DisplayGroup,
-    DisplayMode,
-    DisplayPriority,
-    PedagogyLevel,
     ReadingGoal,
     ReadingVariant,
 )
 
-ANALYSIS_SCHEMA_VERSION = "1.0.0"
+ANALYSIS_SCHEMA_VERSION = "2.0.0"
 
 GOAL_VARIANT_MAP: dict[ReadingGoal, set[ReadingVariant]] = {
     "exam": {"gaokao", "cet4", "cet6", "kaoyan", "ielts", "toefl"},
@@ -45,15 +40,13 @@ class AnalyzeRequest(BaseModel):
         description="运行时模型路由配置，沿用现有 app/llm 体系。",
     )
 
-    @model_validator(mode="after")
-    def validate_goal_variant(self) -> AnalyzeRequest:
+    def model_post_init(self, _):
         allowed_variants = GOAL_VARIANT_MAP[self.reading_goal]
         if self.reading_variant not in allowed_variants:
             raise ValueError(
                 "reading_variant="
                 f"{self.reading_variant} does not match reading_goal={self.reading_goal}"
             )
-        return self
 
 
 class AnalyzeRequestMeta(BaseModel):
@@ -64,24 +57,7 @@ class AnalyzeRequestMeta(BaseModel):
     profile_id: str = Field(description="后端生成的规则包标识。")
 
 
-class AnalysisStatus(BaseModel):
-    state: Literal["success", "failed"] = Field(description="整条 workflow 的最终状态。")
-    is_degraded: bool = Field(description="是否发生了局部丢弃或降级。")
-    error_code: str | None = Field(default=None, description="失败或降级时的错误码。")
-    user_message: str | None = Field(default=None, description="面向用户的简洁中文提示。")
-
-
-class SanitizeReport(BaseModel):
-    actions: list[str] = Field(
-        default_factory=list,
-        description="输入清洗阶段执行的动作列表。",
-    )
-    removed_segment_count: int = Field(
-        ge=0,
-        default=0,
-        description="被清洗逻辑剔除或替换的噪音片段数量。",
-    )
-
+# === V2 Article Structure ===
 
 class ArticleParagraph(BaseModel):
     paragraph_id: str = Field(description="段落稳定标识。")
@@ -111,107 +87,153 @@ class ArticleStructure(BaseModel):
     )
 
 
-class BaseAnnotation(BaseModel):
-    annotation_id: str = Field(description="稳定标注标识，供前端与追踪系统引用。")
-    annotation_type: AnnotationType = Field(description="标注类型。")
-    sentence_id: str = Field(description="该标注关联的句子标识。")
-    anchor_text: str = Field(description="模型返回的锚点文本。")
-    render_span: TextSpan = Field(description="该标注相对于 render_text 的绝对坐标。")
-    title: str = Field(description="标注标题。")
-    content: str = Field(description="面向用户的中文讲解内容。")
-    pedagogy_level: PedagogyLevel = Field(description="教学层级，用于控制默认展示方式。")
-    display_priority: DisplayPriority = Field(description="前端默认展示优先级。")
-    display_group: DisplayGroup = Field(description="前端展示分组。")
-    is_default_visible: bool = Field(description="该标注是否默认展开或高亮。")
-    render_index: int = Field(ge=1, description="按 render_text 排序后的稳定渲染序号。")
+# === V2 Translation ===
 
-
-class VocabularyAnnotation(BaseAnnotation):
-    annotation_type: Literal["vocabulary"] = Field(
-        default="vocabulary",
-        description="词汇或短语类标注。",
-    )
-
-
-class GrammarAnnotation(BaseAnnotation):
-    annotation_type: Literal["grammar"] = Field(
-        default="grammar",
-        description="语法讲解类标注。",
-    )
-
-
-class SentenceAnnotation(BaseAnnotation):
-    annotation_type: Literal["sentence_note"] = Field(
-        default="sentence_note",
-        description="句级讲解或难句说明类标注。",
-    )
-
-
-class RenderMark(BaseModel):
-    mark_id: str = Field(description="稳定渲染标识，供前端高亮层使用。")
-    annotation_id: str = Field(description="该渲染标记关联的 annotation_id。")
-    display_mode: DisplayMode = Field(description="标注在结果页中的默认展示方式。")
-    display_priority: DisplayPriority = Field(description="展示优先级。")
-    display_group: DisplayGroup = Field(description="展示分组。")
-    render_index: int = Field(ge=1, description="按 render_text 排序后的渲染序号。")
-    render_span: TextSpan = Field(description="该渲染标记对应的绝对坐标。")
-
-
-class SentenceTranslation(BaseModel):
+class TranslationItem(BaseModel):
     sentence_id: str = Field(description="逐句翻译对应的句子标识。")
     translation_zh: str = Field(description="该句子的中文翻译。")
 
 
-class AnalysisTranslations(BaseModel):
-    sentence_translations: list[SentenceTranslation] = Field(
-        default_factory=list,
-        description="逐句翻译结果。",
+# === V2 Inline Marks ===
+
+InlineMarkTone = Literal["info", "focus", "exam", "phrase", "grammar"]
+InlineMarkRenderType = Literal["background", "underline"]
+
+
+class InlineMarkAnchorText(BaseModel):
+    """单段文本锚点"""
+    kind: Literal["text"] = Field(default="text", description="锚点类型为单段文本")
+    sentence_id: str = Field(description="所属句子标识")
+    anchor_text: str = Field(description="锚点文本，必须直接摘自对应句子")
+    occurrence: int | None = Field(
+        default=None,
+        ge=1,
+        description="当同一句中 anchor_text 多次出现时，指明要命中的第几次出现",
     )
-    full_translation_zh: str = Field(description="由组装阶段生成的全文中文翻译。")
 
 
-class AnalysisWarning(BaseModel):
-    code: str = Field(description="面向调试和前端提示的 warning code。")
-    message_zh: str = Field(description="简洁中文 warning 信息。")
+class MultiTextPart(BaseModel):
+    """多段锚点的一个部分"""
+    anchor_text: str = Field(description="该部分的锚点文本")
+    occurrence: int | None = Field(
+        default=None,
+        ge=1,
+        description="当同一句中该部分文本多次出现时，指明要命中的第几次出现",
+    )
+    role: str | None = Field(
+        default=None,
+        description="角色标识，如 'part1', 'part2'",
+    )
 
 
-class AnalysisMetrics(BaseModel):
-    vocabulary_count: int = Field(ge=0, description="词汇标注数量。")
-    grammar_count: int = Field(ge=0, description="语法标注数量。")
-    sentence_note_count: int = Field(ge=0, description="句级讲解数量。")
-    render_mark_count: int = Field(ge=0, description="渲染标记数量。")
-    sentence_count: int = Field(ge=0, description="正文句子数量。")
-    paragraph_count: int = Field(ge=0, description="正文段落数量。")
+class InlineMarkAnchorMultiText(BaseModel):
+    """多段文本锚点（用于 so...that, not only...but also 等不连续结构）"""
+    kind: Literal["multi_text"] = Field(default="multi_text", description="锚点类型为多段文本")
+    sentence_id: str = Field(description="所属句子标识")
+    parts: list[MultiTextPart] = Field(
+        default_factory=list,
+        description="多段锚点的各部分",
+    )
 
 
-class AnalysisResult(BaseModel):
-    schema_version: Literal["1.0.0"] = Field(
-        default="1.0.0",
+InlineMarkAnchor = Union[InlineMarkAnchorText, InlineMarkAnchorMultiText]
+
+
+class InlineMark(BaseModel):
+    """V2 行内标注 - 词汇/短语/语法高亮"""
+    id: str = Field(description="稳定标注标识，供前端与追踪系统引用。")
+    anchor: InlineMarkAnchor = Field(description="锚点定位")
+    tone: InlineMarkTone = Field(
+        description="标注语气/类型：info(蓝色)/focus(橙色)/exam(红色)/phrase(紫色)/grammar(绿色)"
+    )
+    render_type: InlineMarkRenderType = Field(
+        description="渲染类型：background(背景高亮)/underline(下划线)"
+    )
+    clickable: bool = Field(
+        default=False,
+        description="clickable=true 时点击进入词典弹层"
+    )
+    ai_note: str | None = Field(
+        default=None,
+        description="AI 补充说明，点击 popup 后显示在 AI Tab",
+    )
+    lookup_text: str | None = Field(
+        default=None,
+        description="要查询的文本，优先于 anchor_text 用于查词",
+    )
+    lookup_kind: Literal["word", "phrase"] | None = Field(
+        default=None,
+        description="查询类型",
+    )
+    ai_title: str | None = Field(
+        default=None,
+        description="AI 补充标题",
+    )
+    ai_body: str | None = Field(
+        default=None,
+        description="AI 补充正文",
+    )
+
+
+# === V2 Sentence Entries ===
+
+SentenceEntryType = Literal["grammar", "sentence_analysis", "context"]
+
+
+class SentenceEntry(BaseModel):
+    """V2 句尾入口 - 语法/句解/语境"""
+    id: str = Field(description="稳定入口标识。")
+    sentence_id: str = Field(description="关联的句子标识")
+    label: str = Field(description="Chip 显示文案：'语法'/'句解'/'语境'")
+    entry_type: SentenceEntryType = Field(description="入口类型")
+    title: str | None = Field(
+        default=None,
+        description="详情面板标题，默认使用 label",
+    )
+    content: str = Field(
+        description="详情内容，支持 Markdown 格式（**粗体**, *斜体*, `行内代码`, - 列表）"
+    )
+
+
+# === V2 Cards ===
+
+class AnalysisCard(BaseModel):
+    """V2 段间卡片 - 重型解释卡片"""
+    id: str = Field(description="稳定卡片标识。")
+    after_sentence_id: str = Field(description="插入位置后的句子标识")
+    title: str = Field(description="卡片标题")
+    content: str = Field(
+        description="卡片内容，支持 Markdown 格式",
+    )
+
+
+# === V2 Render Scene Model ===
+
+class RenderSceneModel(BaseModel):
+    """V2 统一渲染模型 - 替代 V1 AnalysisResult"""
+    schema_version: Literal["2.0.0"] = Field(
+        default="2.0.0",
         description="当前分析结果的 schema 版本。",
     )
     request: AnalyzeRequestMeta = Field(description="请求快照与规则包信息。")
-    status: AnalysisStatus = Field(description="整条 workflow 的最终状态。")
     article: ArticleStructure = Field(description="结果页渲染所依赖的正文结构。")
-    sanitize_report: SanitizeReport = Field(description="输入清洗报告。")
-    vocabulary_annotations: list[VocabularyAnnotation] = Field(
+    translations: list[TranslationItem] = Field(
         default_factory=list,
-        description="高价值词汇或短语标注。",
+        description="逐句翻译结果。",
     )
-    grammar_annotations: list[GrammarAnnotation] = Field(
+    inline_marks: list[InlineMark] = Field(
         default_factory=list,
-        description="重点语法讲解标注。",
+        description="行内标注：词汇/短语/语法高亮",
     )
-    sentence_annotations: list[SentenceAnnotation] = Field(
+    sentence_entries: list[SentenceEntry] = Field(
         default_factory=list,
-        description="句级讲解标注。",
+        description="句尾入口：语法/句解/语境",
     )
-    render_marks: list[RenderMark] = Field(
+    cards: list[AnalysisCard] = Field(
         default_factory=list,
-        description="结果页高亮与笔记层所需的渲染标记。",
+        description="段间卡片：重型解释卡片",
     )
-    translations: AnalysisTranslations = Field(description="逐句翻译与全文翻译结果。")
-    warnings: list[AnalysisWarning] = Field(
+    warnings: list[dict[str, str]] = Field(
         default_factory=list,
-        description="调试与用户提示 warning 列表。",
+        description="警告信息列表。",
     )
-    metrics: AnalysisMetrics = Field(description="标注数量与文本结构统计。")

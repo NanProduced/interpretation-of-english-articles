@@ -5,7 +5,7 @@ import re
 from app.schemas.common import TextSpan
 from app.schemas.internal.analysis import SentenceDraft
 
-QUOTE_CLASS = r"[\"'“”‘’]"
+QUOTE_CLASS = r"[\"'""'']"
 HYPHEN_CLASS = r"[-–—]"
 SEPARATOR_CLASS = r"[\s–—-]"
 
@@ -26,7 +26,7 @@ def _build_flexible_pattern(anchor_text: str) -> str:
     for char in anchor_text:
         if char.isspace():
             parts.append(r"\s+")
-        elif char in "\"'“”‘’":
+        elif char in "\"'""''":
             parts.append(QUOTE_CLASS)
         elif char in "-–—":
             parts.append(HYPHEN_CLASS)
@@ -42,7 +42,7 @@ def _normalize_for_matching(text: str) -> tuple[str, list[int]]:
     last_was_separator = False
 
     for index, char in enumerate(text):
-        if char in "\"'“”‘’":
+        if char in "\"'""''":
             continue
         if re.fullmatch(SEPARATOR_CLASS, char):
             if normalized_chars and not last_was_separator:
@@ -77,7 +77,7 @@ def _resolve_candidate(
     return None
 
 
-def resolve_anchor(
+def resolve_text_anchor(
     sentence: SentenceDraft,
     anchor_text: str,
     anchor_occurrence: int | None = None,
@@ -135,3 +135,29 @@ def resolve_anchor(
         start=sentence.sentence_span.start + start_index,
         end=sentence.sentence_span.start + end_index,
     )
+
+
+def resolve_multi_text_anchor(
+    sentence: SentenceDraft,
+    parts: list[dict[str, object]],
+) -> list[TextSpan] | None:
+    """
+    解析多段锚点（用于 so...that, not only...but also 等不连续结构）。
+    返回各部分的 TextSpan 列表，如果任一部分无法定位则返回 None。
+    """
+    resolved_parts: list[TextSpan] = []
+
+    for part in parts:
+        anchor_text = part.get("anchor_text", "")
+        occurrence = part.get("occurrence")
+
+        span = resolve_text_anchor(sentence, anchor_text, occurrence)
+        if span is None:
+            return None
+        resolved_parts.append(span)
+
+    return resolved_parts
+
+
+# 向后兼容：单段锚点解析直接使用 resolve_text_anchor
+resolve_anchor = resolve_text_anchor

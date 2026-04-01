@@ -12,7 +12,7 @@ from app.llm.router import resolve_model_config, validate_model_selection
 from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
 from app.llm.runtime import dump_model_selection
 from app.llm.types import ModelSelection, parse_model_selection
-from app.schemas.analysis import AnalysisResult, AnalyzeRequest
+from app.schemas.analysis import AnalyzeRequest, RenderSceneModel
 from app.services.analysis.user_rules import derive_user_rules
 from app.workflow.analyze_nodes import (
     WORKFLOW_NAME,
@@ -25,7 +25,7 @@ from app.workflow.analyze_nodes import (
 from app.workflow.analyze_state import AnalyzeState
 from app.workflow.tracing import build_workflow_root_metadata, build_workflow_root_tags
 
-ANALYZE_SCHEMA_VERSION = "1.0.0"
+ANALYZE_SCHEMA_VERSION = "2.0.0"
 
 
 def _collect_model_names(settings: Any, model_selection: ModelSelection | None) -> list[str]:
@@ -54,7 +54,7 @@ def build_article_analysis_graph() -> Any:
     return graph.compile()
 
 
-async def run_article_analysis(payload: AnalyzeRequest) -> AnalysisResult:
+async def run_article_analysis(payload: AnalyzeRequest) -> RenderSceneModel:
     graph = build_article_analysis_graph()
     request_id = payload.request_id or str(uuid4())
     normalized_payload = (
@@ -98,7 +98,7 @@ async def run_article_analysis(payload: AnalyzeRequest) -> AnalysisResult:
             ),
         },
     )
-    return cast(AnalysisResult, result["result"])
+    return cast(RenderSceneModel, result["result"])
 
 
 __all__ = [

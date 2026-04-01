@@ -119,3 +119,10 @@
 4. Agent 不启用全局 instrumentation
 5. 节点内真实模型调用用 `@traceable(run_type="llm")` 包裹
 6. token 用 `usage_metadata` 回填
+
+## 环境变量
+
+当前代码会同时设置以下 tracing 开关：
+
+- `LANGSMITH_TRACING=true|false`
+- `LANGSMITH_TRACING_V2=true|false`

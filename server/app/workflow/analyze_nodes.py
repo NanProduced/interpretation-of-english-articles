@@ -5,6 +5,7 @@ from typing import Any, cast
 
 from langchain_core.runnables import RunnableConfig
 from langsmith import get_current_run_tree, traceable
+from pydantic_ai.usage import RunUsage
 
 from app.agents.annotation import AnnotationAgentDeps
 from app.config.settings import get_settings
@@ -13,14 +14,9 @@ from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
 from app.llm.runtime import get_model_selection
 from app.llm.types import ModelSelection
 from app.schemas.analysis import (
-    AnalysisMetrics,
-    AnalysisResult,
-    AnalysisStatus,
-    AnalysisTranslations,
-    AnalysisWarning,
     AnalyzeRequestMeta,
     ArticleStructure,
-    SanitizeReport,
+    RenderSceneModel,
 )
 from app.schemas.internal.analysis import TeachingOutput
 from app.services.analysis.input_preparation import prepare_input
@@ -32,7 +28,7 @@ from app.workflow.tracing import build_llm_trace_metadata, build_usage_metadata
 
 logger = logging.getLogger(__name__)
 WORKFLOW_NAME = "article_analysis"
-WORKFLOW_VERSION = "v1"
+WORKFLOW_VERSION = "v2"
 
 
 def _model_selection(config: RunnableConfig | None) -> ModelSelection | None:
@@ -44,10 +40,10 @@ def _empty_result(
     request_id: str,
     payload: Any,
     profile_id: str,
-    status: AnalysisStatus,
-    warnings: list[AnalysisWarning] | None = None,
-) -> AnalysisResult:
-    return AnalysisResult(
+    error_code: str,
+    user_message: str,
+) -> RenderSceneModel:
+    return RenderSceneModel(
         request=AnalyzeRequestMeta(
             request_id=request_id,
             source_type=payload.source_type,
@@ -55,7 +51,6 @@ def _empty_result(
             reading_variant=payload.reading_variant,
             profile_id=profile_id,
         ),
-        status=status,
         article=ArticleStructure(
             source_type=payload.source_type,
             source_text=payload.text,
@@ -63,28 +58,18 @@ def _empty_result(
             paragraphs=[],
             sentences=[],
         ),
-        sanitize_report=SanitizeReport(actions=[], removed_segment_count=0),
-        vocabulary_annotations=[],
-        grammar_annotations=[],
-        sentence_annotations=[],
-        render_marks=[],
-        translations=AnalysisTranslations(sentence_translations=[], full_translation_zh=""),
-        warnings=warnings or [],
-        metrics=AnalysisMetrics(
-            vocabulary_count=0,
-            grammar_count=0,
-            sentence_note_count=0,
-            render_mark_count=0,
-            sentence_count=0,
-            paragraph_count=0,
-        ),
+        translations=[],
+        inline_marks=[],
+        sentence_entries=[],
+        cards=[],
+        warnings=[],
     )
 
 
 async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
     payload = state["payload"]
     prepared_input = prepare_input(payload.text)
-    warnings: list[AnalysisWarning] = []
+    warnings: list[Any] = []
 
     if not prepared_input.render_text.strip():
         return {
@@ -94,12 +79,8 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
                 request_id=payload.request_id or "",
                 payload=payload,
                 profile_id="unresolved",
-                status=AnalysisStatus(
-                    state="failed",
-                    is_degraded=False,
-                    error_code="EMPTY_RENDER_TEXT",
-                    user_message="输入文本清洗后为空，当前无法进行英文解读。",
-                ),
+                error_code="EMPTY_RENDER_TEXT",
+                user_message="输入文本清洗后为空，当前无法进行英文解读。",
             ),
         }
 
@@ -111,12 +92,8 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
                 request_id=payload.request_id or "",
                 payload=payload,
                 profile_id="unresolved",
-                status=AnalysisStatus(
-                    state="failed",
-                    is_degraded=False,
-                    error_code="UNSUPPORTED_TEXT_TYPE",
-                    user_message="当前输入不适合文章解读，请输入英文正文内容。",
-                ),
+                error_code="UNSUPPORTED_TEXT_TYPE",
+                user_message="当前输入不适合文章解读，请输入英文正文内容。",
             ),
         }
 
@@ -128,21 +105,17 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
                 request_id=payload.request_id or "",
                 payload=payload,
                 profile_id="unresolved",
-                status=AnalysisStatus(
-                    state="failed",
-                    is_degraded=False,
-                    error_code="INPUT_NOT_ENGLISH_ARTICLE",
-                    user_message="输入文本中的英文正文不足，当前无法进行稳定标注。",
-                ),
+                error_code="INPUT_NOT_ENGLISH_ARTICLE",
+                user_message="输入文本中的英文正文不足，当前无法进行稳定标注。",
             ),
         }
 
     if prepared_input.noise_ratio >= 0.55:
         warnings.append(
-            AnalysisWarning(
-                code="HIGH_NOISE_RATIO",
-                message_zh="输入中存在较多噪音内容，结果可能需要结合原文查看。",
-            )
+            {
+                "code": "HIGH_NOISE_RATIO",
+                "message_zh": "输入中存在较多噪音内容，结果可能需要结合原文查看。",
+            }
         )
 
     return {
@@ -185,31 +158,58 @@ def build_annotation_trace_metadata(
     )
 
 
-@traceable(name="generate_annotations", run_type="llm")
 async def run_annotation_llm(
     *,
     deps: AnnotationAgentDeps,
     metadata: dict[str, object],
     model_selection: ModelSelection | None = None,
 ) -> TeachingOutput:
+    result = await _run_annotation_llm_span(
+        deps=deps,
+        metadata=metadata,
+        model_selection=model_selection,
+    )
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        annotation_count = (
+            len(result.output.inline_marks)
+            + len(result.output.sentence_entries)
+            + len(result.output.cards)
+        )
+        current_run.set(
+            metadata={"annotation_count": annotation_count},
+            outputs={"teaching_output": result.output.model_dump(mode="json")},
+        )
+    return result.output
+
+
+@traceable(name="annotation_generation_llm_call", run_type="llm")
+async def _run_annotation_llm_span(
+    *,
+    deps: AnnotationAgentDeps,
+    metadata: dict[str, object],
+    model_selection: ModelSelection | None = None,
+) -> Any:
     result = await run_annotation_agent_raw(deps, model_selection=model_selection)
     current_run = get_current_run_tree()
     if current_run is not None:
         annotation_count = (
-            len(result.output.vocabulary_annotations)
-            + len(result.output.grammar_annotations)
-            + len(result.output.sentence_annotations)
+            len(result.output.inline_marks)
+            + len(result.output.sentence_entries)
+            + len(result.output.cards)
         )
         current_run.set(
             metadata={**metadata, "annotation_count": annotation_count},
-            usage_metadata=cast(Any, build_usage_metadata(result.usage())),
+            usage_metadata=build_usage_metadata(result.usage()),
             outputs={"teaching_output": result.output.model_dump(mode="json")},
         )
-    return cast(TeachingOutput, result.output)
+    return result
 
 
 async def generate_annotations_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
-    if "result" in state and state["result"].status.state == "failed":
+    # V2: 检查 result 是否存在（V2 RenderSceneModel 没有 status 字段）
+    if "result" in state and state["result"]:
+        # 如果 result 已设置（有错误），则跳过
         return {}
 
     payload = state["payload"]
@@ -242,65 +242,30 @@ async def generate_annotations_node(state: AnalyzeState, config: RunnableConfig)
                 request_id=payload.request_id or "",
                 payload=payload,
                 profile_id=user_rules.profile_id,
-                status=AnalysisStatus(
-                    state="failed",
-                    is_degraded=False,
-                    error_code="ANNOTATION_GENERATION_FAILED",
-                    user_message="当前解读服务繁忙，请稍后重试。",
-                ),
-                warnings=[
-                    *state.get("warnings", []),
-                    AnalysisWarning(
-                        code="ANNOTATION_GENERATION_FAILED",
-                        message_zh=f"主教学节点调用失败，原因：{type(exc).__name__}",
-                    ),
-                ],
-            )
+                error_code="ANNOTATION_GENERATION_FAILED",
+                user_message="当前解读服务繁忙，请稍后重试。",
+            ),
+            "warnings": [
+                *state.get("warnings", []),
+                {
+                    "code": "ANNOTATION_GENERATION_FAILED",
+                    "message_zh": f"主教学节点调用失败，原因：{type(exc).__name__}",
+                },
+            ],
         }
 
 
-@traceable(name="assemble_result", run_type="chain")
-async def assemble_result_traceable(
-    *,
-    request_id: str,
-    source_type: str,
-    reading_goal: str,
-    reading_variant: str,
-    prepared_input: Any,
-    user_rules: Any,
-    teaching_output: TeachingOutput,
-) -> AssemblyOutcome:
-    outcome = assemble_result(
-        request_id=request_id,
-        source_type=source_type,
-        reading_goal=reading_goal,
-        reading_variant=reading_variant,
-        prepared_input=prepared_input,
-        user_rules=user_rules,
-        teaching_output=teaching_output,
-    )
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        current_run.set(
-            metadata={
-                "workflow_name": WORKFLOW_NAME,
-                "workflow_version": WORKFLOW_VERSION,
-                "node": "assemble_result",
-                "profile_id": user_rules.profile_id,
-                "drop_count": outcome.dropped_count,
-                "annotation_count": len(outcome.result.render_marks),
-            },
-            outputs={"result_summary": outcome.result.metrics.model_dump(mode="json")},
-        )
-    return outcome
-
-
 async def assemble_result_node(state: AnalyzeState) -> AnalyzeState:
-    if "result" in state and state["result"].status.state == "failed":
+    # V2: 如果 result 已存在（错误情况），直接合并警告并返回
+    if "result" in state and state["result"]:
+        result = state["result"]
+        existing_warnings = state.get("warnings", [])
+        if existing_warnings and hasattr(result, "warnings"):
+            result.warnings = [*existing_warnings, *result.warnings]
         return {}
 
     payload = state["payload"]
-    outcome = await assemble_result_traceable(
+    outcome = assemble_result(
         request_id=payload.request_id or "",
         source_type=payload.source_type,
         reading_goal=payload.reading_goal,
@@ -310,5 +275,10 @@ async def assemble_result_node(state: AnalyzeState) -> AnalyzeState:
         teaching_output=state["teaching_output"],
     )
     result = outcome.result.model_copy(deep=True)
-    result.warnings = [*state.get("warnings", []), *result.warnings]
+    # Merge warnings
+    existing_warnings = state.get("warnings", [])
+    if hasattr(result, "warnings"):
+        result.warnings = [*existing_warnings, *result.warnings]
+    elif existing_warnings:
+        result.warnings = existing_warnings
     return {"result": result}
