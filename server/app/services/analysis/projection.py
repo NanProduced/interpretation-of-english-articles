@@ -249,16 +249,18 @@ def _project_grammar_note(
     return inline_mark, sentence_entry, warnings
 
 
-def _validate_chunks(chunks: list[Chunk], sentence_text: str) -> bool:
+def _validate_chunks(chunks: list[Chunk] | None, sentence_text: str) -> bool:
     if not chunks:
-        return False
+        return True  # chunks 为可选，空值通过验证
     orders = [chunk.order for chunk in chunks]
     if sorted(orders) != list(range(1, len(chunks) + 1)):
         return False
     return all(chunk.text in sentence_text for chunk in chunks)
 
 
-def _format_chunks(chunks: list[Chunk]) -> str:
+def _format_chunks(chunks: list[Chunk] | None) -> str:
+    if not chunks:
+        return ""
     return "\n".join(
         f"- **{chunk.label}**: {chunk.text}"
         for chunk in sorted(chunks, key=lambda item: item.order)
@@ -391,7 +393,7 @@ def project_to_render_scene(
         })
 
     result = RenderSceneModel(
-        schema_version="2.1.0",
+        schema_version="3.0.0",
         request={
             "request_id": request_id,
             "source_type": source_type,

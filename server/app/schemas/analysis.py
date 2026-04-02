@@ -149,8 +149,8 @@ class Warning(BaseModel):
 
 
 class RenderSceneModel(BaseModel):
-    schema_version: Literal["2.1.0"] = Field(
-        default="2.1.0", description="当前分析结果的 schema 版本。"
+    schema_version: Literal["3.0.0"] = Field(
+        default="3.0.0", description="当前分析结果的 schema 版本。"
     )
     request: AnalyzeRequestMeta = Field(description="请求快照与规则包信息。")
     article: ArticleStructure = Field(description="结果页渲染所依赖的正文结构。")

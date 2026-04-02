@@ -20,12 +20,8 @@ export default function HistoryPage() {
     }
   ]
 
-  const goToResult = (isV2: boolean) => {
-    if (isV2) {
-      Taro.navigateTo({ url: '/pages/result-v2/index' })
-    } else {
-      Taro.navigateTo({ url: '/pages/result/index' })
-    }
+  const goToResult = (_isV2: boolean) => {
+    Taro.navigateTo({ url: '/pages/result/index' })
   }
 
   return (

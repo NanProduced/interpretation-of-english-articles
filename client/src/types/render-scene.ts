@@ -1,8 +1,8 @@
 /**
- * V2.1 统一渲染模型类型定义
- * 
- * 严格对齐 docs/workflow/v2/v2-1-refactor-design.md
- * 移除旧版遗留字段：cards, tone, aiNote, context type entries 等
+ * V3 统一渲染模型类型定义
+ *
+ * 对齐 docs/workflow/v3/workflow-v3-design.md
+ * 版本号不进入业务命名
  */
 
 // ============ 基础组件 ============
@@ -47,7 +47,7 @@ export type AnnotationType =
   | 'context_gloss'
   | 'grammar_note'
 
-/** 渲染语义，不再使用模糊的 tone */
+/** 渲染语义 */
 export type VisualTone = 'vocab' | 'phrase' | 'context' | 'grammar'
 
 export type RenderType = 'background' | 'underline'
@@ -74,7 +74,7 @@ export interface InlineMarkModel {
 
 // ============ 句尾入口 ============
 
-/** v2.1 只保留这两类句尾入口 */
+/** v3 只保留这两类句尾入口 */
 export type SentenceEntryType = 'grammar_note' | 'sentence_analysis'
 
 export interface SentenceEntryModel {
@@ -136,7 +136,7 @@ export interface RequestMeta {
 // ============ 统一渲染模型 ============
 
 export interface RenderSceneModel {
-  schemaVersion: '2.1.0'
+  schemaVersion: '3.0.0'
   request: RequestMeta
   article: ArticleModel
   translations: TranslationModel[]

@@ -5,7 +5,6 @@ export default {
     'pages/input/index',
     'pages/result/index',
     'pages/result/loading',
-    'pages/result-v2/index',
     'pages/history/index',
     'pages/profile/index'
   ],

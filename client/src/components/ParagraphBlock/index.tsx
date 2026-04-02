@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { View, Text } from '@tarojs/components'
-import { InlineMarkModel, SentenceEntryModel, TextAnchor, MultiTextAnchor, VisualTone, SentenceModel, TranslationModel } from '../../types/v2-render'
+import { InlineMarkModel, SentenceEntryModel, TextAnchor, MultiTextAnchor, VisualTone, SentenceModel, TranslationModel } from '../../types/render-scene'
 import InlineMark from '../InlineMark'
 import SentenceActionChip from '../SentenceActionChip'
 import './index.scss'

@@ -14,7 +14,7 @@ export default function Home() {
   }
 
   const navigateToV2Experiment = () => {
-    Taro.navigateTo({ url: '/pages/result-v2/index' })
+    Taro.navigateTo({ url: '/pages/result/index' })
   }
 
   const recommendations = [

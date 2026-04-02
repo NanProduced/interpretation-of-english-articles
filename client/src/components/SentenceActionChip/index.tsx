@@ -1,5 +1,5 @@
 import { Text } from '@tarojs/components'
-import { SentenceEntryModel } from '../../types/v2-render'
+import { SentenceEntryModel } from '../../types/render-scene'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 

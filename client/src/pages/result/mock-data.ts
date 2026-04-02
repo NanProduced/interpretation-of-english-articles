@@ -1,4 +1,4 @@
-import { RenderSceneModel, RequestMeta } from '../../types/v2-render'
+import { RenderSceneModel, RequestMeta } from '../../types/render-scene'
 
 /**
  * SCENARIO_FULL: 全功能场景
@@ -13,7 +13,7 @@ const requestMeta: RequestMeta = {
 }
 
 export const SCENARIO_FULL: RenderSceneModel = {
-  schemaVersion: '2.1.0',
+  schemaVersion: '3.0.0',
   request: requestMeta,
   article: {
     paragraphs: [
@@ -219,7 +219,7 @@ export const SCENARIO_WARNINGS: RenderSceneModel = {
  * SCENARIO_BASIC: 极简场景 (仅正文与翻译)
  */
 export const SCENARIO_BASIC: RenderSceneModel = {
-  schemaVersion: '2.1.0',
+  schemaVersion: '3.0.0',
   request: { ...requestMeta, requestId: 'req_basic_demo' },
   article: {
     paragraphs: [{ paragraphId: 'p1', sentenceIds: ['s1'] }],

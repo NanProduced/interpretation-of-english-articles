@@ -1,5 +1,5 @@
 import { Text } from '@tarojs/components'
-import { InlineMarkModel, VisualTone } from '../../types/v2-render'
+import { InlineMarkModel, VisualTone } from '../../types/render-scene'
 import './index.scss'
 
 interface InlineMarkProps {

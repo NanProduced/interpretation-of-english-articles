@@ -1,4 +1,5 @@
 export default {
-  navigationBarTitleText: '解析结果',
-  navigationStyle: 'custom'
+  navigationBarTitleText: 'V2 实验页',
+  navigationStyle: 'custom',
+  enablePullDownRefresh: false,
 }

@@ -1,120 +1,177 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import { RenderSceneModel, InlineMarkModel, SentenceEntryModel, PageMode } from '../../types/render-scene'
+import { ALL_SCENARIOS, PAGE_MODE_OPTIONS, articleMeta } from './mock-data'
 import NavBar from '../../components/NavBar'
+import ParagraphBlock from '../../components/ParagraphBlock'
+import WordPopup from '../../components/WordPopup'
+import BottomSheetDetail from '../../components/BottomSheetDetail'
 import LucideIcon from '../../components/LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
 import './index.scss'
 
-/**
- * 模拟革新版后端数据结构
- */
-const notebookData = {
-  title: "The Architecture of Sleep",
-  paragraphs: [
-    {
-      id: "p1",
-      tag: "Concept",
-      sentences: [
-        {
-          id: "s1",
-          chunks: [
-            { text: "Sleep is ", type: "main" },
-            { text: "the single most effective thing ", type: "main", word: { text: "effective", gloss: "有效的" } },
-            { text: "we can do ", type: "clause" },
-            { text: "to reset our brain and body health ", type: "modifier", word: { text: "reset", gloss: "重置" } },
-            { text: "each day.", type: "modifier" }
-          ],
-          translation: "睡眠是我们每天能重置身心健康最有效的一件事。"
-        },
-        {
-          id: "s2",
-          chunks: [
-            { text: "Yet, ", type: "connective" },
-            { text: "a silent sleep loss epidemic ", type: "main", word: { text: "epidemic", gloss: "流行病" } },
-            { text: "is fast becoming one of the greatest challenges ", type: "main" },
-            { text: "in the 21st century.", type: "modifier" }
-          ],
-          translation: "然而，一场无声的睡眠缺失流行病正成为21世纪最大的挑战。"
-        }
-      ]
-    }
-  ]
-}
-
-export default function ResultPage() {
+export default function ResultV2() {
   const { navBarHeight } = useLayoutStore()
-  const [showTrans, setShowTrans] = useState(true)
-  const [showNotes, setShowNotes] = useState(true)
-  const [showStructure, setShowStructure] = useState(true)
+  const [scenarioName, setScenarioName] = useState<keyof typeof ALL_SCENARIOS>('全功能演示')
+  const [pageMode, setPageMode] = useState<PageMode>('bilingual')
+  const [showDebug, setShowDebug] = useState(false)
+  const [wordPopup, setWordPopup] = useState<{
+    visible: boolean
+    mode: 'mini' | 'full'
+    mark: InlineMarkModel | null
+    word: string
+    x: number
+    y: number
+  }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
+  const [bottomSheet, setBottomSheet] = useState<{
+    visible: boolean
+    entry: SentenceEntryModel | null
+  }>({ visible: false, entry: null })
 
-  const goHome = () => { Taro.reLaunch({ url: '/pages/home/index' }) }
-  const goInput = () => { Taro.navigateTo({ url: '/pages/input/index' }) }
+  const sceneData: RenderSceneModel = ALL_SCENARIOS[scenarioName]
 
-  const renderAnnotatedText = (chunks: any[]) => {
-    return chunks.map((chunk, idx) => {
-      const chunkClass = showStructure ? `chunk-${chunk.type}` : ''
-      if (chunk.word && showNotes) {
-        return (
-          <View key={idx} className={`word-with-note ${chunkClass}`}>
-            <Text className='ruby-text'>{chunk.word.gloss}</Text>
-            <Text className='surface-text'>{chunk.text}</Text>
-          </View>
-        )
+  const showTranslation = pageMode === 'bilingual' || pageMode === 'intensive'
+
+  const handleWordClick = (mark: InlineMarkModel, word: string, e?: any) => {
+    // If it has AI glossary, go straight to full sheet. Otherwise, show mini tooltip.
+    const isAIAnnotated = !!mark.glossary
+    const initialMode = isAIAnnotated ? 'full' : 'mini'
+
+    let clientX = 0
+    let clientY = 0
+    
+    // Safely extract coordinates from Taro touch/click event
+    if (e) {
+      if (e.changedTouches && e.changedTouches[0]) {
+        clientX = e.changedTouches[0].clientX
+        clientY = e.changedTouches[0].clientY
+      } else if (e.detail && e.detail.x !== undefined) {
+        clientX = e.detail.x
+        clientY = e.detail.y
       }
-      return <Text key={idx} className={`text-span ${chunkClass}`}>{chunk.text}</Text>
+    }
+
+    setWordPopup({ visible: true, mode: initialMode, mark, word, x: clientX, y: clientY })
+  }
+
+  const handleChipClick = (entry: SentenceEntryModel) => {
+    setBottomSheet({ visible: true, entry })
+  }
+
+  const renderParagraphs = () => {
+    return sceneData.article.paragraphs.map((paragraph) => {
+      // Find all sentences for this paragraph
+      const sentences = paragraph.sentenceIds
+        .map(id => sceneData.article.sentences.find(s => s.sentenceId === id))
+        .filter((s): s is NonNullable<typeof s> => !!s)
+
+      return (
+        <ParagraphBlock
+          key={paragraph.paragraphId}
+          sentences={sentences}
+          translations={sceneData.translations}
+          showTranslation={showTranslation}
+          inlineMarks={sceneData.inlineMarks}
+          tailEntries={sceneData.sentenceEntries}
+          pageMode={pageMode}
+          onWordClick={handleWordClick}
+          onChipClick={handleChipClick}
+        />
+      )
     })
   }
 
   return (
     <View className='result-page'>
-      <NavBar title='精读笔记' showBack showHome background='#fff' />
-      <View className='nav-placeholder' style={{ height: navBarHeight + 'px' }} />
+      <NavBar title='AI 英语解读' showBack showHome />
+      <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
 
-      <ScrollView scrollY className='content-scroll'>
+      <View className='mode-tabs'>
+        {PAGE_MODE_OPTIONS.map((mode) => (
+          <View
+            key={mode.value}
+            className={`mode-tab ${pageMode === mode.value ? 'active' : ''}`}
+            onClick={() => setPageMode(mode.value as PageMode)}
+          >
+            <Text className='mode-tab-label'>{mode.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <ScrollView className='article-scroll' scrollY>
         <View className='article-container'>
-          <Text className='article-title'>{notebookData.title}</Text>
-
-          {notebookData.paragraphs.map(para => (
-            <View key={para.id} className='paragraph-block'>
-              <View className='para-tag'>{para.tag}</View>
-              {para.sentences.map((sent, sIdx) => (
-                <View key={sent.id} className='sentence-unit' style={{ animationDelay: `${sIdx * 0.2}s` }}>
-                  <View className='en-line'>{renderAnnotatedText(sent.chunks)}</View>
-                  <View className={`zh-line ${showTrans ? '' : 'hidden'}`}><Text>{sent.translation}</Text></View>
+          {sceneData.warnings.length > 0 && (
+            <View className='warnings-container'>
+              {sceneData.warnings.map((w, idx) => (
+                <View key={idx} className={`warning-item ${w.level}`}>
+                  <LucideIcon name='alert-circle' size={14} color='inherit' />
+                  <Text className='warning-msg'>{w.message}</Text>
                 </View>
               ))}
             </View>
-          ))}
+          )}
+
+          <View className='article-header'>
+            <Text className='article-title'>{articleMeta.title}</Text>
+            <View className='article-meta-row'>
+              <Text className='article-source'>{articleMeta.source}</Text>
+              <Text className='meta-divider'>·</Text>
+              <Text className='article-level'>{articleMeta.level}</Text>
+            </View>
+          </View>
+
+          {renderParagraphs()}
         </View>
+
+        <View className='bottom-spacer' />
       </ScrollView>
 
-      {/* 悬浮黑色 Dock 控制栏 - 使用轻量级图标组件 */}
-      <View className='minimal-dock'>
-        <View className={`dock-item ${showTrans ? 'active' : ''}`} onClick={() => setShowTrans(!showTrans)}>
-          <LucideIcon name='languages' size={20} color={showTrans ? '#fbbf24' : '#fff'} />
-          <Text className='label'>译文</Text>
-        </View>
-        <View className={`dock-item ${showNotes ? 'active' : ''}`} onClick={() => setShowNotes(!showNotes)}>
-          <LucideIcon name='book' size={20} color={showNotes ? '#fbbf24' : '#fff'} />
-          <Text className='label'>批注</Text>
-        </View>
-        <View className={`dock-item ${showStructure ? 'active' : ''}`} onClick={() => setShowStructure(!showStructure)}>
-          <LucideIcon name='layers' size={20} color={showStructure ? '#fbbf24' : '#fff'} />
-          <Text className='label'>结构</Text>
-        </View>
-        
-        <View className='divider' />
-
-        <View className='dock-item' onClick={goInput}>
-          <LucideIcon name='plus' size={20} color='rgba(255,255,255,0.6)' />
-          <Text className='label'>解析</Text>
-        </View>
-        <View className='dock-item' onClick={goHome}>
-          <LucideIcon name='home' size={20} color='rgba(255,255,255,0.6)' />
-          <Text className='label'>首页</Text>
-        </View>
+      <View className={`debug-fab ${showDebug ? 'expanded' : ''}`} onClick={() => !showDebug && setShowDebug(true)}>
+        {!showDebug ? (
+          <LucideIcon name='settings' size={18} color='#999' />
+        ) : (
+          <View className='debug-menu'>
+            <View className='debug-header'>
+              <Text>场景切换</Text>
+              <View onClick={(e) => { e.stopPropagation(); setShowDebug(false); }}>
+                <LucideIcon name='x' size={16} color='#999' />
+              </View>
+            </View>
+            <View className='scenario-list'>
+              {Object.keys(ALL_SCENARIOS).map((name) => (
+                <View
+                  key={name}
+                  className={`scenario-option ${scenarioName === name ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setScenarioName(name as any);
+                    setShowDebug(false);
+                  }}
+                >
+                  <Text>{name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
+
+      <WordPopup
+        visible={wordPopup.visible}
+        mode={wordPopup.mode}
+        mark={wordPopup.mark}
+        word={wordPopup.word}
+        x={wordPopup.x}
+        y={wordPopup.y}
+        onClose={() => setWordPopup({ ...wordPopup, visible: false })}
+        onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
+      />
+
+      <BottomSheetDetail
+        visible={bottomSheet.visible}
+        entry={bottomSheet.entry}
+        onClose={() => setBottomSheet({ ...bottomSheet, visible: false })}
+      />
     </View>
   )
 }

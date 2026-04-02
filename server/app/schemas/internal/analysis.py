@@ -160,7 +160,7 @@ class SentenceAnalysis(BaseModel):
     sentence_id: str = Field(description="句子ID")
     label: str = Field(min_length=1, description="句型概述")
     analysis_zh: str = Field(min_length=1, description="中文解析，说明句子主干、层次关系和理解难点")
-    chunks: list[Chunk] = Field(min_length=2, max_length=8, description="按阅读顺序拆解的句子成分")
+    chunks: list[Chunk] | None = Field(default=None, description="按阅读顺序拆解的句子成分（可选增强字段）")
 
 
 Annotation = Annotated[

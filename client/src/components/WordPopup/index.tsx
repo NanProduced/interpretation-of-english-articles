@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { InlineMarkModel, DictionaryResult } from '../../types/v2-render'
+import { InlineMarkModel, DictionaryResult } from '../../types/render-scene'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 

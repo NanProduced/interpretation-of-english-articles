@@ -5,7 +5,7 @@ import asyncio
 import json
 import os
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from time import perf_counter
@@ -14,6 +14,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.analysis import AnalyzeRequest, RenderSceneModel
+from app.schemas.internal.normalized import DropLogEntry, NormalizedAnnotationResult
 from app.workflow.analyze import run_article_analysis_with_state
 
 
@@ -69,6 +70,8 @@ class EvaluatedSample:
     response: RenderSceneModel
     summary: dict[str, Any]
     duration_ms: int
+    drop_log: list[DropLogEntry] = field(default_factory=list)
+    normalized_result: NormalizedAnnotationResult | None = None
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -250,12 +253,52 @@ async def _run_sample(sample: RegressionSample, model_selection: dict[str, Any] 
     start = perf_counter()
     state = await run_article_analysis_with_state(request)
     duration_ms = int((perf_counter() - start) * 1000)
-    response = RenderSceneModel.model_validate(state["result"])
+    response = RenderSceneModel.model_validate(state["render_scene"])
     summary = evaluate_response(sample, response)
     summary["duration_ms"] = duration_ms
     summary["request_id"] = response.request.request_id
     summary["usage"] = _normalize_usage_summary(state.get("annotation_usage"))
-    return EvaluatedSample(sample=sample, response=response, summary=summary, duration_ms=duration_ms)
+
+    # V3: Capture drop_log and normalized_result for additional analysis
+    drop_log = state.get("drop_log", [])
+    normalized_result = state.get("normalized_result")
+
+    # Add V3 metrics to summary
+    summary["drop_log_count"] = len(drop_log)
+    summary["drop_log_by_stage"] = _group_drop_log_by_stage(drop_log)
+    summary["drop_log_by_reason"] = _group_drop_log_by_reason(drop_log)
+    summary["drop_log_by_source"] = _group_drop_log_by_source(drop_log)
+    summary["repair_triggered"] = state.get("repair_request") is not None
+
+    return EvaluatedSample(
+        sample=sample,
+        response=response,
+        summary=summary,
+        duration_ms=duration_ms,
+        drop_log=drop_log,
+        normalized_result=normalized_result,
+    )
+
+
+def _group_drop_log_by_stage(drop_log: list[DropLogEntry]) -> dict[str, int]:
+    counts: dict[str, int] = defaultdict(int)
+    for entry in drop_log:
+        counts[entry.drop_stage] += 1
+    return dict(counts)
+
+
+def _group_drop_log_by_reason(drop_log: list[DropLogEntry]) -> dict[str, int]:
+    counts: dict[str, int] = defaultdict(int)
+    for entry in drop_log:
+        counts[entry.drop_reason] += 1
+    return dict(counts)
+
+
+def _group_drop_log_by_source(drop_log: list[DropLogEntry]) -> dict[str, int]:
+    counts: dict[str, int] = defaultdict(int)
+    for entry in drop_log:
+        counts[entry.source_agent] += 1
+    return dict(counts)
 
 
 def _build_model_selection(args: argparse.Namespace) -> dict[str, Any] | None:
@@ -326,6 +369,9 @@ def _write_run_bundle(output_root: Path, evaluated_samples: list[EvaluatedSample
             "duration_ms": item.summary["duration_ms"],
             "request_id": item.summary["request_id"],
             "usage": item.summary["usage"],
+            # V3: drop_log metrics
+            "drop_log_count": item.summary.get("drop_log_count", 0),
+            "repair_triggered": item.summary.get("repair_triggered", False),
         }
         for item in evaluated_samples
     ]
@@ -349,6 +395,17 @@ def _write_run_bundle(output_root: Path, evaluated_samples: list[EvaluatedSample
             json.dumps(item.summary, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        # V3: Write drop_log if present
+        if item.drop_log:
+            drop_log_data = [d.model_dump(mode="json") for d in item.drop_log]
+            (output_root / f"{item.sample.id}.drop_log.json").write_text(
+                json.dumps(drop_log_data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+    # V3 aggregate drop_log stats
+    total_drop_log = sum(item.summary.get("drop_log_count", 0) for item in evaluated_samples)
+    repair_triggered_count = sum(1 for item in evaluated_samples if item.summary.get("repair_triggered", False))
+
     lines = [
         "# 回归测试摘要",
         "",
@@ -366,11 +423,14 @@ def _write_run_bundle(output_root: Path, evaluated_samples: list[EvaluatedSample
         f"- 输入 tokens：`{aggregate['total_input_tokens'] if aggregate['total_input_tokens'] is not None else '-'}`",
         f"- 输出 tokens：`{aggregate['total_output_tokens'] if aggregate['total_output_tokens'] is not None else '-'}`",
         f"- 总 tokens：`{aggregate['total_tokens'] if aggregate['total_tokens'] is not None else '-'}`",
+        # V3 new metrics
+        f"- V3 drop_log 总数：`{total_drop_log}`",
+        f"- V3 repair 触发次数：`{repair_triggered_count}`",
         "",
         "## 样本明细",
         "",
-        "| sample_id | 结果 | inline_marks | sentence_entries | warnings | 耗时(ms) | 翻译覆盖 | tokens |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "| sample_id | 结果 | inline_marks | sentence_entries | warnings | 耗时(ms) | 翻译覆盖 | drop_log | repair | tokens |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for item in evaluated_samples:
         usage = item.summary.get("usage", {})
@@ -383,7 +443,9 @@ def _write_run_bundle(output_root: Path, evaluated_samples: list[EvaluatedSample
             f"| {item.sample.id} | {'通过' if item.summary['passed'] else '失败'} | "
             f"{item.summary['inline_mark_count']} | {item.summary['sentence_entry_count']} | "
             f"{item.summary['warning_count']} | {item.summary['duration_ms']} | "
-            f"{'是' if item.summary['translation_complete'] else '否'} | {token_display} |"
+            f"{'是' if item.summary['translation_complete'] else '否'} | "
+            f"{item.summary.get('drop_log_count', 0)} | "
+            f"{'是' if item.summary.get('repair_triggered') else '否'} | {token_display} |"
         )
     failed_samples = [item for item in evaluated_samples if not item.summary["passed"]]
     if failed_samples:
@@ -405,13 +467,37 @@ def _write_run_bundle(output_root: Path, evaluated_samples: list[EvaluatedSample
             if not summary["translation_complete"]:
                 lines.append("- 翻译覆盖不完整")
             lines.append("")
+    # V3 drop_log summary
+    if total_drop_log > 0:
+        lines.extend(["", "## V3 Drop Log 统计", ""])
+        all_stages: dict[str, int] = defaultdict(int)
+        all_reasons: dict[str, int] = defaultdict(int)
+        all_sources: dict[str, int] = defaultdict(int)
+        for item in evaluated_samples:
+            for stage, count in item.summary.get("drop_log_by_stage", {}).items():
+                all_stages[stage] += count
+            for reason, count in item.summary.get("drop_log_by_reason", {}).items():
+                all_reasons[reason] += count
+            for source, count in item.summary.get("drop_log_by_source", {}).items():
+                all_sources[source] += count
+        lines.append("### 按阶段分布")
+        for stage, count in sorted(all_stages.items()):
+            lines.append(f"- {stage}: {count}")
+        lines.append("### 按原因分布")
+        for reason, count in sorted(all_reasons.items()):
+            lines.append(f"- {reason}: {count}")
+        lines.append("### 按来源分布")
+        for source, count in sorted(all_sources.items()):
+            lines.append(f"- {source}: {count}")
     lines.extend(
         [
+            "",
             "## 说明",
             "",
             "- `run-local` 当前直接统计壁钟耗时。",
             "- token 字段来自 annotation 节点返回的 usage 摘要；若显示为 `-`，表示该次运行未拿到 usage。",
             "- 如已开启 LangSmith tracing，可在对应 trace 中查看 LLM usage 详情。",
+            "- V3 drop_log 记录 normalize_and_ground 阶段的删除/降级操作。",
         ]
     )
     (output_root / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -544,6 +630,9 @@ def run_langsmith(args: argparse.Namespace) -> int:
         return {
             "response": _result_to_jsonable(evaluated.response),
             "summary": evaluated.summary,
+            # V3: Include drop_log and repair info for evaluators
+            "drop_log": [d.model_dump(mode="json") for d in evaluated.drop_log],
+            "repair_triggered": evaluated.summary.get("repair_triggered", False),
         }
 
     def schema_valid_evaluator(run, example):
@@ -574,6 +663,55 @@ def run_langsmith(args: argparse.Namespace) -> int:
             "comment": f"translation_complete={summary.get('translation_complete')}",
         }
 
+    def drop_log_evaluator(run, example):
+        """V3: Evaluate drop_log metrics from normalize_and_ground stage."""
+        outputs = run.outputs if hasattr(run, "outputs") else run.get("outputs", {}) or {}
+        drop_log = outputs.get("drop_log", [])
+        drop_log_count = len(drop_log)
+
+        # Evaluate drop log health
+        # High drop rate might indicate agent quality issues
+        summary = outputs.get("summary", {})
+        inline_mark_count = summary.get("inline_mark_count", 0)
+
+        # Calculate drop rate
+        if inline_mark_count + drop_log_count > 0:
+            drop_rate = drop_log_count / (inline_mark_count + drop_log_count)
+        else:
+            drop_rate = 0.0
+
+        # Score: penalize if drop rate > 50% (indicates poor agent output)
+        if drop_rate > 0.5:
+            score = 0
+            comment = f"high_drop_rate={drop_rate:.2%} drop_count={drop_log_count}"
+        elif drop_rate > 0.3:
+            score = 0.5
+            comment = f"moderate_drop_rate={drop_rate:.2%} drop_count={drop_log_count}"
+        else:
+            score = 1
+            comment = f"drop_rate={drop_rate:.2%} drop_count={drop_log_count}"
+
+        return {"score": score, "comment": comment}
+
+    def repair_log_evaluator(run, example):
+        """V3: Evaluate whether repair was triggered and succeeded."""
+        outputs = run.outputs if hasattr(run, "outputs") else run.get("outputs", {}) or {}
+        repair_triggered = outputs.get("repair_triggered", False)
+
+        # If repair wasn't triggered, that's fine (score=1)
+        # If repair was triggered but overall passed, also fine
+        summary = outputs.get("summary", {})
+        passed = summary.get("passed", False)
+
+        if not repair_triggered:
+            return {"score": 1, "comment": "repair_not_needed"}
+        else:
+            # Repair was triggered - this might indicate issues but isn't necessarily bad
+            if passed:
+                return {"score": 1, "comment": "repair_triggered_and_fixed"}
+            else:
+                return {"score": 0.5, "comment": "repair_triggered_but_still_failing"}
+
     results = evaluate(
         run_workflow,
         data=data,
@@ -582,6 +720,8 @@ def run_langsmith(args: argparse.Namespace) -> int:
             must_hit_evaluator,
             must_not_hit_evaluator,
             translation_coverage_evaluator,
+            drop_log_evaluator,
+            repair_log_evaluator,
         ],
         experiment_prefix=args.experiment_prefix,
         metadata={"source": "local_regression_suite", "model_selection": model_selection or {}},

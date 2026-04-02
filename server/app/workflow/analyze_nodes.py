@@ -1,74 +1,75 @@
+"""V3 Workflow Nodes for article_analysis.
+
+v3 节点设计：
+1. prepare_input - 输入清洗、分段分句
+2. derive_user_config - 用户配置推导
+3. vocabulary_agent - 词汇维度标注（并行）
+4. grammar_agent - 结构维度标注（并行）
+5. translation_agent - 逐句翻译（并行）
+6. normalize_and_ground - 确定性归一化
+7. repair_agent - 可选修复
+8. project_render_scene - 前端协议投影
+9. assemble_result - 结果收敛
+"""
+
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections import Counter
-from typing import Any, cast
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 from langsmith import get_current_run_tree, traceable
-from langsmith.schemas import ExtractedUsageMetadata
 
-from app.agents.annotation import AnnotationAgentDeps
+from app.agents.grammar_agent import GrammarAgentDeps
+from app.agents.repair_agent import RepairAgentDeps
+from app.agents.translation_agent import TranslationAgentDeps
+from app.agents.vocabulary_agent import VocabularyAgentDeps
 from app.config.settings import get_settings
 from app.llm.router import resolve_model_config
 from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
 from app.llm.runtime import get_model_selection
 from app.llm.types import ModelSelection
 from app.schemas.analysis import AnalyzeRequestMeta, ArticleStructure, RenderSceneModel, Warning
+from app.schemas.internal.analysis import PreparedSentence
+from app.services.analysis.draft_validators import validate_all_drafts
 from app.services.analysis.input_preparation import prepare_input
-from app.services.analysis.projection import ANCHOR_FAILURE_THRESHOLD, project_to_render_scene
-from app.services.analysis.runners import run_annotation_agent
+from app.services.analysis.normalize_and_ground import normalize_and_ground
+from app.services.analysis.projection import project_to_render_scene
+from app.services.analysis.runners import (
+    run_grammar_agent,
+    run_translation_agent,
+    run_vocabulary_agent,
+)
 from app.services.analysis.user_rules import derive_user_rules
-from app.services.analysis.validators import ValidationResult, validate_annotation_output
 from app.workflow.analyze_state import AnalyzeState
-from app.workflow.tracing import build_llm_trace_metadata, build_usage_metadata
+from app.workflow.tracing import build_llm_trace_metadata
 
 logger = logging.getLogger(__name__)
 WORKFLOW_NAME = "article_analysis"
-WORKFLOW_VERSION = "2.1.0"
+WORKFLOW_VERSION = "3.0.0"
 MAX_ANNOTATION_ATTEMPTS = 3
 
-
-# -------------------------------------------------------------------
-# Module-level helpers (extracted from build_annotation_trace_metadata)
-# -------------------------------------------------------------------
+# 触发 repair 的条件
+ANCHOR_FAILURE_THRESHOLD = 0.20
 
 
-def _annotation_count_by_type(annotation_output: Any) -> dict[str, int]:
-    counts = Counter(annotation.type for annotation in annotation_output.annotations)
+def _annotation_count_by_type(annotations: list[Any]) -> dict[str, int]:
+    counts = Counter(getattr(a, "type", str(type(a).__name__)) for a in annotations)
     return dict(sorted(counts.items()))
-
-
-def _validator_warning_items(validation_result: ValidationResult) -> list[Warning]:
-    warnings: list[Warning] = []
-    for error in validation_result.errors:
-        warnings.append(
-            Warning(
-                code=f"VALIDATION_{error['code']}".upper(),
-                level="error",
-                message=str(error["message"]),
-                sentence_id=cast(str | None, error.get("sentence_id")),
-                annotation_id=cast(str | None, error.get("annotation_id")),
-            )
-        )
-    for warning_item in validation_result.warnings:
-        warnings.append(
-            Warning(
-                code=f"VALIDATION_{warning_item['code']}".upper(),
-                level="warning",
-                message=str(warning_item["message"]),
-                sentence_id=cast(str | None, warning_item.get("sentence_id")),
-                annotation_id=cast(str | None, warning_item.get("annotation_id")),
-            )
-        )
-    return warnings
 
 
 def _model_selection(config: RunnableConfig | None) -> ModelSelection | None:
     return get_model_selection(config)
 
 
-def _empty_result(*, request_id: str, payload: Any, profile_id: str) -> RenderSceneModel:
+def _empty_result(
+    *,
+    request_id: str,
+    payload: Any,
+    profile_id: str,
+) -> RenderSceneModel:
     return RenderSceneModel(
         request=AnalyzeRequestMeta(
             request_id=request_id,
@@ -91,6 +92,101 @@ def _empty_result(*, request_id: str, payload: Any, profile_id: str) -> RenderSc
     )
 
 
+def _build_agent_trace_metadata(
+    state: AnalyzeState,
+    node_name: str,
+    model_selection: ModelSelection | None = None,
+) -> dict[str, object]:
+    payload = state["payload"]
+    user_rules = state.get("user_rules") or derive_user_rules(
+        payload.reading_goal, payload.reading_variant
+    )
+    model_config = resolve_model_config(
+        get_settings(), MODEL_ROUTE_ANNOTATION_GENERATION, model_selection
+    )
+    return build_llm_trace_metadata(
+        workflow_name=WORKFLOW_NAME,
+        workflow_version=WORKFLOW_VERSION,
+        request_id=payload.request_id or "",
+        source_type=payload.source_type,
+        reading_goal=payload.reading_goal,
+        reading_variant=payload.reading_variant,
+        profile_id=user_rules.profile_id,
+        model_name=model_config.model_name if model_config else "unconfigured",
+        model_provider=model_config.provider if model_config else "unconfigured",
+        extra={
+            "node": node_name,
+            "model_profile": model_config.profile_name if model_config else "unconfigured",
+            "sentence_count": len(state["prepared_input"].sentences),
+        },
+    )
+
+
+@traceable(name="vocabulary_llm_call", run_type="llm")
+async def _run_vocabulary_llm_span(
+    *,
+    deps: VocabularyAgentDeps,
+    metadata: dict[str, object],
+    model_selection: ModelSelection | None = None,
+) -> dict[str, Any]:
+    result = await run_vocabulary_agent(deps, model_selection=model_selection)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        output = result.output if hasattr(result, "output") else result
+        vocab_count = (
+            len(output.vocab_highlights)
+            + len(output.phrase_glosses)
+            + len(output.context_glosses)
+        )
+        current_run.set(
+            metadata={**metadata, "vocabulary_annotation_count": vocab_count},
+            outputs={"vocabulary_draft": output.model_dump(mode="json")},
+        )
+    return {"output": result.output if hasattr(result, "output") else result}
+
+
+@traceable(name="grammar_llm_call", run_type="llm")
+async def _run_grammar_llm_span(
+    *,
+    deps: GrammarAgentDeps,
+    metadata: dict[str, object],
+    model_selection: ModelSelection | None = None,
+) -> dict[str, Any]:
+    result = await run_grammar_agent(deps, model_selection=model_selection)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        output = result.output if hasattr(result, "output") else result
+        grammar_count = len(output.grammar_notes) + len(output.sentence_analyses)
+        current_run.set(
+            metadata={**metadata, "grammar_annotation_count": grammar_count},
+            outputs={"grammar_draft": output.model_dump(mode="json")},
+        )
+    return {"output": result.output if hasattr(result, "output") else result}
+
+
+@traceable(name="translation_llm_call", run_type="llm")
+async def _run_translation_llm_span(
+    *,
+    deps: TranslationAgentDeps,
+    metadata: dict[str, object],
+    model_selection: ModelSelection | None = None,
+) -> dict[str, Any]:
+    result = await run_translation_agent(deps, model_selection=model_selection)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        output = result.output if hasattr(result, "output") else result
+        current_run.set(
+            metadata={**metadata, "translation_count": len(output.sentence_translations)},
+            outputs={"translation_draft": output.model_dump(mode="json")},
+        )
+    return {"output": result.output if hasattr(result, "output") else result}
+
+
+# -------------------------------------------------------------------
+# Node implementations
+# -------------------------------------------------------------------
+
+
 async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
     payload = state["payload"]
     prepared_input = prepare_input(payload.text)
@@ -100,7 +196,7 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
         return {
             "prepared_input": prepared_input,
             "warnings": warnings,
-            "result": _empty_result(
+            "render_scene": _empty_result(
                 request_id=payload.request_id or "",
                 payload=payload,
                 profile_id="unresolved",
@@ -108,26 +204,24 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
         }
 
     if prepared_input.text_type in {"code", "other"}:
-        return {
-            "prepared_input": prepared_input,
-            "warnings": warnings,
-            "result": _empty_result(
-                request_id=payload.request_id or "",
-                payload=payload,
-                profile_id="unresolved",
-            ),
-        }
+        # 弱拦截：记录 warning 但继续流程，让 agent 有机会处理
+        warnings.append(
+            Warning(
+                code="UNSUPPORTED_TEXT_TYPE",
+                level="warning",
+                message=f"文本类型为 {prepared_input.text_type}，可能影响标注质量。",
+            )
+        )
 
     if prepared_input.english_ratio < 0.45 or not prepared_input.sentences:
-        return {
-            "prepared_input": prepared_input,
-            "warnings": warnings,
-            "result": _empty_result(
-                request_id=payload.request_id or "",
-                payload=payload,
-                profile_id="unresolved",
-            ),
-        }
+        # 弱拦截：记录 warning 但继续流程
+        warnings.append(
+            Warning(
+                code="LOW_ENGLISH_RATIO",
+                level="warning",
+                message=f"英文占比 {prepared_input.english_ratio:.0%} 低于阈值，或无有效句子。",
+            )
+        )
 
     if prepared_input.noise_ratio >= 0.55:
         warnings.append(
@@ -141,265 +235,387 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
     return {"prepared_input": prepared_input, "warnings": warnings}
 
 
-async def derive_user_rules_node(state: AnalyzeState) -> AnalyzeState:
+async def derive_user_config_node(state: AnalyzeState) -> AnalyzeState:
     payload = state["payload"]
-    return {"user_rules": derive_user_rules(payload.reading_goal, payload.reading_variant)}
+    user_rules = derive_user_rules(payload.reading_goal, payload.reading_variant)
+    return {"user_rules": user_rules}
 
 
-def build_annotation_trace_metadata(
+async def _run_parallel_agents(
     state: AnalyzeState,
-    selection: ModelSelection | None = None,
-) -> dict[str, object]:
-    payload = state["payload"]
-    user_rules = state["user_rules"]
-    model_config = resolve_model_config(
-        get_settings(), MODEL_ROUTE_ANNOTATION_GENERATION, selection
-    )
-    return build_llm_trace_metadata(
-        workflow_name=WORKFLOW_NAME,
-        workflow_version=WORKFLOW_VERSION,
-        request_id=payload.request_id or "",
-        source_type=payload.source_type,
-        reading_goal=payload.reading_goal,
-        reading_variant=payload.reading_variant,
-        profile_id=user_rules.profile_id,
-        model_name=model_config.model_name if model_config else "unconfigured",
-        model_provider=model_config.provider if model_config else "unconfigured",
-        extra={
-            "node": "generate_annotations",
-            "model_profile": model_config.profile_name if model_config else "unconfigured",
-            "sentence_count": len(state["prepared_input"].sentences),
-        },
-    )
-
-
-@traceable(name="annotation_generation_llm_call", run_type="llm")
-async def _run_annotation_llm_span(
-    *,
-    deps: AnnotationAgentDeps,
-    metadata: dict[str, object],
-    model_selection: ModelSelection | None = None,
+    model_selection: ModelSelection | None,
 ) -> dict[str, Any]:
-    result = await run_annotation_agent(deps, model_selection=model_selection)
-    current_run = get_current_run_tree()
-    usage_meta: ExtractedUsageMetadata | None = None
-    if current_run is not None:
-        annotation_count = len(result.output.annotations)
-        run_metadata: dict[str, object] = {
-            **metadata,
-            "annotation_count": annotation_count,
-            "annotation_count_by_type": _annotation_count_by_type(result.output),
-            "translation_count": len(result.output.sentence_translations),
-        }
-        run_outputs: dict[str, object] = {"annotation_output": result.output.model_dump(mode="json")}
-        if hasattr(result, "usage") and callable(result.usage):
-            usage = result.usage()
-            if usage is not None:
-                usage_meta = cast(ExtractedUsageMetadata, build_usage_metadata(usage))
-        current_run.set(metadata=run_metadata, outputs=run_outputs, usage_metadata=usage_meta)
-    else:
-        if hasattr(result, "usage") and callable(result.usage):
-            usage = result.usage()
-            if usage is not None:
-                usage_meta = cast(ExtractedUsageMetadata, build_usage_metadata(usage))
-    return {"output": result.output, "usage": usage_meta}
+    """并行运行三个 agent。"""
+    prepared_input = state["prepared_input"]
 
-@traceable(name="annotation_output_validation", run_type="chain")
-async def _validate_annotation_span(
-    *,
-    annotation_output: Any,
-    prepared_input: Any,
-) -> ValidationResult:
-    validation_result = validate_annotation_output(annotation_output, prepared_input)
+    sentences_data = [
+        {"sentence_id": s.sentence_id, "text": s.text}
+        for s in prepared_input.sentences
+    ]
+
+    # 构建 deps
+    vocab_deps = VocabularyAgentDeps(sentences=sentences_data)
+    grammar_deps = GrammarAgentDeps(sentences=sentences_data)
+    translation_deps = TranslationAgentDeps(sentences=sentences_data)
+
+    # 构建 metadata
+    vocab_meta = _build_agent_trace_metadata(state, "vocabulary_agent", model_selection)
+    grammar_meta = _build_agent_trace_metadata(state, "grammar_agent", model_selection)
+    translation_meta = _build_agent_trace_metadata(state, "translation_agent", model_selection)
+
+    # 并行执行
+    vocab_task = _run_vocabulary_llm_span(
+        deps=vocab_deps, metadata=vocab_meta, model_selection=model_selection
+    )
+    grammar_task = _run_grammar_llm_span(
+        deps=grammar_deps, metadata=grammar_meta, model_selection=model_selection
+    )
+    translation_task = _run_translation_llm_span(
+        deps=translation_deps, metadata=translation_meta, model_selection=model_selection
+    )
+
+    results = await asyncio.gather(vocab_task, grammar_task, translation_task, return_exceptions=True)
+
+    # 解析结果
+    vocab_result = results[0] if not isinstance(results[0], Exception) else None
+    grammar_result = results[1] if not isinstance(results[1], Exception) else None
+    translation_result = results[2] if not isinstance(results[2], Exception) else None
+
+    # 处理异常
+    errors: list[Warning] = []
+    if isinstance(results[0], Exception):
+        logger.exception("vocabulary_agent 调用失败")
+        errors.append(
+            Warning(
+                code="VOCABULARY_AGENT_FAILED",
+                level="error",
+                message=f"vocabulary agent 调用失败: {results[0]}",
+            )
+        )
+    if isinstance(results[1], Exception):
+        logger.exception("grammar_agent 调用失败")
+        errors.append(
+            Warning(
+                code="GRAMMAR_AGENT_FAILED",
+                level="error",
+                message=f"grammar agent 调用失败: {results[1]}",
+            )
+        )
+    if isinstance(results[2], Exception):
+        logger.exception("translation_agent 调用失败")
+        errors.append(
+            Warning(
+                code="TRANSLATION_AGENT_FAILED",
+                level="error",
+                message=f"translation agent 调用失败: {results[2]}",
+            )
+        )
+
+    # 提取 output
+    vocabulary_output = vocab_result.get("output") if vocab_result else None
+    grammar_output = grammar_result.get("output") if grammar_result else None
+    translation_output = translation_result.get("output") if translation_result else None
+
+    return {
+        "vocabulary_draft": vocabulary_output,
+        "grammar_draft": grammar_output,
+        "translation_draft": translation_output,
+        "agent_errors": errors,
+    }
+
+
+async def vocabulary_agent_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
+    """Vocabulary agent node - returns immediately if vocabulary_draft already exists (set by parallel_agents_node)."""
+    if state.get("vocabulary_draft") is not None:
+        return {}
+    # This node should not be reached if the graph is structured correctly
+    # The parallel_agents_node handles all three agents
+    return {}
+
+
+async def grammar_agent_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
+    """Grammar agent node - returns immediately if grammar_draft already exists (set by parallel_agents_node)."""
+    if state.get("grammar_draft") is not None:
+        return {}
+    return {}
+
+
+async def translation_agent_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
+    """Translation agent node - returns immediately if translation_draft already exists (set by parallel_agents_node)."""
+    if state.get("translation_draft") is not None:
+        return {}
+    return {}
+
+
+async def parallel_agents_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
+    """Parallel agents node - runs all three agents concurrently using asyncio.gather.
+
+    This is the single entry point for all three agents to avoid duplicate LLM calls.
+    """
+    if (
+        state.get("vocabulary_draft") is not None
+        and state.get("grammar_draft") is not None
+        and state.get("translation_draft") is not None
+    ):
+        return {}
+
+    model_selection = _model_selection(config)
+    result = await _run_parallel_agents(state, model_selection)
+    errors = result.get("agent_errors", [])
+
+    return {
+        "vocabulary_draft": result.get("vocabulary_draft"),
+        "grammar_draft": result.get("grammar_draft"),
+        "translation_draft": result.get("translation_draft"),
+        "warnings": [*state.get("warnings", []), *errors],
+    }
+
+
+@traceable(name="normalize_and_ground", run_type="chain")
+async def normalize_and_ground_node(state: AnalyzeState) -> AnalyzeState:
+    """Normalize and ground node。"""
+    payload = state["payload"]
+    prepared_input = state["prepared_input"]
+    vocabulary_draft = state.get("vocabulary_draft")
+    grammar_draft = state.get("grammar_draft")
+    translation_draft = state.get("translation_draft")
+
+    # 如果任何 draft 缺失，返回错误
+    if vocabulary_draft is None or grammar_draft is None or translation_draft is None:
+        user_rules = state.get("user_rules")
+        profile_id = user_rules.profile_id if user_rules else "unresolved"
+        return {
+            "normalized_result": None,
+            "render_scene": _empty_result(
+                request_id=payload.request_id or "",
+                payload=payload,
+                profile_id=profile_id,
+            ),
+            "warnings": [
+                *state.get("warnings", []),
+                Warning(
+                    code="NORMALIZE_AND_GROUND_FAILED",
+                    level="error",
+                    message="并行 agent 未返回有效结果，无法进行归一化",
+                ),
+            ],
+        }
+
+    sentences = [
+        PreparedSentence.model_validate(s)
+        if not isinstance(s, PreparedSentence)
+        else s
+        for s in prepared_input.sentences
+    ]
+
+    # 收集 draft 校验 warnings（不丢弃）
+    validation_warnings = validate_all_drafts(
+        vocabulary_draft, grammar_draft, translation_draft, sentences
+    )
+    draft_warnings = [
+        Warning(code="DRAFT_VALIDATION", level="warning", message=msg)
+        for msg in validation_warnings
+    ]
+
+    normalized_result = normalize_and_ground(
+        vocabulary_draft=vocabulary_draft,
+        grammar_draft=grammar_draft,
+        translation_draft=translation_draft,
+        sentences=sentences,
+    )
+
     current_run = get_current_run_tree()
     if current_run is not None:
         current_run.set(
             metadata={
-                "validator_error_count": len(validation_result.errors),
-                "validator_warning_count": len(validation_result.warnings),
-                "validator_passed": validation_result.is_valid,
+                "normalized_annotation_count": len(normalized_result.annotations),
+                "drop_log_count": len(normalized_result.drop_log),
+                "translation_count": len(normalized_result.sentence_translations),
             },
             outputs={
-                "validator_summary": {
-                    "error_count": len(validation_result.errors),
-                    "warning_count": len(validation_result.warnings),
-                    "errors": validation_result.errors,
-                    "warnings": validation_result.warnings,
-                }
+                "normalized_result": normalized_result.model_dump(mode="json"),
+                "drop_log": [d.model_dump(mode="json") for d in normalized_result.drop_log],
             },
         )
-    return validation_result
+
+    return {
+        "normalized_result": normalized_result,
+        "drop_log": normalized_result.drop_log,
+        "warnings": [*state.get("warnings", []), *draft_warnings],
+    }
 
 
-def _anchor_failure_ratio(validation_result: ValidationResult, total_annotations: int) -> float:
-    """计算锚点相关验证错误占总 annotation 数的比例。"""
-    if total_annotations == 0:
-        return 0.0
-    anchor_error_count = sum(
-        1
-        for err in validation_result.errors
-        if err.get("code") in ("anchor_not_substring", "chunk_not_substring")
-    )
-    return anchor_error_count / total_annotations
+async def repair_agent_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
+    """Repair agent node（条件触发）。"""
+    normalized_result = state.get("normalized_result")
 
+    # 检查是否需要 repair
+    if normalized_result is not None:
+        drop_count = len(normalized_result.drop_log) if normalized_result.drop_log else 0
+        annotation_count = len(normalized_result.annotations)
+        if annotation_count > 0:
+            failure_ratio = drop_count / (annotation_count + drop_count)
+        else:
+            failure_ratio = 0.0
 
-def _projection_failure_ratio(dropped_count: int, total_annotations: int) -> float:
-    """计算 projection 阶段真实掉标占总 annotation 数的比例。"""
-    if total_annotations == 0:
-        return 0.0
-    return dropped_count / total_annotations
+        if failure_ratio <= ANCHOR_FAILURE_THRESHOLD:
+            # 不需要 repair
+            return {"repair_request": None}
 
-
-async def generate_annotations_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
-    if "result" in state and state["result"]:
-        return {}
-
-    payload = state["payload"]
+    # 需要 repair
     prepared_input = state["prepared_input"]
-    user_rules = state["user_rules"]
-    model_selection = _model_selection(config)
-    deps = AnnotationAgentDeps(
+    vocabulary_draft = state.get("vocabulary_draft")
+    grammar_draft = state.get("grammar_draft")
+    translation_draft = state.get("translation_draft")
+
+    if vocabulary_draft is None or grammar_draft is None or translation_draft is None:
+        return {"repair_request": None}
+
+    error_context = (
+        f"normalized_result 锚点失败率过高或结构异常。"
+        f"drop_log: {len(normalized_result.drop_log) if normalized_result else 0} items"
+    )
+
+    repair_deps = RepairAgentDeps(
         sentences=[
             {"sentence_id": s.sentence_id, "text": s.text}
             for s in prepared_input.sentences
         ],
+        original_drafts={
+            "vocabulary_draft": vocabulary_draft.model_dump(mode="json") if vocabulary_draft else {},
+            "grammar_draft": grammar_draft.model_dump(mode="json") if grammar_draft else {},
+            "translation_draft": translation_draft.model_dump(mode="json") if translation_draft else {},
+        },
     )
+    repair_meta = _build_agent_trace_metadata(state, "repair_agent", _model_selection(config))
+    repair_meta["extra"] = {**(repair_meta.get("extra") or {}), "error_context": error_context}
 
-    attempt = 0
-    last_validation_result: ValidationResult | None = None
-    last_output: Any = None
-    retry_reason: str | None = None
-    usage_meta: dict[str, object] | None = None
-
-    while attempt < MAX_ANNOTATION_ATTEMPTS:
-        attempt += 1
-        try:
-            llm_result = await _run_annotation_llm_span(
-                deps=deps,
-                metadata=build_annotation_trace_metadata(state, model_selection),
-                model_selection=model_selection,
-            )
-        except Exception as exc:
-            logger.exception("generate_annotations 调用失败。")
-            return {
-                "result": _empty_result(
-                    request_id=payload.request_id or "",
-                    payload=payload,
-                    profile_id=user_rules.profile_id,
+    try:
+        repair_result = await _run_repair_llm_span(
+            deps=repair_deps, metadata=repair_meta, error_context=error_context
+        )
+        repaired_result = repair_result.get("output")
+        return {
+            "repair_request": {"error_context": error_context, "repaired": True},
+            "normalized_result": repaired_result,
+            "drop_log": repaired_result.drop_log if repaired_result else state.get("drop_log", []),
+        }
+    except Exception:
+        logger.exception("repair_agent 调用失败")
+        return {
+            "repair_request": {"error_context": error_context, "repaired": False},
+            "warnings": [
+                *state.get("warnings", []),
+                Warning(
+                    code="REPAIR_AGENT_FAILED",
+                    level="warning",
+                    message="repair agent 调用失败，继续使用归一化结果",
                 ),
-                "warnings": [
-                    *state.get("warnings", []),
-                    Warning(
-                        code="ANNOTATION_GENERATION_FAILED",
-                        level="error",
-                        message=f"annotation LLM 调用失败（{type(exc).__name__}）：{exc}",
-                    ),
-                ],
-            }
-        if isinstance(llm_result, dict):
-            output = llm_result["output"]
-            usage_meta = cast(dict[str, object] | None, llm_result.get("usage"))
-        else:
-            output = llm_result
-            usage_meta = None
-
-        validation_result = await _validate_annotation_span(
-            annotation_output=output,
-            prepared_input=prepared_input,
-        )
-
-        total_annotations = len(output.annotations)
-        validator_failure_ratio = _anchor_failure_ratio(validation_result, total_annotations)
-        projection_outcome = project_to_render_scene(
-            annotation_output=output,
-            prepared_input=prepared_input,
-            source_type=payload.source_type,
-            reading_goal=payload.reading_goal,
-            reading_variant=payload.reading_variant,
-            profile_id=user_rules.profile_id,
-            request_id=payload.request_id or "",
-        )
-        projection_failure_ratio = _projection_failure_ratio(
-            projection_outcome.dropped_count,
-            total_annotations,
-        )
-        failure_ratio = max(validator_failure_ratio, projection_failure_ratio)
-
-        if failure_ratio <= ANCHOR_FAILURE_THRESHOLD:
-            # 锚点失败率在阈值内，接受结果
-            last_output = output
-            last_validation_result = validation_result
-            retry_reason = None
-            break
-
-        retry_reason = (
-            f"validator 锚点失败率 {validator_failure_ratio:.1%}，"
-            f"projection 掉标率 {projection_failure_ratio:.1%}，"
-            f"超过阈值 {ANCHOR_FAILURE_THRESHOLD:.1%}"
-        )
-        last_output = output
-        last_validation_result = validation_result
-        if attempt < MAX_ANNOTATION_ATTEMPTS:
-            logger.warning(
-                f"generate_annotations 锚点失败率过高（第 {attempt} 次尝试）：{retry_reason}，重试。"
-            )
-
-    if last_validation_result is not None:
-        validation_warnings = _validator_warning_items(last_validation_result)
-    else:
-        validation_warnings = []
-
-    if retry_reason is not None and last_validation_result is not None:
-        # 重试后仍超阈值，降级标记
-        validation_warnings.append(
-            Warning(
-                code="ANCHOR_FAILURE_RATIO_EXCEEDED_AFTER_RETRY",
-                level="error",
-                message=f"共尝试 {MAX_ANNOTATION_ATTEMPTS} 次后锚点失败率仍超标：{retry_reason}",
-            )
-        )
-
-    if last_validation_result is not None and not last_validation_result.is_valid:
-        # validation 未完全通过，降级标记
-        validation_warnings.append(
-            Warning(
-                code="ANNOTATION_VALIDATION_DEGRADED",
-                level="error",
-                message="annotation 验证存在错误，结果已降级。",
-            )
-        )
-
-    return {
-        "annotation_output": last_output,
-        "annotation_usage": usage_meta if last_output is not None else None,
-        "warnings": [*state.get("warnings", []), *validation_warnings],
-    }
+            ],
+        }
 
 
-async def assemble_result_node(state: AnalyzeState) -> AnalyzeState:
-    if "result" in state and state["result"]:
-        result = state["result"]
-        existing_warnings = state.get("warnings", [])
-        if existing_warnings and hasattr(result, "warnings"):
-            result.warnings = [*existing_warnings, *result.warnings]
-        return {}
+@traceable(name="repair_llm_call", run_type="llm")
+async def _run_repair_llm_span(
+    *,
+    deps: RepairAgentDeps,
+    metadata: dict[str, object],
+    error_context: str,
+) -> dict[str, Any]:
+    from app.agents.repair_agent import build_repair_prompt, get_repair_agent
+    from app.llm.agent_runner import run_agent_with_route
+    from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
 
+    result = await run_agent_with_route(
+        agent=get_repair_agent(),
+        prompt=build_repair_prompt(deps, error_context),
+        deps=deps,
+        route=MODEL_ROUTE_ANNOTATION_GENERATION,
+        model_selection=None,
+    )
+    return {"output": result.output if hasattr(result, "output") else result}
+
+
+@traceable(name="project_render_scene", run_type="chain")
+async def project_render_scene_node(state: AnalyzeState) -> AnalyzeState:
+    """Project to render scene node。"""
     payload = state["payload"]
     prepared_input = state["prepared_input"]
-    user_rules = state["user_rules"]
-    annotation_output = state["annotation_output"]
-    outcome = project_to_render_scene(
+    normalized_result = state.get("normalized_result")
+    user_rules = state.get("user_rules")
+
+    if normalized_result is None:
+        return {
+            "render_scene": _empty_result(
+                request_id=payload.request_id or "",
+                payload=payload,
+                profile_id=user_rules.profile_id if user_rules else "unresolved",
+            ),
+        }
+
+    # 将 NormalizedAnnotationResult 转换为 AnnotationOutput 格式以兼容现有 projection
+    from app.schemas.internal.analysis import AnnotationOutput
+
+    annotation_output = AnnotationOutput(
+        annotations=normalized_result.annotations,
+        sentence_translations=normalized_result.sentence_translations,
+    )
+
+    projection_outcome = project_to_render_scene(
         annotation_output=annotation_output,
         prepared_input=prepared_input,
         source_type=payload.source_type,
         reading_goal=payload.reading_goal,
         reading_variant=payload.reading_variant,
-        profile_id=user_rules.profile_id,
+        profile_id=user_rules.profile_id if user_rules else "unknown",
         request_id=payload.request_id or "",
     )
 
-    result = outcome.result.model_copy(deep=True)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        current_run.set(
+            metadata={
+                "inline_marks_count": len(projection_outcome.result.inline_marks),
+                "sentence_entries_count": len(projection_outcome.result.sentence_entries),
+                "projection_warnings_count": len(projection_outcome.warnings),
+            },
+        )
+
+    return {
+        "render_scene": projection_outcome.result,
+        "warnings": [
+            *state.get("warnings", []),
+            *[Warning(**w) for w in projection_outcome.warnings],
+        ],
+    }
+
+
+async def assemble_result_node(state: AnalyzeState) -> AnalyzeState:
+    """Assemble result node。"""
+    render_scene = state.get("render_scene")
+
+    if render_scene is None:
+        payload = state["payload"]
+        user_rules = state.get("user_rules")
+        profile_id = user_rules.profile_id if user_rules else "unresolved"
+        return {
+            "render_scene": _empty_result(
+                request_id=payload.request_id or "",
+                payload=payload,
+                profile_id=profile_id,
+            ),
+        }
+
+    # 确保 warnings 不重复（project_render_scene_node 已将 projection warnings
+    # 合并进 render_scene.warnings）
     existing_warnings = state.get("warnings", [])
-    projected_warnings = [Warning(**warning) for warning in outcome.warnings]
-    result.warnings = [*existing_warnings, *projected_warnings]
-    return {"result": result}
+    if existing_warnings and hasattr(render_scene, "warnings"):
+        # 去重：基于 code + sentence_id 组合键，保留首次出现的 warning
+        seen_keys = {(w.code, w.sentence_id) for w in render_scene.warnings}
+        for w in existing_warnings:
+            key = (w.code, w.sentence_id)
+            if key not in seen_keys:
+                render_scene.warnings.append(w)
+                seen_keys.add(key)
+
+    return {"render_scene": render_scene}
