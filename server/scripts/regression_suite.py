@@ -471,7 +471,11 @@ async def run_local(args: argparse.Namespace) -> int:
     }
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     profile_suffix = _sanitize_path_fragment(_model_suffix(model_selection))
-    output_root = Path(args.output_dir).resolve() / f"{timestamp}-{profile_suffix}"
+    output_root_base = Path(args.output_dir).resolve()
+    if args.mark:
+        output_root = output_root_base / args.mark / f"{timestamp}-{profile_suffix}"
+    else:
+        output_root = output_root_base / f"{timestamp}-{profile_suffix}"
     _write_run_bundle(output_root, evaluated_samples, aggregate)
     print(json.dumps({"output_dir": str(output_root), **aggregate}, ensure_ascii=False, indent=2))
     return 0 if aggregate["failed_samples"] == 0 else 1
@@ -600,6 +604,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_flags(run_local_parser)
     run_local_parser.add_argument("--sample-id", dest="sample_ids", action="append", help="只运行指定 sample_id，可重复传入")
     run_local_parser.add_argument("--output-dir", default=str(DEFAULT_RUNS_DIR), help="本地输出目录")
+    run_local_parser.add_argument("--mark", help="输出目录名称前缀")
     run_local_parser.set_defaults(handler=run_local)
 
     sync_parser = subparsers.add_parser("sync-langsmith", help="把本地回归集同步到 LangSmith dataset")

@@ -222,6 +222,32 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --defaul
 2. `summary.json`
 3. 某个 sample 的 `*.response.json`
 
+### 5.6 自定义输出目录前缀
+
+使用 `--mark` 参数可以为输出目录添加自定义文件夹前缀，方便区分不同实验：
+
+```bash
+cd server
+rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --mark prompt-v2
+```
+
+输出目录将变为：`.../server/.sample/regression/runs/prompt-v2/20260401-210000-default`
+
+可以与其他参数组合使用：
+
+```bash
+# 组合 model-preset
+rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --mark qwen-test --model-preset qwen35_plus_default
+
+# 组合 default-profile
+rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --mark kimi-exp --default-profile kimi-k25
+
+# 组合 sample-id
+rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --mark debug --sample-id movie_excerpt_core
+```
+
+**注意**：不加 `--mark` 时，输出目录结构不变，仍为 `.../server/.sample/regression/runs/20260401-210000-default`。
+
 ## 6. 如何解读结果
 
 ### 6.1 通过不代表可上线

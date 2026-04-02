@@ -317,7 +317,7 @@ class SpanRef(BaseModel):
 1. `text`
    - 必填
    - 必须是 `sentence_id` 对应句子的真实子串
-   - 建议 `min_length=1`, `max_length=80`
+   - 建议 `min_length=1`
 2. `occurrence`
    - 可选
    - 当同一句中相同文本出现多次时，指明命中第几次
@@ -345,11 +345,11 @@ class Chunk(BaseModel):
 2. `label`
    - 必填
    - 例如 `主语`、`谓语`、`宾语从句`、`时间状语`
-   - 建议 `min_length=1`, `max_length=24`
+   - 建议 `min_length=1`
 3. `text`
    - 必填
    - 必须是对应句子的真实子串
-   - 建议 `min_length=1`, `max_length=120`
+   - 建议 `min_length=1`
 4. `occurrence`
    - 可选
    - 当 chunk 文本重复出现时用于定位
@@ -367,7 +367,7 @@ class SentenceTranslation(BaseModel):
 1. 必须覆盖所有句子。
 2. 每句只能有一个翻译。
 3. 语言统一为自然中文。
-4. `translation_zh` 建议 `min_length=1`, `max_length=220`。
+4. `translation_zh` 建议 `min_length=1`。
 
 #### `ArticleParagraph`
 
@@ -453,7 +453,7 @@ ExamTag = Literal[
 
 额外约束建议：
 
-1. `text` 建议 `min_length=1`, `max_length=40`
+1. `text` 建议 `min_length=1`
 2. `exam_tags` 建议 `min_length=1`, `max_length=2`
 
 #### `PhraseGloss`
@@ -472,8 +472,8 @@ class PhraseGloss(BaseModel):
 
 额外约束建议：
 
-1. `text` 建议 `min_length=1`, `max_length=80`
-2. `zh` 建议 `min_length=1`, `max_length=40`
+1. `text` 建议 `min_length=1`
+2. `zh` 建议 `min_length=1`
 
 #### `ContextGloss`
 
@@ -491,9 +491,9 @@ class ContextGloss(BaseModel):
 
 额外约束建议：
 
-1. `text` 建议 `min_length=1`, `max_length=40`
-2. `gloss` 建议 `min_length=1`, `max_length=40`
-3. `reason` 建议 `min_length=1`, `max_length=100`
+1. `text` 建议 `min_length=1`
+2. `gloss` 建议 `min_length=1`
+3. `reason` 建议 `min_length=1`
 
 #### `GrammarNote`
 
@@ -515,8 +515,8 @@ class GrammarNote(BaseModel):
 3. 不做 grammar tag 枚举约束。
 4. 语法名称与标签风格主要通过 few-shot 和 prompt 风格约束保持一致。
 5. `spans` 建议 `min_length=1`, `max_length=4`。
-6. `label` 建议 `min_length=1`, `max_length=24`。
-7. `note_zh` 建议 `min_length=1`, `max_length=120`。
+6. `label` 建议 `min_length=1`。
+7. `note_zh` 建议 `min_length=1`。
 
 #### `SentenceAnalysis`
 
@@ -527,7 +527,7 @@ class SentenceAnalysis(BaseModel):
     type: Literal["sentence_analysis"] = "sentence_analysis"
     sentence_id: str
     label: str
-    teach: str
+    analysis_zh: str
     chunks: list[Chunk]
 ```
 
@@ -537,8 +537,8 @@ class SentenceAnalysis(BaseModel):
 2. `chunks` 按阅读顺序排列。
 3. `chunks` 需尽量覆盖整句，不允许明显重叠。
 4. `chunks` 建议 `min_length=2`, `max_length=8`。
-5. `label` 建议 `min_length=1`, `max_length=24`。
-6. `teach` 建议 `min_length=1`, `max_length=300`。
+5. `label` 建议 `min_length=1`。
+6. `analysis_zh` 建议 `min_length=1`。
 
 ### 8.3 Annotation Union
 
@@ -862,7 +862,7 @@ few-shot 不追求多，追求覆盖最容易漂移的分支。优先覆盖：
 4. `GrammarNote`
    - 展示多段锚点
 5. `SentenceAnalysis`
-   - 展示 `chunks + teach`
+   - 展示 `chunks + analysis_zh`
 
 few-shot 选择原则：
 
@@ -955,7 +955,7 @@ few-shot 选择原则：
 
 如果 `SentenceAnalysis.chunks` 校验失败：
 
-1. 优先尝试保留 `teach`
+1. 优先尝试保留 `analysis_zh`
 2. 降级生成一个普通 `sentence_entry`
 3. 不生成错误的 chunk 渲染数据
 
@@ -1209,7 +1209,7 @@ mock 页面不是辅助材料，而是前端验收基线。
 | `SentenceAnalysis` | `type` | `Literal["sentence_analysis"]` | 是 | Discriminator |
 | `SentenceAnalysis` | `sentence_id` | `str` | 是 | 关联句子 |
 | `SentenceAnalysis` | `label` | `str` | 是 | 句型概述 |
-| `SentenceAnalysis` | `teach` | `str` | 是 | 教学讲解 |
+| `SentenceAnalysis` | `analysis_zh` | `str` | 是 | 中文解析 |
 | `SentenceAnalysis` | `chunks` | `list[Chunk]` | 是 | 结构化拆句，建议 2 到 8 个 |
 | `AnnotationOutput` | `annotations` | `list[Annotation]` | 是 | 带鉴别器的 annotation union |
 | `AnnotationOutput` | `sentence_translations` | `list[SentenceTranslation]` | 是 | 全量逐句翻译 |
@@ -1317,7 +1317,7 @@ Annotation = Annotated[
    - 不生成 `InlineMark`
    - 始终生成 1 个 `SentenceEntry`
    - `entry_type = sentence_analysis`
-   - `content` 由 `teach + chunks` 格式化而成
+   - `content` 由 `analysis_zh + chunks` 格式化而成
 
 6. `cards`
    - `v2.1` 中不存在

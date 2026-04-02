@@ -278,7 +278,11 @@ def _project_sentence_analysis(
             "sentence_id": annotation.sentence_id,
         })
     chunks_text = _format_chunks(annotation.chunks)
-    content = f"{annotation.teach}\n\n{chunks_text}" if chunks_text else annotation.teach
+    content = (
+        f"{annotation.analysis_zh}\n\n{chunks_text}"
+        if chunks_text
+        else annotation.analysis_zh
+    )
     sentence_entry = SentenceEntry(
         id=_stable_id("se", {"type": annotation.type, "model": annotation.model_dump()}),
         sentence_id=annotation.sentence_id,

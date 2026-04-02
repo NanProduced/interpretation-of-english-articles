@@ -259,7 +259,6 @@ async def generate_annotations_node(state: AnalyzeState, config: RunnableConfig)
     user_rules = state["user_rules"]
     model_selection = _model_selection(config)
     deps = AnnotationAgentDeps(
-        user_rules=user_rules,
         sentences=[
             {"sentence_id": s.sentence_id, "text": s.text}
             for s in prepared_input.sentences

@@ -26,7 +26,7 @@ V2.1 Annotation 校验器
 5. SentenceAnalysis：
    - chunks 中每个 text 必须是 sentence 的真实子串
    - chunks 按 order 排序
-   - teach 必须为中文
+   - analysis_zh 必须为中文
 """
 
 from __future__ import annotations
@@ -286,10 +286,10 @@ def validate_sentence_analysis(
                 sentence_id=annotation.sentence_id,
             )
 
-    if not _is_chinese(annotation.teach):
+    if not _is_chinese(annotation.analysis_zh):
         result.add_warning(
-            "teach_not_chinese",
-            f"SentenceAnalysis.teach 建议为中文: '{annotation.teach}'",
+            "analysis_zh_not_chinese",
+            f"SentenceAnalysis.analysis_zh 建议为中文: '{annotation.analysis_zh}'",
         )
 
     return result

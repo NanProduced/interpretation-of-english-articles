@@ -74,7 +74,7 @@ def test_sentence_analysis_projects_to_entry_only() -> None:
             SentenceAnalysis(
                 sentence_id="s1",
                 label="主宾从句",
-                teach="本句主句为 They recognize，后接 that 引导的宾语从句。",
+                analysis_zh="本句主句为 They recognize，后接 that 引导的宾语从句。",
                 chunks=[
                     Chunk(order=1, label="主语", text="They"),
                     Chunk(order=2, label="谓语", text="recognize"),

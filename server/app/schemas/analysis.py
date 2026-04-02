@@ -102,7 +102,7 @@ class SpanRefPart(BaseModel):
     occurrence: int | None = Field(
         default=None, ge=1, description="同句中该部分文本多次出现时，指明要命中的第几次"
     )
-    role: str | None = Field(default=None, description="结构角色，如 'trigger', 'result_clause'")
+    role: str | None = Field(default=None, description="结构角色")
 
 
 class MultiTextAnchor(BaseModel):

@@ -75,7 +75,7 @@ def test_validate_sentence_analysis_chunk_not_substring() -> None:
         SentenceAnalysis(
             sentence_id="s1",
             label="测试",
-            teach="测试",
+            analysis_zh="测试",
             chunks=[
                 Chunk(order=1, label="A", text="This"),
                 Chunk(order=2, label="B", text="not_in_sentence"),
@@ -113,7 +113,7 @@ def test_annotation_output_accepts_mixed_annotations() -> None:
             SentenceAnalysis(
                 sentence_id="s1",
                 label="句型",
-                teach="讲解",
+                analysis_zh="讲解",
                 chunks=[Chunk(order=1, label="主", text="Main"), Chunk(order=2, label="谓", text="is")],
             ),
         ],
