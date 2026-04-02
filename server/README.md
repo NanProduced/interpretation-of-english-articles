@@ -139,7 +139,8 @@ uv run uvicorn app.main:app --reload
   - `is_default_visible`
   - `render_index`
 
-当前 workflow 设计以 [Workflow V0 回顾](../docs/workflow/v0/v0-retrospective-report.md) 和 [Workflow V1 设计](../docs/workflow/v1/workflow-v1-design.md) 为准。
+当前 workflow 的重构设计以 [Workflow V3 设计与重构文档](../docs/workflow/v3/workflow-v3-design.md) 为准。  
+当前代码实现若尚未完成迁移，可参考 [Workflow V2.1 改造设计稿](../docs/workflow/v2/v2-1-refactor-design.md) 理解现状。
 
 ## 当前对外接口
 
@@ -153,21 +154,33 @@ uv run uvicorn app.main:app --reload
 - 结果页主渲染基准是 `render_text`
 - `source_text` 仅用于“查看原文”等非默认展示场景
 
-## 当前 workflow
+## 当前实现状态
 
-`article_analysis` 主流程：
+当前代码中的主流程仍为：
 
 - `prepare_input`
 - `derive_user_rules`
 - `generate_annotations`
 - `assemble_result`
 
-其中：
+这是 v2.1 阶段的实现形态，其中：
 
 - `prepare_input` 负责输入清洗、分段分句和基础拒绝判断
 - `derive_user_rules` 负责把 `reading_goal + reading_variant` 转成规则包
 - `generate_annotations` 是唯一主教学 LLM 节点，负责词汇、语法、句级讲解与逐句翻译
 - `assemble_result` 负责 annotation 投影、锚点解析、渲染标记、全文翻译组装和最终结果收敛
+
+v3 的目标形态将拆分为：
+
+- `prepare_input`
+- `derive_user_config`
+- `vocabulary_agent`
+- `grammar_agent`
+- `translation_agent`
+- `normalize_and_ground`
+- `repair_agent`
+- `project_render_scene`
+- `assemble_result`
 
 ## LangSmith 约定
 

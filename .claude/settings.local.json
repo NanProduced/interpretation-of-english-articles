@@ -45,7 +45,11 @@
       "Bash(python -c \"from app.agents.annotation import ANNOTATION_INSTRUCTIONS; print\\(''OK, len='', len\\(ANNOTATION_INSTRUCTIONS\\)\\)\")",
       "Bash(python -c \"from app.workflow.analyze_nodes import generate_annotations_node; print\\(''OK''\\)\")",
       "Bash(python -c \"from app.schemas.internal.analysis import AnnotationOutput, VocabHighlight; print\\(''OK''\\)\")",
-      "Bash(python -m pytest tests/test_preprocess_workflow.py -v)"
+      "Bash(python -m pytest tests/test_preprocess_workflow.py -v)",
+      "Bash(git show:*)",
+      "mcp__plugin_everything-claude-code_exa__get_code_context_exa",
+      "mcp__plugin_everything-claude-code_exa__web_search_exa",
+      "mcp__plugin_everything-claude-code_exa__crawling_exa"
     ]
   }
 }
