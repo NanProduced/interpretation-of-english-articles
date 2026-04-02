@@ -83,24 +83,24 @@ class SentenceTranslation(BaseModel):
     """逐句翻译。"""
 
     sentence_id: str = Field(description="句子ID")
-    translation_zh: str = Field(min_length=1, description="自然流畅的中文翻译")
+    translation_zh: str = Field(min_length=1, description="中文翻译")
 
 
 class SpanRef(BaseModel):
     """语法锚点片段。"""
     text: str = Field(min_length=1, description="对应句子中的精确子串")
     occurrence: int | None = Field(
-        default=None, ge=1, description="同一句中该文本第几次出现（绝大多数情况为None）"
+        default=None, ge=1, description="同一句中该文本第几次出现"
     )
-    role: str | None = Field(default=None, description="该片段在语法结构中的角色，如 '倒装触发句' / '并列连词' 等")
+    role: str | None = Field(default=None, description="结构角色（可选）")
 
 
 class Chunk(BaseModel):
     """长难句拆解的成分块。"""
     order: int = Field(ge=1, description="阅读顺序，从1开始。")
-    label: str = Field(min_length=1, description="句法成分名称，如 '主语' / 'that 宾语从句' / '时间状语' 等")
+    label: str = Field(min_length=1, description="成分名称")
     text: str = Field(min_length=1, description="对应句子中的精确子串")
-    occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现（绝大多数情况为None）")
+    occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现")
 
 # ── 标注组件（Discriminated Union）──────────────────
 
@@ -111,8 +111,8 @@ class VocabHighlight(BaseModel):
     type: Literal["vocab_highlight"] = "vocab_highlight"
     sentence_id: str = Field(description="句子ID")
     text: str = Field(min_length=1, description="单个英文单词（不含空格）；多词表达请用 PhraseGloss")
-    occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现（绝大多数情况为None）")
-    exam_tags: list[ExamTag] = Field(min_length=1, max_length=2, description="最相关的 1-2 个考试标签")
+    occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现")
+    exam_tags: list[ExamTag] = Field(min_length=1, max_length=2, description="考试标签")
 
 
 class PhraseGloss(BaseModel):
@@ -122,11 +122,11 @@ class PhraseGloss(BaseModel):
     type: Literal["phrase_gloss"] = "phrase_gloss"
     sentence_id: str = Field(description="句子ID")
     text: str = Field(min_length=1, description="原文短语（两个词及以上，含空格）")
-    occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现（绝大多数情况为None）")
+    occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现")
     phrase_type: Literal["collocation", "phrasal_verb", "idiom", "proper_noun", "compound"] = Field(
-        description="collocation=固定搭配 | phrasal_verb=短语动词 | idiom=习语 | proper_noun=专有名词 | compound=复合名词/术语"
+        description="短语类型"
     )
-    zh: str = Field(min_length=1, description="简洁的中文释义，或根据语境进行特殊释义")
+    zh: str = Field(min_length=1, description="中文释义")
 
 
 class ContextGloss(BaseModel):
@@ -135,10 +135,10 @@ class ContextGloss(BaseModel):
 
     type: Literal["context_gloss"] = "context_gloss"
     sentence_id: str = Field(description="句子ID")
-    text: str = Field(min_length=1, description="原文词汇（词典常见义在当前语境不适用的词）")
-    occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现（绝大多数情况为None）")
+    text: str = Field(min_length=1, description="原文词汇")
+    occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现")
     gloss: str = Field(min_length=1, description="当前语境下的特殊含义")
-    reason: str = Field(min_length=1, description="补充原因，例如解释词典常见义为何不适用于当前语境")
+    reason: str = Field(min_length=1, description="补充原因")
 
 
 class GrammarNote(BaseModel):
@@ -147,9 +147,9 @@ class GrammarNote(BaseModel):
 
     type: Literal["grammar_note"] = "grammar_note"
     sentence_id: str = Field(description="句子ID")
-    spans: list[SpanRef] = Field(min_length=1, max_length=4, description="语法现象的锚点片段（不连续结构如 not only...but 用多个 span）")
-    label: str = Field(min_length=1, description="语法点名称，用简洁术语（如 '非限制性定语从句' / 'not only...but also 倒装'）")
-    note_zh: str = Field(min_length=1, description="1-2 句中文说明，解释该语法现象在句中的作用")
+    spans: list[SpanRef] = Field(min_length=1, max_length=4, description="语法锚点片段")
+    label: str = Field(min_length=1, description="语法点名称")
+    note_zh: str = Field(min_length=1, description="中文说明")
 
 
 class SentenceAnalysis(BaseModel):
@@ -158,9 +158,9 @@ class SentenceAnalysis(BaseModel):
 
     type: Literal["sentence_analysis"] = "sentence_analysis"
     sentence_id: str = Field(description="句子ID")
-    label: str = Field(min_length=1, description="句型概述（如 'how 宾语从句 + 三重并列谓语'）")
-    analysis_zh: str = Field(min_length=1, description="教学解读：先说主干 → 再说修饰成分 → 点明难点所在（3-5 句中文）")
-    chunks: list[Chunk] = Field(min_length=2, max_length=8, description="按阅读顺序拆解的句子成分，须覆盖整句且不重叠")
+    label: str = Field(min_length=1, description="句型概述")
+    analysis_zh: str = Field(min_length=1, description="中文解析，说明句子主干、层次关系和理解难点")
+    chunks: list[Chunk] = Field(min_length=2, max_length=8, description="按阅读顺序拆解的句子成分")
 
 
 Annotation = Annotated[
