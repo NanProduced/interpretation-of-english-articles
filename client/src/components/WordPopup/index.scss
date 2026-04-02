@@ -274,3 +274,116 @@
     }
   }
 }
+
+/* ==========================================================================
+   Mini Tooltip 模式
+   ========================================================================== */
+
+.mini-overlay {
+  background: transparent; // 仅作为透明点击层捕获 onClose
+  backdrop-filter: none;
+  align-items: flex-start; // 防止 flex-end 覆盖 fixed 行为
+}
+
+.mini-word-card {
+  width: 520rpx;
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 24rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12), 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  border: 1rpx solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  animation: fade-in-scale 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  transform-origin: top left;
+}
+
+@keyframes fade-in-scale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4rpx;
+}
+
+.mini-word {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--primary-color);
+  font-family: var(--font-serif);
+}
+
+.mini-actions {
+  display: flex;
+  gap: 24rpx;
+  align-items: center;
+}
+
+.mini-audio-btn, .mini-star-btn {
+  padding: 8rpx;
+  margin: -8rpx; // 扩大热区
+  transition: all 0.2s;
+  
+  &:active {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+}
+
+.mini-phonetic {
+  font-size: var(--text-sm);
+  color: var(--text-sub);
+  font-family: var(--font-mono);
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+.mini-content {
+  margin-bottom: 16rpx;
+}
+
+.mini-def-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.mini-pos {
+  font-size: var(--text-sm);
+  color: var(--text-sub);
+  font-style: italic;
+  font-family: var(--font-serif);
+  padding-top: 4rpx;
+}
+
+.mini-def {
+  font-size: var(--text-base);
+  color: var(--text-main);
+  line-height: var(--leading-normal);
+  flex: 1;
+}
+
+.mini-loading {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.mini-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid rgba(0,0,0,0.04);
+  opacity: 0.6;
+}
+
+.mini-hint {
+  font-size: 22rpx;
+  color: var(--text-sub);
+}
+

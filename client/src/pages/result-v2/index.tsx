@@ -17,9 +17,12 @@ export default function ResultV2() {
   const [showDebug, setShowDebug] = useState(false)
   const [wordPopup, setWordPopup] = useState<{
     visible: boolean
+    mode: 'mini' | 'full'
     mark: InlineMarkModel | null
     word: string
-  }>({ visible: false, mark: null, word: '' })
+    x: number
+    y: number
+  }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
   const [bottomSheet, setBottomSheet] = useState<{
     visible: boolean
     entry: SentenceEntryModel | null
@@ -29,8 +32,26 @@ export default function ResultV2() {
 
   const showTranslation = pageMode === 'bilingual' || pageMode === 'intensive'
 
-  const handleWordClick = (mark: InlineMarkModel, word: string) => {
-    setWordPopup({ visible: true, mark, word })
+  const handleWordClick = (mark: InlineMarkModel, word: string, e?: any) => {
+    // If it has AI glossary, go straight to full sheet. Otherwise, show mini tooltip.
+    const isAIAnnotated = !!mark.glossary
+    const initialMode = isAIAnnotated ? 'full' : 'mini'
+
+    let clientX = 0
+    let clientY = 0
+    
+    // Safely extract coordinates from Taro touch/click event
+    if (e) {
+      if (e.changedTouches && e.changedTouches[0]) {
+        clientX = e.changedTouches[0].clientX
+        clientY = e.changedTouches[0].clientY
+      } else if (e.detail && e.detail.x !== undefined) {
+        clientX = e.detail.x
+        clientY = e.detail.y
+      }
+    }
+
+    setWordPopup({ visible: true, mode: initialMode, mark, word, x: clientX, y: clientY })
   }
 
   const handleChipClick = (entry: SentenceEntryModel) => {
@@ -137,9 +158,13 @@ export default function ResultV2() {
 
       <WordPopup
         visible={wordPopup.visible}
+        mode={wordPopup.mode}
         mark={wordPopup.mark}
         word={wordPopup.word}
+        x={wordPopup.x}
+        y={wordPopup.y}
         onClose={() => setWordPopup({ ...wordPopup, visible: false })}
+        onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
       />
 
       <BottomSheetDetail

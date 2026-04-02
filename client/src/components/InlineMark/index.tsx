@@ -5,7 +5,7 @@ import './index.scss'
 interface InlineMarkProps {
   mark: InlineMarkModel
   text: string
-  onClick?: (mark: InlineMarkModel, word: string) => void
+  onClick?: (mark: InlineMarkModel, word: string, event?: any) => void
 }
 
 const TONE_COLORS: Record<VisualTone, { bg: string; text: string }> = {
@@ -18,9 +18,10 @@ const TONE_COLORS: Record<VisualTone, { bg: string; text: string }> = {
 export default function InlineMark({ mark, text, onClick }: InlineMarkProps) {
   const colors = TONE_COLORS[mark.visualTone]
 
-  const handleClick = () => {
+  const handleClick = (e: any) => {
+    e.stopPropagation()
     if (mark.clickable && onClick) {
-      onClick(mark, text)
+      onClick(mark, text, e)
     }
   }
 

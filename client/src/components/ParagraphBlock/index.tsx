@@ -19,7 +19,7 @@ interface ParagraphBlockProps {
   inlineMarks: InlineMarkModel[]
   tailEntries: SentenceEntryModel[]
   pageMode: 'immersive' | 'bilingual' | 'intensive'
-  onWordClick?: (mark: InlineMarkModel, word: string) => void
+  onWordClick?: (mark: InlineMarkModel, word: string, event?: any) => void
   onChipClick?: (entry: SentenceEntryModel) => void
 }
 
@@ -40,7 +40,7 @@ function findTextAnchorPosition(text: string, anchorText: string, occurrence: nu
 function renderTextWithMarks(
   text: string,
   marks: InlineMarkModel[],
-  onWordClick?: (mark: InlineMarkModel, word: string) => void
+  onWordClick?: (mark: InlineMarkModel, word: string, event?: any) => void
 ) {
   if (marks.length === 0) {
     return <Text className='sentence-text'>{text}</Text>

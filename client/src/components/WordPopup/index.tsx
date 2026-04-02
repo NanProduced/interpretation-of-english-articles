@@ -7,12 +7,16 @@ import './index.scss'
 
 interface WordPopupProps {
   visible: boolean
+  mode?: 'mini' | 'full'
   mark: InlineMarkModel | null
   word: string
+  x?: number
+  y?: number
   onClose: () => void
+  onExpand?: () => void
 }
 
-export default function WordPopup({ visible, mark, word, onClose }: WordPopupProps) {
+export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y = 0, onClose, onExpand }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -76,6 +80,72 @@ export default function WordPopup({ visible, mark, word, onClose }: WordPopupPro
 
   if (!visible) return null
 
+  // Mini Tooltip 模式
+  if (mode === 'mini') {
+    // 简易防溢出计算
+    const screenWidth = Taro.getSystemInfoSync().windowWidth
+    const safeLeft = x > screenWidth - 260 ? screenWidth - 280 : Math.max(20, x - 130)
+    const safeTop = y > 200 ? y - 160 : y + 40
+
+    const popupStyle: React.CSSProperties = {
+      position: 'fixed',
+      left: safeLeft + 'px',
+      top: safeTop + 'px',
+      zIndex: 1000
+    }
+
+    return (
+      <View className='word-popup-overlay mini-overlay' onClick={onClose}>
+        <View 
+          className='mini-word-card' 
+          style={popupStyle} 
+          onClick={(e) => { e.stopPropagation(); onExpand?.(); }}
+        >
+          <View className='mini-header'>
+            <Text className='mini-word'>{lookupText}</Text>
+            <View className='mini-actions'>
+              <View 
+                className={`mini-audio-btn ${audioPlaying ? 'playing' : ''}`} 
+                onClick={(e) => { e.stopPropagation(); handlePlayAudio(); }}
+              >
+                <LucideIcon name='volume2' size={14} color={audioPlaying ? '#4285f4' : '#666'} />
+              </View>
+              <View 
+                className='mini-star-btn'
+                onClick={(e) => { e.stopPropagation(); /* TODO: 收藏 */ }}
+              >
+                <LucideIcon name='star' size={14} color='#666' />
+              </View>
+            </View>
+          </View>
+          
+          {dictResult?.phonetic && <Text className='mini-phonetic'>{dictResult.phonetic}</Text>}
+          
+          <View className='mini-content'>
+            {loading ? (
+              <Text className='mini-loading'>查询中...</Text>
+            ) : dictResult && dictResult.meanings[0] ? (
+              <View className='mini-def-row'>
+                <Text className='mini-pos'>{dictResult.meanings[0].partOfSpeech}</Text>
+                <Text className='mini-def' numberOfLines={2}>
+                  {dictResult.meanings[0].definitions[0].meaning.split('；')[0]}
+                </Text>
+              </View>
+            ) : (
+              <Text className='mini-loading'>未找到释义</Text>
+            )}
+          </View>
+
+          <View className='mini-footer'>
+            <Text className='mini-hint'>点击查看详情</Text>
+            <LucideIcon name='chevronDown' size={12} color='#999' />
+          </View>
+        </View>
+      </View>
+    )
+  }
+
+  // Full Bottom Sheet 模式
   return (
     <View className='word-popup-overlay' onClick={onClose}>
       <View className='word-popup-container' onClick={(e) => e.stopPropagation()}>
