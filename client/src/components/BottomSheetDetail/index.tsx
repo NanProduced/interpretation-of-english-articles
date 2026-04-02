@@ -14,7 +14,12 @@ interface BottomSheetDetailProps {
  * 渲染 Markdown 内容片段
  */
 function renderMarkdownSegment(segment: ReturnType<typeof parseMarkdown>[number], index: number) {
-  const { text, bold, italic, code, list } = segment
+  const { text, bold, italic, code, list, quote, header } = segment
+
+  // Extract base classes
+  const classes = []
+  if (quote) classes.push('quote-segment')
+  if (header) classes.push('header-segment')
 
   const style: Record<string, string> = {}
   if (bold) style.fontWeight = 'bold'
@@ -22,15 +27,20 @@ function renderMarkdownSegment(segment: ReturnType<typeof parseMarkdown>[number]
   if (code) {
     style.backgroundColor = '#f3f4f6'
     style.padding = '2rpx 8rpx'
-    style.borderRadius = '4rpx'
+    style.borderRadius = '8rpx'
+    style.fontFamily = 'var(--font-mono)'
+    style.color = '#e11d48'
   }
 
+  // For spacing, if it's the end of a line (we inserted \n in the parser)
+  // Or handle line breaks natively
   return (
     <Text
       key={index}
+      className={classes.join(' ')}
       style={Object.keys(style).length > 0 ? style : undefined}
     >
-      {text}{list ? '\n' : ''}
+      {text}{list && text.trim() ? '\n' : ''}
     </Text>
   )
 }
