@@ -23,6 +23,7 @@ export default function ResultV2() {
     x: number
     y: number
   }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
+  const [activeMarkId, setActiveMarkId] = useState<string | null>(null)
   const [bottomSheet, setBottomSheet] = useState<{
     visible: boolean
     entry: SentenceEntryModel | null
@@ -36,6 +37,8 @@ export default function ResultV2() {
     // If it has AI glossary, go straight to full sheet. Otherwise, show mini tooltip.
     const isAIAnnotated = !!mark.glossary
     const initialMode = isAIAnnotated ? 'full' : 'mini'
+    
+    setActiveMarkId(mark.id)
 
     let clientX = 0
     let clientY = 0
@@ -52,6 +55,11 @@ export default function ResultV2() {
     }
 
     setWordPopup({ visible: true, mode: initialMode, mark, word, x: clientX, y: clientY })
+  }
+
+  const handleClosePopup = () => {
+    setWordPopup({ ...wordPopup, visible: false })
+    setActiveMarkId(null)
   }
 
   const handleChipClick = (entry: SentenceEntryModel) => {
@@ -72,6 +80,7 @@ export default function ResultV2() {
           translations={sceneData.translations}
           showTranslation={showTranslation}
           inlineMarks={sceneData.inlineMarks}
+          activeMarkId={activeMarkId}
           tailEntries={sceneData.sentenceEntries}
           pageMode={pageMode}
           onWordClick={handleWordClick}
@@ -86,16 +95,18 @@ export default function ResultV2() {
       <NavBar title='AI 英语解读' showBack showHome />
       <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
 
-      <View className='mode-tabs'>
-        {PAGE_MODE_OPTIONS.map((mode) => (
-          <View
-            key={mode.value}
-            className={`mode-tab ${pageMode === mode.value ? 'active' : ''}`}
-            onClick={() => setPageMode(mode.value as PageMode)}
-          >
-            <Text className='mode-tab-label'>{mode.label}</Text>
-          </View>
-        ))}
+      <View className='mode-tabs-container'>
+        <View className='mode-tabs'>
+          {PAGE_MODE_OPTIONS.map((mode) => (
+            <View
+              key={mode.value}
+              className={`mode-tab ${pageMode === mode.value ? 'active' : ''}`}
+              onClick={() => setPageMode(mode.value as PageMode)}
+            >
+              <Text className='mode-tab-label'>{mode.label}</Text>
+            </View>
+          ))}
+        </View>
       </View>
 
       <ScrollView className='article-scroll' scrollY>
@@ -114,9 +125,8 @@ export default function ResultV2() {
           <View className='article-header'>
             <Text className='article-title'>{articleMeta.title}</Text>
             <View className='article-meta-row'>
-              <Text className='article-source'>{articleMeta.source}</Text>
-              <Text className='meta-divider'>·</Text>
-              <Text className='article-level'>{articleMeta.level}</Text>
+              <View className='source-tag'>{articleMeta.source}</View>
+              <View className='level-tag'>{articleMeta.level}</View>
             </View>
           </View>
 
@@ -125,6 +135,20 @@ export default function ResultV2() {
 
         <View className='bottom-spacer' />
       </ScrollView>
+
+      {/* Global Bottom Action Bar */}
+      <View className='global-action-bar safe-area-bottom'>
+        <View className='action-bar-inner'>
+          <View className='secondary-action'>
+            <LucideIcon name='star' size={20} color='var(--text-sub)' />
+            <Text>收藏全文</Text>
+          </View>
+          <View className='primary-action'>
+            <LucideIcon name='refresh-cw' size={18} color='#fff' />
+            <Text>重新分析</Text>
+          </View>
+        </View>
+      </View>
 
       <View className={`debug-fab ${showDebug ? 'expanded' : ''}`} onClick={() => !showDebug && setShowDebug(true)}>
         {!showDebug ? (
@@ -163,7 +187,7 @@ export default function ResultV2() {
         word={wordPopup.word}
         x={wordPopup.x}
         y={wordPopup.y}
-        onClose={() => setWordPopup({ ...wordPopup, visible: false })}
+        onClose={handleClosePopup}
         onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
       />
 

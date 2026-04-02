@@ -1,9 +1,9 @@
 .paragraph-block {
-  margin-bottom: 48rpx;
+  margin-bottom: 64rpx; // Increased breathing room
 }
 
 .english-paragraph {
-  margin-bottom: 16rpx;
+  margin-bottom: 24rpx;
   line-height: var(--leading-relaxed);
 }
 
@@ -12,13 +12,16 @@
   font-size: var(--text-lg);
   color: var(--primary-color);
   font-family: var(--font-sans);
-  font-weight: var(--weight-normal);
+  font-weight: var(--weight-medium);
   line-height: var(--leading-relaxed);
   letter-spacing: var(--tracking-tight);
 }
 
 .sentence-span {
-  // Can be used for specific styling or event catching on a per-sentence basis if needed.
+  transition: background-color 0.3s ease;
+  &.active {
+    background-color: var(--active-highlight-bg);
+  }
 }
 
 .tail-entries-inline {
@@ -33,16 +36,18 @@
 }
 
 .translation-paragraph {
-  margin-top: 16rpx;
-  padding: 16rpx 24rpx;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: var(--radius-sm);
-  border-left: 4rpx solid rgba(0, 0, 0, 0.05); // Subtly separate the translation
+  margin-top: 24rpx;
+  padding: 0; // Remove box
+  background: transparent;
+  border-radius: 0;
+  border-left: none; 
 }
 
 .translation-text {
-  font-size: var(--text-base);
-  color: var(--text-sub);
+  font-size: var(--text-sm); // Smaller font for translation
+  color: var(--text-sub); // Muted color
   line-height: var(--leading-normal);
   font-weight: var(--weight-normal);
+  display: block;
 }
+

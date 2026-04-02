@@ -53,30 +53,31 @@ export default function BottomSheetDetail({ visible, entry, onClose }: BottomShe
   return (
     <View className='bottom-sheet-overlay' onClick={onClose}>
       <View className='bottom-sheet-container' onClick={(e) => e.stopPropagation()}>
+        <View className='sheet-drag-handle' />
         <View className='sheet-header'>
-          <View className='drag-handle' />
-          <View className='header-content'>
+          <View className='header-left'>
             <Text className='sheet-title'>{entry.title || entry.label}</Text>
-            <View className='close-btn' onClick={onClose}>
-              <LucideIcon name='x' size={20} color='#666' />
-            </View>
+            {entry.label && <Text className='sheet-type-tag'>{entry.label}</Text>}
+          </View>
+          <View className='sheet-close-btn' onClick={onClose}>
+            <LucideIcon name='x' size={24} color='var(--text-muted)' />
           </View>
         </View>
 
-        <ScrollView className='sheet-content' scrollY>
-          <Text className='content-text'>
+        <ScrollView className='sheet-scroll-content' scrollY>
+          <View className='markdown-body'>
             {contentSegments.map(renderMarkdownSegment)}
-          </Text>
+          </View>
         </ScrollView>
 
-        <View className='sheet-footer'>
-          <View className='footer-btn'>
-            <LucideIcon name='bookmark' size={16} color='#666' />
-            <Text>收藏</Text>
+        <View className='sheet-footer-actions safe-area-bottom'>
+          <View className='footer-action-btn secondary'>
+            <LucideIcon name='star' size={18} color='var(--text-sub)' />
+            <Text className='btn-text'>收藏此项</Text>
           </View>
-          <View className='footer-btn primary'>
-            <LucideIcon name='thumbsUp' size={16} color='#fff' />
-            <Text>有帮助</Text>
+          <View className='footer-action-btn primary'>
+            <LucideIcon name='thumbsUp' size={18} color='#fff' />
+            <Text className='btn-text'>非常有帮助</Text>
           </View>
         </View>
       </View>

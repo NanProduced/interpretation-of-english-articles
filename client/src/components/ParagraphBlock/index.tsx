@@ -17,6 +17,7 @@ interface ParagraphBlockProps {
   translations: TranslationModel[]
   showTranslation: boolean
   inlineMarks: InlineMarkModel[]
+  activeMarkId?: string | null
   tailEntries: SentenceEntryModel[]
   pageMode: 'immersive' | 'bilingual' | 'intensive'
   onWordClick?: (mark: InlineMarkModel, word: string, event?: any) => void
@@ -40,6 +41,7 @@ function findTextAnchorPosition(text: string, anchorText: string, occurrence: nu
 function renderTextWithMarks(
   text: string,
   marks: InlineMarkModel[],
+  activeMarkId?: string | null,
   onWordClick?: (mark: InlineMarkModel, word: string, event?: any) => void
 ) {
   if (marks.length === 0) {
@@ -61,6 +63,7 @@ function renderTextWithMarks(
           const partMark: InlineMarkModel = {
             ...m,
             id: `${m.id}-part-${idx}`,
+            parentId: m.id, // Track parent ID for activation
             anchor: {
               kind: 'text',
               sentenceId: m.anchor.sentenceId,
@@ -90,11 +93,14 @@ function renderTextWithMarks(
       resultElements.push(text.slice(lastEnd, item.start))
     }
 
+    const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
+
     resultElements.push(
       <InlineMark
         key={item.mark.id}
         mark={item.mark}
         text={item.text}
+        isActive={isActive}
         onClick={onWordClick}
       />
     )
@@ -114,6 +120,7 @@ export default function ParagraphBlock({
   translations,
   showTranslation,
   inlineMarks,
+  activeMarkId,
   tailEntries,
   pageMode,
   onWordClick,
@@ -137,7 +144,7 @@ export default function ParagraphBlock({
             
             return (
               <Text key={sentence.sentenceId} className='sentence-span'>
-                {renderTextWithMarks(sentence.text, sentenceMarks, onWordClick)}
+                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
                 
                 {/* 句尾如果是最后一个词，保留一个自然空格或换行缓冲 */}
                 {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
@@ -169,3 +176,4 @@ export default function ParagraphBlock({
     </View>
   )
 }
+

@@ -102,24 +102,25 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
           onClick={(e) => { e.stopPropagation(); onExpand?.(); }}
         >
           <View className='mini-header'>
-            <Text className='mini-word'>{lookupText}</Text>
+            <View className='mini-word-info'>
+              <Text className='mini-word'>{lookupText}</Text>
+              {dictResult?.phonetic && <Text className='mini-phonetic'>{dictResult.phonetic}</Text>}
+            </View>
             <View className='mini-actions'>
               <View 
-                className={`mini-audio-btn ${audioPlaying ? 'playing' : ''}`} 
+                className={`mini-icon-btn ${audioPlaying ? 'playing' : ''}`} 
                 onClick={(e) => { e.stopPropagation(); handlePlayAudio(); }}
               >
-                <LucideIcon name='volume2' size={14} color={audioPlaying ? '#4285f4' : '#666'} />
+                <LucideIcon name='volume2' size={16} color={audioPlaying ? 'var(--color-info)' : 'var(--text-sub)'} />
               </View>
               <View 
-                className='mini-star-btn'
+                className='mini-icon-btn'
                 onClick={(e) => { e.stopPropagation(); /* TODO: 收藏 */ }}
               >
-                <LucideIcon name='star' size={14} color='#666' />
+                <LucideIcon name='star' size={16} color='var(--text-sub)' />
               </View>
             </View>
           </View>
-          
-          {dictResult?.phonetic && <Text className='mini-phonetic'>{dictResult.phonetic}</Text>}
           
           <View className='mini-content'>
             {loading ? (
@@ -127,7 +128,7 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
             ) : dictResult && dictResult.meanings[0] ? (
               <View className='mini-def-row'>
                 <Text className='mini-pos'>{dictResult.meanings[0].partOfSpeech}</Text>
-                <Text className='mini-def' numberOfLines={2}>
+                <Text className='mini-def' numberOfLines={1}>
                   {dictResult.meanings[0].definitions[0].meaning.split('；')[0]}
                 </Text>
               </View>
@@ -138,7 +139,7 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
 
           <View className='mini-footer'>
             <Text className='mini-hint'>点击查看详情</Text>
-            <LucideIcon name='chevronDown' size={12} color='#999' />
+            <LucideIcon name='chevronRight' size={12} color='var(--text-muted)' />
           </View>
         </View>
       </View>
@@ -149,6 +150,7 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
   return (
     <View className='word-popup-overlay' onClick={onClose}>
       <View className='word-popup-container' onClick={(e) => e.stopPropagation()}>
+        <View className='popup-drag-handle' />
         <View className='popup-header'>
           <View className='word-info'>
             <View className='word-text-row'>
@@ -166,47 +168,47 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
               )}
             </View>
           </View>
-          <View className='header-actions'>
-            <View className={`audio-btn ${audioPlaying ? 'playing' : ''}`} onClick={handlePlayAudio}>
-              <LucideIcon name='volume2' size={20} color={audioPlaying ? '#4285f4' : '#666'} />
+          <View className='header-right-actions'>
+            <View className={`audio-btn-large ${audioPlaying ? 'playing' : ''}`} onClick={handlePlayAudio}>
+              <LucideIcon name='volume2' size={24} color={audioPlaying ? 'var(--color-info)' : 'var(--text-main)'} />
             </View>
-            <View className='close-btn' onClick={onClose}>
-              <LucideIcon name='x' size={20} color='#666' />
+            <View className='popup-close-btn' onClick={onClose}>
+              <LucideIcon name='x' size={24} color='var(--text-muted)' />
             </View>
           </View>
         </View>
 
-        <ScrollView className='popup-content' scrollY>
+        <ScrollView className='popup-scroll-content' scrollY>
           {/* 1. AI 增强层 */}
           {glossary && (
-            <View className='glossary-section'>
-              <View className='glossary-header'>
-                <LucideIcon name='sparkles' size={14} color='#030213' />
-                <Text className='glossary-title'>AI 语境精讲</Text>
+            <View className='glossary-card'>
+              <View className='glossary-card-header'>
+                <LucideIcon name='sparkles' size={16} color='var(--color-ink)' />
+                <Text className='glossary-card-title'>AI 深度解析</Text>
               </View>
-              {glossary.zh && <Text className='glossary-zh'>{glossary.zh}</Text>}
-              {glossary.gloss && <Text className='glossary-gloss'>{glossary.gloss}</Text>}
-              {glossary.reason && <Text className='glossary-reason'>{glossary.reason}</Text>}
+              <View className='glossary-card-body'>
+                {glossary.zh && <Text className='glossary-zh'>{glossary.zh}</Text>}
+                {glossary.gloss && <Text className='glossary-gloss'>{glossary.gloss}</Text>}
+                {glossary.reason && <Text className='glossary-reason'>{glossary.reason}</Text>}
+              </View>
             </View>
           )}
 
           {/* 2. 词典基础层 */}
           {loading ? (
-            <View className='loading-state'><Text>正在查询词典...</Text></View>
+            <View className='popup-loading-state'><Text>正在检索词库...</Text></View>
           ) : dictResult ? (
-            <View className='dict-section'>
+            <View className='dict-entries'>
               {dictResult.meanings.map((meaning, idx) => (
-                <View key={idx} className='meaning-item'>
-                  <View className='def-row'>
-                    <Text className='part-of-speech'>{meaning.partOfSpeech}</Text>
-                    <View className='definitions'>
-                      {meaning.definitions.map((def, defIdx) => (
-                        <View key={defIdx} className='definition-item'>
-                          <Text className='definition-text'>{def.meaning}</Text>
-                          {def.example && <Text className='example-text'>"{def.example}"</Text>}
-                        </View>
-                      ))}
-                    </View>
+                <View key={idx} className='meaning-block'>
+                  <View className='pos-tag'>{meaning.partOfSpeech}</View>
+                  <View className='definition-list'>
+                    {meaning.definitions.map((def, defIdx) => (
+                      <View key={defIdx} className='def-item'>
+                        <Text className='def-zh'>{def.meaning}</Text>
+                        {def.example && <Text className='def-en-example'>"{def.example}"</Text>}
+                      </View>
+                    ))}
                   </View>
                 </View>
               ))}
@@ -214,14 +216,14 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
           ) : null}
         </ScrollView>
 
-        <View className='popup-footer'>
-          <View className='footer-btn'>
-            <LucideIcon name='bookmark' size={16} color='#666' />
-            <Text>收藏</Text>
+        <View className='popup-footer-actions safe-area-bottom'>
+          <View className='footer-action-btn secondary'>
+            <LucideIcon name='star' size={18} color='var(--text-sub)' />
+            <Text className='btn-text'>收藏</Text>
           </View>
-          <View className='footer-btn primary'>
-            <LucideIcon name='bookOpen' size={16} color='#fff' />
-            <Text>记入生词本</Text>
+          <View className='footer-action-btn primary'>
+            <LucideIcon name='plus' size={18} color='#fff' />
+            <Text className='btn-text'>记入生词本</Text>
           </View>
         </View>
       </View>
