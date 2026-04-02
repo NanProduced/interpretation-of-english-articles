@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 from app.agents.annotation import AnnotationAgentDeps, build_annotation_prompt, get_annotation_agent
 from app.llm.agent_runner import run_agent_with_route
 from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
 from app.llm.types import ModelSelection
-from app.schemas.internal.analysis import TeachingOutput
 
 
-async def run_annotation_agent_raw(
+async def run_annotation_agent(
     deps: AnnotationAgentDeps,
     model_selection: ModelSelection | None = None,
 ) -> Any:
@@ -20,11 +19,3 @@ async def run_annotation_agent_raw(
         route=MODEL_ROUTE_ANNOTATION_GENERATION,
         model_selection=model_selection,
     )
-
-
-async def run_annotation_agent(
-    deps: AnnotationAgentDeps,
-    model_selection: ModelSelection | None = None,
-) -> TeachingOutput:
-    result = await run_annotation_agent_raw(deps, model_selection=model_selection)
-    return cast(TeachingOutput, result.output)

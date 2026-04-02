@@ -1,20 +1,25 @@
 .inline-mark {
-  border-radius: 4rpx;
-  padding: 0 4rpx;
-  margin: 0 2rpx;
-  transition: opacity 0.15s ease;
+  display: inline;
+  border-radius: 6rpx;
+  padding: 2rpx 0; // 稍微增加上下间距，避免行高挤压
+  transition: all 0.15s ease;
+
+  &.background {
+    padding: 2rpx 6rpx;
+    margin: 0 2rpx;
+  }
 
   &.clickable {
     cursor: pointer;
-    // 可点击状态：添加轻微按下效果
     &:active {
-      opacity: 0.7;
-      transform: scale(0.98);
+      opacity: 0.6;
     }
   }
 
   &.underline {
-    border-radius: 0;
-    padding: 0;
+    border-bottom-width: 3rpx;
+    border-bottom-style: dashed;
+    padding-bottom: 6rpx;
+    margin: 0 2rpx;
   }
 }

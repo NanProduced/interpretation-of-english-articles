@@ -25,7 +25,7 @@ from app.workflow.analyze_nodes import (
 from app.workflow.analyze_state import AnalyzeState
 from app.workflow.tracing import build_workflow_root_metadata, build_workflow_root_tags
 
-ANALYZE_SCHEMA_VERSION = "2.0.0"
+ANALYZE_SCHEMA_VERSION = "2.1.0"
 
 
 def _collect_model_names(settings: Any, model_selection: ModelSelection | None) -> list[str]:
@@ -54,7 +54,7 @@ def build_article_analysis_graph() -> Any:
     return graph.compile()
 
 
-async def run_article_analysis(payload: AnalyzeRequest) -> RenderSceneModel:
+async def _invoke_article_analysis(payload: AnalyzeRequest) -> dict[str, Any]:
     graph = build_article_analysis_graph()
     request_id = payload.request_id or str(uuid4())
     normalized_payload = (
@@ -98,7 +98,16 @@ async def run_article_analysis(payload: AnalyzeRequest) -> RenderSceneModel:
             ),
         },
     )
+    return cast(dict[str, Any], result)
+
+
+async def run_article_analysis(payload: AnalyzeRequest) -> RenderSceneModel:
+    result = await _invoke_article_analysis(payload)
     return cast(RenderSceneModel, result["result"])
+
+
+async def run_article_analysis_with_state(payload: AnalyzeRequest) -> dict[str, Any]:
+    return await _invoke_article_analysis(payload)
 
 
 __all__ = [
@@ -107,4 +116,5 @@ __all__ = [
     "WORKFLOW_VERSION",
     "build_article_analysis_graph",
     "run_article_analysis",
+    "run_article_analysis_with_state",
 ]

@@ -5,11 +5,13 @@ import re
 
 from app.schemas.common import TextSpan
 from app.schemas.internal.analysis import (
-    ParagraphDraft,
     PreparedInput,
+    PreparedParagraph,
+    PreparedSentence,
     SanitizeReport,
-    SentenceDraft,
 )
+
+__all__ = ["prepare_input", "PreparedInput"]
 
 CODE_FENCE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
 INLINE_CODE_PATTERN = re.compile(r"`[^`\n]+`")
@@ -149,8 +151,8 @@ def prepare_input(source_text: str) -> PreparedInput:
     """把原始输入转换成安全可渲染的正文结构，供主教学节点消费。"""
     render_text, sanitize_report = sanitize_text(source_text)
 
-    paragraphs: list[ParagraphDraft] = []
-    sentences: list[SentenceDraft] = []
+    paragraphs: list[PreparedParagraph] = []
+    sentences: list[PreparedSentence] = []
     offset = 0
 
     for paragraph_index, raw_paragraph in enumerate(render_text.split("\n\n"), start=1):
@@ -172,7 +174,7 @@ def prepare_input(source_text: str) -> PreparedInput:
             sentence_ids.append(sentence_id)
             sentence_offset = sentence_end
             sentences.append(
-                SentenceDraft(
+                PreparedSentence(
                     sentence_id=sentence_id,
                     paragraph_id=paragraph_id,
                     text=sentence_text,
@@ -181,7 +183,7 @@ def prepare_input(source_text: str) -> PreparedInput:
             )
 
         paragraphs.append(
-            ParagraphDraft(
+            PreparedParagraph(
                 paragraph_id=paragraph_id,
                 text=paragraph_text,
                 render_span=TextSpan(start=paragraph_start, end=paragraph_end),

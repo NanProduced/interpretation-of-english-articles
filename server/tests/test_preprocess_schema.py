@@ -7,7 +7,7 @@ def test_analyze_request_rejects_goal_variant_mismatch() -> None:
             {
                 "text": "This is a test article.",
                 "reading_goal": "academic",
-                "reading_variant": "cet4",
+                "reading_variant": "cet",
             }
         )
     except Exception as exc:
@@ -18,7 +18,7 @@ def test_analyze_request_rejects_goal_variant_mismatch() -> None:
 
 def test_render_scene_model_schema_accepts_minimal_valid_payload() -> None:
     payload = {
-        "schema_version": "2.0.0",
+        "schema_version": "2.1.0",
         "request": {
             "request_id": "req-001",
             "source_type": "user_input",
@@ -47,16 +47,13 @@ def test_render_scene_model_schema_accepts_minimal_valid_payload() -> None:
                 }
             ],
         },
-        "translations": [
-            {"sentence_id": "s1", "translation_zh": "这是一篇测试文章。"}
-        ],
+        "translations": [{"sentence_id": "s1", "translation_zh": "这是一篇测试文章。"}],
         "inline_marks": [],
         "sentence_entries": [],
-        "cards": [],
+        "warnings": [],
     }
 
     result = RenderSceneModel.model_validate(payload)
-
-    assert result.schema_version == "2.0.0"
+    assert result.schema_version == "2.1.0"
     assert result.request.profile_id == "daily_intermediate"
     assert result.article.sentences[0].sentence_span.start == 0

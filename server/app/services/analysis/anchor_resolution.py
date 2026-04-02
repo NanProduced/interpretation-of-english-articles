@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
+from typing import cast
 
 from app.schemas.common import TextSpan
-from app.schemas.internal.analysis import SentenceDraft
+from app.schemas.internal.analysis import PreparedSentence
 
 QUOTE_CLASS = r"[\"'""'']"
 HYPHEN_CLASS = r"[-–—]"
@@ -78,7 +79,7 @@ def _resolve_candidate(
 
 
 def resolve_text_anchor(
-    sentence: SentenceDraft,
+    sentence: PreparedSentence,
     anchor_text: str,
     anchor_occurrence: int | None = None,
 ) -> TextSpan | None:
@@ -138,7 +139,7 @@ def resolve_text_anchor(
 
 
 def resolve_multi_text_anchor(
-    sentence: SentenceDraft,
+    sentence: PreparedSentence,
     parts: list[dict[str, object]],
 ) -> list[TextSpan] | None:
     """
@@ -148,8 +149,9 @@ def resolve_multi_text_anchor(
     resolved_parts: list[TextSpan] = []
 
     for part in parts:
-        anchor_text = part.get("anchor_text", "")
-        occurrence = part.get("occurrence")
+        anchor_text = str(part.get("anchor_text", ""))
+        occurrence_val = part.get("occurrence")
+        occurrence: int | None = None if occurrence_val is None else cast(int, occurrence_val)
 
         span = resolve_text_anchor(sentence, anchor_text, occurrence)
         if span is None:

@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.moonshotai import MoonshotAIProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.llm.types import ResolvedModelConfig
@@ -21,9 +22,17 @@ def _build_openai_compatible_model(model_config: ResolvedModelConfig) -> OpenAIC
         base_url=model_config.base_url,
         api_key=model_config.api_key or None,
     )
+
+    profile = None
+    if "moonshot" in model_config.base_url or "moonshot" in model_config.model_name:
+        # Moonshot is OpenAI-compatible at the transport layer, but its model profile
+        # differs in important ways, especially around structured output and tool_choice.
+        profile = MoonshotAIProvider.model_profile(model_config.model_name)
+
     return OpenAIChatModel(
         model_config.model_name,
         provider=provider,
+        profile=profile,
         settings=(
             model_config.model_settings.to_pydantic_ai()
             if model_config.model_settings

@@ -1,5 +1,5 @@
-import { View, Text } from '@tarojs/components'
-import { InlineMarkModel, InlineMarkTone } from '../../types/v2-render'
+import { Text } from '@tarojs/components'
+import { InlineMarkModel, VisualTone } from '../../types/v2-render'
 import './index.scss'
 
 interface InlineMarkProps {
@@ -8,16 +8,15 @@ interface InlineMarkProps {
   onClick?: (mark: InlineMarkModel, word: string) => void
 }
 
-const TONE_COLORS: Record<InlineMarkTone, { bg: string; text: string; border?: string }> = {
-  info: { bg: 'rgba(66, 133, 244, 0.15)', text: '#4285f4' },
-  focus: { bg: 'rgba(251, 146, 60, 0.15)', text: '#fb923c' },
-  exam: { bg: 'rgba(239, 68, 68, 0.12)', text: '#ef4444' },
-  phrase: { bg: 'rgba(139, 92, 246, 0.12)', text: '#8b5cf6' },
-  grammar: { bg: 'rgba(34, 197, 94, 0.12)', text: '#22c55e' },
+const TONE_COLORS: Record<VisualTone, { bg: string; text: string }> = {
+  vocab: { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444' },
+  phrase: { bg: 'rgba(139, 92, 246, 0.1)', text: '#8b5cf6' },
+  context: { bg: 'rgba(66, 133, 244, 0.1)', text: '#4285f4' },
+  grammar: { bg: 'rgba(34, 197, 94, 0.1)', text: '#22c55e' },
 }
 
 export default function InlineMark({ mark, text, onClick }: InlineMarkProps) {
-  const colors = TONE_COLORS[mark.tone]
+  const colors = TONE_COLORS[mark.visualTone]
 
   const handleClick = () => {
     if (mark.clickable && onClick) {
@@ -32,11 +31,8 @@ export default function InlineMark({ mark, text, onClick }: InlineMarkProps) {
         style={{
           color: colors.text,
           borderBottomColor: colors.text,
-          borderBottomStyle: 'dashed',
-          borderBottomWidth: '1px',
         }}
         onClick={handleClick}
-        onTap={handleClick}
       >
         {text}
       </Text>
@@ -51,7 +47,6 @@ export default function InlineMark({ mark, text, onClick }: InlineMarkProps) {
         color: colors.text,
       }}
       onClick={handleClick}
-      onTap={handleClick}
     >
       {text}
     </Text>

@@ -1,131 +1,148 @@
 /**
- * V2 统一渲染模型类型定义
- * 基于 docs/workflow/v2/v2-unified-design.md
+ * V2.1 统一渲染模型类型定义
+ * 
+ * 严格对齐 docs/workflow/v2/v2-1-refactor-design.md
+ * 移除旧版遗留字段：cards, tone, aiNote, context type entries 等
  */
 
-// ============ 锚点模型 ============
+// ============ 基础组件 ============
 
-/** 单段文本锚点 */
-export type TextAnchorModel = {
+export interface TextAnchor {
   kind: 'text'
   sentenceId: string
   anchorText: string
   occurrence?: number
 }
 
-/** 多段文本锚点（用于 so...that, not only...but also 等不连续结构） */
-export type MultiTextAnchorModel = {
+export interface SpanRef {
+  text: string
+  occurrence?: number
+  role?: string
+}
+
+export interface MultiTextAnchor {
   kind: 'multi_text'
   sentenceId: string
-  parts: Array<{
-    anchorText: string
-    occurrence?: number
-    role?: string
-  }>
+  parts: SpanRef[]
 }
 
-/** 句级锚点 */
-export type SentenceAnchorModel = {
-  kind: 'sentence'
-  sentenceId: string
+export type InlineMarkAnchor = TextAnchor | MultiTextAnchor
+
+// ============ LLM 附加说明 ============
+
+export interface InlineGlossary {
+  /** 对应 PhraseGloss.zh */
+  zh?: string
+  /** 对应 ContextGloss.gloss */
+  gloss?: string
+  /** 对应 ContextGloss.reason */
+  reason?: string
 }
 
-/** 段间插入锚点 */
-export type BetweenSentenceAnchorModel = {
-  kind: 'after_sentence'
-  afterSentenceId: string
-}
+// ============ Annotation 类型 ============
 
-export type AnchorModel =
-  | TextAnchorModel
-  | MultiTextAnchorModel
-  | SentenceAnchorModel
-  | BetweenSentenceAnchorModel
+export type AnnotationType =
+  | 'vocab_highlight'
+  | 'phrase_gloss'
+  | 'context_gloss'
+  | 'grammar_note'
 
-// ============ 标注原语 ============
+/** 渲染语义，不再使用模糊的 tone */
+export type VisualTone = 'vocab' | 'phrase' | 'context' | 'grammar'
 
-export type InlineMarkTone = 'info' | 'focus' | 'exam' | 'phrase' | 'grammar'
-export type InlineMarkRenderType = 'background' | 'underline'
+export type RenderType = 'background' | 'underline'
 
-export type InlineMarkModel = {
+// ============ 行内标注 ============
+
+export interface InlineMarkModel {
   id: string
-  renderType: InlineMarkRenderType
-  anchor: TextAnchorModel | MultiTextAnchorModel
-  tone: InlineMarkTone
-  /** clickable=true 时点击进入 WordPopup */
+  /** 语义来源，用于前端识别业务逻辑 */
+  annotationType: AnnotationType
+  anchor: InlineMarkAnchor
+  renderType: RenderType
+  visualTone: VisualTone
   clickable: boolean
-  /** AI 补充说明（可选）- 点击 popup 后显示在 AI Tab */
-  aiNote?: string
-  /** _lookupText: 要查询的文本（可选，默认使用 anchorText） */
+  /** 词典查询文本 */
   lookupText?: string
-  /** 查询类型（可选） */
+  /** 词典查询类型 */
   lookupKind?: 'word' | 'phrase'
-  /** AI 补充标题（可选） */
-  aiTitle?: string
-  /** AI 补充正文（可选） */
-  aiBody?: string
+  /** LLM 附加说明（结构化） */
+  glossary?: InlineGlossary
+  /** 考试标签（针对 vocab_highlight） */
+  examTags?: string[]
 }
 
 // ============ 句尾入口 ============
 
-export type SentenceEntryType = 'grammar' | 'sentence_analysis' | 'context'
+/** v2.1 只保留这两类句尾入口 */
+export type SentenceEntryType = 'grammar_note' | 'sentence_analysis'
 
-export type SentenceTailEntryModel = {
+export interface SentenceEntryModel {
   id: string
-  /** Chip 显示文案 */
+  sentenceId: string
+  entryType: SentenceEntryType
   label: string
-  /** 详情面板标题（可选，默认使用 label） */
   title?: string
-  anchor: SentenceAnchorModel
-  type: SentenceEntryType
-  /** 详情内容，支持 Markdown 格式（必填） */
   content: string
 }
 
-// ============ 段间卡片 ============
+// ============ 警告 ============
 
-export type AnalysisCardModel = {
-  id: string
-  anchor: BetweenSentenceAnchorModel
-  title: string
-  content: string
-  /** 展开状态 */
-  expanded?: boolean
+export type WarningLevel = 'info' | 'warning' | 'error'
+
+export interface WarningModel {
+  code: string
+  level: WarningLevel
+  message: string
+  sentenceId?: string
+  annotationId?: string
 }
 
 // ============ 文章结构 ============
 
-export type SentenceModel = {
+export interface SentenceModel {
   sentenceId: string
   paragraphId: string
   text: string
 }
 
-export type ParagraphModel = {
+export interface ParagraphModel {
   paragraphId: string
   sentenceIds: string[]
 }
 
-export type ArticleModel = {
+export interface ArticleModel {
   paragraphs: ParagraphModel[]
   sentences: SentenceModel[]
 }
 
 // ============ 翻译 ============
 
-export type TranslationModel = {
+export interface TranslationModel {
   sentenceId: string
   translationZh: string
 }
 
+// ============ 请求元信息 ============
+
+export interface RequestMeta {
+  requestId: string
+  sourceType: 'user_input' | 'daily_article' | 'ocr'
+  readingGoal: string
+  readingVariant: string
+  profileId: string
+}
+
 // ============ 统一渲染模型 ============
 
-export type RenderSceneModel = {
+export interface RenderSceneModel {
+  schemaVersion: '2.1.0'
+  request: RequestMeta
   article: ArticleModel
   translations: TranslationModel[]
   inlineMarks: InlineMarkModel[]
-  sentenceEntries: SentenceTailEntryModel[]
-  cards: AnalysisCardModel[]
+  sentenceEntries: SentenceEntryModel[]
+  warnings: WarningModel[]
 }
 
 // ============ 页面模式 ============
@@ -134,16 +151,18 @@ export type PageMode = 'immersive' | 'bilingual' | 'intensive'
 
 // ============ 词典结果 ============
 
-export type DictionaryResult = {
+export interface DictionaryMeaning {
+  partOfSpeech: string
+  definitions: Array<{
+    meaning: string
+    example?: string
+    exampleTranslation?: string
+  }>
+}
+
+export interface DictionaryResult {
   word: string
   phonetic?: string
   audioUrl?: string
-  meanings: Array<{
-    partOfSpeech: string
-    definitions: Array<{
-      meaning: string
-      example?: string
-      exampleTranslation?: string
-    }>
-  }>
+  meanings: DictionaryMeaning[]
 }

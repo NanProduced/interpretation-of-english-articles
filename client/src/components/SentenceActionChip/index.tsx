@@ -1,37 +1,37 @@
-import { View, Text } from '@tarojs/components'
-import { SentenceTailEntryModel } from '../../types/v2-render'
+import { Text } from '@tarojs/components'
+import { SentenceEntryModel } from '../../types/v2-render'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 
 interface SentenceActionChipProps {
-  entry: SentenceTailEntryModel
-  onClick?: (entry: SentenceTailEntryModel) => void
+  entry: SentenceEntryModel
+  onClick?: (entry: SentenceEntryModel) => void
 }
 
 const TYPE_CONFIG = {
-  grammar: { icon: 'book', color: '#22c55e', label: '语法' },
+  grammar_note: { icon: 'book', color: '#22c55e', label: '语法' },
   sentence_analysis: { icon: 'sparkles', color: '#8b5cf6', label: '句解' },
-  context: { icon: 'layers', color: '#4285f4', label: '语境' },
 }
 
 export default function SentenceActionChip({ entry, onClick }: SentenceActionChipProps) {
-  const config = TYPE_CONFIG[entry.type]
+  const config = TYPE_CONFIG[entry.entryType]
 
-  const handleClick = () => {
+  const handleClick = (e: any) => {
+    e.stopPropagation()
     if (onClick) {
       onClick(entry)
     }
   }
 
   return (
-    <View
-      className={`sentence-action-chip ${entry.type}`}
+    <Text
+      className={`sentence-action-chip ${entry.entryType}`}
       onClick={handleClick}
     >
-      <LucideIcon name={config.icon} size={14} color={config.color} />
+      <LucideIcon name={config.icon} size={14} color={config.color} className='chip-icon' />
       <Text className='chip-label' style={{ color: config.color }}>
         {entry.label}
       </Text>
-    </View>
+    </Text>
   )
 }

@@ -4,12 +4,14 @@
 
 本仓库用于开发一个面向非零基础英语用户的微信小程序，核心能力是对英文文章做教学型解读，而不是只返回数据库式的结构化标注。
 
-当前产品方向已经从 V0 的“复杂填表式 workflow”切换到 V1 的“老师在板书”模式，强调：
+产品方向已经从 V0 的"复杂填表式 workflow"演进到"老师在板书"模式，强调：
 
 - 高价值词汇标注
 - 重点语法点讲解
 - 句级难点讲解
 - 可渲染、可分层展示的前端标注数据
+
+当前状态：V2 已完成并确认不符合预期，正在进行 V2.1 优化规划。
 
 ## 当前技术栈
 
@@ -42,9 +44,9 @@
 
 详细规范以 `server/README.md` 和 `server/ARCHITECTURE.md` 为准。
 
-## 当前 Workflow 状态
+## Workflow 版本历史
 
-V0 已完成回顾，运行时代码层面的 V0 主链路已移除。当前主 workflow 为 V1：
+### V1（已稳定）
 
 - workflow 名：`article_analysis`
 - 主节点：
@@ -53,24 +55,41 @@ V0 已完成回顾，运行时代码层面的 V0 主链路已移除。当前主 
   - `generate_annotations`
   - `assemble_result`
 
-职责概览：
+### V2（已完成，评估未通过）
 
-- `prepare_input`
-  本地清洗输入、生成 `render_text`、分段分句、做基础安全判断
-- `derive_user_rules`
-  将 `reading_goal + reading_variant` 转为结构化 `user_rules`
-- `generate_annotations`
-  唯一主教学 LLM 节点，返回句级锚点、教学内容和逐句翻译
-- `assemble_result`
-  做 `anchor_text -> render_span`、去重过滤、`render_marks` 和最终结果组装
+- workflow 名：`article_analysis`，版本 `v2`
+- 主节点（线性顺序）：
+  - `prepare_input` → `derive_user_rules` → `generate_annotations` → `assemble_result`
+
+V2 核心变化：
+
+- 输出协议从 V1 的 `vocabulary/grammar/sentence` 三数组切换为统一渲染模型 `RenderSceneModel`
+- 前端验证了组件形态（SentenceRow、InlineMark、WordPopup、SentenceActionChip、BottomSheetDetail、AnalysisCard）
+- 锚点模型支持 `text` 和 `multi_text` 两种类型
+- 翻译层固定为页面独立层，不再是数组字段
+
+V2 评估结论（来自 `docs/workflow/v2/v2-unified-design.md`）：
+
+- 业务分类僵化，LLM 被迫往固定数组里填内容，导致解释方式单一
+- 为了满足 schema，模型容易输出低价值标注，用户获得感弱
+- 前后端联调顺序倒置，先调 LLM 输出、后看前端能否接住，导致返工成本高
+
+### V2.1（规划中）
+
+V2.1 是 V2 的优化版本，核心方向：
+
+- 让模型从"表单填写者"变成"教学编排者"
+- 保留 V2 前端验证过的组件能力，但放宽对 LLM 输出的结构约束
+- 后端仍负责锚点稳定和渲染契约，但增强语义校验和质量保障
 
 ## 当前 API 契约
 
-对外主入口仍为：
+对外主入口：
 
-- `POST /analyze`
+- `POST /api/v2/analyze`
+- `GET /api/v2/result/{id}`
 
-V1 请求侧保留：
+V2 请求侧：
 
 - `text`
 - `source_type`
@@ -79,47 +98,44 @@ V1 请求侧保留：
 - `reading_goal`
 - `reading_variant`
 
-V1 响应侧核心结构包括：
+V2 响应侧核心结构（`RenderSceneModel`）：
 
-- `request`
-- `status`
-- `article`
-  - 同时保留 `source_text` 与 `render_text`
-- `vocabulary_annotations`
-- `grammar_annotations`
-- `sentence_annotations`
-- `render_marks`
-- `translations`
-- `warnings`
-- `metrics`
+- `request`: AnalyzeRequestMeta
+- `article`: ArticleStructure（含 paragraphs/sentences）
+- `translations`: 逐句翻译
+- `inline_marks`: 行内标注（高亮/下划线）
+- `sentence_entries`: 句尾入口
+- `cards`: 段间卡片
+- `warnings`: 警告信息
 
-说明：
+前端组件渲染基准：
 
-- 前端主渲染基准是 `render_text`
-- `source_text` 仅用于“查看原文”等非默认展示场景
-- 坐标只保留相对 `render_text` 的绝对坐标
+- `sentence_id` 作为定位硬边界
+- 单段锚点使用 `sentenceId + anchorText + occurrence`
+- 多段锚点使用 `multi_text.parts[]`
+- 不再使用绝对 `start-end` 偏移
 
 ## 当前用户配置体系
 
-V1 主链路当前采用轻量 `user_config`：
+主链路采用轻量配置：
 
 - `reading_goal`
   软偏好，影响讲解风格和默认展示层
 - `reading_variant`
   强提示，影响更值得关注的点
 
-后端不直接消费裸配置，而是转换成 `user_rules`，用于：
+后端转换成 `user_rules`：
 
-- prompt 注入
-- 差异化标注策略
-- 前端展示提示
-- 后续 few-shot / 轻量检索扩展预留
-
-当前不在主链路中引入付费增强 feature flag，也不实现 discourse-level annotation。
+- `profile_id`
+- `teaching_style`
+- `translation_style`
+- `grammar_granularity`
+- `vocabulary_policy`
+- `annotation_budget`（vocabulary_count / grammar_count / sentence_note_count）
 
 ## 当前模型配置体系
 
-模型配置已经从 V0 的 legacy env 切换到 V1 的 profile/preset 路由体系：
+模型配置采用 profile/preset 路由体系：
 
 - `MODEL_PROFILES_JSON`
   声明所有可用模型 profile
@@ -130,16 +146,9 @@ V1 主链路当前采用轻量 `user_config`：
 - 请求里的 `model_selection`
   声明单次请求的 runtime override
 
-当前 V1 主链路只使用一个核心 route：
+核心 route：
 
 - `annotation_generation`
-
-原则：
-
-- env 负责 profile 注册和部署默认值
-- preset 负责服务端实验方案
-- request 负责单次 case 的运行时切换
-- 不再使用 legacy `ANALYSIS_*` / `GUARDRAILS_*` 配置
 
 ## 当前命名与实现约束
 
@@ -169,7 +178,7 @@ V1 主链路当前采用轻量 `user_config`：
 
 ## 当前观测与调试
 
-LangSmith 仍然保留并已切换到 V1 语义：
+LangSmith 用于全链路追踪：
 
 - 顶层 trace 由 LangGraph workflow 创建
 - PydanticAI 不启用全局 instrumentation
@@ -180,6 +189,7 @@ LangSmith 仍然保留并已切换到 V1 语义：
 
 - `workflow_name`
 - `workflow_version`
+- `schema_version`
 - `profile_id`
 - `reading_goal`
 - `reading_variant`
@@ -187,29 +197,28 @@ LangSmith 仍然保留并已切换到 V1 语义：
 
 ## 当前阶段
 
-当前已经完成：
+### 已完成
 
 - V0 问题回顾文档
-- V1 设计文档
-- V1 主链路代码重构
-- V0 运行时代码清理
-- 静态检查和测试收口
+- V1 设计文档、V1 主链路代码重构、V1 样本测试
+- V2 设计文档（`docs/workflow/v2/v2-unified-design.md`）
+- V2 前端组件实验与 mock 验证
+- V2 统一 schema 收敛
+- V2 后端可运行版本
+- V2 评估分析
 
-最近一次后端验证状态：
+### 进行中
 
-- `ruff` 通过
-- `mypy` 通过
-- `compileall` 通过
-- `pytest` 通过，当前为 `14 passed`
+- V2.1 优化规划
+
+V2 评估发现的主要问题：
+
+1. **LLM 输出质量不稳定**：TeachingOutput 完全依赖 LLM 生成，无结构校验，质量波动大
+2. **Budget 约束未生效**：prompt 传入 budget 数值但 LLM 未必遵守
+3. **Few-shot 示例空置**：`few_shot_examples=[]` 未实际使用
+4. **错误处理粒度粗**：未区分 transient error 和 fatal error
+5. **翻译覆盖风险**：LLM 可能漏译或重复翻译 sentence_id
 
 ## 接下来最重要的工作
 
-当前项目已经进入 V1 的样本输入测试阶段，接下来重点是：
-
-1. 用真实样本验证 V1 标注质量
-2. 重点观察：
-   - 锚点解析成功率
-   - 跨句污染是否消失
-   - 低价值标注过滤是否过强或过弱
-   - `reading_goal / reading_variant` 是否只影响展示层和讲解侧重点，而不会导致关键难点漏标
-3. 结合 LangSmith trace 和样本 case 继续做 prompt、规则和组装层微调
+V2.1 优化规划

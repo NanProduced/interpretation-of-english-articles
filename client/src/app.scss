@@ -1,14 +1,50 @@
-/* 全局 Design Tokens - 适配自 Figma 新设计 */
+/* 全局 Design Tokens - 适配自 Figma 新设计与 Goodnotes 质感 */
 page {
+  // 基础颜色
   --primary-color: #030213;
-  --bg-color: #ffffff;
+  --bg-color: #FAF9F9; // 对齐 impeccable.md 纸感背景
   --text-main: #171717;
   --text-sub: #717182;
+  --text-muted: #999999;
   --muted-color: #ececf0;
   --border-color: rgba(0, 0, 0, 0.08);
+  
+  // 圆角系统
   --radius-lg: 48rpx;
   --radius-md: 32rpx;
-  --radius-sm: 16rpx;
+  --radius-sm: 24rpx;
+  --radius-xs: 16rpx;
+
+  // 字体系统 (Typography)
+  // 1. 字体栈
+  --font-sans: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "Georgia", "Source Serif Pro", serif; // 适合学术正文
+  --font-mono: "SF Mono", "Menlo", "Monaco", "Courier New", monospace;
+
+  // 2. 字号阶梯 (Type Scale - 1.25 ratio)
+  --text-xs: 22rpx;
+  --text-sm: 26rpx;
+  --text-base: 30rpx;
+  --text-lg: 34rpx;
+  --text-xl: 40rpx;
+  --text-2xl: 48rpx;
+  --text-3xl: 56rpx;
+
+  // 3. 行高 (Line Heights)
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.8; // 沉浸阅读推荐
+
+  // 4. 字重 (Font Weights)
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  // 5. 字间距 (Letter Spacing)
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.02em;
 
   /* 推荐卡片颜色 */
   --blue-bg: rgba(239, 246, 255, 0.5);
@@ -20,7 +56,9 @@ page {
 
   background-color: var(--bg-color);
   color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  line-height: var(--leading-normal);
 }
 
 .safe-area-bottom {

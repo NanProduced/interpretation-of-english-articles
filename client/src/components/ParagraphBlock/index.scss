@@ -1,0 +1,48 @@
+.paragraph-block {
+  margin-bottom: 48rpx;
+}
+
+.english-paragraph {
+  margin-bottom: 16rpx;
+  line-height: var(--leading-relaxed);
+}
+
+.english-flow {
+  // Using Text allows lines to wrap beautifully as a true paragraph
+  font-size: var(--text-lg);
+  color: var(--primary-color);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-normal);
+  line-height: var(--leading-relaxed);
+  letter-spacing: var(--tracking-tight);
+}
+
+.sentence-span {
+  // Can be used for specific styling or event catching on a per-sentence basis if needed.
+}
+
+.tail-entries-inline {
+  display: inline;
+  margin-left: 8rpx;
+  margin-right: 8rpx;
+}
+
+.space-char {
+  display: inline;
+  white-space: pre-wrap;
+}
+
+.translation-paragraph {
+  margin-top: 16rpx;
+  padding: 16rpx 24rpx;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-sm);
+  border-left: 4rpx solid rgba(0, 0, 0, 0.05); // Subtly separate the translation
+}
+
+.translation-text {
+  font-size: var(--text-base);
+  color: var(--text-sub);
+  line-height: var(--leading-normal);
+  font-weight: var(--weight-normal);
+}

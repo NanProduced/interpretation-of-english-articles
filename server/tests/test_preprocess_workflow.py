@@ -1,5 +1,5 @@
 from app.schemas.common import TextSpan
-from app.schemas.internal.analysis import SentenceDraft
+from app.schemas.internal.analysis import PreparedSentence
 from app.services.analysis.anchor_resolution import resolve_anchor
 from app.services.analysis.input_preparation import prepare_input
 from app.services.analysis.user_rules import derive_user_rules
@@ -16,17 +16,16 @@ def test_prepare_input_sanitizes_markup_links_and_code() -> None:
     assert prepared.sentences[0].text == "Hello\nVisit now."
 
 
-def test_derive_user_rules_preserves_beginner_profile_and_budget() -> None:
+def test_derive_user_rules_preserves_beginner_profile_and_policies() -> None:
     rules = derive_user_rules("daily_reading", "beginner_reading")
 
     assert rules.profile_id == "daily_beginner"
-    assert rules.annotation_budget.vocabulary_count == 5
-    assert rules.annotation_budget.grammar_count == 4
-    assert rules.annotation_budget.sentence_note_count == 2
+    assert rules.grammar_granularity == "focused"
+    assert rules.vocabulary_policy == "high_value_only"
 
 
 def test_resolve_anchor_supports_exact_and_normalized_match() -> None:
-    sentence = SentenceDraft(
+    sentence = PreparedSentence(
         sentence_id="s1",
         paragraph_id="p1",
         text='The store said "high-value" products were targeted.',
@@ -43,7 +42,7 @@ def test_resolve_anchor_supports_exact_and_normalized_match() -> None:
 
 
 def test_resolve_anchor_drops_ambiguous_occurrence_without_index() -> None:
-    sentence = SentenceDraft(
+    sentence = PreparedSentence(
         sentence_id="s1",
         paragraph_id="p1",
         text="Chocolate is chocolate for chocolate lovers.",

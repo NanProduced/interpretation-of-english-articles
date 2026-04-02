@@ -147,7 +147,9 @@ uv run uvicorn app.main:app --reload
 
 说明：
 
-- V1 直接升级 `POST /analyze` 的返回结构，不保留旧响应兼容层
+- 当前仅保留 `POST /analyze`
+- 返回结构统一为当前主线 render scene schema（`schema_version = "2.1.0"`）
+- 不再保留旧 `v2` 并行接口或兼容响应层
 - 结果页主渲染基准是 `render_text`
 - `source_text` 仅用于“查看原文”等非默认展示场景
 
@@ -165,7 +167,7 @@ uv run uvicorn app.main:app --reload
 - `prepare_input` 负责输入清洗、分段分句和基础拒绝判断
 - `derive_user_rules` 负责把 `reading_goal + reading_variant` 转成规则包
 - `generate_annotations` 是唯一主教学 LLM 节点，负责词汇、语法、句级讲解与逐句翻译
-- `assemble_result` 负责锚点解析、渲染标记、全文翻译组装和最终结果收敛
+- `assemble_result` 负责 annotation 投影、锚点解析、渲染标记、全文翻译组装和最终结果收敛
 
 ## LangSmith 约定
 
