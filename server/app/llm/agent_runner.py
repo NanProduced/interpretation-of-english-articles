@@ -6,6 +6,7 @@ from app.config.settings import get_settings
 from app.llm.router import build_model_for_route
 from app.llm.routes import ModelRoute
 from app.llm.types import ModelSelection
+from app.workflow.tracing import build_usage_metadata
 
 
 async def run_agent_with_route(
@@ -20,3 +21,12 @@ async def run_agent_with_route(
     if model is None:
         raise RuntimeError(f"model route is not configured: {route}")
     return await agent.run(prompt, deps=deps, model=model)
+
+
+def extract_run_usage(result: Any) -> dict[str, object] | None:
+    usage_fn = getattr(result, "usage", None)
+    if callable(usage_fn):
+        usage = usage_fn()
+        if usage is not None:
+            return build_usage_metadata(usage)
+    return None

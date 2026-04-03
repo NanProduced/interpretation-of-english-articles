@@ -12,13 +12,10 @@ from app.schemas.internal.analysis import (
     AnnotationOutput,
     VocabHighlight,
 )
-from app.services.analysis.validators import (
-    validate_context_gloss,
-    validate_grammar_note,
-    validate_phrase_gloss,
-    validate_sentence_analysis,
-    validate_annotation_output,
-    validate_vocab_highlight,
+from app.services.analysis.draft_validators import (
+    validate_context_gloss_business_rules,
+    validate_phrase_gloss_business_rules,
+    validate_vocab_highlight_business_rules,
 )
 
 
@@ -27,88 +24,69 @@ def test_vocab_highlight_rejects_unknown_fields() -> None:
         VocabHighlight(
             sentence_id="s1",
             text="test",
-            exam_tags=["cet"],
+            exam_tags=[],
             definition="bad",
         )
 
 
-def test_validate_vocab_highlight_anchor_not_substring() -> None:
-    result = validate_vocab_highlight(
-        VocabHighlight(sentence_id="s1", text="missing", exam_tags=["cet"]),
-        {"s1": "This is a test sentence."},
+def test_vocab_highlight_rejects_spaces() -> None:
+    with pytest.raises(ValidationError):
+        VocabHighlight(sentence_id="s1", text="two words", exam_tags=[])
+
+
+def test_phrase_gloss_single_word_requires_proper_type() -> None:
+    with pytest.raises(ValidationError):
+        PhraseGloss(sentence_id="s1", text="buzzword", phrase_type="collocation", zh="流行词")
+
+
+def test_phrase_gloss_proper_noun_rejects_basic_word() -> None:
+    with pytest.raises(ValidationError):
+        PhraseGloss(sentence_id="s1", text="Andrew", phrase_type="proper_noun", zh="安德鲁")
+
+
+def test_business_rule_helpers_match_schema_constraints() -> None:
+    invalid_vocab = VocabHighlight.model_construct(
+        type="vocab_highlight",
+        sentence_id="s1",
+        text="two words",
+        occurrence=None,
+        exam_tags=[],
     )
-    assert not result.is_valid
-    assert any(error["code"] == "anchor_not_substring" for error in result.errors)
-
-
-def test_validate_phrase_gloss_anchor_not_substring() -> None:
-    result = validate_phrase_gloss(
-        PhraseGloss(sentence_id="s1", text="missing phrase", phrase_type="collocation", zh="不存在"),
-        {"s1": "We need to consider all factors."},
+    invalid_phrase = PhraseGloss.model_construct(
+        type="phrase_gloss",
+        sentence_id="s1",
+        text="buzzword",
+        occurrence=None,
+        phrase_type="collocation",
+        zh="流行词",
     )
-    assert not result.is_valid
-
-
-def test_validate_context_gloss_anchor_not_substring() -> None:
-    result = validate_context_gloss(
-        ContextGloss(sentence_id="s1", text="missing", gloss="中文", reason="原因"),
-        {"s1": "The word is used here."},
+    invalid_proper = PhraseGloss.model_construct(
+        type="phrase_gloss",
+        sentence_id="s1",
+        text="Andrew",
+        occurrence=None,
+        phrase_type="proper_noun",
+        zh="安德鲁",
     )
-    assert not result.is_valid
+    context = ContextGloss(sentence_id="s1", text="rendered", gloss="呈现", reason="词典义不足")
 
-
-def test_validate_grammar_note_spans_not_substring() -> None:
-    result = validate_grammar_note(
-        GrammarNote(
-            sentence_id="s1",
-            spans=[SpanRef(text="not_found", role="trigger")],
-            label="测试",
-            note_zh="测试",
-        ),
-        {"s1": "So fundamental are these challenges."},
-    )
-    assert not result.is_valid
-
-
-def test_validate_sentence_analysis_chunk_not_substring() -> None:
-    result = validate_sentence_analysis(
-        SentenceAnalysis(
-            sentence_id="s1",
-            label="测试",
-            analysis_zh="测试",
-            chunks=[
-                Chunk(order=1, label="A", text="This"),
-                Chunk(order=2, label="B", text="not_in_sentence"),
-            ],
-        ),
-        {"s1": "This is a test."},
-    )
-    assert not result.is_valid
-
-
-def test_validate_annotation_output_requires_full_translations() -> None:
-    from app.services.analysis.input_preparation import prepare_input
-
-    prepared = prepare_input("First sentence. Second sentence.")
-    output = AnnotationOutput(
-        annotations=[
-            VocabHighlight(sentence_id="s1", text="First", exam_tags=["cet"]),
-        ],
-        sentence_translations=[
-            SentenceTranslation(sentence_id="s1", translation_zh="第一句。"),
-        ],
-    )
-    result = validate_annotation_output(output, prepared)
-    assert not result.is_valid
-    assert any(error["code"] == "translation_missing" for error in result.errors)
+    assert validate_vocab_highlight_business_rules(invalid_vocab)
+    assert validate_phrase_gloss_business_rules(invalid_phrase)
+    assert validate_phrase_gloss_business_rules(invalid_proper)
+    assert validate_context_gloss_business_rules(context) == []
 
 
 def test_annotation_output_accepts_mixed_annotations() -> None:
     output = AnnotationOutput(
         annotations=[
-            VocabHighlight(sentence_id="s1", text="word", exam_tags=["cet"]),
-            PhraseGloss(sentence_id="s1", text="phrase", phrase_type="collocation", zh="短语"),
-            ContextGloss(sentence_id="s1", text="context", gloss="语境", reason="原因"),
+            VocabHighlight(sentence_id="s1", text="constitutional", exam_tags=[]),
+            PhraseGloss(
+                sentence_id="s1",
+                text="scored 100 per cent",
+                phrase_type="collocation",
+                zh="获得百分之百好评",
+            ),
+            ContextGloss(sentence_id="s1", text="rendered", gloss="呈现", reason="这里是视觉呈现义"),
             GrammarNote(sentence_id="s1", spans=[SpanRef(text="so", role="x")], label="语法", note_zh="注释"),
             SentenceAnalysis(
                 sentence_id="s1",

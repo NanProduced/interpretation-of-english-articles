@@ -1,26 +1,24 @@
-"""Translation agent for V3 workflow.
-
-负责逐句翻译。
-设计原则：
-- 逐句翻译完整优先于风格花哨
-- 独立完成，不依赖 annotation 链路
-- 缺失应有明确 warning，不允许静默吞掉
-"""
+"""Translation agent for V3 workflow."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 from pydantic_ai import Agent
 
 from app.schemas.internal.drafts import TranslationDraft
+from app.services.analysis.example_strategy import ExampleEntry
+from app.services.analysis.prompt_strategy import PromptStrategy
 
 
 @dataclass
 class TranslationAgentDeps:
     """Translation agent 依赖。"""
+
     sentences: list[dict[str, object]]
+    prompt_strategy: PromptStrategy
+    examples: list[ExampleEntry] = field(default_factory=list)
 
 
 TRANSLATION_INSTRUCTIONS = """
@@ -45,6 +43,36 @@ TRANSLATION_INSTRUCTIONS = """
 """.strip()
 
 
+def _render_strategy(strategy: PromptStrategy) -> list[str]:
+    lines = [
+        f"- reading_goal: {strategy.reading_goal}",
+        f"- reading_variant: {strategy.reading_variant}",
+    ]
+    if strategy.translation_style:
+        lines.append(f"- translation_style: {strategy.translation_style}")
+    if strategy.translation_style == "natural":
+        lines.append("- 执行方式: 优先自然、通顺、忠实的中文表达。")
+    elif strategy.translation_style == "academic":
+        lines.append("- 执行方式: 保留更正式、更书面的语气。")
+    elif strategy.translation_style == "exam":
+        lines.append("- 执行方式: 表达清晰直白，便于学习者理解句子结构。")
+    return lines
+
+
+def _render_examples(examples: list[ExampleEntry]) -> list[str]:
+    if not examples:
+        return []
+    lines = ["补充示例："]
+    for idx, example in enumerate(examples, start=1):
+        lines.extend(
+            [
+                f"{idx}. [{example.example_type}] {example.sentence_text}",
+                example.output_fragment,
+            ]
+        )
+    return lines
+
+
 def build_translation_prompt(deps: TranslationAgentDeps) -> str:
     sentence_lines = [
         f"{sentence['sentence_id']}: {sentence['text']}"
@@ -52,6 +80,9 @@ def build_translation_prompt(deps: TranslationAgentDeps) -> str:
     ]
     return "\n".join(
         [
+            "策略：",
+            *_render_strategy(deps.prompt_strategy),
+            *(_render_examples(deps.examples)),
             "句子列表：",
             *sentence_lines,
         ]

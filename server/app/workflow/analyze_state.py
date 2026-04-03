@@ -18,6 +18,11 @@ class AnalyzeState(TypedDict, total=False):
     vocabulary_draft: VocabularyDraft | None
     grammar_draft: GrammarDraft | None
     translation_draft: TranslationDraft | None
+    vocabulary_usage: dict[str, object] | None
+    grammar_usage: dict[str, object] | None
+    translation_usage: dict[str, object] | None
+    repair_usage: dict[str, object] | None
+    usage_summary: dict[str, object] | None
 
     # V3: Normalization result
     normalized_result: NormalizedAnnotationResult | None

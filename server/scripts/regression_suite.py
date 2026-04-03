@@ -257,7 +257,9 @@ async def _run_sample(sample: RegressionSample, model_selection: dict[str, Any] 
     summary = evaluate_response(sample, response)
     summary["duration_ms"] = duration_ms
     summary["request_id"] = response.request.request_id
-    summary["usage"] = _normalize_usage_summary(state.get("annotation_usage"))
+    summary["usage"] = _normalize_usage_summary(
+        state.get("usage_summary") or state.get("annotation_usage")
+    )
 
     # V3: Capture drop_log and normalized_result for additional analysis
     drop_log = state.get("drop_log", [])
@@ -315,13 +317,31 @@ def _build_usage_summary() -> dict[str, Any]:
         "input_tokens": None,
         "output_tokens": None,
         "total_tokens": None,
-        "note": "run-local 当前未直接从 workflow 返回 usage；如已开启 LangSmith tracing，可在 trace 中查看真实 token。",
+        "per_agent": {},
+        "aggregate": {
+            "input_tokens": None,
+            "output_tokens": None,
+            "total_tokens": None,
+        },
+        "note": "run-local 当前未从 workflow 聚合到 usage；如已开启 LangSmith tracing，可在 trace 中查看真实 token。",
     }
 
 
 def _normalize_usage_summary(raw_usage: dict[str, Any] | None) -> dict[str, Any]:
     if not raw_usage:
         return _build_usage_summary()
+    if "aggregate" in raw_usage or "per_agent" in raw_usage:
+        aggregate = raw_usage.get("aggregate", {}) or {}
+        total_tokens = aggregate.get("total_tokens")
+        return {
+            "available": bool(raw_usage.get("available")) and total_tokens is not None,
+            "input_tokens": aggregate.get("input_tokens"),
+            "output_tokens": aggregate.get("output_tokens"),
+            "total_tokens": total_tokens,
+            "per_agent": raw_usage.get("per_agent", {}),
+            "aggregate": aggregate,
+            "note": raw_usage.get("note"),
+        }
     input_tokens = raw_usage.get("input_tokens")
     output_tokens = raw_usage.get("output_tokens")
     total_tokens = raw_usage.get("total_tokens")
@@ -330,6 +350,12 @@ def _normalize_usage_summary(raw_usage: dict[str, Any] | None) -> dict[str, Any]
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "total_tokens": total_tokens,
+        "per_agent": {},
+        "aggregate": {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+        },
         "input_token_details": raw_usage.get("input_token_details"),
         "output_token_details": raw_usage.get("output_token_details"),
         "note": raw_usage.get("note"),
@@ -495,7 +521,7 @@ def _write_run_bundle(output_root: Path, evaluated_samples: list[EvaluatedSample
             "## 说明",
             "",
             "- `run-local` 当前直接统计壁钟耗时。",
-            "- token 字段来自 annotation 节点返回的 usage 摘要；若显示为 `-`，表示该次运行未拿到 usage。",
+            "- token 字段来自 workflow 聚合 usage 摘要；若显示为 `-`，表示该次运行未拿到 usage。",
             "- 如已开启 LangSmith tracing，可在对应 trace 中查看 LLM usage 详情。",
             "- V3 drop_log 记录 normalize_and_ground 阶段的删除/降级操作。",
         ]

@@ -1,83 +1,126 @@
+import asyncio
+
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.schemas.analysis import RenderSceneModel
+from app.schemas.analysis import AnalyzeRequest, RenderSceneModel
 from app.schemas.internal.analysis import (
-    SentenceTranslation,
     AnnotationOutput,
+    PhraseGloss,
+    SentenceTranslation,
     VocabHighlight,
 )
+from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
 from app.services.analysis.input_preparation import prepare_input
 from app.services.analysis.projection import project_to_render_scene
 from app.services.analysis.user_rules import derive_user_rules
 from app.workflow import analyze_nodes
 
 
-async def _fake_run_annotation_span(*args, **kwargs) -> AnnotationOutput:
-    return AnnotationOutput(
-        annotations=[VocabHighlight(sentence_id="s1", text="extreme lengths", exam_tags=["cet"])],
-        sentence_translations=[
-            SentenceTranslation(sentence_id="s1", translation_zh="店主不得不采取极端措施阻止商店扒手。"),
-            SentenceTranslation(sentence_id="s2", translation_zh="令人不安的是，每天都有针对店员的暴力事件。"),
-        ],
+async def _fake_run_vocabulary_span(*args, **kwargs):
+    return {
+        "output": VocabularyDraft(
+            vocab_highlights=[
+                VocabHighlight(sentence_id="s1", text="constitutional", exam_tags=[])
+            ],
+            phrase_glosses=[],
+            context_glosses=[],
+        )
+    }
+
+
+async def _fake_run_grammar_span(*args, **kwargs):
+    return {"output": GrammarDraft(grammar_notes=[], sentence_analyses=[])}
+
+
+async def _fake_run_translation_span(*args, **kwargs):
+    return {
+        "output": TranslationDraft(
+            sentence_translations=[
+                SentenceTranslation(sentence_id="s1", translation_zh="店主不得不采取极端措施阻止商店扒手。"),
+                SentenceTranslation(sentence_id="s2", translation_zh="令人不安的是，每天都有针对店员的暴力事件。"),
+            ]
+        ),
+        "usage": {"input_tokens": 40, "output_tokens": 20, "total_tokens": 60},
+    }
+
+
+async def _raise_span(*args, **kwargs):
+    raise RuntimeError("agent failed")
+
+
+async def _invalid_vocab_span(*args, **kwargs):
+    invalid = VocabHighlight.model_construct(
+        type="vocab_highlight",
+        sentence_id="s1",
+        text="extreme lengths",
+        occurrence=None,
+        exam_tags=[],
     )
+    return {
+        "output": VocabularyDraft(
+            vocab_highlights=[invalid],
+            phrase_glosses=[],
+            context_glosses=[],
+        ),
+        "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+    }
 
 
-async def _raise_annotation_span(*args, **kwargs):
-    raise RuntimeError("annotation failed")
-
-async def _invalid_annotation_span(*args, **kwargs) -> AnnotationOutput:
-    return AnnotationOutput(
-        annotations=[VocabHighlight(sentence_id="s1", text="missing_anchor", exam_tags=["cet"])],
-        sentence_translations=[
-            SentenceTranslation(sentence_id="s1", translation_zh="店主不得不采取极端措施阻止商店扒手。"),
-        ],
-    )
+async def _usage_vocab_span(*args, **kwargs):
+    return {
+        "output": VocabularyDraft(vocab_highlights=[], phrase_glosses=[], context_glosses=[]),
+        "usage": {"input_tokens": 11, "output_tokens": 7, "total_tokens": 18},
+    }
 
 
-def test_analyze_route_returns_v21_payload(monkeypatch) -> None:
-    monkeypatch.setattr(analyze_nodes, "_run_annotation_llm_span", _fake_run_annotation_span)
+async def _usage_grammar_span(*args, **kwargs):
+    return {
+        "output": GrammarDraft(grammar_notes=[], sentence_analyses=[]),
+        "usage": {"input_tokens": 13, "output_tokens": 9, "total_tokens": 22},
+    }
+
+
+async def _usage_translation_span(*args, **kwargs):
+    return {
+        "output": TranslationDraft(sentence_translations=[]),
+        "usage": {"input_tokens": 17, "output_tokens": 11, "total_tokens": 28},
+    }
+
+
+def test_analyze_route_returns_v30_payload(monkeypatch) -> None:
+    monkeypatch.setattr(analyze_nodes, "_run_vocabulary_llm_span", _fake_run_vocabulary_span)
+    monkeypatch.setattr(analyze_nodes, "_run_grammar_llm_span", _fake_run_grammar_span)
+    monkeypatch.setattr(analyze_nodes, "_run_translation_llm_span", _fake_run_translation_span)
+
     client = TestClient(app)
     response = client.post(
         "/analyze",
         json={
             "text": (
-                "Shopkeepers are having to go to extreme lengths to stop shoplifters. "
+                "Shopkeepers are facing a constitutional dispute. "
                 "Disturbingly, there are daily incidents of violence against workers."
             ),
             "reading_goal": "daily_reading",
-            "reading_variant": "beginner_reading",
+            "reading_variant": "intermediate_reading",
             "source_type": "user_input",
         },
     )
     assert response.status_code == 200
     body = response.json()
     RenderSceneModel.model_validate(body)
-    assert body["schema_version"] == "2.1.0"
-    assert body["request"]["profile_id"] == "daily_beginner"
+    assert body["schema_version"] == "3.0.0"
+    assert body["request"]["profile_id"] == "daily_intermediate"
     assert len(body["inline_marks"]) == 1
     assert len(body["sentence_entries"]) == 0
     assert len(body["translations"]) == 2
 
 
-def test_analyze_route_rejects_unknown_model_preset() -> None:
-    client = TestClient(app)
-    response = client.post(
-        "/analyze",
-        json={
-            "text": "This is a test article.",
-            "reading_goal": "daily_reading",
-            "reading_variant": "intermediate_reading",
-            "source_type": "user_input",
-            "model_selection": {"preset": "missing_preset"},
-        },
-    )
-    assert response.status_code == 422
-    assert "Unknown model preset" in response.json()["detail"]
+def test_analyze_route_returns_empty_result_when_all_agents_fail(monkeypatch) -> None:
+    monkeypatch.setattr(analyze_nodes, "_run_vocabulary_llm_span", _raise_span)
+    monkeypatch.setattr(analyze_nodes, "_run_grammar_llm_span", _raise_span)
+    monkeypatch.setattr(analyze_nodes, "_run_translation_llm_span", _raise_span)
 
-
-def test_analyze_route_returns_empty_result_when_teacher_fails(monkeypatch) -> None:
-    monkeypatch.setattr(analyze_nodes, "_run_annotation_llm_span", _raise_annotation_span)
     client = TestClient(app)
     response = client.post(
         "/analyze",
@@ -90,12 +133,17 @@ def test_analyze_route_returns_empty_result_when_teacher_fails(monkeypatch) -> N
     )
     assert response.status_code == 200
     body = response.json()
-    assert any(warning.get("code") == "ANNOTATION_GENERATION_FAILED" for warning in body.get("warnings", []))
+    warning_codes = {warning["code"] for warning in body["warnings"]}
+    assert "NORMALIZE_AND_GROUND_FAILED" in warning_codes
     assert body["inline_marks"] == []
     assert body["sentence_entries"] == []
 
-def test_analyze_route_surfaces_runtime_validation_warnings(monkeypatch) -> None:
-    monkeypatch.setattr(analyze_nodes, "_run_annotation_llm_span", _invalid_annotation_span)
+
+def test_analyze_route_surfaces_draft_validation_warnings(monkeypatch) -> None:
+    monkeypatch.setattr(analyze_nodes, "_run_vocabulary_llm_span", _invalid_vocab_span)
+    monkeypatch.setattr(analyze_nodes, "_run_grammar_llm_span", _fake_run_grammar_span)
+    monkeypatch.setattr(analyze_nodes, "_run_translation_llm_span", _fake_run_translation_span)
+
     client = TestClient(app)
     response = client.post(
         "/analyze",
@@ -105,15 +153,15 @@ def test_analyze_route_surfaces_runtime_validation_warnings(monkeypatch) -> None
                 "Disturbingly, there are daily incidents of violence against workers."
             ),
             "reading_goal": "daily_reading",
-            "reading_variant": "beginner_reading",
+            "reading_variant": "intermediate_reading",
             "source_type": "user_input",
         },
     )
     assert response.status_code == 200
     body = response.json()
     warning_codes = {warning["code"] for warning in body["warnings"]}
-    assert "VALIDATION_ANCHOR_NOT_SUBSTRING" in warning_codes
-    assert "VALIDATION_TRANSLATION_MISSING" in warning_codes
+    assert "DRAFT_VALIDATION" in warning_codes
+    assert body["inline_marks"] == []
 
 
 def test_projection_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
@@ -122,7 +170,7 @@ def test_projection_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
 
     baseline = project_to_render_scene(
         annotation_output=AnnotationOutput(
-        annotations=[VocabHighlight(sentence_id="s2", text="leverage", exam_tags=["cet"])],
+            annotations=[VocabHighlight(sentence_id="s2", text="leverage", exam_tags=[])],
             sentence_translations=[
                 SentenceTranslation(sentence_id="s1", translation_zh="第一句先提到了 this。"),
                 SentenceTranslation(sentence_id="s2", translation_zh="第二句清楚地提到了 leverage。"),
@@ -139,8 +187,13 @@ def test_projection_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
     with_dropped_prefix = project_to_render_scene(
         annotation_output=AnnotationOutput(
             annotations=[
-                VocabHighlight(sentence_id="s1", text="missing_anchor", exam_tags=["cet"]),
-                VocabHighlight(sentence_id="s2", text="leverage", exam_tags=["cet"]),
+                PhraseGloss(
+                    sentence_id="s1",
+                    text="missing anchor",
+                    phrase_type="collocation",
+                    zh="缺失锚点",
+                ),
+                VocabHighlight(sentence_id="s2", text="leverage", exam_tags=[]),
             ],
             sentence_translations=[
                 SentenceTranslation(sentence_id="s1", translation_zh="第一句先提到了 this。"),
@@ -157,3 +210,34 @@ def test_projection_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
 
     assert baseline.result.inline_marks[0].id == with_dropped_prefix.result.inline_marks[0].id
     assert with_dropped_prefix.dropped_count == 1
+
+
+def test_parallel_agents_aggregate_usage_summary(monkeypatch) -> None:
+    monkeypatch.setattr(analyze_nodes, "_run_vocabulary_llm_span", _usage_vocab_span)
+    monkeypatch.setattr(analyze_nodes, "_run_grammar_llm_span", _usage_grammar_span)
+    monkeypatch.setattr(analyze_nodes, "_run_translation_llm_span", _usage_translation_span)
+
+    prepared_input = prepare_input("Sentence one. Sentence two.")
+    state = {
+        "prepared_input": prepared_input,
+        "user_rules": derive_user_rules("daily_reading", "intermediate_reading"),
+        "payload": AnalyzeRequest.model_validate(
+            {
+                "request_id": "req-usage",
+                "text": "Sentence one. Sentence two.",
+                "source_type": "user_input",
+                "reading_goal": "daily_reading",
+                "reading_variant": "intermediate_reading",
+            }
+        ),
+    }
+
+    result = asyncio.run(analyze_nodes._run_parallel_agents(state, model_selection=None))
+
+    assert result["usage_summary"]["available"] is True
+    assert result["usage_summary"]["aggregate"] == {
+        "input_tokens": 41,
+        "output_tokens": 27,
+        "total_tokens": 68,
+    }
+    assert result["usage_summary"]["per_agent"]["vocabulary"]["total_tokens"] == 18

@@ -1,26 +1,24 @@
-"""Grammar agent for V3 workflow.
-
-负责 grammar_note、sentence_analysis 两类结构维度标注。
-设计原则：
-- 不负责词汇标注、词典查语、逐句翻译
-- 优先覆盖显著复杂句，不追求数量
-- sentence_analysis.chunks 降级为可选增强字段
-"""
+"""Grammar agent for V3 workflow."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 from pydantic_ai import Agent
 
 from app.schemas.internal.drafts import GrammarDraft
+from app.services.analysis.example_strategy import ExampleEntry
+from app.services.analysis.prompt_strategy import PromptStrategy
 
 
 @dataclass
 class GrammarAgentDeps:
     """Grammar agent 依赖。"""
+
     sentences: list[dict[str, object]]
+    prompt_strategy: PromptStrategy
+    examples: list[ExampleEntry] = field(default_factory=list)
 
 
 GRAMMAR_INSTRUCTIONS = """
@@ -29,46 +27,80 @@ GRAMMAR_INSTRUCTIONS = """
 任务：为英文句子生成 grammar_note、sentence_analysis 标注。
 
 【核心原则】
-1. schema 已经约束输出结构；你只需要决定"哪些点值得标"。
+1. schema 已经约束输出结构；你只需要决定哪些结构点真正值得讲。
 2. 所有锚点文本都必须直接摘自对应句子，不能改写。
 3. 所有中文字字段都要写自然中文。
 4. 不确定时不标，不猜；不补背景知识，不输出 schema 之外的内容。
+5. baseline 追求复杂句优先、简单句从严，不追求“每篇都要有很多句解”。
 
-【内容优先级】
-1. 优先标真正影响理解的复杂句结构。
-2. 句子结构独特或容易造成理解障碍的语法现象优先。
+【组件边界】
+1. GrammarNote 只讲一个清晰的局部语法点；多段锚点只在确实需要时使用。
+2. SentenceAnalysis 用于真正影响理解的复杂句，应说明主干、层次关系和理解顺序。
+3. 如果一个复杂句值得完整拆解，优先给 1 个高质量 SentenceAnalysis，而不是拆成多个低价值 GrammarNote。
 
-【组件使用】
-1. GrammarNote 只讲一个清晰语法点；多段锚点只在确实需要时使用。
-2. SentenceAnalysis 只用于真正值得拆解的复杂句（嵌套从句或复杂并列结构）。
-   - analysis_zh 要说明"先看哪一部分、难点在哪里"。
-   - chunks 为可选增强字段，若模型产出高质量 chunks 则保留。
+【SentenceAnalysis 强触发条件】
+1. what/how/that/which 等引导的嵌套从句。
+2. result in ... being done 这类压缩结构或复杂补足语。
+3. 插入语、同位语或修饰成分打断主谓主干。
+4. 并列结构和从句嵌套同时存在。
 
-【分布原则】
-1. 标注要分布到全文，不要只集中在开头几句。
-2. 语法点通常多于长难句拆解。
-3. 长文通常至少应覆盖 1 到 2 个最值得讲的复杂句。
-4. 不要把所有精力都用在词和短语上；如果全文只有词汇类标注、几乎没有 grammar_note 或 sentence_analysis，通常说明选点过于保守。
-
-【反例】
-1. 不要把简单陈述句强行做 SentenceAnalysis。
-2. 不要用大量 PhraseGloss 替代本该出现的 SentenceAnalysis 或 GrammarNote。
+【克制规则】
+1. 简单陈述句、简单并列谓语、常见时间状语短语默认不出 sentence_entry。
+2. 不要把介词短语作时间状语、普通并列动作、简单被动语态机械地做成 GrammarNote。
+3. 如果一句话不拆也能直接读懂，就不要为了“有产出”而硬标。
 
 【Few-shot 示例 1：GrammarNote】
 句子："Not only did the policy raise costs, but it also reduced supply."
 输出：
-- type: grammar_note, sentence_id: s1, spans: [{"text":"Not only","role":"trigger"},{"text":"did","role":"aux"},{"text":"but","role":"conjunction"}], label: not only...but... 倒装, note_zh: Not only 位于句首时，前半句通常触发部分倒装；but 引出并列补充信息。
+- type: grammar_note, sentence_id: s1, spans: [{"text":"Not only","role":"trigger"},{"text":"did","role":"aux"},{"text":"but","role":"conjunction"}], label: not only...but... 倒装, note_zh: Not only 位于句首时，前半句触发部分倒装；but 引出并列补充信息。
 
 【Few-shot 示例 2：SentenceAnalysis】
-句子："They recognize that sustainable success requires a fundamental rethinking of core business models."
+句子："Higher gas prices result in farmers being forced to pay more for fertilizer."
 输出：
-- type: sentence_analysis, sentence_id: s1, label: 主句加宾语从句, analysis_zh: 先抓主句 They recognize，再看 that 引导的宾语从句。宾语从句核心是 sustainable success requires a fundamental rethinking，最后的 of core business models 说明 rethinking 的对象。
+- type: sentence_analysis, sentence_id: s1, label: 主句加 result in 压缩结构, analysis_zh: 先抓主句 Higher gas prices result in，再看后面的 farmers being forced to pay more，这是 result in 后面承接的结果结构，核心难点是 being forced to pay more for fertilizer 作为整体结果内容。
+
+【Few-shot 示例 3：不要标】
+句子："He gets up at six and goes to school by bus."
+输出：
+- 这句可以不做 grammar_note 或 sentence_analysis，因为结构简单直接。
 
 【输出前自检】
 1. 每个 annotation 都必须真正帮助读懂文章，而不是为了凑数量。
 2. 所有锚点文本必须能在对应句子里直接找到。
-3. 长文里如果一个复杂句都没拆，先检查自己是不是过度保守。
+3. 如果一句复杂句已经有高质量 SentenceAnalysis，先检查是否还需要额外 GrammarNote；大多数情况下不需要。
 """.strip()
+
+
+def _render_strategy(strategy: PromptStrategy) -> list[str]:
+    lines = [
+        f"- reading_goal: {strategy.reading_goal}",
+        f"- reading_variant: {strategy.reading_variant}",
+    ]
+    if strategy.annotation_style:
+        lines.append(f"- annotation_style: {strategy.annotation_style}")
+    if strategy.grammar_granularity:
+        lines.append(f"- grammar_granularity: {strategy.grammar_granularity}")
+    if strategy.grammar_granularity == "focused":
+        lines.append("- 执行方式: 只标最影响理解的语法点，数量从严。")
+    elif strategy.grammar_granularity == "balanced":
+        lines.append("- 执行方式: 平衡覆盖，但复杂句优先，简单句默认不标。")
+    elif strategy.grammar_granularity == "structural":
+        lines.append("- 执行方式: 更关注句子层次与结构关系，适度提高 SentenceAnalysis 比重。")
+    return lines
+
+
+def _render_examples(examples: list[ExampleEntry]) -> list[str]:
+    if not examples:
+        return []
+    lines = ["补充示例："]
+    for idx, example in enumerate(examples, start=1):
+        lines.extend(
+            [
+                f"{idx}. [{example.example_type}] {example.sentence_text}",
+                example.output_fragment,
+            ]
+        )
+    return lines
 
 
 def build_grammar_prompt(deps: GrammarAgentDeps) -> str:
@@ -78,6 +110,9 @@ def build_grammar_prompt(deps: GrammarAgentDeps) -> str:
     ]
     return "\n".join(
         [
+            "策略：",
+            *_render_strategy(deps.prompt_strategy),
+            *(_render_examples(deps.examples)),
             "句子列表：",
             *sentence_lines,
         ]

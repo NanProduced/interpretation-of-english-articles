@@ -8,7 +8,7 @@ from app.llm.types import ModelSelection
 from app.schemas.common import TextSpan
 from app.schemas.internal.analysis import ReadingGoal, ReadingVariant
 
-ANALYSIS_SCHEMA_VERSION = "2.1.0"
+ANALYSIS_SCHEMA_VERSION = "3.0.0"
 
 GOAL_VARIANT_MAP: dict[ReadingGoal, set[ReadingVariant]] = {
     "exam": {"gaokao", "cet", "gre", "ielts_toefl"},

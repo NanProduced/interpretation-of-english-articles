@@ -87,7 +87,10 @@
       "Bash(while read:*)",
       "Bash(do echo:*)",
       "Read(//c/Users/nanpr/miniprogram/interpretation-of-english-articles/server/.sample/regression/runs/p4/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "mcp__plugin_serena_serena__initial_instructions",
+      "mcp__plugin_serena_serena__list_memories",
+      "mcp__plugin_serena_serena__write_memory"
     ]
   }
 }

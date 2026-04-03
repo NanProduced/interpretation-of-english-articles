@@ -1,12 +1,15 @@
-"""Draft validators for V3 parallel agent outputs.
-
-每个 agent 产出 draft 后，进入 normalize_and_ground 前需要做基础校验。
-校验失败不直接拒绝，而是记录 warning 并允许继续。
-"""
+"""Draft validators for V3 parallel agent outputs."""
 
 from __future__ import annotations
 
-from app.schemas.internal.analysis import PreparedSentence
+from app.schemas.internal.analysis import (
+    ContextGloss,
+    PhraseGloss,
+    PreparedSentence,
+    VocabHighlight,
+    is_likely_basic_english_word,
+    is_single_token,
+)
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
 
 
@@ -20,18 +23,42 @@ class DraftValidationError(Exception):
         super().__init__(self.message)
 
 
+def validate_vocab_highlight_business_rules(item: VocabHighlight) -> list[str]:
+    warnings: list[str] = []
+    if " " in item.text:
+        warnings.append("vocab_highlight: text must be a single word without spaces")
+    return warnings
+
+
+def validate_phrase_gloss_business_rules(item: PhraseGloss) -> list[str]:
+    warnings: list[str] = []
+    if is_single_token(item.text) and item.phrase_type not in {"proper_noun", "compound"}:
+        warnings.append(
+            "phrase_gloss: single-token text only allowed for proper_noun or compound"
+        )
+    if item.phrase_type == "proper_noun" and is_likely_basic_english_word(item.text):
+        warnings.append("phrase_gloss: proper_noun must not be a basic English word")
+    return warnings
+
+
+def validate_context_gloss_business_rules(item: ContextGloss) -> list[str]:
+    warnings: list[str] = []
+    if not item.gloss.strip():
+        warnings.append("context_gloss: gloss must not be empty")
+    if not item.reason.strip():
+        warnings.append("context_gloss: reason must not be empty")
+    return warnings
+
+
 def validate_vocabulary_draft(
     draft: VocabularyDraft,
     sentences: list[PreparedSentence],
 ) -> list[str]:
-    """校验 vocabulary draft。
-
-    返回 warning 消息列表。
-    """
     warnings: list[str] = []
     sentence_map = {s.sentence_id: s for s in sentences}
 
     for v in draft.vocab_highlights:
+        warnings.extend(validate_vocab_highlight_business_rules(v))
         if v.sentence_id not in sentence_map:
             warnings.append(f"vocab_highlight: sentence_id {v.sentence_id} not found")
             continue
@@ -42,6 +69,7 @@ def validate_vocabulary_draft(
             )
 
     for p in draft.phrase_glosses:
+        warnings.extend(validate_phrase_gloss_business_rules(p))
         if p.sentence_id not in sentence_map:
             warnings.append(f"phrase_gloss: sentence_id {p.sentence_id} not found")
             continue
@@ -52,6 +80,7 @@ def validate_vocabulary_draft(
             )
 
     for c in draft.context_glosses:
+        warnings.extend(validate_context_gloss_business_rules(c))
         if c.sentence_id not in sentence_map:
             warnings.append(f"context_gloss: sentence_id {c.sentence_id} not found")
             continue
@@ -68,10 +97,6 @@ def validate_grammar_draft(
     draft: GrammarDraft,
     sentences: list[PreparedSentence],
 ) -> list[str]:
-    """校验 grammar draft。
-
-    返回 warning 消息列表。
-    """
     warnings: list[str] = []
     sentence_map = {s.sentence_id: s for s in sentences}
 
@@ -106,11 +131,6 @@ def validate_translation_draft(
     draft: TranslationDraft,
     sentences: list[PreparedSentence],
 ) -> list[str]:
-    """校验 translation draft。
-
-    返回 warning 消息列表。
-    翻译缺失应有 warning，不允许静默吞掉。
-    """
     warnings: list[str] = []
     sentence_ids = {s.sentence_id for s in sentences}
     translated_ids = {t.sentence_id for t in draft.sentence_translations}
@@ -134,10 +154,6 @@ def validate_all_drafts(
     translation_draft: TranslationDraft,
     sentences: list[PreparedSentence],
 ) -> list[str]:
-    """一次性校验所有 draft。
-
-    返回所有 warning 的合并列表。
-    """
     all_warnings: list[str] = []
     all_warnings.extend(validate_vocabulary_draft(vocabulary_draft, sentences))
     all_warnings.extend(validate_grammar_draft(grammar_draft, sentences))

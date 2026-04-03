@@ -31,15 +31,15 @@ class VocabularyDraft(BaseModel):
 
     vocab_highlights: list[VocabHighlight] = Field(
         default_factory=list,
-        description="考试词汇高亮列表",
+        description="高价值单词高亮列表",
     )
     phrase_glosses: list[PhraseGloss] = Field(
         default_factory=list,
-        description="短语/搭配释义列表",
+        description="需要整体解释的短语、术语或专名列表",
     )
     context_glosses: list[ContextGloss] = Field(
         default_factory=list,
-        description="语境特殊义标注列表",
+        description="语境义标注列表",
     )
 
 
