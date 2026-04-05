@@ -57,7 +57,7 @@ export default function Home() {
         <View className='main-action' onClick={navigateToInput} role='button' aria-label='开始粘贴文章'>
           <View className='action-card'>
             <View className='icon-box'>
-              <LucideIcon name='plus' size={24} color='#fff' />
+              <LucideIcon name='plus' size={24} color='var(--color-ink)' />
             </View>
             <View className='text-info'>
               <Text className='action-title'>粘贴文章</Text>
@@ -67,7 +67,7 @@ export default function Home() {
         </View>
 
         <View className='section-header'>
-          <LucideIcon name='sparkles' size={18} color='#030213' />
+          <LucideIcon name='sparkles' size={18} color='var(--color-ink)' />
           <Text className='section-title'>每日精读推荐</Text>
         </View>
 

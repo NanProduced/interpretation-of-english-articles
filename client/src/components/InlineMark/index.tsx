@@ -7,6 +7,7 @@ interface InlineMarkProps {
   mark: InlineMarkModel
   text: string
   isActive?: boolean
+  isSaved?: boolean // 是否已加入生词本
   onWordClick?: (payload: WordClickPayload) => void
 }
 
@@ -17,7 +18,7 @@ const TONE_CLASSES: Record<VisualTone, string> = {
   grammar: 'tone-grammar',
 }
 
-export default function InlineMark({ mark, text, isActive, onWordClick }: InlineMarkProps) {
+export default function InlineMark({ mark, text, isActive, isSaved, onWordClick }: InlineMarkProps) {
   const toneClass = TONE_CLASSES[mark.visualTone]
 
   const handleClick = (e: any) => {
@@ -29,8 +30,10 @@ export default function InlineMark({ mark, text, isActive, onWordClick }: Inline
 
   return (
     <Text
-      className={`inline-mark ${mark.renderType} ${toneClass} ${mark.clickable ? 'clickable' : ''} ${isActive ? 'active' : ''}`}
+      className={`inline-mark ${mark.renderType} ${toneClass} ${mark.clickable ? 'clickable' : ''} ${isActive ? 'active' : ''} ${isSaved ? 'saved' : ''}`}
       onClick={handleClick}
+      role='button'
+      aria-label={`${isSaved ? '已收藏生词: ' : ''}${mark.visualTone}标注: ${text}`}
     >
       {text}
     </Text>

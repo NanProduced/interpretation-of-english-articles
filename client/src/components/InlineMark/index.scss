@@ -36,4 +36,10 @@
     border-bottom: none !important;
     box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
   }
+
+  &.saved {
+    border-bottom: 3rpx solid var(--color-phrase) !important;
+    color: var(--color-phrase) !important;
+    font-weight: 500;
+  }
 }

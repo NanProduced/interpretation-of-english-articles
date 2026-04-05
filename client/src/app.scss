@@ -7,11 +7,11 @@ page {
   --bg-color: var(--color-bg);
 
   // 语义色 - 标注 (Semantic Annotation Colors)
-  --color-info:      #4285f4;     // info 高亮 (蓝)
-  --color-focus:     #fb923c;     // focus 高亮 (橙)
-  --color-exam:      #ef4444;     // exam 高亮 (红)
-  --color-phrase:    #8b5cf6;     // phrase 高亮 (紫)
-  --color-grammar:   #22c55e;     // grammar 高亮 (绿)
+  --color-info:      #2563eb;     // info 高亮 (深蓝)
+  --color-focus:     #d97706;     // focus 高亮 (琥珀)
+  --color-exam:      #e11d48;     // exam 高亮 (玫瑰)
+  --color-phrase:    #6d28d9;     // phrase 高亮 (紫)
+  --color-grammar:   #059669;     // grammar 高亮 (翠绿)
 
   --vocab-color: var(--color-exam);
   --grammar-color: var(--color-grammar);

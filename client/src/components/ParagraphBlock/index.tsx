@@ -28,6 +28,7 @@ interface ParagraphBlockProps {
   activeMarkId?: string | null
   tailEntries: SentenceEntryModel[]
   pageMode: 'immersive' | 'bilingual' | 'intensive'
+  vocabList?: string[] // 新增已加入生词本的单词列表
   onWordClick?: (payload: WordClickPayload) => void
   onChipClick?: (entry: SentenceEntryModel) => void
 }
@@ -48,16 +49,19 @@ function findTextAnchorPosition(text: string, anchorText: string, occurrence = 1
 
 function renderPlainSegmentAsClickableWords(
   plainText: string,
+  vocabList?: string[],
   onWordClick?: (payload: WordClickPayload) => void
 ): React.ReactNode[] {
   if (!plainText) return []
   const tokens = tokenizeText(plainText)
   return tokens.map((token, idx) => {
     if (token.type === 'word') {
+      const isSaved = vocabList?.includes(token.text.toLowerCase())
       return (
         <ClickableWord
           key={`cw-${idx}`}
           word={token.text}
+          isSaved={isSaved}
           onClick={(w) => onWordClick?.({ word: w, mark: null })}
         />
       )
@@ -70,23 +74,27 @@ function renderTextWithMarks(
   text: string,
   marks: InlineMarkModel[],
   activeMarkId?: string | null,
+  vocabList?: string[],
   onWordClick?: (payload: WordClickPayload) => void
 ) {
   if (marks.length === 0) {
     const tokens = tokenizeText(text)
     return (
       <Text className='sentence-text'>
-        {tokens.map((token, idx) =>
-          token.type === 'word' ? (
-            <ClickableWord
-              key={`cw-${idx}`}
-              word={token.text}
-              onClick={(w) => onWordClick?.({ word: w, mark: null })}
-            />
-          ) : (
-            <Text key={`p-${idx}`}>{token.text}</Text>
-          )
-        )}
+        {tokens.map((token, idx) => {
+          if (token.type === 'word') {
+            const isSaved = vocabList?.includes(token.text.toLowerCase())
+            return (
+              <ClickableWord
+                key={`cw-${idx}`}
+                word={token.text}
+                isSaved={isSaved}
+                onClick={(w) => onWordClick?.({ word: w, mark: null })}
+              />
+            )
+          }
+          return <Text key={`p-${idx}`}>{token.text}</Text>
+        })}
       </Text>
     )
   }
@@ -134,16 +142,18 @@ function renderTextWithMarks(
 
     if (item.start > lastEnd) {
       const plainSegment = text.slice(lastEnd, item.start)
-      resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, onWordClick))
+      resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, vocabList, onWordClick))
     }
 
     const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
+    const isSaved = vocabList?.includes(item.text.toLowerCase())
     resultElements.push(
       <InlineMark
         key={item.mark.id}
         mark={item.mark}
         text={item.text}
         isActive={isActive}
+        isSaved={isSaved}
         onWordClick={onWordClick}
       />
     )
@@ -153,7 +163,7 @@ function renderTextWithMarks(
 
   if (lastEnd < text.length) {
     const plainSegment = text.slice(lastEnd)
-    resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, onWordClick))
+    resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, vocabList, onWordClick))
   }
 
   return <Text className='sentence-text'>{resultElements}</Text>
@@ -167,6 +177,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   activeMarkId,
   tailEntries,
   pageMode,
+  vocabList,
   onWordClick,
   onChipClick,
 }: ParagraphBlockProps) {
@@ -203,7 +214,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
               const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
               return (
                 <Text key={sentence.sentenceId} className='sentence-span'>
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, vocabList, onWordClick)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
@@ -223,7 +234,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
               const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
               return (
                 <Text key={sentence.sentenceId} className='sentence-span'>
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, vocabList, onWordClick)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
@@ -250,7 +261,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           <View key={sentence.sentenceId} className='sentence-block'>
             <View className='sentence-main'>
               <Text className='english-flow'>
-                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
+                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, vocabList, onWordClick)}
               </Text>
             </View>
 

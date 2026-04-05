@@ -3,10 +3,17 @@
   border-bottom: 1rpx dashed var(--text-muted);
   padding: 0 1rpx;
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition: all 0.15s ease;
+  position: relative;
 
   &:active {
     color: var(--color-info);
     border-bottom-color: var(--color-info);
+  }
+
+  &.saved {
+    border-bottom: 3rpx solid var(--color-phrase); // 使用紫色表示已收藏
+    color: var(--color-phrase);
+    font-weight: 500;
   }
 }

@@ -39,6 +39,51 @@
     }
   }
 
+  .clipboard-toast {
+    position: fixed;
+    top: 180rpx;
+    left: 24rpx;
+    right: 24rpx;
+    background-color: #030213;
+    padding: 24rpx 32rpx;
+    border-radius: 24rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+    box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.15);
+    animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+    .toast-left {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+      .copy-icon {
+        width: 32rpx;
+        height: 32rpx;
+        background-color: #fff;
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='14' height='14' x='8' y='8' rx='2' ry='2'/%3E%3Cpath d='M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'/%3E%3C/svg%3E") no-repeat center;
+        mask-size: contain;
+      }
+      .toast-text { font-size: 26rpx; color: #fff; font-weight: 500; }
+    }
+
+    .toast-action {
+      background-color: #fff;
+      color: #030213;
+      font-size: 22rpx;
+      font-weight: bold;
+      padding: 10rpx 24rpx;
+      border-radius: 100rpx;
+      &:active { opacity: 0.8; }
+    }
+  }
+
+  @keyframes slide-down {
+    from { opacity: 0; transform: translateY(-20rpx); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   .config-status {
     padding: 24rpx 48rpx;
     background-color: #f8f8fa;

@@ -26,11 +26,32 @@ function mapPurposeToApiParams(purpose: 'exam' | 'academic' | 'daily'): {
 export default function InputPage() {
   const [content, setContent] = useState('')
   const [isPaidEnabled, setIsPaidEnabled] = useState(false)
+  const [clipboardContent, setClipboardContent] = useState('')
+  const [showClipboardToast, setShowClipboardToast] = useState(false)
   const { purpose } = useConfigStore()
   const analyze = useArticleStore((s) => s.analyze)
 
   // 简单的单词计数（按空格拆分）
   const wordsCount = content.trim().split(/\s+/).filter(Boolean).length
+
+  // === 剪贴板检测逻辑 ===
+  const checkClipboard = async () => {
+    try {
+      const res = await Taro.getClipboardData()
+      const text = res.data?.trim() || ''
+      
+      // 判定逻辑：长度 > 20 且 包含英文字符 且 与当前内容不同
+      const isEnglish = /[a-zA-Z]{5,}/.test(text)
+      if (text.length > 20 && isEnglish && text !== content) {
+        setClipboardContent(text)
+        setShowClipboardToast(true)
+        // 3秒后自动消失
+        setTimeout(() => setShowClipboardToast(false), 5000)
+      }
+    } catch (e) {
+      console.error('Clipboard access failed', e)
+    }
+  }
 
   // === 草稿恢复 onMount ===
   useEffect(() => {
@@ -38,7 +59,15 @@ export default function InputPage() {
     if (draft && draft.text) {
       setContent(draft.text)
     }
+    
+    // 首次进入检测剪贴板
+    setTimeout(checkClipboard, 500)
   }, [])
+
+  // === 监听切回前台 ===
+  Taro.useDidShow(() => {
+    checkClipboard()
+  })
 
   // === 防抖保存草稿 ===
   useEffect(() => {
@@ -107,6 +136,26 @@ export default function InputPage() {
 
   return (
     <View className='input-page'>
+      {/* Clipboard Toast */}
+      {showClipboardToast && (
+        <View className='clipboard-toast'>
+          <View className='toast-left'>
+            <View className='copy-icon' />
+            <Text className='toast-text'>检测到复制的英文内容</Text>
+          </View>
+          <View 
+            className='toast-action' 
+            onClick={() => {
+              setContent(clipboardContent)
+              setShowClipboardToast(false)
+              Taro.showToast({ title: '已粘贴', icon: 'none' })
+            }}
+          >
+            立即粘贴
+          </View>
+        </View>
+      )}
+
       {/* Header */}
       <View className='header-bar'>
         <View className='back-btn' onClick={handleBack} />

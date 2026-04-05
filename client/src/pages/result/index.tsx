@@ -51,6 +51,7 @@ export default function Result() {
   const { navBarHeight } = useLayoutStore()
   const [pageMode, setPageMode] = useState<PageMode>('bilingual')
   const [showSecondaryMessage, setShowSecondaryMessage] = useState(false)
+  const [vocabList, setVocabList] = useState<string[]>([]) // 已加入生词本的单词列表
   const [wordPopup, setWordPopup] = useState<{
     visible: boolean
     mode: 'mini' | 'full'
@@ -165,6 +166,7 @@ export default function Result() {
     saveVocabEntry(vocabEntry)
     track('add_vocab', { entryType: entry.entryType, word: entry.title || entry.label })
     Taro.showToast({ title: '已记入生词本', icon: 'success', duration: 1500 })
+    refreshVocabList()
   }
 
   const handleHelpfulEntry = (entry: SentenceEntryModel) => {
@@ -413,6 +415,7 @@ export default function Result() {
           }
           saveVocabEntry(vocabEntry)
           track('add_vocab', { word: w })
+          refreshVocabList()
         }}
         onFavorite={(w) => { track('favorite_word', { word: w }) }}
       />
