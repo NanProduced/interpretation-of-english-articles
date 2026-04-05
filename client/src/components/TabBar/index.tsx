@@ -19,7 +19,7 @@ export default function TabBar({ current }: TabBarProps) {
   }
 
   return (
-    <View className='custom-tabbar-container safe-area-bottom'>
+    <View className='custom-tabbar-container safe-area-bottom' role='tablist'>
       {tabs.map(tab => {
         const isActive = current === tab.key
         return (
@@ -27,11 +27,14 @@ export default function TabBar({ current }: TabBarProps) {
             key={tab.key} 
             className={`tab-item ${isActive ? 'active' : ''}`}
             onClick={() => switchTab(tab.path)}
+            role='tab'
+            aria-selected={isActive}
+            aria-label={tab.text}
           >
             <LucideIcon 
               name={tab.icon} 
               size={22} 
-              color={isActive ? '#030213' : '#717182'} 
+              color={isActive ? 'var(--color-ink)' : 'var(--text-sub)'} 
               strokeWidth={isActive ? 2.5 : 2} 
             />
             <Text className='tab-text'>{tab.text}</Text>

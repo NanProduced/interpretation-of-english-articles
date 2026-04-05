@@ -54,7 +54,7 @@ export default function Home() {
           <Text className='sub-greeting'>今天想读点什么？</Text>
         </View>
 
-        <View className='main-action' onClick={navigateToInput}>
+        <View className='main-action' onClick={navigateToInput} role='button' aria-label='开始粘贴文章'>
           <View className='action-card'>
             <View className='icon-box'>
               <LucideIcon name='plus' size={24} color='#fff' />
@@ -73,7 +73,7 @@ export default function Home() {
 
         <View className='list-content'>
           {recommendations.map((item) => (
-            <View key={item.id} className={`recommend-card card-${item.type}`}>
+            <View key={item.id} className={`recommend-card card-${item.type}`} role='button' aria-label={`阅读推荐: ${item.title}`}>
               <Text className='item-title'>{item.title}</Text>
               <View className='item-meta'>
                 <View className='meta-info'>

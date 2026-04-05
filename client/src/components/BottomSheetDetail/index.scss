@@ -31,33 +31,27 @@
 }
 
 .sheet-header {
-  padding: 48rpx 48rpx 32rpx;
+  padding: 48rpx 48rpx 24rpx;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start; // Align to top to allow multi-line titles
 }
 
 .header-left {
   display: flex;
-  align-items: center;
-  gap: 16rpx;
+  flex-direction: column; // Support multi-line more cleanly
+  gap: 8rpx;
   flex: 1;
+  padding-top: 8rpx;
 }
 
 .sheet-title {
-  font-size: 40rpx;
+  font-size: 38rpx;
   font-weight: var(--weight-bold);
   color: var(--color-ink);
   font-family: var(--font-serif);
-}
-
-.sheet-type-tag {
-  font-size: 20rpx;
-  color: var(--color-phrase);
-  background: var(--color-card-purple);
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-  font-weight: var(--weight-bold);
+  line-height: 1.4;
+  word-wrap: break-word; // Ensure long words don't overflow
 }
 
 .sheet-close-btn {

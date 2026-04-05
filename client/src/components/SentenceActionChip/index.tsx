@@ -9,8 +9,16 @@ interface SentenceActionChipProps {
 }
 
 const TYPE_CONFIG = {
-  grammar_note: { icon: 'book', color: '#059669' }, // Emerald for grammar tool
-  sentence_analysis: { icon: 'sparkles', color: '#4f46e5' }, // Indigo for analysis tool
+  grammar_note: { 
+    icon: 'book', 
+    color: 'var(--color-grammar)',
+    label: '语法点'
+  }, 
+  sentence_analysis: { 
+    icon: 'sparkles', 
+    color: 'var(--color-info)',
+    label: '句子分析'
+  },
 }
 
 export default function SentenceActionChip({ entry, onClick }: SentenceActionChipProps) {
@@ -27,10 +35,12 @@ export default function SentenceActionChip({ entry, onClick }: SentenceActionChi
     <View
       className={`sentence-action-chip ${entry.entryType}`}
       onClick={handleClick}
+      role='button'
+      aria-label={`展开解读: ${entry.label}`}
     >
       <LucideIcon name={config.icon} size={12} color={config.color} />
       <Text className='chip-label' style={{ color: config.color }}>
-        {entry.label}
+        {config.label}
       </Text>
     </View>
   )

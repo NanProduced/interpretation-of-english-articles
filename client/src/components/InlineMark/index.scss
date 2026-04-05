@@ -1,12 +1,24 @@
 .inline-mark {
   display: inline;
-  border-radius: 6rpx;
-  padding: 2rpx 0; // 稍微增加上下间距，避免行高挤压
+  border-radius: 4rpx;
+  padding: 0 2rpx;
+  margin: 0 1rpx;
   transition: all 0.15s ease;
 
+  &.tone-vocab { color: var(--vocab-color); --active-color: var(--vocab-color); }
+  &.tone-phrase { color: var(--phrase-color); --active-color: var(--phrase-color); }
+  &.tone-context { color: var(--text-main); --active-color: var(--text-main); }
+  &.tone-grammar { color: var(--grammar-color); --active-color: var(--grammar-color); }
+
   &.background {
+    background-color: color-mix(in srgb, var(--active-color), transparent 85%);
     padding: 2rpx 6rpx;
     margin: 0 2rpx;
+  }
+
+  &.underline {
+    border-bottom: 2rpx dashed var(--active-color);
+    padding-bottom: 2rpx;
   }
 
   &.clickable {
@@ -16,10 +28,12 @@
     }
   }
 
-  &.underline {
-    border-bottom-width: 3rpx;
-    border-bottom-style: dashed;
-    padding-bottom: 6rpx;
-    margin: 0 2rpx;
+  &.active {
+    background-color: var(--active-highlight-bg) !important;
+    color: var(--active-highlight-text) !important;
+    padding: 2rpx 4rpx;
+    margin: 0 -2rpx;
+    border-bottom: none !important;
+    box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
   }
 }

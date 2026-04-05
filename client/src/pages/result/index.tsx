@@ -73,21 +73,6 @@ export default function Result() {
   const recordId = useArticleStore((s) => s.recordId)
   const isReplayMode = useArticleStore((s) => s.isReplayMode)
 
-  // Zustand + Taro 兼容：轮询 store 状态，确保 pageState 变化时强制刷新
-  const [storeVersion, setStoreVersion] = useState(0)
-  const prevPageStateRef = useRef<ResultPageState>('loading')
-  useEffect(() => {
-    // 使用 setInterval 轮询 store 状态，确保捕获变化
-    const intervalId = setInterval(() => {
-      const state = useArticleStore.getState()
-      if (state.pageState !== prevPageStateRef.current) {
-        prevPageStateRef.current = state.pageState
-        setStoreVersion((v) => v + 1)
-      }
-    }, 50)
-    return () => clearInterval(intervalId)
-  }, [])
-
   // 收藏状态
   const [favorited, setFavorited] = useState(false)
 
@@ -364,13 +349,16 @@ export default function Result() {
 
   return pageShell(
     <>
-      <View className='mode-tabs-container'>
+      <View className='mode-tabs-container' role='tablist' aria-label='阅读模式切换'>
         <View className='mode-tabs'>
           {PAGE_MODE_OPTIONS.map((mode) => (
             <View
               key={mode.value}
               className={`mode-tab ${pageMode === mode.value ? 'active' : ''}`}
               onClick={() => setPageMode(mode.value as PageMode)}
+              role='tab'
+              aria-selected={pageMode === mode.value}
+              aria-label={mode.label}
             >
               <Text className='mode-tab-label'>{mode.label}</Text>
             </View>

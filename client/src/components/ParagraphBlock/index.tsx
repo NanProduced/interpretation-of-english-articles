@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import { View, Text } from '@tarojs/components'
 import { InlineMarkModel, SentenceEntryModel, VisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
 import InlineMark from '../InlineMark'
@@ -46,10 +46,6 @@ function findTextAnchorPosition(text: string, anchorText: string, occurrence = 1
   return -1
 }
 
-/**
- * 在已有标注的基础上，把"标注词之间"的普通英文文本也变成可点击词。
- * plainSegment: 标注词前后的普通文本（已被 text.slice 截取，不含标注词）
- */
 function renderPlainSegmentAsClickableWords(
   plainText: string,
   onWordClick?: (payload: WordClickPayload) => void
@@ -77,7 +73,6 @@ function renderTextWithMarks(
   onWordClick?: (payload: WordClickPayload) => void
 ) {
   if (marks.length === 0) {
-    // 无标注：整句普通文本 → 全部英文词可点击
     const tokens = tokenizeText(text)
     return (
       <Text className='sentence-text'>
@@ -137,13 +132,11 @@ function renderTextWithMarks(
   for (const item of flatParts) {
     if (item.start < lastEnd) continue
 
-    // 先把标注词之前的普通文本渲染为可点击词
     if (item.start > lastEnd) {
       const plainSegment = text.slice(lastEnd, item.start)
       resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, onWordClick))
     }
 
-    // 标注词本身
     const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
     resultElements.push(
       <InlineMark
@@ -158,7 +151,6 @@ function renderTextWithMarks(
     lastEnd = item.end
   }
 
-  // 标注词之后的剩余文本
   if (lastEnd < text.length) {
     const plainSegment = text.slice(lastEnd)
     resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, onWordClick))
@@ -167,7 +159,7 @@ function renderTextWithMarks(
   return <Text className='sentence-text'>{resultElements}</Text>
 }
 
-export default function ParagraphBlock({
+const ParagraphBlock = memo(function ParagraphBlock({
   sentences,
   translations,
   showTranslation,
@@ -202,9 +194,6 @@ export default function ParagraphBlock({
     .filter(Boolean)
     .join(' ')
 
-  // --- Rendering Functions for different modes ---
-
-  // 1. Immersive mode: Simple English paragraph
   if (pageMode === 'immersive') {
     return (
       <View className='paragraph-block immersive'>
@@ -225,7 +214,6 @@ export default function ParagraphBlock({
     )
   }
 
-  // 2. Bilingual mode: English paragraph + Translation paragraph
   if (pageMode === 'bilingual') {
     return (
       <View className='paragraph-block bilingual'>
@@ -251,7 +239,6 @@ export default function ParagraphBlock({
     )
   }
 
-  // 3. Intensive mode: Sentence-by-sentence analysis (Separated layers)
   return (
     <View className='paragraph-block intensive'>
       {sentences.map((sentence) => {
@@ -261,14 +248,12 @@ export default function ParagraphBlock({
 
         return (
           <View key={sentence.sentenceId} className='sentence-block'>
-            {/* Layer 1: Main Text */}
             <View className='sentence-main'>
               <Text className='english-flow'>
                 {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
               </Text>
             </View>
 
-            {/* Layer 2: Analysis Entries (Action Chips) */}
             {sentenceEntries.length > 0 && (
               <View className='sentence-analysis'>
                 <View className='analysis-chips'>
@@ -283,7 +268,6 @@ export default function ParagraphBlock({
               </View>
             )}
 
-            {/* Layer 3: Translation */}
             {showTranslation && sentenceTranslation && (
               <View className='sentence-translation'>
                 <Text className='translation-text'>{sentenceTranslation}</Text>
@@ -294,4 +278,6 @@ export default function ParagraphBlock({
       })}
     </View>
   )
-}
+})
+
+export default ParagraphBlock

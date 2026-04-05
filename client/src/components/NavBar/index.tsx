@@ -13,7 +13,7 @@ interface NavBarProps {
   color?: string;
 }
 
-export default function NavBar({ title, showBack, showHome, background = '#fff', color = '#030213' }: NavBarProps) {
+export default function NavBar({ title, showBack, showHome, background = 'var(--bg-color)', color = 'var(--color-ink)' }: NavBarProps) {
   const { setNavHeights } = useLayoutStore()
   const [navStyle, setNavStyle] = useState({
     statusBarHeight: 0,
@@ -47,12 +47,22 @@ export default function NavBar({ title, showBack, showHome, background = '#fff',
       <View className='navbar-content' style={{ height: navStyle.navBarHeight + 'px' }}>
         <View className='navbar-actions' style={{ marginLeft: navStyle.capsuleRight + 'px' }}>
           {showBack && (
-            <View className='action-btn-wrapper' onClick={handleBack}>
+            <View 
+              className='action-btn-wrapper' 
+              onClick={handleBack}
+              role='button'
+              aria-label='返回'
+            >
               <LucideIcon name='chevronLeft' size={24} color={color} />
             </View>
           )}
           {showHome && (
-            <View className='action-btn-wrapper' onClick={handleHome}>
+            <View 
+              className='action-btn-wrapper' 
+              onClick={handleHome}
+              role='button'
+              aria-label='首页'
+            >
               <LucideIcon name='home' size={20} color={color} />
             </View>
           )}

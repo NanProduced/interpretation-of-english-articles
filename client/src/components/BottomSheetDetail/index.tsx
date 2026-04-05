@@ -72,7 +72,6 @@ export default function BottomSheetDetail({ visible, entry, onClose, onFavorite,
         <View className='sheet-header'>
           <View className='header-left'>
             <Text className='sheet-title'>{entry.title || entry.label}</Text>
-            {entry.label && <Text className='sheet-type-tag'>{entry.label}</Text>}
           </View>
           <View className='sheet-close-btn' onClick={onClose}>
             <LucideIcon name='x' size={24} color='var(--text-muted)' />

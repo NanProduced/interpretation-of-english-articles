@@ -10,15 +10,15 @@ interface InlineMarkProps {
   onWordClick?: (payload: WordClickPayload) => void
 }
 
-const TONE_COLORS: Record<VisualTone, string> = {
-  vocab: 'var(--vocab-color)',
-  phrase: 'var(--phrase-color)',
-  context: 'var(--primary-color)',
-  grammar: 'var(--grammar-color)',
+const TONE_CLASSES: Record<VisualTone, string> = {
+  vocab: 'tone-vocab',
+  phrase: 'tone-phrase',
+  context: 'tone-context',
+  grammar: 'tone-grammar',
 }
 
 export default function InlineMark({ mark, text, isActive, onWordClick }: InlineMarkProps) {
-  const color = TONE_COLORS[mark.visualTone]
+  const toneClass = TONE_CLASSES[mark.visualTone]
 
   const handleClick = (e: any) => {
     e.stopPropagation()
@@ -27,31 +27,9 @@ export default function InlineMark({ mark, text, isActive, onWordClick }: Inline
     }
   }
 
-  const baseStyle = {
-    backgroundColor: mark.renderType === 'background' ? `rgba(${hexToRgb(color)}, 0.15)` : 'transparent',
-    color: mark.visualTone === 'context' ? 'var(--text-main)' : color,
-    borderRadius: '4rpx',
-    padding: '0 2rpx',
-    margin: '0 1rpx',
-    borderBottom: mark.renderType === 'underline' ? `2rpx dashed ${color}` : 'none',
-  }
-
-  const activeStyle = isActive ? {
-    backgroundColor: 'var(--active-highlight-bg)',
-    color: 'var(--active-highlight-text)',
-    padding: '2rpx 4rpx',
-    margin: '0 -2rpx',
-    borderBottom: 'none',
-    boxShadow: '0 2rpx 8rpx rgba(0,0,0,0.05)',
-  } : {}
-
   return (
     <Text
-      className={`inline-mark ${mark.renderType} ${mark.clickable ? 'clickable' : ''} ${isActive ? 'active' : ''}`}
-      style={{
-        ...baseStyle,
-        ...activeStyle
-      }}
+      className={`inline-mark ${mark.renderType} ${toneClass} ${mark.clickable ? 'clickable' : ''} ${isActive ? 'active' : ''}`}
       onClick={handleClick}
     >
       {text}

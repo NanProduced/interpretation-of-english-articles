@@ -15,7 +15,7 @@ export default function AnalysisCard({ card }: AnalysisCardProps) {
   return (
     <View className='analysis-card'>
       <View className='card-header'>
-        <LucideIcon name='info' size={16} color='#4285f4' />
+        <LucideIcon name='info' size={16} color='var(--color-info)' />
         <Text className='card-title'>{card.title}</Text>
       </View>
       <View className='card-content'>
