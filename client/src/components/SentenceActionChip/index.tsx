@@ -1,5 +1,5 @@
-import { Text } from '@tarojs/components'
-import { SentenceEntryModel } from '../../types/render-scene'
+import { View, Text } from '@tarojs/components'
+import { SentenceEntryModel } from '../../types/view/render-scene.vm'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 
@@ -9,8 +9,8 @@ interface SentenceActionChipProps {
 }
 
 const TYPE_CONFIG = {
-  grammar_note: { icon: 'book', color: '#22c55e', label: '语法' },
-  sentence_analysis: { icon: 'sparkles', color: '#8b5cf6', label: '句解' },
+  grammar_note: { icon: 'book', color: '#22c55e' },
+  sentence_analysis: { icon: 'sparkles', color: '#8b5cf6' },
 }
 
 export default function SentenceActionChip({ entry, onClick }: SentenceActionChipProps) {
@@ -24,14 +24,14 @@ export default function SentenceActionChip({ entry, onClick }: SentenceActionChi
   }
 
   return (
-    <Text
+    <View
       className={`sentence-action-chip ${entry.entryType}`}
       onClick={handleClick}
     >
-      <LucideIcon name={config.icon} size={14} color={config.color} className='chip-icon' />
+      <LucideIcon name={config.icon} size={12} color={config.color} />
       <Text className='chip-label' style={{ color: config.color }}>
         {entry.label}
       </Text>
-    </Text>
+    </View>
   )
 }

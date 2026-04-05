@@ -241,3 +241,67 @@ def test_parallel_agents_aggregate_usage_summary(monkeypatch) -> None:
         "total_tokens": 68,
     }
     assert result["usage_summary"]["per_agent"]["vocabulary"]["total_tokens"] == 18
+
+
+class _FakeRunTree:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def set(self, **kwargs) -> None:
+        self.calls.append(kwargs)
+
+
+class _FakeAgentRunResult:
+    def __init__(self, output, usage: dict[str, object] | None = None) -> None:
+        self.output = output
+        self._usage = usage
+
+    def usage(self):
+        return self._usage
+
+
+class _FakeRunUsage:
+    def __init__(self, *, input_tokens: int, output_tokens: int) -> None:
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.cache_read_tokens = 0
+        self.cache_write_tokens = 0
+        self.details = {}
+
+
+def test_llm_span_sets_usage_metadata_for_langsmith(monkeypatch) -> None:
+    async def _fake_vocabulary_agent(*args, **kwargs):
+        return _FakeAgentRunResult(
+            VocabularyDraft(vocab_highlights=[], phrase_glosses=[], context_glosses=[]),
+            _FakeRunUsage(input_tokens=11, output_tokens=7),
+        )
+
+    fake_run = _FakeRunTree()
+    monkeypatch.setattr(analyze_nodes, "get_current_run_tree", lambda: fake_run)
+    monkeypatch.setattr(analyze_nodes, "run_vocabulary_agent", _fake_vocabulary_agent)
+    prompt_strategy = analyze_nodes.build_vocabulary_bundle(
+        derive_user_rules("daily_reading", "intermediate_reading")
+    ).prompt_strategy
+
+    deps = analyze_nodes.VocabularyAgentDeps(
+        sentences=[{"sentence_id": "s1", "text": "Sentence one."}],
+        prompt_strategy=prompt_strategy,
+        examples=[],
+    )
+
+    result = asyncio.run(
+        analyze_nodes._run_vocabulary_llm_span(
+            deps=deps,
+            metadata={"node": "vocabulary_agent"},
+            model_selection=None,
+        )
+    )
+
+    assert result["usage"] == {"input_tokens": 11, "output_tokens": 7, "total_tokens": 18}
+    assert len(fake_run.calls) == 1
+    assert fake_run.calls[0]["usage_metadata"] == {
+        "input_tokens": 11,
+        "output_tokens": 7,
+        "total_tokens": 18,
+    }
+    assert "usage" not in fake_run.calls[0]["metadata"]

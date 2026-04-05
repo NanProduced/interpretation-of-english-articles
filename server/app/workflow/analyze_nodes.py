@@ -100,6 +100,21 @@ def _aggregate_usage_summary(
     }
 
 
+def _set_current_run(
+    *,
+    run_tree: Any,
+    metadata: dict[str, object],
+    outputs: dict[str, object] | None = None,
+    usage_metadata: dict[str, object] | None = None,
+) -> None:
+    kwargs: dict[str, object] = {"metadata": metadata}
+    if outputs is not None:
+        kwargs["outputs"] = outputs
+    if usage_metadata is not None:
+        kwargs["usage_metadata"] = usage_metadata
+    run_tree.set(**kwargs)
+
+
 def _empty_result(
     *,
     request_id: str,
@@ -175,12 +190,13 @@ async def _run_vocabulary_llm_span(
             + len(output.phrase_glosses)
             + len(output.context_glosses)
         )
-        current_run.set(
+        _set_current_run(
+            run_tree=current_run,
             metadata={
                 **metadata,
                 "vocabulary_annotation_count": vocab_count,
-                **({"usage": usage} if usage else {}),
             },
+            usage_metadata=usage,
             outputs={"vocabulary_draft": output.model_dump(mode="json")},
         )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
@@ -199,12 +215,13 @@ async def _run_grammar_llm_span(
     if current_run is not None:
         output = result.output if hasattr(result, "output") else result
         grammar_count = len(output.grammar_notes) + len(output.sentence_analyses)
-        current_run.set(
+        _set_current_run(
+            run_tree=current_run,
             metadata={
                 **metadata,
                 "grammar_annotation_count": grammar_count,
-                **({"usage": usage} if usage else {}),
             },
+            usage_metadata=usage,
             outputs={"grammar_draft": output.model_dump(mode="json")},
         )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
@@ -222,12 +239,13 @@ async def _run_translation_llm_span(
     current_run = get_current_run_tree()
     if current_run is not None:
         output = result.output if hasattr(result, "output") else result
-        current_run.set(
+        _set_current_run(
+            run_tree=current_run,
             metadata={
                 **metadata,
                 "translation_count": len(output.sentence_translations),
-                **({"usage": usage} if usage else {}),
             },
+            usage_metadata=usage,
             outputs={"translation_draft": output.model_dump(mode="json")},
         )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
@@ -632,8 +650,12 @@ async def _run_repair_llm_span(
     )
     usage = extract_run_usage(result)
     current_run = get_current_run_tree()
-    if current_run is not None and usage is not None:
-        current_run.set(metadata={**metadata, "usage": usage})
+    if current_run is not None:
+        _set_current_run(
+            run_tree=current_run,
+            metadata=metadata,
+            usage_metadata=usage,
+        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -707,16 +729,32 @@ async def assemble_result_node(state: AnalyzeState) -> AnalyzeState:
             ),
         }
 
-    # 确保 warnings 不重复（project_render_scene_node 已将 projection warnings
-    # 合并进 render_scene.warnings）
+    # 确保 warnings 不重复
     existing_warnings = state.get("warnings", [])
     if existing_warnings and hasattr(render_scene, "warnings"):
-        # 去重：基于 code + sentence_id 组合键，保留首次出现的 warning
         seen_keys = {(w.code, w.sentence_id) for w in render_scene.warnings}
         for w in existing_warnings:
             key = (w.code, w.sentence_id)
             if key not in seen_keys:
                 render_scene.warnings.append(w)
                 seen_keys.add(key)
+
+    # 推导 user_facing_state
+    # degraded_heavy: 关键 Agent 调用失败
+    heavy_failure_codes = {
+        "VOCABULARY_AGENT_FAILED",
+        "GRAMMAR_AGENT_FAILED",
+        "TRANSLATION_AGENT_FAILED",
+        "NORMALIZE_AND_GROUND_FAILED",
+    }
+    has_heavy_failure = any(w.code in heavy_failure_codes for w in render_scene.warnings)
+    has_no_entries = len(render_scene.sentence_entries) == 0 and len(render_scene.inline_marks) == 0
+
+    if has_heavy_failure and has_no_entries:
+        render_scene.user_facing_state = "degraded_heavy"
+    elif len(render_scene.warnings) > 0:
+        render_scene.user_facing_state = "degraded_light"
+    else:
+        render_scene.user_facing_state = "normal"
 
     return {"render_scene": render_scene}

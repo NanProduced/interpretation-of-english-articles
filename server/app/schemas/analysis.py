@@ -148,12 +148,18 @@ class Warning(BaseModel):
     annotation_id: str | None = Field(default=None, description="关联标注（可选）")
 
 
+UserFacingState = Literal["normal", "degraded_light", "degraded_heavy"]
+
+
 class RenderSceneModel(BaseModel):
     schema_version: Literal["3.0.0"] = Field(
         default="3.0.0", description="当前分析结果的 schema 版本。"
     )
     request: AnalyzeRequestMeta = Field(description="请求快照与规则包信息。")
     article: ArticleStructure = Field(description="结果页渲染所依赖的正文结构。")
+    user_facing_state: UserFacingState = Field(
+        default="normal", description="面向用户的页面状态判定，由后端根据 warnings 聚合得出。"
+    )
     translations: list[TranslationItem] = Field(default_factory=list, description="逐句翻译结果。")
     inline_marks: list[InlineMark] = Field(default_factory=list, description="行内标注。")
     sentence_entries: list[SentenceEntry] = Field(default_factory=list, description="句尾入口。")

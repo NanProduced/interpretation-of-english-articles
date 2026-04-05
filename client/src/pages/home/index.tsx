@@ -13,10 +13,6 @@ export default function Home() {
     Taro.navigateTo({ url: '/pages/input/index' })
   }
 
-  const navigateToV2Experiment = () => {
-    Taro.navigateTo({ url: '/pages/result/index' })
-  }
-
   const recommendations = [
     {
       id: "1",
@@ -73,18 +69,6 @@ export default function Home() {
         <View className='section-header'>
           <LucideIcon name='sparkles' size={18} color='#030213' />
           <Text className='section-title'>每日精读推荐</Text>
-        </View>
-
-        {/* V2 实验场入口 */}
-        <View className='v2-entry-card' onClick={navigateToV2Experiment}>
-          <View className='v2-badge'>
-            <Text className='v2-badge-text'>V2</Text>
-          </View>
-          <View className='v2-content'>
-            <Text className='v2-title'>实验结果页</Text>
-            <Text className='v2-desc'>体验新一代标注渲染组件</Text>
-          </View>
-          <LucideIcon name='chevronRight' size={18} color='#8b5cf6' />
         </View>
 
         <View className='list-content'>

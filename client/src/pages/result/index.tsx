@@ -1,20 +1,52 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
-import { RenderSceneModel, InlineMarkModel, SentenceEntryModel, PageMode } from '../../types/render-scene'
-import { ALL_SCENARIOS, PAGE_MODE_OPTIONS, articleMeta } from './mock-data'
+import Taro from '@tarojs/taro'
+import { InlineMarkModel, SentenceEntryModel, PageMode, ResultPageState } from '../../types/view/render-scene.vm'
 import NavBar from '../../components/NavBar'
 import ParagraphBlock from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
 import BottomSheetDetail from '../../components/BottomSheetDetail'
 import LucideIcon from '../../components/LucideIcon'
+import { LoadingIllustration, ErrorIllustration, EmptyIllustration } from '../../components/ResultIllustrations'
 import { useLayoutStore } from '../../stores/layout'
+import { useArticleStore } from '../../stores/article'
 import './index.scss'
 
-export default function ResultV2() {
+/** 页面模式选项 */
+const PAGE_MODE_OPTIONS = [
+  { value: 'immersive', label: '沉浸' },
+  { value: 'bilingual', label: '双语' },
+  { value: 'intensive', label: '精读' },
+] as const
+
+/** pageState → 文案映射 */
+const PAGE_STATE_MESSAGES: Record<ResultPageState, { title: string; subtitle: string } | null> = {
+  loading: null,
+  normal: null,
+  degraded_light: null,
+  degraded_heavy: null,
+  empty: {
+    title: '未能解析出有效内容',
+    subtitle: '请输入至少一段完整的英文句子（建议 3 句以上），支持常见文章格式。',
+  },
+  failed: {
+    title: '分析失败',
+    subtitle: '请稍后重试',
+  },
+  timeout: {
+    title: '分析超时',
+    subtitle: '内容较长时需要更多处理时间，请稍后重试',
+  },
+  network_fail: {
+    title: '网络不给力',
+    subtitle: '请检查网络后重新尝试',
+  },
+}
+
+export default function Result() {
   const { navBarHeight } = useLayoutStore()
-  const [scenarioName, setScenarioName] = useState<keyof typeof ALL_SCENARIOS>('全功能演示')
   const [pageMode, setPageMode] = useState<PageMode>('bilingual')
-  const [showDebug, setShowDebug] = useState(false)
+  const [showSecondaryMessage, setShowSecondaryMessage] = useState(false)
   const [wordPopup, setWordPopup] = useState<{
     visible: boolean
     mode: 'mini' | 'full'
@@ -29,21 +61,32 @@ export default function ResultV2() {
     entry: SentenceEntryModel | null
   }>({ visible: false, entry: null })
 
-  const sceneData: RenderSceneModel = ALL_SCENARIOS[scenarioName]
+  // 从 store 获取页面状态
+  const pageState = useArticleStore((s) => s.pageState)
+  const sceneData = useArticleStore((s) => s.sceneData)
+  const analyze = useArticleStore((s) => s.analyze)
 
   const showTranslation = pageMode === 'bilingual' || pageMode === 'intensive'
 
+  // === 加载状态：5 秒后显示次级提示 ===
+  useEffect(() => {
+    if (pageState === 'loading') {
+      const timer = setTimeout(() => setShowSecondaryMessage(true), 5000)
+      return () => clearTimeout(timer)
+    } else {
+      setShowSecondaryMessage(false)
+    }
+  }, [pageState])
+
+  // === 事件处理 ===
+
   const handleWordClick = (mark: InlineMarkModel, word: string, e?: any) => {
-    // If it has AI glossary, go straight to full sheet. Otherwise, show mini tooltip.
     const isAIAnnotated = !!mark.glossary
     const initialMode = isAIAnnotated ? 'full' : 'mini'
-    
     setActiveMarkId(mark.id)
 
     let clientX = 0
     let clientY = 0
-    
-    // Safely extract coordinates from Taro touch/click event
     if (e) {
       if (e.changedTouches && e.changedTouches[0]) {
         clientX = e.changedTouches[0].clientX
@@ -53,7 +96,6 @@ export default function ResultV2() {
         clientY = e.detail.y
       }
     }
-
     setWordPopup({ visible: true, mode: initialMode, mark, word, x: clientX, y: clientY })
   }
 
@@ -66,22 +108,137 @@ export default function ResultV2() {
     setBottomSheet({ visible: true, entry })
   }
 
+  const handleRetry = () => {
+    const { pageState, requestParams, reset } = useArticleStore.getState()
+    // error / timeout / network_fail / empty: 就地重试，保留用户的文章内容
+    const retryableStates: ResultPageState[] = ['failed', 'timeout', 'network_fail', 'empty']
+    if (retryableStates.includes(pageState) && requestParams) {
+      useArticleStore.getState().analyze(requestParams)
+    } else {
+      // success (normal/degraded): 返回输入页
+      reset()
+      Taro.navigateBack()
+    }
+  }
+
+  // === 通用页面外壳 ===
+  const pageShell = (extraContent: React.ReactNode) => (
+    <View className='result-page'>
+      <NavBar title='AI 英语解读' showBack showHome />
+      <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
+      {extraContent}
+    </View>
+  )
+
+  // === 降级提示条（基于 pageState，不暴露技术细节） ===
+  const renderDegradedBanner = (state: ResultPageState) => {
+    if (state !== 'degraded_light' && state !== 'degraded_heavy') return null
+
+    const isHeavy = state === 'degraded_heavy'
+    const message = isHeavy
+      ? '本次仅生成了基础解读结果，建议稍后重试以获取更完整内容。'
+      : '解读内容已简化，部分细节暂时无法提供，不影响整体理解。'
+
+    return (
+      <View className={`degraded-banner ${isHeavy ? 'heavy' : ''}`}>
+        <LucideIcon name='alert-circle' size={14} color='var(--color-focus)' />
+        <Text className='degraded-banner-text'>{message}</Text>
+        {isHeavy && (
+          <View className='degraded-retry-btn' onClick={handleRetry}>
+            <Text className='degraded-retry-text'>重新分析</Text>
+          </View>
+        )}
+      </View>
+    )
+  }
+
+  // === 状态分支 ===
+
+  if (pageState === 'loading') {
+    return pageShell(
+      <View className='state-container'>
+        <View className='state-vertical'>
+          <LoadingIllustration />
+          <Text className='state-title'>正在分析文章...</Text>
+          <Text className='state-subtitle'>AI 正在理解文章结构和语义</Text>
+          {showSecondaryMessage && (
+            <Text className='state-subtitle-secondary'>请稍候，内容较长时需要更多时间</Text>
+          )}
+        </View>
+      </View>
+    )
+  }
+
+  if (pageState === 'empty') {
+    const msg = PAGE_STATE_MESSAGES.empty!
+    return pageShell(
+      <View className='state-container'>
+        <View className='state-vertical'>
+          <EmptyIllustration />
+          <Text className='state-title'>{msg.title}</Text>
+          <Text className='state-subtitle'>{msg.subtitle}</Text>
+        </View>
+        <View className='state-cta safe-area-bottom'>
+          <View className='btn-primary' onClick={handleRetry}>
+            <Text className='btn-primary-text'>修改重试</Text>
+          </View>
+        </View>
+      </View>
+    )
+  }
+
+  if (pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail') {
+    const msg = PAGE_STATE_MESSAGES[pageState]!
+    return pageShell(
+      <View className='state-container'>
+        <View className='state-vertical'>
+          <ErrorIllustration />
+          <Text className='state-title'>{msg.title}</Text>
+          <Text className='state-subtitle'>{msg.subtitle}</Text>
+        </View>
+        <View className='state-cta safe-area-bottom'>
+          <View className='btn-primary' onClick={handleRetry}>
+            <Text className='btn-primary-text'>重新分析</Text>
+          </View>
+        </View>
+      </View>
+    )
+  }
+
+  // === Success 状态 ===
+
+  const renderArticleHeader = () => {
+    if (!sceneData) return null
+    const { request } = sceneData
+    return (
+      <View className='article-header'>
+        <View className='article-meta-row'>
+          <Text className='source-tag'>
+            {request.sourceType === 'user_input' ? '手动输入' : '每日文章'}
+          </Text>
+          <Text className='level-tag'>
+            {request.readingVariant.toUpperCase()}
+          </Text>
+        </View>
+      </View>
+    )
+  }
+
   const renderParagraphs = () => {
-    return sceneData.article.paragraphs.map((paragraph) => {
-      // Find all sentences for this paragraph
+    return sceneData!.article.paragraphs.map((paragraph) => {
       const sentences = paragraph.sentenceIds
-        .map(id => sceneData.article.sentences.find(s => s.sentenceId === id))
+        .map((id) => sceneData!.article.sentences.find((s) => s.sentenceId === id))
         .filter((s): s is NonNullable<typeof s> => !!s)
 
       return (
         <ParagraphBlock
           key={paragraph.paragraphId}
           sentences={sentences}
-          translations={sceneData.translations}
+          translations={sceneData!.translations}
           showTranslation={showTranslation}
-          inlineMarks={sceneData.inlineMarks}
+          inlineMarks={sceneData!.inlineMarks}
           activeMarkId={activeMarkId}
-          tailEntries={sceneData.sentenceEntries}
+          tailEntries={sceneData!.sentenceEntries}
           pageMode={pageMode}
           onWordClick={handleWordClick}
           onChipClick={handleChipClick}
@@ -90,11 +247,8 @@ export default function ResultV2() {
     })
   }
 
-  return (
-    <View className='result-page'>
-      <NavBar title='AI 英语解读' showBack showHome />
-      <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
-
+  return pageShell(
+    <>
       <View className='mode-tabs-container'>
         <View className='mode-tabs'>
           {PAGE_MODE_OPTIONS.map((mode) => (
@@ -109,31 +263,15 @@ export default function ResultV2() {
         </View>
       </View>
 
-      <ScrollView className='article-scroll' scrollY>
+      {/* 降级提示条：位于 mode-tabs 下方 */}
+      {renderDegradedBanner(pageState)}
+
+      <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false}>
         <View className='article-container'>
-          {sceneData.warnings.length > 0 && (
-            <View className='warnings-container'>
-              {sceneData.warnings.map((w, idx) => (
-                <View key={idx} className={`warning-item ${w.level}`}>
-                  <LucideIcon name='alert-circle' size={14} color='inherit' />
-                  <Text className='warning-msg'>{w.message}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <View className='article-header'>
-            <Text className='article-title'>{articleMeta.title}</Text>
-            <View className='article-meta-row'>
-              <View className='source-tag'>{articleMeta.source}</View>
-              <View className='level-tag'>{articleMeta.level}</View>
-            </View>
-          </View>
-
+          {renderArticleHeader()}
           {renderParagraphs()}
+          <View className='bottom-spacer' />
         </View>
-
-        <View className='bottom-spacer' />
       </ScrollView>
 
       {/* Global Bottom Action Bar */}
@@ -143,41 +281,11 @@ export default function ResultV2() {
             <LucideIcon name='star' size={20} color='var(--text-sub)' />
             <Text>收藏全文</Text>
           </View>
-          <View className='primary-action'>
+          <View className='primary-action' onClick={handleRetry}>
             <LucideIcon name='refresh-cw' size={18} color='#fff' />
             <Text>重新分析</Text>
           </View>
         </View>
-      </View>
-
-      <View className={`debug-fab ${showDebug ? 'expanded' : ''}`} onClick={() => !showDebug && setShowDebug(true)}>
-        {!showDebug ? (
-          <LucideIcon name='settings' size={18} color='#999' />
-        ) : (
-          <View className='debug-menu'>
-            <View className='debug-header'>
-              <Text>场景切换</Text>
-              <View onClick={(e) => { e.stopPropagation(); setShowDebug(false); }}>
-                <LucideIcon name='x' size={16} color='#999' />
-              </View>
-            </View>
-            <View className='scenario-list'>
-              {Object.keys(ALL_SCENARIOS).map((name) => (
-                <View
-                  key={name}
-                  className={`scenario-option ${scenarioName === name ? 'active' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setScenarioName(name as any);
-                    setShowDebug(false);
-                  }}
-                >
-                  <Text>{name}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
       </View>
 
       <WordPopup
@@ -196,6 +304,6 @@ export default function ResultV2() {
         entry={bottomSheet.entry}
         onClose={() => setBottomSheet({ ...bottomSheet, visible: false })}
       />
-    </View>
+    </>
   )
 }

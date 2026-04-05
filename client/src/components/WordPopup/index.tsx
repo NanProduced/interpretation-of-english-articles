@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { InlineMarkModel, DictionaryResult } from '../../types/render-scene'
+import { InlineMarkModel, DictionaryResult } from '../../types/view/render-scene.vm'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 
@@ -21,6 +21,7 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [audioPlaying, setAudioPlaying] = useState(false)
+  const [screenWidth, setScreenWidth] = useState(375) // 默认值，小程序常用宽度
 
   const lookupText = mark?.lookupText || word
   const lookupKind = mark?.lookupKind
@@ -33,13 +34,17 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
     }
   }, [visible, lookupText])
 
+  useEffect(() => {
+    Taro.getSystemInfo({}).then((info) => setScreenWidth(info.windowWidth || 375))
+  }, [])
+
   const fetchDictionary = async (text: string) => {
     setLoading(true)
     setError(null)
     try {
-      // 在 Mock 阶段，我们直接使用 Mock 词典数据
+      // TODO: 接入真实词典 API，当前为临时 fallback 数据
       await new Promise(resolve => setTimeout(resolve, 300))
-      setDictResult(getMockDictionaryResult(text))
+      setDictResult(getFallbackDictionaryResult(text))
     } catch (err) {
       setError('查询失败')
     } finally {
@@ -47,7 +52,7 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
     }
   }
 
-  const getMockDictionaryResult = (text: string): DictionaryResult => {
+  const getFallbackDictionaryResult = (text: string): DictionaryResult => {
     const mockData: Record<string, DictionaryResult> = {
       'paradigm': {
         word: 'paradigm',
@@ -69,7 +74,7 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
     return mockData[text.toLowerCase()] || {
       word: text,
       phonetic: '/.../',
-      meanings: [{ partOfSpeech: 'n.', definitions: [{ meaning: '（模拟词典释义）' }] }]
+      meanings: [{ partOfSpeech: 'n.', definitions: [{ meaning: '（词典 API 暂未接入）' }] }]
     }
   }
 
@@ -83,7 +88,6 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
   // Mini Tooltip 模式
   if (mode === 'mini') {
     // 简易防溢出计算
-    const screenWidth = Taro.getSystemInfoSync().windowWidth
     const safeLeft = x > screenWidth - 260 ? screenWidth - 280 : Math.max(20, x - 130)
     const safeTop = y > 200 ? y - 160 : y + 40
 

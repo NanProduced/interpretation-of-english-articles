@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { View, Text } from '@tarojs/components'
-import { InlineMarkModel, SentenceEntryModel, TextAnchor, MultiTextAnchor, VisualTone, SentenceModel, TranslationModel } from '../../types/render-scene'
+import { InlineMarkModel, SentenceEntryModel, TextAnchor, MultiTextAnchor, VisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
 import InlineMark from '../InlineMark'
 import SentenceActionChip from '../SentenceActionChip'
 import './index.scss'
@@ -58,7 +58,7 @@ function renderTextWithMarks(
       }
     } else {
       m.anchor.parts.forEach((part, idx) => {
-        const pos = findTextAnchorPosition(text, part.text, part.occurrence || 1)
+        const pos = findTextAnchorPosition(text, part.anchorText, part.occurrence || 1)
         if (pos >= 0) {
           const partMark: InlineMarkModel = {
             ...m,
@@ -67,11 +67,11 @@ function renderTextWithMarks(
             anchor: {
               kind: 'text',
               sentenceId: m.anchor.sentenceId,
-              anchorText: part.text,
+              anchorText: part.anchorText,
               occurrence: part.occurrence,
             },
           }
-          flatParts.push({ mark: partMark, start: pos, end: pos + part.text.length, text: part.text })
+          flatParts.push({ mark: partMark, start: pos, end: pos + part.anchorText.length, text: part.anchorText })
         }
       })
     }
@@ -133,46 +133,96 @@ export default function ParagraphBlock({
     .filter(Boolean)
     .join(' ')
 
-  return (
-    <View className='paragraph-block'>
-      <View className='english-paragraph'>
-        {/* Everything inside Text to allow inline wrapping */}
-        <Text className='english-flow'>
-          {sentences.map((sentence, idx) => {
-            const sentenceMarks = inlineMarks.filter(mark => mark.anchor.sentenceId === sentence.sentenceId)
-            const sentenceEntries = tailEntries.filter(entry => entry.sentenceId === sentence.sentenceId)
-            
-            return (
-              <Text key={sentence.sentenceId} className='sentence-span'>
-                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
-                
-                {/* 句尾如果是最后一个词，保留一个自然空格或换行缓冲 */}
-                {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
+  // --- Rendering Functions for different modes ---
 
-                {/* 精读模式下的 Action Chip 内联显示 */}
-                {pageMode === 'intensive' && sentenceEntries.length > 0 && (
-                  <Text className='tail-entries-inline'>
-                    {sentenceEntries.map((entry) => (
-                      <SentenceActionChip
-                        key={entry.id}
-                        entry={entry}
-                        onClick={onChipClick}
-                      />
-                    ))}
-                    {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
-                  </Text>
-                )}
-              </Text>
-            )
-          })}
-        </Text>
-      </View>
-
-      {showTranslation && fullTranslation && (
-        <View className='translation-paragraph'>
-          <Text className='translation-text'>{fullTranslation}</Text>
+  // 1. Immersive mode: Simple English paragraph
+  if (pageMode === 'immersive') {
+    return (
+      <View className='paragraph-block immersive'>
+        <View className='english-paragraph'>
+          <Text className='english-flow'>
+            {sentences.map((sentence, idx) => {
+              const sentenceMarks = inlineMarks.filter(mark => mark.anchor.sentenceId === sentence.sentenceId)
+              return (
+                <Text key={sentence.sentenceId} className='sentence-span'>
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
+                  {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
+                </Text>
+              )
+            })}
+          </Text>
         </View>
-      )}
+      </View>
+    )
+  }
+
+  // 2. Bilingual mode: English paragraph + Translation paragraph
+  if (pageMode === 'bilingual') {
+    return (
+      <View className='paragraph-block bilingual'>
+        <View className='english-paragraph'>
+          <Text className='english-flow'>
+            {sentences.map((sentence, idx) => {
+              const sentenceMarks = inlineMarks.filter(mark => mark.anchor.sentenceId === sentence.sentenceId)
+              return (
+                <Text key={sentence.sentenceId} className='sentence-span'>
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
+                  {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
+                </Text>
+              )
+            })}
+          </Text>
+        </View>
+        {fullTranslation && (
+          <View className='translation-paragraph'>
+            <Text className='translation-text'>{fullTranslation}</Text>
+          </View>
+        )}
+      </View>
+    )
+  }
+
+  // 3. Intensive mode: Sentence-by-sentence analysis (Separated layers)
+  return (
+    <View className='paragraph-block intensive'>
+      {sentences.map((sentence) => {
+        const sentenceMarks = inlineMarks.filter(mark => mark.anchor.sentenceId === sentence.sentenceId)
+        const sentenceEntries = tailEntries.filter(entry => entry.sentenceId === sentence.sentenceId)
+        const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
+
+        return (
+          <View key={sentence.sentenceId} className='sentence-block'>
+            {/* Layer 1: Main Text */}
+            <View className='sentence-main'>
+              <Text className='english-flow'>
+                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
+              </Text>
+            </View>
+
+            {/* Layer 2: Analysis Entries (Action Chips) */}
+            {sentenceEntries.length > 0 && (
+              <View className='sentence-analysis'>
+                <View className='analysis-chips'>
+                  {sentenceEntries.map((entry) => (
+                    <SentenceActionChip
+                      key={entry.id}
+                      entry={entry}
+                      onClick={onChipClick}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Layer 3: Translation */}
+            {showTranslation && sentenceTranslation && (
+              <View className='sentence-translation'>
+                <Text className='translation-text'>{sentenceTranslation}</Text>
+              </View>
+            )}
+          </View>
+        )
+      })}
     </View>
   )
 }

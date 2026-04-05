@@ -2,12 +2,30 @@ import { useState } from 'react'
 import { View, Text, Textarea, Switch } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useConfigStore } from '../../stores/config'
+import { useArticleStore } from '../../stores/article'
 import './index.scss'
+
+/** 目的 -> API 参数映射 */
+function mapPurposeToApiParams(purpose: 'exam' | 'academic' | 'daily'): {
+  reading_goal: 'exam' | 'daily_reading' | 'academic'
+  reading_variant: 'gaokao' | 'cet' | 'gre' | 'ielts_toefl' | 'beginner_reading' | 'intermediate_reading' | 'intensive_reading' | 'academic_general'
+} {
+  switch (purpose) {
+    case 'exam':
+      return { reading_goal: 'exam', reading_variant: 'cet' }
+    case 'academic':
+      return { reading_goal: 'academic', reading_variant: 'academic_general' }
+    case 'daily':
+    default:
+      return { reading_goal: 'daily_reading', reading_variant: 'intermediate_reading' }
+  }
+}
 
 export default function InputPage() {
   const [content, setContent] = useState('')
   const [isPaidEnabled, setIsPaidEnabled] = useState(false)
   const { purpose } = useConfigStore()
+  const analyze = useArticleStore((s) => s.analyze)
 
   // 简单的单词计数（按空格拆分）
   const wordsCount = content.trim().split(/\s+/).filter(Boolean).length
@@ -25,7 +43,17 @@ export default function InputPage() {
       Taro.showToast({ title: '最少输入10个单词', icon: 'none' })
       return
     }
-    Taro.navigateTo({ url: '/pages/result/loading' })
+
+    const { reading_goal, reading_variant } = mapPurposeToApiParams(purpose)
+
+    // 先跳结果页，再发请求（结果页承接 loading 态）
+    analyze({
+      text: content,
+      reading_goal,
+      reading_variant,
+      source_type: 'user_input',
+    })
+    Taro.navigateTo({ url: '/pages/result/index' })
   }
 
   // 映射目的到显示文本

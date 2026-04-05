@@ -22,19 +22,20 @@ export default function NavBar({ title, showBack, showHome, background = '#fff',
   })
 
   useEffect(() => {
-    const systemInfo = Taro.getSystemInfoSync()
     const capsule = Taro.getMenuButtonBoundingClientRect()
-    
-    const sH = systemInfo.statusBarHeight || 0
-    const nH = (capsule.top - sH) * 2 + capsule.height
-    
-    setNavStyle({
-      statusBarHeight: sH,
-      navBarHeight: nH,
-      capsuleRight: systemInfo.screenWidth - capsule.right
-    })
 
-    setNavHeights(nH + sH, sH)
+    Taro.getSystemInfo({}).then((sysInfo) => {
+      const sH = sysInfo.statusBarHeight || 0
+      const nH = (capsule.top - sH) * 2 + capsule.height
+
+      setNavStyle({
+        statusBarHeight: sH,
+        navBarHeight: nH,
+        capsuleRight: (sysInfo.screenWidth || 375) - capsule.right,
+      })
+
+      setNavHeights(nH + sH, sH)
+    })
   }, [setNavHeights])
 
   const handleBack = () => { Taro.navigateBack() }

@@ -90,7 +90,28 @@
       "Bash(done)",
       "mcp__plugin_serena_serena__initial_instructions",
       "mcp__plugin_serena_serena__list_memories",
-      "mcp__plugin_serena_serena__write_memory"
+      "mcp__plugin_serena_serena__write_memory",
+      "mcp__plugin_serena_serena__get_symbols_overview",
+      "mcp__plugin_serena_serena__find_symbol",
+      "mcp__plugin_serena_serena__edit_memory",
+      "Bash(pnpm exec:*)",
+      "Bash(npx tsc:*)",
+      "Bash(tasklist)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(rm -rf dist prebundle)",
+      "Read(//tmp/**)",
+      "Bash(rm -rf dist)",
+      "Bash(npx taro:*)",
+      "Bash(grep -l \"envConfig\\\\|mockEnabled\" \"C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/dist\"/*.js)",
+      "Bash(rm -v pages/result/mock-data.ts)",
+      "Bash(rm -v pages/result/loading.tsx pages/result/loading.scss pages/result/loading.config.ts)",
+      "Bash(rm -v services/api/mock/scenarios/basic.ts)",
+      "Bash(rm -v services/api/mock/scenarios/error.ts)",
+      "Bash(rm -v services/api/mock/scenarios/timeout.ts)",
+      "mcp__plugin_serena_serena__read_memory",
+      "mcp__plugin_serena_serena__check_onboarding_performed",
+      "Bash(grep -l \"getWindowInfo\" node_modules/@tarojs/taro/types/*.d.ts)",
+      "Bash(xargs grep:*)"
     ]
   }
 }

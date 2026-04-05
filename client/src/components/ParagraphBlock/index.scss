@@ -1,5 +1,9 @@
 .paragraph-block {
-  margin-bottom: 64rpx; // Increased breathing room
+  margin-bottom: 64rpx;
+
+  &.intensive {
+    margin-bottom: 40rpx;
+  }
 }
 
 .english-paragraph {
@@ -8,7 +12,6 @@
 }
 
 .english-flow {
-  // Using Text allows lines to wrap beautifully as a true paragraph
   font-size: var(--text-lg);
   color: var(--primary-color);
   font-family: var(--font-sans);
@@ -24,30 +27,53 @@
   }
 }
 
-.tail-entries-inline {
-  display: inline;
-  margin-left: 8rpx;
-  margin-right: 8rpx;
-}
-
 .space-char {
   display: inline;
   white-space: pre-wrap;
 }
 
 .translation-paragraph {
-  margin-top: 24rpx;
-  padding: 0; // Remove box
-  background: transparent;
-  border-radius: 0;
-  border-left: none; 
+  margin-top: 16rpx;
+  padding: 0;
 }
 
 .translation-text {
-  font-size: var(--text-sm); // Smaller font for translation
-  color: var(--text-sub); // Muted color
+  font-size: var(--text-sm);
+  color: var(--text-sub);
   line-height: var(--leading-normal);
   font-weight: var(--weight-normal);
   display: block;
 }
 
+// Intensive Mode Styles
+.sentence-block {
+  margin-bottom: 40rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.sentence-main {
+  // Main English text layer
+}
+
+.sentence-analysis {
+  // Analysis entries layer
+  margin-top: 4rpx;
+}
+
+.analysis-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.sentence-translation {
+  // Translation layer
+  margin-top: 4rpx;
+  opacity: 0.85;
+}

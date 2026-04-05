@@ -9,18 +9,16 @@ export default function HistoryPage() {
       title: "Why We Sleep: The New Science of Sleep and Dreams",
       date: "今天 10:24",
       config: "CET-4",
-      isV2: true  // 标记为 V2 实验
     },
     {
       id: "2",
       title: "How to Build a Startup: The Y Combinator Method",
       date: "昨天 15:30",
       config: "考研",
-      isV2: false
     }
   ]
 
-  const goToResult = (_isV2: boolean) => {
+  const goToResult = () => {
     Taro.navigateTo({ url: '/pages/result/index' })
   }
 
@@ -32,14 +30,9 @@ export default function HistoryPage() {
 
       <ScrollView scrollY className='list-area'>
         {historyList.map(item => (
-          <View key={item.id} className='history-card' onClick={() => goToResult(item.isV2)}>
+          <View key={item.id} className='history-card' onClick={() => goToResult()}>
             <View className='card-header'>
               <Text className='item-title'>{item.title}</Text>
-              {item.isV2 && (
-                <View className='v2-tag'>
-                  <Text>V2</Text>
-                </View>
-              )}
             </View>
             <View className='item-footer'>
               <Text className='date-text'>{item.date}</Text>

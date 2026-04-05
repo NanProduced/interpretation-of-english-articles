@@ -1,5 +1,5 @@
 import { View, Text, ScrollView } from '@tarojs/components'
-import { SentenceEntryModel } from '../../types/render-scene'
+import { SentenceEntryModel } from '../../types/view/render-scene.vm'
 import { parseMarkdown } from '../../utils/parseMarkdown'
 import LucideIcon from '../LucideIcon'
 import './index.scss'

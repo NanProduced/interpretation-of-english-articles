@@ -1,3 +1,4 @@
+const path = require('path')
 const config = {
   projectName: 'interpretation-of-english-articles-client',
   date: '2026-3-29',
@@ -11,6 +12,7 @@ const config = {
   outputRoot: 'dist',
   plugins: [],
   defineConstants: {
+    TARO_APP_ENV: JSON.stringify(process.env.TARO_APP_ENV || 'local'),
   },
   copy: {
     patterns: [
@@ -24,6 +26,15 @@ const config = {
     enable: false // Webpack5 cache 有 bug，暂时禁用
   },
   mini: {
+    webpackChain: (chain, webpack) => {
+      chain.resolve.alias
+        .set('@/config', path.resolve(__dirname, '../src/config'))
+        .set('@/components', path.resolve(__dirname, '../src/components'))
+        .set('@/utils', path.resolve(__dirname, '../src/utils'))
+        .set('@/services', path.resolve(__dirname, '../src/services'))
+        .set('@/stores', path.resolve(__dirname, '../src/stores'))
+        .set('@/types', path.resolve(__dirname, '../src/types'))
+    },
     postcss: {
       pxtransform: {
         enable: true,
@@ -49,6 +60,16 @@ const config = {
   h5: {
     publicPath: '/',
     staticDirectory: 'static',
+    resolve: {
+      alias: {
+        '@/config': path.resolve(__dirname, '../src/config'),
+        '@/components': path.resolve(__dirname, '../src/components'),
+        '@/utils': path.resolve(__dirname, '../src/utils'),
+        '@/services': path.resolve(__dirname, '../src/services'),
+        '@/stores': path.resolve(__dirname, '../src/stores'),
+        '@/types': path.resolve(__dirname, '../src/types'),
+      },
+    },
     postcss: {
       autoprefixer: {
         enable: true,
