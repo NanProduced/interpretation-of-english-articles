@@ -6,17 +6,22 @@ Dictionary Proxy API
 
 from __future__ import annotations
 
-import os
-from typing import Any, Literal, cast
+from typing import Literal
 
-import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
+
+from app.services.dictionary import DictionaryService
+from app.services.dictionary.schemas import (
+    DictionaryMeaning,
+    DictionaryMeaningDefinition,
+    DictionaryResult,
+)
 
 router = APIRouter(prefix="/dict", tags=["dict"])
 
 
-# === 请求/响应模型 ===
+# === 向后兼容的请求/响应模型（与原接口一致）===
 
 class DictionaryMeaningDefinition(BaseModel):
     """词典释义项"""
@@ -39,73 +44,8 @@ class DictionaryResult(BaseModel):
     meanings: list[DictionaryMeaning] = Field(default_factory=list, description="词性及释义列表")
 
 
-# === 第三方词典配置 ===
-
-# 默认使用 Free Dictionary API (https://dictionaryapi.dev/)
-# 可通过环境变量 DICT_PROVIDER_URL 覆盖
-DEFAULT_DICT_PROVIDER = "https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
-
-DICT_PROVIDER_URL = os.getenv("DICT_PROVIDER_URL", DEFAULT_DICT_PROVIDER)
-
-
-# === 简单HTTP客户端 ===
-
-async def _fetch_word(word: str) -> list[dict[str, Any]]:
-    """调用第三方词典 API"""
-    url = DICT_PROVIDER_URL.format(word=word)
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(url)
-        if response.status_code == 404:
-            raise HTTPException(status_code=404, detail=f"Word not found: {word}")
-        response.raise_for_status()
-        return cast(list[dict[str, Any]], response.json())
-
-
-def _parse_dict_api_response(word: str, data: list[dict[str, Any]]) -> DictionaryResult:
-    """解析 Free Dictionary API 响应"""
-    if not data:
-        return DictionaryResult(word=word, meanings=[])
-
-    # API 返回格式：[{word, phonetic?, phonetics?, meanings?, ...}]
-    entry = data[0]
-
-    # 提取音标
-    phonetic = entry.get("phonetic")
-    if not phonetic and entry.get("phonetics"):
-        for p in entry["phonetics"]:
-            if p.get("text"):
-                phonetic = p.get("text")
-                break
-
-    # 提取音频 URL
-    audio_url = None
-    for p in entry.get("phonetics", []):
-        if p.get("audio"):
-            audio_url = p["audio"]
-            break
-
-    # 提取释义
-    meanings: list[DictionaryMeaning] = []
-    for m in entry.get("meanings", []):
-        part_of_speech = m.get("partOfSpeech", "")
-        defs: list[DictionaryMeaningDefinition] = []
-        for d in m.get("definitions", []):
-            defs.append(DictionaryMeaningDefinition(
-                meaning=d.get("definition", ""),
-                example=d.get("example"),
-                example_translation=None,  # Free Dictionary API 不提供翻译
-            ))
-        meanings.append(DictionaryMeaning(
-            part_of_speech=part_of_speech,
-            definitions=defs,
-        ))
-
-    return DictionaryResult(
-        word=word,
-        phonetic=phonetic,
-        audio_url=audio_url,
-        meanings=meanings,
-    )
+# === 服务单例 ===
+_service = DictionaryService()
 
 
 # === 路由 ===
@@ -121,16 +61,11 @@ async def lookup_word(
     - **q**: 要查询的单词或短语
     - **type**: word=单词查询, phrase=短语查询（暂不支持短语独立查询）
     """
-    # 清理查询词
     word = q.strip()
-
-    # 短语查询暂用单词查询（因为 Free Dictionary API 不支持短语）
-    # 后续可扩展支持其他词典 API
     try:
-        data = await _fetch_word(word)
-        return _parse_dict_api_response(word, data)
-    except HTTPException:
-        # HTTPException 从 _fetch_word 直接传播
-        raise
-    except httpx.HTTPError as exc:
+        result = _service.lookup(word)
+        return DictionaryResult.model_validate(result.model_dump())
+    except LookupError:
+        raise HTTPException(status_code=404, detail=f"Word not found: {word}")
+    except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Dictionary service error: {exc}") from exc

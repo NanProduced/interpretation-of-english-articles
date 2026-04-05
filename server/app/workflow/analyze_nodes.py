@@ -750,9 +750,22 @@ async def assemble_result_node(state: AnalyzeState) -> AnalyzeState:
     has_heavy_failure = any(w.code in heavy_failure_codes for w in render_scene.warnings)
     has_no_entries = len(render_scene.sentence_entries) == 0 and len(render_scene.inline_marks) == 0
 
+    # informational 级别的 warning 不触发 degradation，只做提示
+    informational_codes = {
+        "LOW_ENGLISH_RATIO",
+        "HIGH_NOISE_RATIO",
+        "UNSUPPORTED_TEXT_TYPE",
+        "DRAFT_VALIDATION",
+    }
+    has_informational_only = (
+        len(render_scene.warnings) > 0
+        and all(w.code in informational_codes for w in render_scene.warnings)
+    )
+
     if has_heavy_failure and has_no_entries:
         render_scene.user_facing_state = "degraded_heavy"
-    elif len(render_scene.warnings) > 0:
+    elif len(render_scene.warnings) > 0 and not has_informational_only:
+        # 存在真实 agent 失败（非 informational warning）→ degraded_light
         render_scene.user_facing_state = "degraded_light"
     else:
         render_scene.user_facing_state = "normal"

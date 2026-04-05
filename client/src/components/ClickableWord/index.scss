@@ -1,0 +1,12 @@
+.clickable-word {
+  color: var(--text-main);
+  border-bottom: 1rpx dashed var(--text-muted);
+  padding: 0 1rpx;
+  cursor: pointer;
+  transition: color 0.15s ease;
+
+  &:active {
+    color: var(--color-info);
+    border-bottom-color: var(--color-info);
+  }
+}

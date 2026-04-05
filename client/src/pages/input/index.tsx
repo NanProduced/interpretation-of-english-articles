@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, Textarea, Switch } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useConfigStore } from '../../stores/config'
 import { useArticleStore } from '../../stores/article'
+import { saveDraft, getDraft, clearDraft } from '../../services/storage'
+import { track } from '../../services/analytics'
 import './index.scss'
 
 /** 目的 -> API 参数映射 */
@@ -30,8 +32,44 @@ export default function InputPage() {
   // 简单的单词计数（按空格拆分）
   const wordsCount = content.trim().split(/\s+/).filter(Boolean).length
 
+  // === 草稿恢复 onMount ===
+  useEffect(() => {
+    const draft = getDraft()
+    if (draft && draft.text) {
+      setContent(draft.text)
+    }
+  }, [])
+
+  // === 防抖保存草稿 ===
+  useEffect(() => {
+    if (!content) return
+    const timer = setTimeout(() => {
+      saveDraft({
+        text: content,
+        reading_goal: mapPurposeToApiParams(purpose).reading_goal,
+        reading_variant: mapPurposeToApiParams(purpose).reading_variant,
+        savedAt: Date.now(),
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [content, purpose])
+
   const handleBack = () => {
-    Taro.navigateBack()
+    if (content.trim().length > 0) {
+      Taro.showModal({
+        title: '离开',
+        content: '当前输入内容已自动保存，可在首页继续编辑',
+        confirmText: '离开',
+        cancelText: '继续编辑',
+        success: (res) => {
+          if (res.confirm) {
+            Taro.navigateBack()
+          }
+        },
+      })
+    } else {
+      Taro.navigateBack()
+    }
   }
 
   const navigateToProfile = () => {
@@ -46,12 +84,16 @@ export default function InputPage() {
 
     const { reading_goal, reading_variant } = mapPurposeToApiParams(purpose)
 
+    track('submit_article', { wordCount: wordsCount, reading_goal, reading_variant })
+
     // 先跳结果页，再发请求（结果页承接 loading 态）
+    clearDraft()
     analyze({
       text: content,
       reading_goal,
       reading_variant,
       source_type: 'user_input',
+      extended: isPaidEnabled,
     })
     Taro.navigateTo({ url: '/pages/result/index' })
   }

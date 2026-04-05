@@ -151,8 +151,8 @@ function transformParagraph(paragraph: ArticleParagraph): ParagraphModel {
  */
 function transformArticle(article: ArticleStructure): ArticleModel {
   return {
-    paragraphs: article.paragraphs.map(transformParagraph),
-    sentences: article.sentences.map(transformSentence),
+    paragraphs: (article.paragraphs ?? []).map(transformParagraph),
+    sentences: (article.sentences ?? []).map(transformSentence),
   }
 }
 
@@ -180,9 +180,9 @@ export function analyzeResponseDtoToVm(dto: AnalyzeResponseDto): RenderSceneVmBa
     request: transformRequestMeta(dto.request),
     article: transformArticle(dto.article),
     userFacingState: dto.user_facing_state,
-    translations: dto.translations.map(transformTranslation),
-    inlineMarks: dto.inline_marks.map(transformInlineMark),
-    sentenceEntries: dto.sentence_entries.map(transformSentenceEntry),
-    warnings: dto.warnings.map(transformWarning),
+    translations: (dto.translations ?? []).map(transformTranslation),
+    inlineMarks: (dto.inline_marks ?? []).map(transformInlineMark),
+    sentenceEntries: (dto.sentence_entries ?? []).map(transformSentenceEntry),
+    warnings: (dto.warnings ?? []).map(transformWarning),
   }
 }

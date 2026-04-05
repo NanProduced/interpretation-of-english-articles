@@ -47,13 +47,29 @@
 
 // Intensive Mode Styles
 .sentence-block {
-  margin-bottom: 40rpx;
+  margin-bottom: 56rpx; // Increased from 40rpx for better breathing room
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 16rpx; // Slightly more gap between layers
+  position: relative;
+  padding-bottom: 24rpx;
+
+  // Subtle separator to prevent line jumping
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 64rpx; // Short horizontal line
+    height: 4rpx;
+    background: #E5E7EB;
+    border-radius: 2rpx;
+  }
 
   &:last-child {
     margin-bottom: 0;
+    padding-bottom: 0;
+    &::after { display: none; }
   }
 }
 

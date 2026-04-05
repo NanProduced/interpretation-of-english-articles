@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { InlineMarkModel, DictionaryResult } from '../../types/view/render-scene.vm'
+import { InlineMarkModel, type DictionaryResult } from '../../types/view/render-scene.vm'
+import { fetchDict } from '../../services/api/client'
+import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 
@@ -14,14 +16,22 @@ interface WordPopupProps {
   y?: number
   onClose: () => void
   onExpand?: () => void
+  /** 记入生词本 */
+  onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
+  /** 收藏单词 */
+  onFavorite?: (word: string) => void
 }
 
-export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y = 0, onClose, onExpand }: WordPopupProps) {
+export default function WordPopup({
+  visible, mode = 'full', mark, word, x = 0, y = 0,
+  onClose, onExpand, onAddVocab, onFavorite,
+}: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [audioPlaying, setAudioPlaying] = useState(false)
-  const [screenWidth, setScreenWidth] = useState(375) // 默认值，小程序常用宽度
+  const [screenWidth, setScreenWidth] = useState(375)
+  const audioContextRef = useRef<ReturnType<typeof Taro.createInnerAudioContext> | null>(null)
 
   const lookupText = mark?.lookupText || word
   const lookupKind = mark?.lookupKind
@@ -42,11 +52,13 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
     setLoading(true)
     setError(null)
     try {
-      // TODO: 接入真实词典 API，当前为临时 fallback 数据
-      await new Promise(resolve => setTimeout(resolve, 300))
-      setDictResult(getFallbackDictionaryResult(text))
+      const dto = await fetchDict(text)
+      const vm = dictResponseDtoToVm(dto)
+      setDictResult(vm)
     } catch (err) {
-      setError('查询失败')
+      // 网络失败时降级显示 fallback，不阻塞用户
+      setDictResult(getFallbackDictionaryResult(text))
+      setError('词典暂不可用')
     } finally {
       setLoading(false)
     }
@@ -79,9 +91,34 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
   }
 
   const handlePlayAudio = () => {
-    setAudioPlaying(true)
-    setTimeout(() => setAudioPlaying(false), 800)
+    if (!dictResult?.audioUrl) return
+    if (audioContextRef.current) {
+      audioContextRef.current.destroy()
+    }
+    const audio = Taro.createInnerAudioContext()
+    audioContextRef.current = audio
+    audio.src = dictResult.audioUrl
+    audio.play()
+    audio.onPlay(() => setAudioPlaying(true))
+    audio.onEnded(() => {
+      setAudioPlaying(false)
+      audio.destroy()
+      audioContextRef.current = null
+    })
+    audio.onError(() => {
+      setAudioPlaying(false)
+      audio.destroy()
+      audioContextRef.current = null
+      Taro.showToast({ title: '音频播放失败', icon: 'none' })
+    })
   }
+
+  // 清理音频实例
+  useEffect(() => {
+    return () => {
+      audioContextRef.current?.destroy()
+    }
+  }, [])
 
   if (!visible) return null
 
@@ -117,9 +154,13 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
               >
                 <LucideIcon name='volume2' size={16} color={audioPlaying ? 'var(--color-info)' : 'var(--text-sub)'} />
               </View>
-              <View 
+              <View
                 className='mini-icon-btn'
-                onClick={(e) => { e.stopPropagation(); /* TODO: 收藏 */ }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onFavorite?.(lookupText)
+                  Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 })
+                }}
               >
                 <LucideIcon name='star' size={16} color='var(--text-sub)' />
               </View>
@@ -221,11 +262,23 @@ export default function WordPopup({ visible, mode = 'full', mark, word, x = 0, y
         </ScrollView>
 
         <View className='popup-footer-actions safe-area-bottom'>
-          <View className='footer-action-btn secondary'>
+          <View
+            className='footer-action-btn secondary'
+            onClick={() => {
+              onFavorite?.(lookupText)
+              Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 })
+            }}
+          >
             <LucideIcon name='star' size={18} color='var(--text-sub)' />
             <Text className='btn-text'>收藏</Text>
           </View>
-          <View className='footer-action-btn primary'>
+          <View
+            className='footer-action-btn primary'
+            onClick={() => {
+              onAddVocab?.(lookupText, dictResult)
+              Taro.showToast({ title: '已记入生词本', icon: 'success', duration: 1500 })
+            }}
+          >
             <LucideIcon name='plus' size={18} color='#fff' />
             <Text className='btn-text'>记入生词本</Text>
           </View>

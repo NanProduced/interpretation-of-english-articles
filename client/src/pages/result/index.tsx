@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useArticleStore } from '../../stores/article'
 import { View, Text, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useShareAppMessage } from '@tarojs/taro'
 import { InlineMarkModel, SentenceEntryModel, PageMode, ResultPageState } from '../../types/view/render-scene.vm'
 import NavBar from '../../components/NavBar'
-import ParagraphBlock from '../../components/ParagraphBlock'
+import ParagraphBlock, { type WordClickPayload } from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
 import BottomSheetDetail from '../../components/BottomSheetDetail'
 import LucideIcon from '../../components/LucideIcon'
 import { LoadingIllustration, ErrorIllustration, EmptyIllustration } from '../../components/ResultIllustrations'
 import { useLayoutStore } from '../../stores/layout'
-import { useArticleStore } from '../../stores/article'
+import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry } from '../../services/storage'
+import { track } from '../../services/analytics'
+import type { FavoriteRecord } from '../../types/view/favorites.vm'
+import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import './index.scss'
 
 /** 页面模式选项 */
@@ -65,8 +69,48 @@ export default function Result() {
   const pageState = useArticleStore((s) => s.pageState)
   const sceneData = useArticleStore((s) => s.sceneData)
   const analyze = useArticleStore((s) => s.analyze)
+  const loadRecord = useArticleStore((s) => s.loadRecord)
+  const recordId = useArticleStore((s) => s.recordId)
+  const isReplayMode = useArticleStore((s) => s.isReplayMode)
+
+  // Zustand + Taro 兼容：轮询 store 状态，确保 pageState 变化时强制刷新
+  const [storeVersion, setStoreVersion] = useState(0)
+  const prevPageStateRef = useRef<ResultPageState>('loading')
+  useEffect(() => {
+    // 使用 setInterval 轮询 store 状态，确保捕获变化
+    const intervalId = setInterval(() => {
+      const state = useArticleStore.getState()
+      if (state.pageState !== prevPageStateRef.current) {
+        prevPageStateRef.current = state.pageState
+        setStoreVersion((v) => v + 1)
+      }
+    }, 50)
+    return () => clearInterval(intervalId)
+  }, [])
+
+  // 收藏状态
+  const [favorited, setFavorited] = useState(false)
+
+  // 同步收藏状态（recordId 变化时从 storage 读取）
+  useEffect(() => {
+    if (recordId) {
+      setFavorited(isFavorited(recordId))
+    }
+  }, [recordId])
 
   const showTranslation = pageMode === 'bilingual' || pageMode === 'intensive'
+
+  // === 回看模式：URL 带有 recordId 时从 storage 加载 ===
+  useEffect(() => {
+    const pages = Taro.getCurrentPages()
+    const current = pages[pages.length - 1]
+    const params = (current as any).options || {}
+    const { recordId: urlRecordId, mode } = params
+
+    if (mode === 'replay' && urlRecordId) {
+      loadRecord(urlRecordId)
+    }
+  }, [loadRecord])
 
   // === 加载状态：5 秒后显示次级提示 ===
   useEffect(() => {
@@ -78,25 +122,39 @@ export default function Result() {
     }
   }, [pageState])
 
+  // === 分享能力 ===
+  useShareAppMessage(() => {
+    const state = useArticleStore.getState()
+    const { recordId, sceneData } = state
+    const firstSentence = sceneData?.article.sentences[0]?.text
+    const title = firstSentence
+      ? firstSentence.split('\n')[0].slice(0, 30) + '...'
+      : 'Claread 英语解读'
+    const path = recordId
+      ? `/pages/result/index?recordId=${recordId}&mode=replay`
+      : '/pages/result/index'
+    return { title, path }
+  })
+
   // === 事件处理 ===
 
-  const handleWordClick = (mark: InlineMarkModel, word: string, e?: any) => {
-    const isAIAnnotated = !!mark.glossary
+  const handleWordClick = ({ word, mark, event }: WordClickPayload) => {
+    const isAIAnnotated = !!(mark?.glossary)
     const initialMode = isAIAnnotated ? 'full' : 'mini'
-    setActiveMarkId(mark.id)
+    setActiveMarkId(mark?.id ?? null)
 
     let clientX = 0
     let clientY = 0
-    if (e) {
-      if (e.changedTouches && e.changedTouches[0]) {
-        clientX = e.changedTouches[0].clientX
-        clientY = e.changedTouches[0].clientY
-      } else if (e.detail && e.detail.x !== undefined) {
-        clientX = e.detail.x
-        clientY = e.detail.y
+    if (event) {
+      if (event.changedTouches && event.changedTouches[0]) {
+        clientX = event.changedTouches[0].clientX
+        clientY = event.changedTouches[0].clientY
+      } else if (event.detail && event.detail.x !== undefined) {
+        clientX = event.detail.x
+        clientY = event.detail.y
       }
     }
-    setWordPopup({ visible: true, mode: initialMode, mark, word, x: clientX, y: clientY })
+    setWordPopup({ visible: true, mode: initialMode, mark: mark ?? null, word, x: clientX, y: clientY })
   }
 
   const handleClosePopup = () => {
@@ -108,11 +166,53 @@ export default function Result() {
     setBottomSheet({ visible: true, entry })
   }
 
+  const handleFavoriteEntry = (entry: SentenceEntryModel) => {
+    if (!recordId) return
+    const vocabEntry: VocabEntry = {
+      id: `${recordId}_${entry.id}_${Date.now()}`,
+      recordId,
+      word: entry.title || entry.label,
+      partOfSpeech: entry.entryType === 'grammar_note' ? '语法' : '句式',
+      meaning: entry.content.slice(0, 200),
+      addedAt: Date.now(),
+      mastered: false,
+    }
+    saveVocabEntry(vocabEntry)
+    track('add_vocab', { entryType: entry.entryType, word: entry.title || entry.label })
+    Taro.showToast({ title: '已记入生词本', icon: 'success', duration: 1500 })
+  }
+
+  const handleHelpfulEntry = (entry: SentenceEntryModel) => {
+    track('entry_helpful', {
+      entryType: entry.entryType,
+      entryId: entry.id,
+      label: entry.label,
+    })
+  }
+
+  const handleToggleFavorite = () => {
+    if (!recordId) return
+    if (favorited) {
+      removeFavorite(recordId)
+      updateRecord(recordId, { isFavorited: false })
+      setFavorited(false)
+      track('favorite', { isFavorited: false })
+      Taro.showToast({ title: '已取消收藏', icon: 'none', duration: 1500 })
+    } else {
+      saveFavorite({ recordId, createdAt: Date.now() } as FavoriteRecord)
+      updateRecord(recordId, { isFavorited: true })
+      setFavorited(true)
+      track('favorite', { isFavorited: true })
+      Taro.showToast({ title: '已收藏', icon: 'success', duration: 1500 })
+    }
+  }
+
   const handleRetry = () => {
     const { pageState, requestParams, reset } = useArticleStore.getState()
     // error / timeout / network_fail / empty: 就地重试，保留用户的文章内容
     const retryableStates: ResultPageState[] = ['failed', 'timeout', 'network_fail', 'empty']
     if (retryableStates.includes(pageState) && requestParams) {
+      track('retry', { pageState })
       useArticleStore.getState().analyze(requestParams)
     } else {
       // success (normal/degraded): 返回输入页
@@ -136,16 +236,18 @@ export default function Result() {
 
     const isHeavy = state === 'degraded_heavy'
     const message = isHeavy
-      ? '本次仅生成了基础解读结果，建议稍后重试以获取更完整内容。'
-      : '解读内容已简化，部分细节暂时无法提供，不影响整体理解。'
+      ? '由于网络环境影响，当前为您呈现的是“极速分析”结果。部分深度解析可能暂不可用。'
+      : '分析引擎正在轻量化运行，已为您精选了最重要的解读，细节稍有简化，不影响整体理解。'
 
     return (
       <View className={`degraded-banner ${isHeavy ? 'heavy' : ''}`}>
-        <LucideIcon name='alert-circle' size={14} color='var(--color-focus)' />
-        <Text className='degraded-banner-text'>{message}</Text>
+        <LucideIcon name='info' size={14} color='var(--color-focus)' />
+        <View className='degraded-banner-content'>
+          <Text className='degraded-banner-text'>{message}</Text>
+        </View>
         {isHeavy && (
           <View className='degraded-retry-btn' onClick={handleRetry}>
-            <Text className='degraded-retry-text'>重新分析</Text>
+            <Text className='degraded-retry-text'>获取深度解析</Text>
           </View>
         )}
       </View>
@@ -207,6 +309,18 @@ export default function Result() {
 
   // === Success 状态 ===
 
+  // 防御：pageState 非 loading 但 sceneData 缺失 → 透明渲染（不 crash）
+  if (!sceneData) {
+    return pageShell(
+      <View className='state-container'>
+        <View className='state-vertical'>
+          <LoadingIllustration />
+          <Text className='state-title'>正在加载...</Text>
+        </View>
+      </View>
+    )
+  }
+
   const renderArticleHeader = () => {
     if (!sceneData) return null
     const { request } = sceneData
@@ -225,6 +339,7 @@ export default function Result() {
   }
 
   const renderParagraphs = () => {
+    if (!sceneData?.article?.paragraphs?.length) return null
     return sceneData!.article.paragraphs.map((paragraph) => {
       const sentences = paragraph.sentenceIds
         .map((id) => sceneData!.article.sentences.find((s) => s.sentenceId === id))
@@ -277,9 +392,9 @@ export default function Result() {
       {/* Global Bottom Action Bar */}
       <View className='global-action-bar safe-area-bottom'>
         <View className='action-bar-inner'>
-          <View className='secondary-action'>
-            <LucideIcon name='star' size={20} color='var(--text-sub)' />
-            <Text>收藏全文</Text>
+          <View className={`secondary-action ${favorited ? 'favorited' : ''}`} onClick={handleToggleFavorite}>
+            <LucideIcon name={favorited ? 'star' : 'star'} size={20} color={favorited ? 'var(--color-warn)' : 'var(--text-sub)'} />
+            <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏全文'}</Text>
           </View>
           <View className='primary-action' onClick={handleRetry}>
             <LucideIcon name='refresh-cw' size={18} color='#fff' />
@@ -297,12 +412,29 @@ export default function Result() {
         y={wordPopup.y}
         onClose={handleClosePopup}
         onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
+        onAddVocab={(w, dictResult) => {
+          if (!recordId || !dictResult) return
+          const vocabEntry: VocabEntry = {
+            id: `${recordId}_${w}_${Date.now()}`,
+            recordId,
+            word: w,
+            partOfSpeech: dictResult.meanings[0]?.partOfSpeech || '',
+            meaning: dictResult.meanings[0]?.definitions[0]?.meaning.slice(0, 200) || '',
+            addedAt: Date.now(),
+            mastered: false,
+          }
+          saveVocabEntry(vocabEntry)
+          track('add_vocab', { word: w })
+        }}
+        onFavorite={(w) => { track('favorite_word', { word: w }) }}
       />
 
       <BottomSheetDetail
         visible={bottomSheet.visible}
         entry={bottomSheet.entry}
         onClose={() => setBottomSheet({ ...bottomSheet, visible: false })}
+        onFavorite={handleFavoriteEntry}
+        onHelpful={handleHelpfulEntry}
       />
     </>
   )

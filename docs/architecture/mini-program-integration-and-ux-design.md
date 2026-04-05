@@ -117,15 +117,15 @@ flowchart TD
 - 后端内部 `warnings`、异常码和局部失败信号不应直接原样暴露给用户
 - 前端结果页只展示产品级状态，不展示工程级错误细节
 - 当前结果页以 `loading / normal / degraded_light / degraded_heavy / empty / failed / timeout / network_fail` 作为唯一页面状态入口
-- 当前前端仍基于 `warnings + sentence_entries + errorCode` 本地聚合页面状态，后续更推荐后端直接补充 `user_facing_state` 一类的聚合字段
+- 当前成功态已经开始消费后端 `user_facing_state`，但 `empty / failed / timeout / network_fail` 仍由前端页面状态机负责聚合
 
 ### 5.4 前后端状态边界
 
 当前建议的边界如下：
 
-- 后端负责产出稳定的正文结构、翻译、行内标注、句尾入口、warnings 和错误码
-- 前端负责把这些技术信号聚合为用户可理解的状态、提示文案和交互入口
-- 当真实联调进入稳定阶段后，状态聚合应逐步从前端猜测迁移到后端显式字段，减少 UI 和接口语义漂移
+- 后端负责产出稳定的正文结构、翻译、行内标注、句尾入口、warnings、错误码，以及成功态下的 `user_facing_state`
+- 前端负责把这些技术信号聚合为用户可理解的状态、提示文案和交互入口，并继续兜底 `empty` 与错误态
+- 后续需要继续收敛 `user_facing_state` 的判定规则，避免仅因非关键 warning 就触发降级 banner
 
 当前页面状态映射原则：
 
@@ -196,20 +196,21 @@ flowchart TD
 
 - 页面已经能渲染真实 `/analyze` 结果，但信息层级仍偏混杂，正文、翻译、句尾入口和底部操作栏之间的视觉主次不够清晰
 - 句尾入口当前以内联 chip 形式直接插入正文流，真实数据一多会打断阅读节奏
-- 当前页面状态仍主要依赖前端从 `warnings` 和错误码自行推导，结果完整度与展示策略缺少后端显式语义支持
-- 结果页上的“收藏全文”“记入生词本”等能力仍是占位入口，尚未形成真实用户资产闭环
+- 当前成功态虽然已经开始消费后端 `user_facing_state`，但降级规则仍不够稳定，结果完整度表达还需要继续收敛
+- 结果页上的“收藏全文”“记入生词本”等能力已接入本地资产闭环，但词典查询和云端同步尚未补齐
 
 当前优化方向：
 
 - 前端优先重构阅读布局，拆分正文层、翻译层、句解入口层，降低信息混排
-- 前后端一起补齐结果完整度表达，让状态判定和 UI 展示不再依赖前端猜测
-- 将结果页 CTA 从占位操作升级为真实能力，并与历史记录、收藏、生词本打通
+- 前后端一起收敛结果完整度表达，避免后端非关键 warning 直接触发降级提示
+- 将结果页 CTA 从本地闭环升级为完整能力，并与词典服务、历史记录、收藏、生词本进一步打通
 
 ### 6.5 结果页交互范围
 
 第一阶段建议纳入：
 
 - inline mark 点击
+- 全文英文单词点按查词
 - 底部详情弹层
 - 句子翻译查看
 - warning 展开与收起
@@ -408,6 +409,134 @@ flowchart TD
 - 接入词典查询接口，替换当前词典 fallback
 - 接通“收藏全文”“记入生词本”等 CTA 的真实数据流
 - 明确结果页与历史/收藏/生词本的数据主键与回看策略
+
+##### Phase B.1：词典服务接入改造清单
+
+目标：
+
+- 词典能力统一收口到后端 `/dict`
+- 小程序前端不直接调用第三方词典接口
+- 词典查询结果既能服务结果页弹层，也能服务生词本快照落库
+- 通过缓存减少重复调用第三方词典 API
+
+设计原则：
+
+- 小程序前端只调用自有服务域名下的 `/dict`
+- 第三方 provider、API key、频控、降级 fallback 统一由后端负责
+- 前端只消费稳定的词典视图模型，不感知第三方原始响应结构
+- 生词本保存“渲染快照”，不要保存整份第三方 raw response
+
+为什么必须走后端服务：
+
+- 微信小程序对合法请求域名、鉴权方式和网络细节有约束，前端直连第三方词典成功率和可维护性都不足
+- 第三方 API key 不应暴露在小程序前端
+- 缓存、频控、fallback、生词本复用都属于服务端职责
+
+改造范围：
+
+#### 前端侧
+
+- 将 `WordPopup` 中的本地 fallback 替换为真实 `/dict` 请求
+- mini 卡片优先展示 `word`、`phonetic`、`short_meaning`
+- full bottom sheet 展示 `meanings[]`，每个词性块限制释义条数，优先保证排版稳定
+- “记入生词本”按钮保存词典快照字段，而不是仅保存临时截断文本
+- 在页面会话内允许增加轻量内存缓存，避免同页反复点击同一个词时重复请求
+
+#### 后端侧
+
+- 保留 `/dict` 作为唯一词典接口入口
+- 将当前“路由直接请求第三方”的实现升级为 `route -> service -> provider -> cache`
+- provider 层负责接不同词典源并归一化返回
+- cache 层至少支持：
+  - L1：进程内 TTL cache，用于热点词重复点击
+  - L2：持久化缓存，用于跨会话复用和控制第三方调用量
+- service 层负责：
+  - 查询词归一化
+  - 先查缓存，再查 provider
+  - 统一 fallback 和错误映射
+  - 输出稳定 DTO
+
+推荐的最小后端目录拆分：
+
+- `server/app/api/routes/dict.py`
+- `server/app/services/dictionary/service.py`
+- `server/app/services/dictionary/cache.py`
+- `server/app/services/dictionary/providers/base.py`
+- `server/app/services/dictionary/providers/dictionaryapi.py`
+
+推荐的统一返回结构：
+
+```json
+{
+  "query": "paradigm",
+  "entry": {
+    "word": "paradigm",
+    "lemma": "paradigm",
+    "phonetic": "/ˈpærədaɪm/",
+    "audio_url": "https://...",
+    "short_meaning": "范式；思维模式",
+    "meanings": [
+      {
+        "part_of_speech": "n.",
+        "definitions": [
+          {
+            "meaning": "范式；典范",
+            "example": "a new paradigm for scientific research"
+          }
+        ]
+      }
+    ]
+  },
+  "provider": "dictionaryapi",
+  "cached": true,
+  "cache_expires_at": "2026-04-06T12:00:00Z"
+}
+```
+
+字段边界说明：
+
+- `short_meaning`：服务 mini 卡片与生词本列表，不要求严格词典级专业度
+- `meanings[]`：服务 full 详情弹层
+- `provider`：用于问题排查和后续多 provider 策略
+- `cached`：用于调试与观测，不强制前端展示
+
+生词本建议最小快照字段：
+
+- `word`
+- `lemma`
+- `phonetic`
+- `audio_url`
+- `part_of_speech`
+- `short_meaning`
+- `source_provider`
+- `record_id`
+- `added_at`
+
+缓存策略建议：
+
+- 查询 key：`provider + normalized_query`
+- 归一化规则：`trim + lowercase`
+- L1 TTL：`24h`
+- L2 TTL：`30d`
+- 对 `not_found` 结果也允许短 TTL 缓存，避免重复查空词
+
+provider 选型建议：
+
+- MVP 默认 provider：`dictionaryapi.dev`
+- 中期稳定方案：自托管开放词典数据服务，例如 `FreeDict / WikDict`
+- 不建议当前阶段默认接入需要商务谈判且限制缓存的数据源作为主 provider
+
+当前推荐决策：
+
+- 先用后端 `/dict` 代理 `dictionaryapi.dev` 完成结果页真实接线
+- 不在小程序前端开放用户自配 API key
+- 在正式上线或词典请求量提升前，评估迁移到自托管开放词典数据
+
+文档维护要求：
+
+- 所有词典协议、缓存策略和 provider 选择均以本文档为准，不再新增独立的“临时词典方案”文档
+- 如果后续新增第二 provider，应先更新本文档的“词典服务接入改造清单”和状态跟踪，再进入开发
+- 如果生词本模型扩展字段，应同步更新本节和主线三的数据模型边界
 
 #### Phase C：登录与身份态
 
@@ -784,8 +913,8 @@ flowchart TD
 | `RenderSceneVm` 前端视图模型 | ✅ 完成 | `client/src/types/view/render-scene.vm.ts` |
 | `analyzeResponseDtoToVm` 适配器 | ✅ 完成 | `client/src/services/api/adapters/render-scene.adapter.ts` |
 | 环境配置 (local/dev/prod) | ✅ 完成 | `client/src/config/env.ts` |
-| 前端状态聚合 (`warnings -> userFacingState`) | ✅ 完成 | `client/src/stores/article.ts` |
-| 后端聚合状态字段 (`user_facing_state`) | 🔲 未开始 | 当前仍由前端推导 |
+| 前端页面状态机聚合 | ✅ 完成 | `client/src/stores/article.ts` |
+| 后端聚合状态字段 (`user_facing_state`) | 🟡 已部分收敛 | `server/app/workflow/analyze_nodes.py`， informational warnings（LOW_ENGLISH_RATIO / HIGH_NOISE_RATIO / UNSUPPORTED_TEXT_TYPE / DRAFT_VALIDATION）不再触发降级。但任何非 informational 列表内的 warning（如 REPAIR_AGENT_FAILED）仍会触发 degraded_light，规则边界比"仅 agent 失败"更宽 |
 
 **类型边界已确立：**
 - `types/api/` = 后端 DTO (snake_case)
@@ -793,8 +922,9 @@ flowchart TD
 - 转换只在 `render-scene.adapter.ts` 一处
 
 **当前缺口：**
-- 已完成从 mock 设计转向真实接口联调，但后端尚未提供页面级聚合状态字段
-- 当前结果完整度和降级强度仍由前端根据 `warnings` 猜测，不适合作为长期边界
+- 已完成从 mock 设计转向真实接口联调，后端也已开始提供 `user_facing_state`
+- 降级规则已部分收敛：informational warnings（LOW_ENGLISH_RATIO / HIGH_NOISE_RATIO / UNSUPPORTED_TEXT_TYPE / DRAFT_VALIDATION）不再触发降级，但 any non-informational warning（如 REPAIR_AGENT_FAILED，level=warning）仍会触发 degraded_light，规则边界比"仅 agent 失败"更宽
+- 当前缺口是” `/dict` 端到端真机验证”、”前后台恢复策略落地”和”结果页 UI/UX 布局优化”
 
 ### 主线二：结果页与分析流程体验
 
@@ -810,13 +940,15 @@ flowchart TD
 | **Empty 状态 UI** | ✅ 完成 | `result/index.tsx` |
 | 降级状态 banner | ✅ 完成 | `client/src/pages/result/index.tsx` |
 | **source_type 边界注释** | ✅ 完成 | `client.ts`, `render-scene.vm.ts` |
-| Inline Mark 点击交互 | ✅ 完成 | `ParagraphBlock` + `WordPopup` |
+| 全文点词查词（含普通词 + 标注词） | ✅ 完成 | `ParagraphBlock` + `InlineMark` + `ClickableWord` + `WordPopup`，`onWordClick` 统一 payload |
 | 底部详情弹层 | ✅ 完成 | `BottomSheetDetail` |
 | “重新分析” 按钮 | ✅ 完成 | `result/index.tsx` |
 | 页面模式切换 (沉浸/双语/精读) | ✅ 完成 | `result/index.tsx` |
 | 结果页布局针对真实数据优化 | 🟡 进行中 | 已能渲染真实数据，但 UI/UX 仍需重构 |
-| `/dict` 真接口接入 | 🔲 未开始 | `WordPopup` 仍使用本地 fallback |
-| 收藏全文 / 生词本真实能力 | 🔲 未开始 | 结果页 CTA 仍为占位入口 |
+| 历史页"去粘贴文章"导航 | ✅ 已修复 | `history/index.tsx` 从 `switchTab` 改为 `navigateTo`（input 非 tabBar 页面） |
+| `/dict` 真接口接入 | ✅ 完成 | `WordPopup` 已接入真实 `/dict` API，失败时降级显示 fallback |
+| 收藏全文 / 生词本真实能力 | ✅ 完成 | 结果页 CTA 已接线到本地存储闭环，云端同步未开始 |
+| 历史页筛选 Tab（全部 / 已收藏） | ✅ 完成 | `history/index.tsx`，`activeTab` 状态 + 筛选逻辑 |
 
 **组件类型已统一：**
 - 所有组件 (`ParagraphBlock`, `InlineMark`, `WordPopup`, `BottomSheetDetail`, `SentenceActionChip`) 从 `@/types/view/render-scene.vm` 导入类型
@@ -832,26 +964,43 @@ flowchart TD
 | 任务 | 状态 | 说明 |
 |------|------|------|
 | Onboarding 完成标记本地存储 | ✅ 完成 | `Taro.getStorageSync/setStorageSync('user_configured')` |
-| 历史记录页注册 | 🟡 占位完成 | 页面已存在，但仍是静态假数据 |
+| 历史记录页注册 | ✅ 完成 | 已切换为真实本地数据源，支持删除、下拉刷新、回看 |
 | 个人中心页注册 | 🟡 占位完成 | 页面已存在，但用户信息和统计均为静态文案 |
 | 分析请求参数保存在 store | ✅ 完成 | 当前支持结果页就地重试 |
-| 本地分析结果持久化 | 🔲 未开始 | 尚未落地到 storage |
-| 收藏 / 删除 / 再次查看 | 🔲 未开始 | 尚无真实数据层 |
-| 生词本数据模型 | 🔲 未开始 | 仅有入口，无数据实现 |
+| 本地分析结果持久化 | ✅ 完成 | 已建立 storage 服务封装，分析后自动保存并支持 `loadRecord` 回看 |
+| 收藏 / 删除 / 再次查看 | ✅ 完成 | 收藏全文、历史删除、回看已接线，云端同步仍未开始 |
+| 生词本数据模型 | ✅ 完成 | `VocabEntry` 已落地，本地“记入生词本”已接线 |
 | 云端历史记录接口 | 🔲 未开始 | 后端当前无对应路由 |
+| 输入草稿自动保存与离开保护 | ✅ 完成 | 输入页支持 500ms 防抖自动保存和离开提示 |
+| 词典前端接线 | ✅ 完成 | `WordPopup` 已接入真实 `/dict` API（`fetchDict` + `dict.adapter.ts`），失败降级 fallback |
+| 词典后端服务化 | ✅ 完成 | 已具备 `dict.py` + `DictionaryService` + `providers/dictionaryapi.py` + `cache.py` 分层，默认 provider 为 `dictionaryapi.dev` |
 
 ### 主线四：微信小程序平台能力接入
 
 | 任务 | 状态 | 说明 |
 |------|------|------|
 | 页面路由骨架 | ✅ 完成 | onboarding / home / input / result / history / profile 已注册 |
-| 基础本地缓存能力使用 | 🟡 起步完成 | 目前仅用于 onboarding 标记 |
+| 基础本地缓存能力使用 | ✅ 完成 | 已用于 onboarding、输入草稿、历史记录、收藏、生词本 |
 | 登录态请求头注入预留 | 🟡 已预留 | `getAuthHeaders()` 仍为空实现 |
-| 前后台状态恢复 | 🔲 未开始 | 暂无生命周期恢复逻辑 |
-| 分享能力接入 | 🔲 未开始 | 暂无结果页分享策略 |
-| 埋点与异常上报 | 🔲 未开始 | 暂无小程序侧埋点方案 |
+| 前后台状态恢复 | 🟡 部分完成 | `app.tsx` 已注册 `Taro.onAppShow`，但当前只有 console.log，无实际恢复逻辑。Result 页正在分析中时切后台，回来可能丢失状态 |
+| 分享能力接入 | ✅ 完成 | `result/index.tsx` 已注册 `useShareAppMessage`，配置 `enableShareAppMessage: true` |
+| 埋点与异常上报 | 🟡 console 占位完成 | `services/analytics.ts` 仅 `console.log` stub，无真实 SDK，无上报链路。真实埋点和异常上报需在 Phase C/D 接入 |
 | 真机性能与包体检查 | 🔲 未开始 | 仍需专项验收 |
+| Android 兼容性渲染修复 | ✅ 完成 | 结果页已移除 `backdrop-filter`，改为更稳定的阴影方案 |
 
 ---
 
-**最后更新：** 2026-04-05
+**最后更新：** 2026-04-05（修复 user_facing_state 降级规则、历史页导航 Bug、清理编译残留 .js，补齐全文点词查词与分词死循环修复，并修正 analytics/词典/user_facing_state 文档状态失真）
+
+### Bug 修复记录
+
+| 日期 | Bug | 修复文件 | 说明 |
+|------|-----|---------|------|
+| 2026-04-05 | `user_facing_state` 降级规则过激 | `server/app/workflow/analyze_nodes.py` | informational warnings 不再触发 degraded_light |
+| 2026-04-05 | 历史页导航使用 `switchTab`（input 非 tabBar 页）| `client/src/pages/history/index.tsx` | 改为 `navigateTo` |
+| 2026-04-05 | 源目录残留 .js 编译产物（stale compiled output）| `client/src/` | 删除 32 个过时编译文件，保留所有 `.config.js` |
+| 2026-04-05 | 文档状态失真：analytics 标 ✅ 实为 console stub | `docs/.../mini-program-integration-and-ux-design.md` | 改为 🟡 console 占位完成 |
+| 2026-04-05 | 文档状态失真：user_facing_state 标"规则已收敛" | `docs/.../mini-program-integration-and-ux-design.md` | 改为 🟡 已部分收敛，补充 REPAIR_AGENT_FAILED 等非 informational warning 仍触发降级的说明 |
+| 2026-04-05 | 新增全文点词查词：结果页所有英文词均可点击查词 | `ParagraphBlock` + `ClickableWord` + `InlineMark` | 普通词触发 `/dict` mini 弹层，标注词保留 glossary + examTags + AI 增强，payload 统一为 `{ word, mark, event }` |
+| 2026-04-05 | 全文点词分词正则导致模拟器卡死 | `client/src/components/ParagraphBlock/utils.ts` | `[^a-zA-Z]*` 改为 `[^a-zA-Z]+`，消除零长度匹配导致的 `exec()` 死循环 |
+| 2026-04-05 | 词典后端服务化落地 | `server/app/api/routes/dict.py` + `server/app/services/dictionary/*` | `/dict` 已升级为 route → service → provider → cache 结构，支持缓存命中标记 |

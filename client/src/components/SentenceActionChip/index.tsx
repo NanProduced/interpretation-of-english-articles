@@ -9,8 +9,8 @@ interface SentenceActionChipProps {
 }
 
 const TYPE_CONFIG = {
-  grammar_note: { icon: 'book', color: '#22c55e' },
-  sentence_analysis: { icon: 'sparkles', color: '#8b5cf6' },
+  grammar_note: { icon: 'book', color: '#059669' }, // Emerald for grammar tool
+  sentence_analysis: { icon: 'sparkles', color: '#4f46e5' }, // Indigo for analysis tool
 }
 
 export default function SentenceActionChip({ entry, onClick }: SentenceActionChipProps) {

@@ -14,13 +14,13 @@
   }
 
   &.grammar_note {
-    background-color: rgba(34, 197, 94, 0.08);
-    border-color: rgba(34, 197, 94, 0.15);
+    background-color: rgba(5, 150, 105, 0.05); // More subtle Emerald background
+    border-color: rgba(5, 150, 105, 0.2); // Stronger border
   }
 
   &.sentence_analysis {
-    background-color: rgba(139, 92, 246, 0.08);
-    border-color: rgba(139, 92, 246, 0.15);
+    background-color: rgba(79, 70, 229, 0.05); // More subtle Indigo background
+    border-color: rgba(79, 70, 229, 0.2); // Stronger border
   }
 
   .chip-label {

@@ -1,3 +1,5 @@
 export default {
-  navigationBarTitleText: '历史记录'
+  navigationBarTitleText: '历史记录',
+  enablePullDownRefresh: true,
+  backgroundTextStyle: 'dark',
 }

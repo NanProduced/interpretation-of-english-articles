@@ -111,7 +111,10 @@
       "mcp__plugin_serena_serena__read_memory",
       "mcp__plugin_serena_serena__check_onboarding_performed",
       "Bash(grep -l \"getWindowInfo\" node_modules/@tarojs/taro/types/*.d.ts)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(rtk tsc:*)",
+      "Bash(ls \"C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/\"*.tsx)",
+      "Bash(ls \"C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/\"*.ts)"
     ]
   }
 }

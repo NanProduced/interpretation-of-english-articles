@@ -8,6 +8,7 @@
 import Taro from '@tarojs/taro'
 import { apiConfig, getAuthHeaders } from '../../config/api.config'
 import type { AnalyzeResponseDto } from '../../types/api/analyze-response.dto'
+import type { DictResponseDto } from '../../types/api/dict-response.dto'
 
 /** API 错误类型 */
 export class ApiError extends Error {
@@ -106,6 +107,8 @@ export interface AnalyzeRequest {
   reading_variant: 'gaokao' | 'cet' | 'gre' | 'ielts_toefl' | 'beginner_reading' | 'intermediate_reading' | 'intensive_reading' | 'academic_general'
   /** 当前联调范围: 仅限 user_input */
   source_type: 'user_input'
+  /** 是否开启深度篇章分析 */
+  extended?: boolean
 }
 
 /**
@@ -119,5 +122,19 @@ export async function fetchAnalyze(dto: AnalyzeRequest): Promise<AnalyzeResponse
     url: '/analyze',
     method: 'POST',
     data: dto,
+  })
+}
+
+// ============ /dict API ============
+
+/**
+ * 调用 /dict 接口查询单词释义
+ *
+ * 使用 Free Dictionary API (dictionaryapi.dev)
+ * 降级策略：网络失败时返回 null，不阻塞 UI
+ */
+export async function fetchDict(word: string): Promise<DictResponseDto> {
+  return request<DictResponseDto>({
+    url: `/dict?q=${encodeURIComponent(word)}&type=word`,
   })
 }

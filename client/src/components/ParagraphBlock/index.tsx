@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
 import { View, Text } from '@tarojs/components'
-import { InlineMarkModel, SentenceEntryModel, TextAnchor, MultiTextAnchor, VisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
+import { InlineMarkModel, SentenceEntryModel, VisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
 import InlineMark from '../InlineMark'
 import SentenceActionChip from '../SentenceActionChip'
+import ClickableWord from '../ClickableWord'
+import { tokenizeText } from './utils'
 import './index.scss'
 
 const TONE_PRIORITY: Record<VisualTone, number> = {
@@ -10,6 +12,12 @@ const TONE_PRIORITY: Record<VisualTone, number> = {
   phrase: 2,
   context: 3,
   grammar: 4,
+}
+
+export interface WordClickPayload {
+  word: string
+  mark: InlineMarkModel | null
+  event?: any
 }
 
 interface ParagraphBlockProps {
@@ -20,11 +28,11 @@ interface ParagraphBlockProps {
   activeMarkId?: string | null
   tailEntries: SentenceEntryModel[]
   pageMode: 'immersive' | 'bilingual' | 'intensive'
-  onWordClick?: (mark: InlineMarkModel, word: string, event?: any) => void
+  onWordClick?: (payload: WordClickPayload) => void
   onChipClick?: (entry: SentenceEntryModel) => void
 }
 
-function findTextAnchorPosition(text: string, anchorText: string, occurrence: number = 1): number {
+function findTextAnchorPosition(text: string, anchorText: string, occurrence = 1): number {
   let count = 0
   let pos = 0
   const safeOccurrence = occurrence || 1
@@ -38,18 +46,58 @@ function findTextAnchorPosition(text: string, anchorText: string, occurrence: nu
   return -1
 }
 
+/**
+ * 在已有标注的基础上，把"标注词之间"的普通英文文本也变成可点击词。
+ * plainSegment: 标注词前后的普通文本（已被 text.slice 截取，不含标注词）
+ */
+function renderPlainSegmentAsClickableWords(
+  plainText: string,
+  onWordClick?: (payload: WordClickPayload) => void
+): React.ReactNode[] {
+  if (!plainText) return []
+  const tokens = tokenizeText(plainText)
+  return tokens.map((token, idx) => {
+    if (token.type === 'word') {
+      return (
+        <ClickableWord
+          key={`cw-${idx}`}
+          word={token.text}
+          onClick={(w) => onWordClick?.({ word: w, mark: null })}
+        />
+      )
+    }
+    return <Text key={`p-${idx}`}>{token.text}</Text>
+  })
+}
+
 function renderTextWithMarks(
   text: string,
   marks: InlineMarkModel[],
   activeMarkId?: string | null,
-  onWordClick?: (mark: InlineMarkModel, word: string, event?: any) => void
+  onWordClick?: (payload: WordClickPayload) => void
 ) {
   if (marks.length === 0) {
-    return <Text className='sentence-text'>{text}</Text>
+    // 无标注：整句普通文本 → 全部英文词可点击
+    const tokens = tokenizeText(text)
+    return (
+      <Text className='sentence-text'>
+        {tokens.map((token, idx) =>
+          token.type === 'word' ? (
+            <ClickableWord
+              key={`cw-${idx}`}
+              word={token.text}
+              onClick={(w) => onWordClick?.({ word: w, mark: null })}
+            />
+          ) : (
+            <Text key={`p-${idx}`}>{token.text}</Text>
+          )
+        )}
+      </Text>
+    )
   }
 
   const flatParts: Array<{ mark: InlineMarkModel; start: number; end: number; text: string }> = []
-  
+
   marks.forEach((m) => {
     if (m.anchor.kind === 'text') {
       const pos = findTextAnchorPosition(text, m.anchor.anchorText, m.anchor.occurrence || 1)
@@ -63,7 +111,7 @@ function renderTextWithMarks(
           const partMark: InlineMarkModel = {
             ...m,
             id: `${m.id}-part-${idx}`,
-            parentId: m.id, // Track parent ID for activation
+            parentId: m.id,
             anchor: {
               kind: 'text',
               sentenceId: m.anchor.sentenceId,
@@ -83,33 +131,37 @@ function renderTextWithMarks(
     return TONE_PRIORITY[a.mark.visualTone] - TONE_PRIORITY[b.mark.visualTone]
   })
 
-  const resultElements: Array<JSX.Element | string> = []
+  const resultElements: Array<React.ReactNode | string> = []
   let lastEnd = 0
 
   for (const item of flatParts) {
     if (item.start < lastEnd) continue
 
+    // 先把标注词之前的普通文本渲染为可点击词
     if (item.start > lastEnd) {
-      resultElements.push(text.slice(lastEnd, item.start))
+      const plainSegment = text.slice(lastEnd, item.start)
+      resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, onWordClick))
     }
 
+    // 标注词本身
     const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
-
     resultElements.push(
       <InlineMark
         key={item.mark.id}
         mark={item.mark}
         text={item.text}
         isActive={isActive}
-        onClick={onWordClick}
+        onWordClick={onWordClick}
       />
     )
 
     lastEnd = item.end
   }
 
+  // 标注词之后的剩余文本
   if (lastEnd < text.length) {
-    resultElements.push(text.slice(lastEnd))
+    const plainSegment = text.slice(lastEnd)
+    resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, onWordClick))
   }
 
   return <Text className='sentence-text'>{resultElements}</Text>
@@ -126,8 +178,25 @@ export default function ParagraphBlock({
   onWordClick,
   onChipClick,
 }: ParagraphBlockProps) {
-  
-  // Assemble the paragraph translations into one block
+  const marksBySentenceId = useMemo(() => {
+    const map = new Map<string, InlineMarkModel[]>()
+    inlineMarks.forEach((m) => {
+      const sid = m.anchor.sentenceId
+      if (!map.has(sid)) map.set(sid, [])
+      map.get(sid)!.push(m)
+    })
+    return map
+  }, [inlineMarks])
+
+  const entriesBySentenceId = useMemo(() => {
+    const map = new Map<string, SentenceEntryModel[]>()
+    tailEntries.forEach((e) => {
+      if (!map.has(e.sentenceId)) map.set(e.sentenceId, [])
+      map.get(e.sentenceId)!.push(e)
+    })
+    return map
+  }, [tailEntries])
+
   const fullTranslation = sentences
     .map(s => translations.find(t => t.sentenceId === s.sentenceId)?.translationZh)
     .filter(Boolean)
@@ -142,7 +211,7 @@ export default function ParagraphBlock({
         <View className='english-paragraph'>
           <Text className='english-flow'>
             {sentences.map((sentence, idx) => {
-              const sentenceMarks = inlineMarks.filter(mark => mark.anchor.sentenceId === sentence.sentenceId)
+              const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
               return (
                 <Text key={sentence.sentenceId} className='sentence-span'>
                   {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
@@ -163,7 +232,7 @@ export default function ParagraphBlock({
         <View className='english-paragraph'>
           <Text className='english-flow'>
             {sentences.map((sentence, idx) => {
-              const sentenceMarks = inlineMarks.filter(mark => mark.anchor.sentenceId === sentence.sentenceId)
+              const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
               return (
                 <Text key={sentence.sentenceId} className='sentence-span'>
                   {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, onWordClick)}
@@ -186,8 +255,8 @@ export default function ParagraphBlock({
   return (
     <View className='paragraph-block intensive'>
       {sentences.map((sentence) => {
-        const sentenceMarks = inlineMarks.filter(mark => mark.anchor.sentenceId === sentence.sentenceId)
-        const sentenceEntries = tailEntries.filter(entry => entry.sentenceId === sentence.sentenceId)
+        const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
+        const sentenceEntries = entriesBySentenceId.get(sentence.sentenceId) || []
         const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
 
         return (
@@ -226,4 +295,3 @@ export default function ParagraphBlock({
     </View>
   )
 }
-

@@ -33,6 +33,7 @@ class AnalyzeRequest(BaseModel):
     )
     request_id: str | None = Field(default=None, description="可选请求标识。")
     model_selection: ModelSelection | None = Field(default=None, description="运行时模型路由配置。")
+    extended: bool = Field(default=False, description="是否开启深度篇章分析。")
 
     def model_post_init(self, __context__: Any) -> None:
         allowed_variants = GOAL_VARIANT_MAP[self.reading_goal]

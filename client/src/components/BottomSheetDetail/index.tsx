@@ -1,4 +1,5 @@
 import { View, Text, ScrollView } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import { SentenceEntryModel } from '../../types/view/render-scene.vm'
 import { parseMarkdown } from '../../utils/parseMarkdown'
 import LucideIcon from '../LucideIcon'
@@ -8,6 +9,10 @@ interface BottomSheetDetailProps {
   visible: boolean
   entry: SentenceEntryModel | null
   onClose: () => void
+  /** 收藏此项回调（Phase 2 将接入真实数据） */
+  onFavorite?: (entry: SentenceEntryModel) => void
+  /** 有帮助回调（Phase 2 将接入真实数据） */
+  onHelpful?: (entry: SentenceEntryModel) => void
 }
 
 /**
@@ -45,10 +50,20 @@ function renderMarkdownSegment(segment: ReturnType<typeof parseMarkdown>[number]
   )
 }
 
-export default function BottomSheetDetail({ visible, entry, onClose }: BottomSheetDetailProps) {
+export default function BottomSheetDetail({ visible, entry, onClose, onFavorite, onHelpful }: BottomSheetDetailProps) {
   if (!visible || !entry) return null
 
   const contentSegments = parseMarkdown(entry.content)
+
+  const handleFavorite = () => {
+    Taro.showToast({ title: '已收藏', icon: 'success', duration: 1500 })
+    onFavorite?.(entry)
+  }
+
+  const handleHelpful = () => {
+    Taro.showToast({ title: '感谢反馈', icon: 'success', duration: 1500 })
+    onHelpful?.(entry)
+  }
 
   return (
     <View className='bottom-sheet-overlay' onClick={onClose}>
@@ -71,11 +86,11 @@ export default function BottomSheetDetail({ visible, entry, onClose }: BottomShe
         </ScrollView>
 
         <View className='sheet-footer-actions safe-area-bottom'>
-          <View className='footer-action-btn secondary'>
+          <View className='footer-action-btn secondary' onClick={handleFavorite}>
             <LucideIcon name='star' size={18} color='var(--text-sub)' />
             <Text className='btn-text'>收藏此项</Text>
           </View>
-          <View className='footer-action-btn primary'>
+          <View className='footer-action-btn primary' onClick={handleHelpful}>
             <LucideIcon name='thumbsUp' size={18} color='#fff' />
             <Text className='btn-text'>非常有帮助</Text>
           </View>

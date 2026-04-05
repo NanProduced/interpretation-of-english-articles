@@ -1,10 +1,21 @@
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { useState, useEffect } from 'react'
 import { useConfigStore } from '../../stores/config'
+import { getAllRecords, getVocabulary } from '../../services/storage'
 import './index.scss'
 
 export default function ProfilePage() {
   const { purpose } = useConfigStore()
+  const [articleCount, setArticleCount] = useState(0)
+  const [wordCount, setWordCount] = useState(0)
+
+  useEffect(() => {
+    const records = getAllRecords()
+    setArticleCount(records.length)
+    const vocab = getVocabulary()
+    setWordCount(vocab.length)
+  }, [])
 
   const purposeMap = {
     'daily': '日常阅读',
@@ -17,7 +28,7 @@ export default function ProfilePage() {
       title: "学习管理",
       items: [
         { label: "当前模式配置", value: purposeMap[purpose] || "未设置", icon: 'settings', url: '/pages/onboarding/index', color: 'blue' },
-        { label: "我的生词本", value: "128词", icon: 'bookmark', color: 'yellow' },
+        { label: "我的生词本", value: wordCount > 0 ? `${wordCount}词` : "暂无生词", icon: 'bookmark', color: 'yellow' },
       ]
     },
     {
@@ -46,7 +57,9 @@ export default function ProfilePage() {
         <View className='avatar'>M</View>
         <View className='user-info'>
           <Text className='nickname'>微信用户</Text>
-          <Text className='stats'>已累计阅读 12 篇文章</Text>
+          <Text className='stats'>
+            {articleCount > 0 ? `已累计阅读 ${articleCount} 篇文章` : '暂无阅读记录'}
+          </Text>
         </View>
       </View>
 
