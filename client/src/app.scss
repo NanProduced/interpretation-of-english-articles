@@ -1,80 +1,86 @@
 /* 全局 Design Tokens - 适配自 Figma 新设计与 Goodnotes 质感 */
 page {
-  // 基础颜色 (Brand Palette)
-  --color-ink: #030213;           // 主文字、重点
-  --color-bg: #FAF9F9;            // 页面背景（微暖白）
+  // 基础颜色 (Brand Palette) - 模拟高质感纸张
+  --color-ink: #121212;           // 极深炭黑，替代纯黑 (更护眼，更有质感)
+  --color-bg: #FAF9F9;            // 页面背景 (Goodnotes 暖白)
   --primary-color: var(--color-ink);
   --bg-color: var(--color-bg);
 
-  // 语义色 - 标注 (Semantic Annotation Colors)
-  --color-info:      #2563eb;     // info 高亮 (深蓝)
-  --color-focus:     #d97706;     // focus 高亮 (琥珀)
-  --color-exam:      #e11d48;     // exam 高亮 (玫瑰)
-  --color-phrase:    #6d28d9;     // phrase 高亮 (紫)
-  --color-grammar:   #059669;     // grammar 高亮 (翠绿)
+  // 语义色 - 墨水/荧光笔质感 (OKLCH 逻辑配色，饱和度适中)
+  --color-info:      #2E5BB2;     // 藏青 (info)
+  --color-focus:     #B45309;     // 琥珀 (focus)
+  --color-exam:      #BE123C;     // 胭脂 (exam)
+  --color-phrase:    #6D28D9;     // 丁香 (phrase)
+  --color-grammar:   #047857;     // 松石 (grammar)
 
   --vocab-color: var(--color-exam);
   --grammar-color: var(--color-grammar);
   --phrase-color: var(--color-phrase);
   --warning-color: var(--color-focus);
 
-  // 推荐卡片颜色 (Card Backgrounds)
-  --color-card-blue:   #f5f9ff;
-  --color-card-orange: #fff9f5;
-  --color-card-purple: #faf9ff;
+  // 推荐卡片颜色 (更细腻的半透明背景)
+  --color-card-blue:   rgba(46, 91, 178, 0.04);
+  --color-card-orange: rgba(180, 83, 9, 0.04);
+  --color-card-purple: rgba(109, 40, 217, 0.04);
   
-  // 文字层级 (Typography Levels)
-  --text-main: #171717;
-  --text-sub:  #717182;
-  --text-muted: #999999;
-  --border-color: rgba(0, 0, 0, 0.05);
+  // 文字层级
+  --text-main: #1A1A1A;
+  --text-sub:  #646470;           // 略带冷调的灰，增加高级感
+  --text-muted: #A1A1AA;
+  --border-color: rgba(0, 0, 0, 0.04);
   
-  // 圆角系统 (Radius - 8rpx grid)
-  --radius-lg: 48rpx;   // 大卡片
-  --radius-md: 32rpx;   // 中等卡片
-  --radius-sm: 24rpx;   // 小元素
-  --radius-xs: 16rpx;   // chip、tag
+  // 圆角系统 (8rpx grid)
+  --radius-lg: 40rpx;   // 调小一点更显精致
+  --radius-md: 24rpx;
+  --radius-sm: 16rpx;
+  --radius-xs: 8rpx;
 
-  // 字体系统 (Typography)
-  --font-sans: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-serif: "Georgia", "Source Serif Pro", serif;
-  --font-mono: "SF Mono", "Menlo", "Monaco", "Courier New", monospace;
+  // 字体系统 (Typography Overhaul)
+  // 英文主体使用 Serif 增加阅读愉悦感；中文使用系统字体
+  --font-sans: -apple-system, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Source Serif Pro", "Georgia", "PT Serif", serif;
+  --font-mono: "SF Mono", "Menlo", "Monaco", monospace;
 
-  // 字号阶梯 (Type Scale)
+  // 字号阶梯 (更细腻的比例)
   --text-xs: 22rpx;
   --text-sm: 26rpx;
   --text-base: 30rpx;
-  --text-lg: 34rpx;
-  --text-xl: 40rpx;
-  --text-2xl: 48rpx;
-  --text-3xl: 56rpx;
+  --text-lg: 36rpx;     // 稍微增大 34 -> 36 提升阅读感
+  --text-xl: 42rpx;
+  --text-2xl: 52rpx;
+  --text-3xl: 64rpx;
 
-  // 行高与间距
-  --leading-tight: 1.2;
-  --leading-normal: 1.5;
+  // 阅读韵律 (Leading & Tracking)
+  --leading-tight: 1.25;
+  --leading-normal: 1.6;
   --leading-relaxed: 1.8;
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0.015em;
+  --tracking-wide: 0.03em;
+  
   --weight-normal: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
 
-  // 活跃状态高亮 (荧光笔效果)
-  --active-highlight-bg: #FEF08A; 
+  // 活跃状态高亮 (荧光笔效果 - 降低饱和度，更自然)
+  --active-highlight-bg: #FEF9C3; // 更浅的淡黄
   --active-highlight-text: var(--color-ink);
 
   /* 推荐卡片颜色 */
-  --blue-bg: rgba(239, 246, 255, 0.5);
-  --blue-text: #1d4ed8;
-  --orange-bg: rgba(255, 247, 237, 0.5);
-  --orange-text: #c2410c;
-  --purple-bg: rgba(250, 245, 255, 0.5);
-  --purple-text: #7e22ce;
+  --blue-bg: rgba(46, 91, 178, 0.05);
+  --blue-text: var(--color-info);
+  --orange-bg: rgba(180, 83, 9, 0.05);
+  --orange-text: var(--color-focus);
+  --purple-bg: rgba(109, 40, 217, 0.05);
+  --purple-text: var(--color-phrase);
 
   background-color: var(--bg-color);
   color: var(--text-main);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-normal);
 }
 
 .safe-area-bottom {

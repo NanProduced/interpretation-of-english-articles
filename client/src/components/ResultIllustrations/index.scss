@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 240rpx;       // 插画 + 留白总宽
-  height: 240rpx;      // 垂直居中所需高度
+  width: 320rpx;
+  height: 320rpx;
 
   svg {
     display: block;
@@ -11,24 +11,56 @@
   }
 }
 
-// Loading: 文字行脉冲动画
+// === Loading: 扫描线与分析点动画 ===
 .loading-illustration {
-  .skeleton-line {
-    opacity: 1;
-    animation: pulse-line 1.8s ease-in-out infinite;
+  .scanner-line {
+    animation: scanner-move 2s ease-in-out infinite;
+    opacity: 0.6;
+    filter: blur(1rpx);
   }
 
-  .delay-1 { animation-delay: 0s; }
-  .delay-2 { animation-delay: 0.2s; }
-  .delay-3 { animation-delay: 0.4s; }
-  .delay-4 { animation-delay: 0.6s; }
+  .analysis-dot {
+    opacity: 0;
+    transform: scale(0.5);
+    animation: dot-pulse 3s ease-in-out infinite;
+  }
+
+  .dot-1 { animation-delay: 0.2s; }
+  .dot-2 { animation-delay: 1.2s; }
+  .dot-3 { animation-delay: 2.2s; }
 }
 
-@keyframes pulse-line {
+@keyframes scanner-move {
   0%, 100% {
-    opacity: 0.3;
+    transform: translateY(0);
+    opacity: 0.2;
   }
   50% {
+    transform: translateY(52rpx); // 扫描到底部
+    opacity: 0.8;
+  }
+}
+
+@keyframes dot-pulse {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  20%, 80% {
     opacity: 1;
+    transform: scale(1.2);
+  }
+  50% {
+    transform: scale(1.5);
+    box-shadow: 0 0 12rpx var(--mark-color);
+  }
+}
+
+// 标题淡入切换动画
+.state-title {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  &.fade-enter {
+    opacity: 0;
+    transform: translateY(10rpx);
   }
 }

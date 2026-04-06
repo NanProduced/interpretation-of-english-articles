@@ -202,4 +202,16 @@ export interface DictionaryResult {
   phonetic?: string
   audioUrl?: string
   meanings: DictionaryMeaning[]
+  provider?: string
+  entry?: EcdictEntry
+}
+
+export interface EcdictEntry {
+  word: string
+  lemma?: string
+  phonetic?: string
+  shortMeaning?: string
+  meanings: DictionaryMeaning[]
+  tags: string[]
+  exchange: string[]
 }

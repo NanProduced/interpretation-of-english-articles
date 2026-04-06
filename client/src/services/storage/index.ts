@@ -208,7 +208,16 @@ export function getVocabulary(): VocabEntry[] {
 export function saveVocabEntry(entry: VocabEntry): void {
   try {
     const vocab = getVocabulary()
-    const exists = vocab.some((v) => v.word === entry.word && v.recordId === entry.recordId)
+    /**
+     * 去重策略：优先用 lemma + recordId，其次用 word + recordId。
+     * 这样同词不同词形不会重复入库。
+     */
+    const exists = vocab.some((v) => {
+      if (entry.lemma && v.lemma) {
+        return v.lemma === entry.lemma && v.recordId === entry.recordId
+      }
+      return v.word === entry.word && v.recordId === entry.recordId
+    })
     if (exists) return
     Taro.setStorageSync(KEYS.VOCABULARY, [entry, ...vocab])
   } catch (e) {

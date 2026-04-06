@@ -11,21 +11,30 @@
 import { View } from '@tarojs/components'
 import './index.scss'
 
-/** === Loading: 纸页轮廓 + 脉冲动画 === */
+/** === Loading: 纸页轮廓 + 扫描线动画 === */
 export function LoadingIllustration() {
   return (
     <View className='illustration-container loading-illustration'>
       {/* 纸页轮廓 */}
-      <svg width='120rpx' height='120rpx' viewBox='0 0 100 100' fill='none'>
+      <svg width='160rpx' height='160rpx' viewBox='0 0 100 100' fill='none'>
         {/* 纸页 */}
-        <rect x='20' y='12' width='55' height='72' rx='4' stroke='#c0c0c0' strokeWidth='2' />
+        <rect x='20' y='12' width='55' height='72' rx='4' stroke='#e0e0e0' strokeWidth='2' />
         {/* 折角 */}
-        <path d='M60 12 L75 27 L60 27 Z' stroke='#c0c0c0' strokeWidth='2' fill='none' />
-        {/* 文字行 (脉冲动画) — 模拟真实文章长度变化 */}
-        <line x1='28' y1='34' x2='62' y2='34' stroke='#c0c0c0' strokeWidth='2' strokeLinecap='round' className='skeleton-line delay-1' />
-        <line x1='28' y1='46' x2='54' y2='46' stroke='#c0c0c0' strokeWidth='2' strokeLinecap='round' className='skeleton-line delay-2' />
-        <line x1='28' y1='58' x2='68' y2='58' stroke='#c0c0c0' strokeWidth='2' strokeLinecap='round' className='skeleton-line delay-3' />
-        <line x1='28' y1='70' x2='48' y2='70' stroke='#c0c0c0' strokeWidth='2' strokeLinecap='round' className='skeleton-line delay-4' />
+        <path d='M60 12 L75 27 L60 27 Z' stroke='#e0e0e0' strokeWidth='2' fill='none' />
+        
+        {/* 模拟分析中的文字行 */}
+        <line x1='28' y1='34' x2='62' y2='34' stroke='#f0f0f0' strokeWidth='2' strokeLinecap='round' />
+        <line x1='28' y1='46' x2='54' y2='46' stroke='#f0f0f0' strokeWidth='2' strokeLinecap='round' />
+        <line x1='28' y1='58' x2='68' y2='58' stroke='#f0f0f0' strokeWidth='2' strokeLinecap='round' />
+        <line x1='28' y1='70' x2='48' y2='70' stroke='#f0f0f0' strokeWidth='2' strokeLinecap='round' />
+
+        {/* 动态扫描线 - 增加正在分析的动感 */}
+        <rect x='22' y='20' width='51' height='2' fill='var(--color-info)' className='scanner-line' />
+        
+        {/* 正在生成的标注点 */}
+        <circle cx='35' cy='46' r='3' fill='var(--color-grammar)' className='analysis-dot dot-1' />
+        <circle cx='55' cy='34' r='3' fill='var(--color-phrase)' className='analysis-dot dot-2' />
+        <circle cx='45' cy='70' r='3' fill='var(--color-exam)' className='analysis-dot dot-3' />
       </svg>
     </View>
   )

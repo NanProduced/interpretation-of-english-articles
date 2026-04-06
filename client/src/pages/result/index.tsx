@@ -61,10 +61,23 @@ export default function Result() {
     y: number
   }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null)
+  const [selectedWord, setSelectedWord] = useState<string | null>(null)
   const [bottomSheet, setBottomSheet] = useState<{
     visible: boolean
     entry: SentenceEntryModel | null
   }>({ visible: false, entry: null })
+  const [loadingStep, setLoadingStep] = useState(0)
+
+  // === 加载状态：提示语轮播 ===
+  useEffect(() => {
+    let interval: any
+    if (pageState === 'loading') {
+      interval = setInterval(() => {
+        setLoadingStep(s => (s + 1) % 5) // 5 is the length of loadingSteps in render
+      }, 2500)
+    }
+    return () => clearInterval(interval)
+  }, [pageState])
 
   // 从 store 获取页面状态
   const pageState = useArticleStore((s) => s.pageState)
@@ -128,6 +141,7 @@ export default function Result() {
     const isAIAnnotated = !!(mark?.glossary)
     const initialMode = isAIAnnotated ? 'full' : 'mini'
     setActiveMarkId(mark?.id ?? null)
+    setSelectedWord(word)
 
     let clientX = 0
     let clientY = 0
@@ -146,6 +160,7 @@ export default function Result() {
   const handleClosePopup = () => {
     setWordPopup({ ...wordPopup, visible: false })
     setActiveMarkId(null)
+    setSelectedWord(null)
   }
 
   const handleChipClick = (entry: SentenceEntryModel) => {
@@ -166,7 +181,6 @@ export default function Result() {
     saveVocabEntry(vocabEntry)
     track('add_vocab', { entryType: entry.entryType, word: entry.title || entry.label })
     Taro.showToast({ title: '已记入生词本', icon: 'success', duration: 1500 })
-    refreshVocabList()
   }
 
   const handleHelpfulEntry = (entry: SentenceEntryModel) => {
@@ -244,14 +258,21 @@ export default function Result() {
   // === 状态分支 ===
 
   if (pageState === 'loading') {
+    const loadingSteps = [
+      '正在解析文章结构...',
+      '分析重点句式与语法...',
+      '智能标注高阶词汇...',
+      '同步你的阅读偏好...',
+      '生成精读解析卡片...'
+    ]
     return pageShell(
       <View className='state-container'>
         <View className='state-vertical'>
           <LoadingIllustration />
-          <Text className='state-title'>正在分析文章...</Text>
-          <Text className='state-subtitle'>AI 正在理解文章结构和语义</Text>
+          <Text className='state-title'>{loadingSteps[loadingStep]}</Text>
+          <Text className='state-subtitle'>AI 正在分析并生成解读内容</Text>
           {showSecondaryMessage && (
-            <Text className='state-subtitle-secondary'>请稍候，内容较长时需要更多时间</Text>
+            <Text className='state-subtitle-secondary'>请稍候，长文章需要较多计算时间</Text>
           )}
         </View>
       </View>
@@ -340,6 +361,8 @@ export default function Result() {
           showTranslation={showTranslation}
           inlineMarks={sceneData!.inlineMarks}
           activeMarkId={activeMarkId}
+          selectedWord={selectedWord}
+          vocabList={vocabList}
           tailEntries={sceneData!.sentenceEntries}
           pageMode={pageMode}
           onWordClick={handleWordClick}
@@ -412,10 +435,15 @@ export default function Result() {
             meaning: dictResult.meanings[0]?.definitions[0]?.meaning.slice(0, 200) || '',
             addedAt: Date.now(),
             mastered: false,
+            // ECDICT 扩展字段
+            lemma: dictResult.entry?.lemma,
+            phonetic: dictResult.entry?.phonetic || dictResult.phonetic,
+            tags: dictResult.entry?.tags,
+            exchange: dictResult.entry?.exchange,
+            provider: dictResult.provider,
           }
           saveVocabEntry(vocabEntry)
           track('add_vocab', { word: w })
-          refreshVocabList()
         }}
         onFavorite={(w) => { track('favorite_word', { word: w }) }}
       />

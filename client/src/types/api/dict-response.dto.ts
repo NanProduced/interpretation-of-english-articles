@@ -16,9 +16,22 @@ export interface DictMeaningDto {
   definitions: DictMeaningDefinitionDto[]
 }
 
+export interface EcdictEntryDto {
+  word: string
+  lemma: string | null
+  phonetic: string | null
+  short_meaning: string | null
+  meanings: DictMeaningDto[]
+  tags: string[]
+  exchange: string[]
+}
+
 export interface DictResponseDto {
   word: string
   phonetic: string | null
   audio_url: string | null
   meanings: DictMeaningDto[]
+  cached: boolean
+  provider: string
+  entry: EcdictEntryDto | null
 }

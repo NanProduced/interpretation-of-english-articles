@@ -1,19 +1,38 @@
 .clickable-word {
   color: var(--text-main);
-  border-bottom: 1rpx dashed var(--text-muted);
-  padding: 0 1rpx;
+  border-bottom: 2rpx solid transparent; // 默认透明，不破坏纯净纸感
+  padding: 0 2rpx;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
+  border-radius: 4rpx;
 
-  &:active {
-    color: var(--color-info);
-    border-bottom-color: var(--color-info);
+  &:active, &.active {
+    background-color: var(--active-highlight-bg);
+    color: var(--color-ink);
+    border-radius: 4rpx;
   }
 
   &.saved {
-    border-bottom: 3rpx solid var(--color-phrase); // 使用紫色表示已收藏
-    color: var(--color-phrase);
-    font-weight: 500;
+    border-bottom: 3rpx solid var(--color-phrase) !important; 
+    color: var(--color-phrase) !important;
+    font-weight: var(--weight-medium);
+  }
+
+  // grammar_note 等非点击热区 mark 内的单词，保留 tone 颜色
+  &.tone-grammar {
+    color: var(--grammar-color);
+  }
+
+  &.tone-vocab {
+    color: var(--vocab-color);
+  }
+
+  &.tone-phrase {
+    color: var(--phrase-color);
+  }
+
+  &.tone-context {
+    color: var(--text-main);
   }
 }

@@ -130,8 +130,8 @@ export async function fetchAnalyze(dto: AnalyzeRequest): Promise<AnalyzeResponse
 /**
  * 调用 /dict 接口查询单词释义
  *
- * 使用 Free Dictionary API (dictionaryapi.dev)
- * 降级策略：网络失败时返回 null，不阻塞 UI
+ * MVP 使用本地 ECDICT 词典，只支持 word 类型查询。
+ * phrase_gloss 由 AI glossary 直接提供，不走此接口。
  */
 export async function fetchDict(word: string): Promise<DictResponseDto> {
   return request<DictResponseDto>({

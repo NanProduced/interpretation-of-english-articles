@@ -26,6 +26,7 @@ interface ParagraphBlockProps {
   showTranslation: boolean
   inlineMarks: InlineMarkModel[]
   activeMarkId?: string | null
+  selectedWord?: string | null // 新增：当前选中的单词
   tailEntries: SentenceEntryModel[]
   pageMode: 'immersive' | 'bilingual' | 'intensive'
   vocabList?: string[] // 新增已加入生词本的单词列表
@@ -49,6 +50,7 @@ function findTextAnchorPosition(text: string, anchorText: string, occurrence = 1
 
 function renderPlainSegmentAsClickableWords(
   plainText: string,
+  selectedWord?: string | null,
   vocabList?: string[],
   onWordClick?: (payload: WordClickPayload) => void
 ): React.ReactNode[] {
@@ -57,11 +59,13 @@ function renderPlainSegmentAsClickableWords(
   return tokens.map((token, idx) => {
     if (token.type === 'word') {
       const isSaved = vocabList?.includes(token.text.toLowerCase())
+      const isSelected = selectedWord === token.text
       return (
         <ClickableWord
           key={`cw-${idx}`}
           word={token.text}
           isSaved={isSaved}
+          className={isSelected ? 'active' : ''}
           onClick={(w) => onWordClick?.({ word: w, mark: null })}
         />
       )
@@ -74,27 +78,14 @@ function renderTextWithMarks(
   text: string,
   marks: InlineMarkModel[],
   activeMarkId?: string | null,
+  selectedWord?: string | null,
   vocabList?: string[],
   onWordClick?: (payload: WordClickPayload) => void
 ) {
   if (marks.length === 0) {
-    const tokens = tokenizeText(text)
     return (
       <Text className='sentence-text'>
-        {tokens.map((token, idx) => {
-          if (token.type === 'word') {
-            const isSaved = vocabList?.includes(token.text.toLowerCase())
-            return (
-              <ClickableWord
-                key={`cw-${idx}`}
-                word={token.text}
-                isSaved={isSaved}
-                onClick={(w) => onWordClick?.({ word: w, mark: null })}
-              />
-            )
-          }
-          return <Text key={`p-${idx}`}>{token.text}</Text>
-        })}
+        {renderPlainSegmentAsClickableWords(text, selectedWord, vocabList, onWordClick)}
       </Text>
     )
   }
@@ -142,7 +133,36 @@ function renderTextWithMarks(
 
     if (item.start > lastEnd) {
       const plainSegment = text.slice(lastEnd, item.start)
-      resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, vocabList, onWordClick))
+      resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, onWordClick))
+    }
+
+    /**
+     * clickable=False 的 mark（如 grammar_note）不创建点击热区。
+     * 内部单词仍可独立点击，不被 mark 吞掉。
+     * 视觉上仍展示 tone 样式。
+     */
+    if (!item.mark.clickable) {
+      const toneClass = `tone-${item.mark.visualTone}`
+      const tokens = tokenizeText(item.text)
+      const grammarWords = tokens.map((token, idx) => {
+        if (token.type === 'word') {
+          const isSaved = vocabList?.includes(token.text.toLowerCase())
+          const isSelected = selectedWord === token.text
+          return (
+            <ClickableWord
+              key={`gw-${item.mark.id}-${idx}`}
+              word={token.text}
+              isSaved={isSaved}
+              className={[toneClass, isSelected ? 'active' : ''].filter(Boolean).join(' ')}
+              onClick={(w) => onWordClick?.({ word: w, mark: null })}
+            />
+          )
+        }
+        return <Text key={`gp-${idx}`}>{token.text}</Text>
+      })
+      resultElements.push(...grammarWords)
+      lastEnd = item.end
+      continue
     }
 
     const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
@@ -163,7 +183,7 @@ function renderTextWithMarks(
 
   if (lastEnd < text.length) {
     const plainSegment = text.slice(lastEnd)
-    resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, vocabList, onWordClick))
+    resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, onWordClick))
   }
 
   return <Text className='sentence-text'>{resultElements}</Text>
@@ -175,6 +195,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   showTranslation,
   inlineMarks,
   activeMarkId,
+  selectedWord,
   tailEntries,
   pageMode,
   vocabList,
@@ -214,7 +235,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
               const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
               return (
                 <Text key={sentence.sentenceId} className='sentence-span'>
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, vocabList, onWordClick)}
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
@@ -234,7 +255,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
               const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
               return (
                 <Text key={sentence.sentenceId} className='sentence-span'>
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, vocabList, onWordClick)}
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
@@ -261,7 +282,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           <View key={sentence.sentenceId} className='sentence-block'>
             <View className='sentence-main'>
               <Text className='english-flow'>
-                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, vocabList, onWordClick)}
+                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick)}
               </Text>
             </View>
 

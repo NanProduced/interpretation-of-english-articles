@@ -38,11 +38,19 @@ export default function WordPopup({
   const glossary = mark?.glossary
   const examTags = mark?.examTags
 
+  /**
+   * phrase_gloss 不走 /dict 查词：
+   * - 如果有 glossary，直接用 AI 提供的整体解释
+   * - 否则走普通查词路径
+   */
+  const shouldSkipDictFetch =
+    mark?.annotationType === 'phrase_gloss' && glossary?.zh
+
   useEffect(() => {
-    if (visible && lookupText) {
-      fetchDictionary(lookupText)
-    }
-  }, [visible, lookupText])
+    if (!visible || !lookupText) return
+    if (shouldSkipDictFetch) return
+    fetchDictionary(lookupText)
+  }, [visible, lookupText, shouldSkipDictFetch])
 
   useEffect(() => {
     Taro.getSystemInfo({}).then((info) => setScreenWidth(info.windowWidth || 375))

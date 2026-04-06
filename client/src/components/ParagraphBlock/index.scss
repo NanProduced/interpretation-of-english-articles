@@ -1,29 +1,36 @@
 .paragraph-block {
-  margin-bottom: 64rpx;
+  margin-bottom: 72rpx; // 增加段落间距，更符合阅读器审美
+
+  &.immersive, &.bilingual {
+    .english-paragraph {
+      margin-bottom: 24rpx;
+    }
+  }
 
   &.intensive {
-    margin-bottom: 40rpx;
+    margin-bottom: 56rpx;
   }
 }
 
 .english-paragraph {
-  margin-bottom: 24rpx;
   line-height: var(--leading-relaxed);
 }
 
 .english-flow {
   font-size: var(--text-lg);
-  color: var(--primary-color);
-  font-family: var(--font-sans);
-  font-weight: var(--weight-medium);
+  color: var(--color-ink);
+  font-family: var(--font-serif); // 全局使用 Serif
+  font-weight: var(--weight-normal);
   line-height: var(--leading-relaxed);
-  letter-spacing: var(--tracking-tight);
+  letter-spacing: var(--tracking-normal);
+  word-spacing: 0.05em; // 增加词间距，更透气
 }
 
 .sentence-span {
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   &.active {
     background-color: var(--active-highlight-bg);
+    border-radius: 4rpx;
   }
 }
 
@@ -32,64 +39,70 @@
   white-space: pre-wrap;
 }
 
-.translation-paragraph {
-  margin-top: 16rpx;
-  padding: 0;
+// === Bilingual Mode Polish ===
+.bilingual {
+  .translation-paragraph {
+    margin-top: 12rpx;
+    padding-left: 20rpx;
+    border-left: 4rpx solid rgba(0, 0, 0, 0.03); // 细腻的左边线引导视觉
+    opacity: 0.9;
+  }
 }
 
 .translation-text {
-  font-size: var(--text-sm);
+  font-size: var(--text-base); // 增大中文翻译 26 -> 30
   color: var(--text-sub);
   line-height: var(--leading-normal);
   font-weight: var(--weight-normal);
+  font-family: var(--font-sans);
   display: block;
 }
 
-// Intensive Mode Styles
+// === Intensive Mode Refinement (Margin Note Style) ===
 .sentence-block {
-  margin-bottom: 56rpx; // Increased from 40rpx for better breathing room
+  margin-bottom: 64rpx;
   display: flex;
   flex-direction: column;
-  gap: 16rpx; // Slightly more gap between layers
+  gap: 20rpx;
   position: relative;
-  padding-bottom: 24rpx;
+  padding-bottom: 32rpx;
 
-  // Subtle separator to prevent line jumping
+  // 移除生硬的分割线，改用更大的垂直节奏
   &::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 64rpx; // Short horizontal line
-    height: 4rpx;
-    background: #E5E7EB;
-    border-radius: 2rpx;
+    display: none;
   }
 
   &:last-child {
     margin-bottom: 0;
     padding-bottom: 0;
-    &::after { display: none; }
   }
 }
 
 .sentence-main {
-  // Main English text layer
+  .english-flow {
+    font-size: var(--text-lg);
+    line-height: var(--leading-relaxed);
+  }
 }
 
 .sentence-analysis {
-  // Analysis entries layer
-  margin-top: 4rpx;
+  margin-top: -8rpx; // 让 chip 靠近句子
 }
 
 .analysis-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
+  gap: 16rpx;
 }
 
 .sentence-translation {
-  // Translation layer
-  margin-top: 4rpx;
-  opacity: 0.85;
+  margin-top: 0;
+  padding-left: 20rpx;
+  border-left: 3rpx solid rgba(0, 0, 0, 0.02);
+  
+  .translation-text {
+    font-size: var(--text-base);
+    color: var(--text-sub);
+    font-style: italic; // 精读模式下翻译稍微弱化，突出分析
+  }
 }

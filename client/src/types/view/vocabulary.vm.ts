@@ -19,4 +19,14 @@ export interface VocabEntry {
   addedAt: number
   /** 是否已掌握 */
   mastered: boolean
+  /** 词形还原后的原形 */
+  lemma?: string
+  /** 音标 */
+  phonetic?: string
+  /** 标签列表 */
+  tags?: string[]
+  /** 词形变换列表 */
+  exchange?: string[]
+  /** 词典来源 */
+  provider?: string
 }

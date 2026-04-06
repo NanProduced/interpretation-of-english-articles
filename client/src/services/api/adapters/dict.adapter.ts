@@ -25,5 +25,24 @@ export function dictResponseDtoToVm(dto: DictResponseDto): DictionaryResult {
         exampleTranslation: d.example_translation ?? undefined,
       })),
     })),
+    provider: dto.provider,
+    entry: dto.entry
+      ? {
+          word: dto.entry.word,
+          lemma: dto.entry.lemma ?? undefined,
+          phonetic: dto.entry.phonetic ?? undefined,
+          shortMeaning: dto.entry.short_meaning ?? undefined,
+          meanings: dto.entry.meanings.map((m) => ({
+            partOfSpeech: m.part_of_speech,
+            definitions: m.definitions.map((d) => ({
+              meaning: d.meaning,
+              example: d.example ?? undefined,
+              exampleTranslation: d.example_translation ?? undefined,
+            })),
+          })),
+          tags: dto.entry.tags,
+          exchange: dto.entry.exchange,
+        }
+      : undefined,
   }
 }
