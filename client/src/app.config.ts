@@ -10,7 +10,7 @@ export default {
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',
-    navigationBarTitleText: 'AI 英语解读',
+    navigationBarTitleText: 'Claread透读',
     navigationBarTextStyle: 'black'
   }
 }

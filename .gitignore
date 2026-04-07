@@ -36,9 +36,13 @@ project.private.config.json
 # samples
 .sample/
 
+# ecdict词典文件
+.ecdict/
+
 .screenshot/
 
 .gemini/
 .serena/
 .agents/
+.claude/
 

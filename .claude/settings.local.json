@@ -114,7 +114,16 @@
       "Bash(xargs grep:*)",
       "Bash(rtk tsc:*)",
       "Bash(ls \"C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/\"*.tsx)",
-      "Bash(ls \"C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/\"*.ts)"
+      "Bash(ls \"C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/\"*.ts)",
+      "Bash(curl -s \"https://api.dictionaryapi.dev/api/v2/entries/en/Economist\")",
+      "WebFetch(domain:dictionary-api.cambridge.org)",
+      "WebFetch(domain:dictionary.cambridge.org)",
+      "Bash(sqlite3 server/.cache/dictionary/ecdict.db \"SELECT COUNT\\(*\\) FROM entries; SELECT COUNT\\(*\\) FROM lemmas;\")",
+      "Read(//c/Users/nanpr/.ecdict/**)",
+      "Read(//c/Users/nanpr/**)",
+      "Bash(rtk git:*)",
+      "Bash(curl -s \"http://127.0.0.1:55612/dict?q=hello\")",
+      "Bash(curl:*)"
     ]
   }
 }

@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from app.database.connection import DB_POOL
+from app.database import connection as db_connection
 
 
 @dataclass(frozen=True)
@@ -59,9 +59,9 @@ async def exact_lookup(word: str) -> EntryRow | None:
     Returns:
         EntryRow 或 None（未找到）
     """
-    if DB_POOL is None:
+    if db_connection.DB_POOL is None:
         return None
-    async with DB_POOL.acquire() as conn:
+    async with db_connection.DB_POOL.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT * FROM ecdict_entries WHERE LOWER(word) = LOWER($1)",
             word,
@@ -82,9 +82,9 @@ async def lemma_lookup(word: str) -> tuple[EntryRow | None, str | None]:
     Returns:
         (EntryRow, lemma) 或 (None, None)（未找到）
     """
-    if DB_POOL is None:
+    if db_connection.DB_POOL is None:
         return None, None
-    async with DB_POOL.acquire() as conn:
+    async with db_connection.DB_POOL.acquire() as conn:
         lemma_row = await conn.fetchrow(
             "SELECT lemma FROM ecdict_lemmas WHERE LOWER(inflected_form) = LOWER($1)",
             word,

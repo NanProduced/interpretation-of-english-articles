@@ -150,7 +150,7 @@ async def _insert_batch(
             (word, phonetic, definition, translation, part_of_speech,
              exchange, tag, bnc, frq, oxford, collins, detail_json)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        ON CONFLICT ON CONSTRAINT uq_ecdict_entries_word_lower DO NOTHING
+        ON CONFLICT (word) DO NOTHING
         """,
         entries,
     )
@@ -161,7 +161,7 @@ async def _insert_batch(
             """
             INSERT INTO ecdict_lemmas (inflected_form, lemma, rule)
             VALUES ($1, $2, $3)
-            ON CONFLICT ON CONSTRAINT uq_ecdict_lemmas_inflected_form_lower DO NOTHING
+            ON CONFLICT (inflected_form) DO NOTHING
             """,
             lemmas,
         )

@@ -151,3 +151,4 @@ encoding: utf-8
 languages:
 - python
 - typescript
+language: python

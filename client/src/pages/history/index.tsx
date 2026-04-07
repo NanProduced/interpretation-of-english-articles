@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { getRecordIds, getRecord, deleteRecord } from '../../services/storage'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
 import { track } from '../../services/analytics'
+import TabBar from '../../components/TabBar'
 import './index.scss'
 
 /** 格式化日期 */
@@ -34,7 +35,11 @@ function getDisplayTitle(sourceText: string): string {
 
 type FilterTab = 'all' | 'favorites'
 
-export default function HistoryPage() {
+interface HistoryPageProps {
+  isSubView?: boolean
+}
+
+export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
   const [records, setRecords] = useState<AnalysisRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
@@ -63,11 +68,12 @@ export default function HistoryPage() {
     loadRecords()
   }, [loadRecords])
 
-  // 下拉刷新（页面级事件）
+  // 下拉刷新（仅在非子视图模式下处理）
   const loadRecordsRef = useRef(loadRecords)
   useEffect(() => { loadRecordsRef.current = loadRecords }, [loadRecords])
 
   useEffect(() => {
+    if (isSubView) return
     const handler = () => {
       loadRecordsRef.current()
       Taro.stopPullDownRefresh()
@@ -75,9 +81,7 @@ export default function HistoryPage() {
     const page = Taro.getCurrentInstance().page
     if (!page) return
     ;(page as any).onPullDownRefresh(handler)
-    // 微信小程序不支持 offPullDownRefresh，不传 callback 会被自动忽略
-    // 故无需 cleanup，组件卸载时 Taro 生命周期自动处理
-  }, [loadRecords])
+  }, [loadRecords, isSubView])
 
   const handleDelete = (recordId: string, e: any) => {
     e.stopPropagation()
@@ -104,10 +108,12 @@ export default function HistoryPage() {
   }
 
   return (
-    <View className='history-page'>
-      <View className='header'>
-        <Text className='title'>历史解读</Text>
-      </View>
+    <View className={`history-page ${isSubView ? 'sub-view' : ''}`}>
+      {!isSubView && (
+        <View className='header'>
+          <Text className='title'>历史解读</Text>
+        </View>
+      )}
 
       <View className='filter-tabs'>
         <View
@@ -168,7 +174,10 @@ export default function HistoryPage() {
             </View>
           ))
         )}
+        <View style={{ height: '160rpx' }} />
       </ScrollView>
+
+      {!isSubView && <TabBar current='history' />}
     </View>
   )
 }

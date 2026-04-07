@@ -1,3 +1,4 @@
 export default {
-  navigationBarTitleText: '解析新文章'
+  navigationBarTitleText: '解析新文章',
+  navigationStyle: 'custom'
 }

@@ -128,7 +128,7 @@ export default function Result() {
     const firstSentence = sceneData?.article.sentences[0]?.text
     const title = firstSentence
       ? firstSentence.split('\n')[0].slice(0, 30) + '...'
-      : 'Claread 英语解读'
+      : 'Claread透读 - AI 英语深度解析'
     const path = recordId
       ? `/pages/result/index?recordId=${recordId}&mode=replay`
       : '/pages/result/index'
@@ -225,7 +225,7 @@ export default function Result() {
   // === 通用页面外壳 ===
   const pageShell = (extraContent: React.ReactNode) => (
     <View className='result-page'>
-      <NavBar title='AI 英语解读' showBack showHome />
+      <NavBar title='Claread透读' showBack showHome />
       <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
       {extraContent}
     </View>
