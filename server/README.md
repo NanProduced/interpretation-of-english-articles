@@ -28,6 +28,31 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
+## 本地数据库与缓存
+
+当前正式方向已经收敛为：
+
+- 正式主库：`PostgreSQL`
+- 词典数据：`ECDICT` 迁入 `PostgreSQL`
+- 缓存：第一阶段先使用进程内缓存，`Redis` 作为本地调试和后续增强预留
+
+本地可直接使用仓库根目录的 [docker-compose.local.yml](../docker-compose.local.yml) 拉起：
+
+```bash
+docker compose -f docker-compose.local.yml up -d
+```
+
+默认本地连接：
+
+- PostgreSQL: `postgresql://claread:claread_dev@127.0.0.1:5432/claread`
+- Redis: `redis://127.0.0.1:6379/0`
+
+说明：
+
+- 初始 schema 会通过 `server/db/migrations/0001_initial_schema.sql` 在首次建库时自动导入
+- 如果你修改了初始 migration，并希望重新初始化本地数据库，需要清掉本地 volume 再重新启动
+- `Redis` 当前不是首发阻塞项，但本地环境先保留，便于后续 session/cache 接入
+
 ## 模型配置
 
 详细说明见 [模型配置教程](../docs/operations/model-configuration-usage.md)。

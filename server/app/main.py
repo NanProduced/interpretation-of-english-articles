@@ -6,12 +6,16 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from logging import getLogger
 
 from fastapi import FastAPI
 
 from app.api.router import api_router
 from app.config.settings import Settings, get_settings
+from app.database.connection import close_db, close_redis, init_db, init_redis
 from app.observability.langsmith import setup_langsmith
+
+logger = getLogger(__name__)
 
 
 @asynccontextmanager
@@ -19,10 +23,37 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """
     应用生命周期管理上下文管理器。
 
-    在应用启动时初始化 LangSmith 追踪，避免在各个路由中重复处理。
+    启动时：初始化 PostgreSQL 连接池（必选）、Redis 连接（可选）
+    关闭时：清理所有连接池
     """
-    setup_langsmith(get_settings())
+    settings = get_settings()
+
+    # 1. 初始化 PostgreSQL（必选）
+    try:
+        await init_db(
+            database_url=settings.database_url,
+            pool_size=settings.database_pool_size,
+            max_overflow=settings.database_max_overflow,
+            pool_timeout=settings.database_pool_timeout,
+            max_inactive_connection_lifetime=settings.database_max_inactive_connection_lifetime,
+        )
+        logger.info("PostgreSQL pool initialized")
+    except Exception as e:
+        logger.error("Failed to initialize PostgreSQL pool: %s", e)
+        raise
+
+    # 2. 初始化 Redis（可选，第二阶段增强）
+    await init_redis(redis_url=settings.redis_url, enabled=settings.redis_enabled)
+
+    # 3. 初始化 LangSmith
+    setup_langsmith(settings)
+
     yield
+
+    # 关闭时清理
+    await close_redis()
+    await close_db()
+    logger.info("Application shutdown complete")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

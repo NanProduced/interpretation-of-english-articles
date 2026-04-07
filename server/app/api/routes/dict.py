@@ -1,7 +1,7 @@
 """
-Dictionary Proxy API
+词典 Proxy API
 
-提供词典查询代理服务，调用的第三方词典（可配置）。
+提供词典查询代理服务。
 """
 
 from __future__ import annotations
@@ -11,12 +11,8 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.services.dictionary import DictionaryService
-from app.services.dictionary.schemas import (
-    DictionaryMeaning,
-    DictionaryMeaningDefinition,
-    DictionaryResult,
-)
+from app.services.dictionary import get_service
+from app.services.dictionary.service import LookupError
 
 router = APIRouter(prefix="/dict", tags=["dict"])
 
@@ -36,19 +32,32 @@ class DictionaryMeaning(BaseModel):
     definitions: list[DictionaryMeaningDefinition] = Field(description="释义列表")
 
 
+class EcdictEntryResponse(BaseModel):
+    """ECDICT 词条详情（MVP 扩展）"""
+    word: str = Field(description="当前展示的单词")
+    lemma: str | None = Field(default=None, description="词形还原后的原形")
+    phonetic: str | None = Field(default=None, description="音标")
+    short_meaning: str | None = Field(default=None, description="中文短释义")
+    meanings: list[DictionaryMeaning] = Field(default_factory=list, description="词性及释义列表")
+    tags: list[str] = Field(default_factory=list, description="标签列表")
+    exchange: list[str] = Field(default_factory=list, description="词形变换列表")
+
+
 class DictionaryResult(BaseModel):
     """词典查询结果"""
     word: str = Field(description="查询的单词或短语")
-    phonetic: str | None = Field(default=None, description="音标，如 '/fəˈnetɪk/'")
+    phonetic: str | None = Field(default=None, description="音标")
     audio_url: str | None = Field(default=None, description="发音音频 URL")
     meanings: list[DictionaryMeaning] = Field(default_factory=list, description="词性及释义列表")
-
-
-# === 服务单例 ===
-_service = DictionaryService()
+    cached: bool = Field(default=False, description="是否来自缓存")
+    provider: str = Field(default="ecdict_local", description="数据来源")
+    entry: EcdictEntryResponse | None = Field(default=None, description="ECDICT 词条详情")
 
 
 # === 路由 ===
+
+_service = get_service()
+
 
 @router.get("", response_model=DictionaryResult)
 async def lookup_word(
@@ -63,9 +72,9 @@ async def lookup_word(
     """
     word = q.strip()
     try:
-        result = _service.lookup(word)
-        return DictionaryResult.model_validate(result.model_dump())
+        result = await _service.lookup(word)
+        return DictionaryResult.model_validate(result)
     except LookupError:
-        raise HTTPException(status_code=404, detail=f"Word not found: {word}")
+        raise HTTPException(status_code=404, detail=f"Word not found: {word}") from None
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Dictionary service error: {exc}") from exc

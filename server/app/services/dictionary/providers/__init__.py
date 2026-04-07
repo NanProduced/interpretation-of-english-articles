@@ -1,3 +1,3 @@
-from app.services.dictionary.providers.dictionaryapi import DictionaryApiProvider
+from app.services.dictionary.providers.ecdict import EcdictProvider
 
-__all__ = ["DictionaryApiProvider"]
+__all__ = ["EcdictProvider"]
