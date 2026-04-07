@@ -103,6 +103,7 @@ class ParsedEntry:
     examples_json: list[dict[str, Any]]
     phrases_json: list[dict[str, Any]]
     sections_json: list[dict[str, Any]]
+    nlp_forms: list[str]
     raw_html: str
 
 
@@ -382,6 +383,28 @@ def _parse_phrases(soup: BeautifulSoup) -> list[dict[str, str | None]]:
     return phrases
 
 
+def _extract_nlp_forms(soup: BeautifulSoup) -> list[str]:
+    forms: list[str] = []
+    seen: set[str] = set()
+
+    def add(raw: str) -> None:
+        text = _canonicalize_display_headword(raw)
+        if not text or text in seen:
+            return
+        seen.add(text)
+        forms.append(text)
+
+    for node in soup.select(".nlp"):
+        direct_tags = [child for child in node.children if getattr(child, "name", None)]
+        if direct_tags:
+            for child in direct_tags:
+                add(_visible_node_text(child))
+            continue
+        add(_visible_node_text(node))
+
+    return forms
+
+
 def _extract_headword_parts(soup: BeautifulSoup, fallback: str) -> tuple[str, str | None, int | None]:
     spans = soup.select(".hwgDiv > .hwSpan")
     if spans:
@@ -496,6 +519,7 @@ def parse_entry_html(source_entry_key: str, html: str) -> ParsedEntry | None:
     if not examples_json:
         examples_json = _extract_examples(soup)
     sections_json = _build_sections_summary(soup, entry_kind)
+    nlp_forms = _extract_nlp_forms(soup)
 
     return ParsedEntry(
         source_entry_key=source_entry_key,
@@ -509,6 +533,7 @@ def parse_entry_html(source_entry_key: str, html: str) -> ParsedEntry | None:
         examples_json=examples_json,
         phrases_json=phrases_json,
         sections_json=sections_json,
+        nlp_forms=nlp_forms,
         raw_html=html,
     )
 
@@ -812,6 +837,24 @@ async def import_tecd3(input_dir: Path, database_url: str) -> dict[str, int]:
                             continue
                         seen_redirects.add(redirect_key)
                         redirect_rows.append((SOURCE, form, key, "normalized_alias"))
+                    for rank, form in enumerate(build_lookup_forms(*entry.nlp_forms)):
+                        lookup_key = (form, entry_id, "nlp")
+                        if lookup_key in seen_lookup:
+                            continue
+                        seen_lookup.add(lookup_key)
+                        lookup_rows.append(
+                            (
+                                SOURCE,
+                                form,
+                                entry.display_headword,
+                                entry_id,
+                                entry.display_headword,
+                                entry.primary_pos,
+                                preview,
+                                50 + rank,
+                                "nlp",
+                            )
+                        )
 
                 for key, disambiguation in disambiguation_records.items():
                     forms = build_lookup_forms(key, disambiguation.lookup_label)

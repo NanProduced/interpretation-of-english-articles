@@ -4,7 +4,7 @@
 > 生效范围：覆盖微信登录、云端数据真源、词典数据部署、缓存策略、后端部署与正式环境边界。  
 > 关联文档：
 > - [小程序联调与用户体验开发设计文档](./mini-program-integration-and-ux-design.md)
-> - [TECD3 本地词典接入方案](./ecdict-local-dictionary-integration.md)
+> - [TECD3 本地词典接入方案](./tecd3-local-dictionary-integration.md)
 > - [微信小程序产品与技术边界](./mini-program-boundaries.md)
 
 ## 1. 目标与结论
@@ -571,7 +571,7 @@ flowchart LR
 
 - [mini-program-integration-and-ux-design.md](./mini-program-integration-and-ux-design.md)
   - 用户主链路、当前实现状态、Phase A/B/C/D 路线
-- [ecdict-local-dictionary-integration.md](./ecdict-local-dictionary-integration.md)
+- [tecd3-local-dictionary-integration.md](./tecd3-local-dictionary-integration.md)
   - 词典、短语、lexer、生词本相关执行细则
 - [mini-program-boundaries.md](./mini-program-boundaries.md)
   - 小程序原生能力边界与架构结论
@@ -589,6 +589,6 @@ flowchart LR
 本方案落地后，以下文档需要和它保持一致：
 
 - [mini-program-integration-and-ux-design.md](./mini-program-integration-and-ux-design.md)
-- [ecdict-local-dictionary-integration.md](./ecdict-local-dictionary-integration.md)
+- [tecd3-local-dictionary-integration.md](./tecd3-local-dictionary-integration.md)
 - [mini-program-boundaries.md](./mini-program-boundaries.md)
 - [docs/README.md](../README.md)

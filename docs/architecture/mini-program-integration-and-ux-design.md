@@ -555,7 +555,7 @@ provider 选型建议：
 文档维护要求：
 
 - 主线词典策略、`/dict` 协议和页面数据边界以本文档为准
-- 本次 `TECD3` 接入的详细执行方案见 `docs/architecture/ecdict-local-dictionary-integration.md`
+- 本次 `TECD3` 接入的详细执行方案见 `docs/architecture/tecd3-local-dictionary-integration.md`
 - 正式上线架构、登录、云端数据和部署决策见 `docs/architecture/production-architecture-and-deployment-plan.md`
 - 如果后续新增第二 provider，应先更新本文档与 `TECD3` 执行方案文档，再进入开发
 - 如果生词本模型扩展字段，应同步更新本节和主线三的数据模型边界

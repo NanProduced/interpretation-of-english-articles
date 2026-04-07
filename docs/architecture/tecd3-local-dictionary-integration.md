@@ -1,6 +1,6 @@
 # TECD3 本地词典接入方案
 
-> 文档定位：用于指导 Claread透读 将 `/dict` 的本地词典真源从 `ECDICT` 调整为 `TECD3`（英汉大词典第三版 MDX 资源），并完成离线解析、PostgreSQL 导入、单词卡片建模与查询接线。\
+> 文档定位：用于指导 Claread透读 以 `TECD3`（英汉大词典第三版 MDX 资源）作为 `/dict` 的本地词典真源，并完成离线解析、PostgreSQL 导入、单词卡片建模与查询接线。\
 > 生效范围：覆盖 TECD3 解析、数据库 schema、`/dict` 查询结构、前端单词卡片与底部详情弹层的字段边界。\
 > 关联主文档：[小程序联调与用户体验开发设计文档](./mini-program-integration-and-ux-design.md)
 
@@ -13,7 +13,7 @@
 - `WordPopup` 真实接口接线
 - 生词本本地闭环
 
-但 `ECDICT` 方案存在一个已经确认的产品问题：
+旧的 `ECDICT` 方案存在一个已经确认的产品问题：
 
 1. `translation` 主字段过于扁平，不适合稳定生成单词卡片
 2. 运行时临时切分释义，容易导致短释义、词性块和详情层级不稳定
@@ -22,7 +22,7 @@
 因此当前词典策略调整为：
 
 - `/dict` 继续只查本地数据库，不接第三方在线词典 API
-- 本地词典真源从 `ECDICT` 调整为 `TECD3`
+- 本地词典真源统一为 `TECD3`
 - `TECD3` 只作为离线导入源，不在运行时直接读取 `.mdx/.mdd`
 - 词典功能优先服务“单词小卡片 + 底部详情弹层”，不扩展成完整词典浏览器
 
@@ -71,9 +71,9 @@ LLM 层职责：
 
 当前本地资源目录：
 
-- [英汉大词典（第三版）.mdx](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/.ecdict/Mdict/TECD3/英汉大词典（第三版）.mdx)
-- [英汉大词典（第三版）.mdd](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/.ecdict/Mdict/TECD3/英汉大词典（第三版）.mdd)
-- [tecd3.css](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/.ecdict/Mdict/TECD3/tecd3.css)
+- [英汉大词典（第三版）.mdx](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/.dict/Mdict/TECD3/英汉大词典（第三版）.mdx)
+- [英汉大词典（第三版）.mdd](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/.dict/Mdict/TECD3/英汉大词典（第三版）.mdd)
+- [tecd3.css](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/.dict/Mdict/TECD3/tecd3.css)
 
 ### 3.2 结构优势
 
@@ -97,7 +97,7 @@ LLM 层职责：
 
 - `TECD3` 更适合作为“离线结构化词卡源”
 - 解析策略可以围绕 HTML 语义块提取
-- 不需要像 `ECDICT` 一样依赖扁平文本临时拼卡片
+- 不需要像旧方案那样依赖扁平文本临时拼卡片
 
 ## 4. 总体接入方案
 

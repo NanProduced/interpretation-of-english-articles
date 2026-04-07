@@ -169,6 +169,31 @@ MIXED_SECTION_HTML = """
 """
 
 
+NLP_ENTRY_HTML = """
+<html><body>
+  <div class="eDiv" id="crew-one">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan">crew</span>
+        </div>
+      </div>
+    </div>
+    <div class="sg">
+      <div class="se1">
+        <div class="sgPosDiv"><span class="posg"><span class="pos">NOUN 名词</span></span></div>
+        <ol class="se2g">
+          <li class="se2"><span class="df">全体船员</span></li>
+        </ol>
+      </div>
+    </div>
+    <div class="nlp" style="display: none;"><pl>crews</pl><prp>crewing</prp><past>crewed</past><pp>crewed</pp></div>
+    <div class="nlp" style="display: none;">crew up</div>
+  </div>
+</body></html>
+"""
+
+
 DISAMB_HTML = """
 <html><body>
   <div class="mdict-disamb">
@@ -297,6 +322,14 @@ def test_parse_entry_html_preserves_superscript_display_and_keeps_all_pos_sectio
     assert parsed.phrases_json[0]["meaning"] == "见 all"
 
 
+def test_parse_entry_html_extracts_hidden_nlp_lookup_forms() -> None:
+    parsed = parse_entry_html("crew · n.", NLP_ENTRY_HTML)
+
+    assert parsed is not None
+    assert parsed.primary_pos == "n."
+    assert parsed.nlp_forms == ["crews", "crewing", "crewed", "crew up"]
+
+
 def test_parse_disambiguation_html_extracts_candidates() -> None:
     parsed = parse_disambiguation_html("anti", DISAMB_HTML)
 
@@ -326,5 +359,3 @@ def test_normalize_query_and_service_normalize_align() -> None:
     assert normalize_query("anth- 2") == "anth-2"
     assert service._normalize("“World’s”") == "world's"
     assert service._normalize("(state-owned)") == "state-owned"
-    assert service._candidate_queries("landings") == ["landings", "landing"]
-    assert service._candidate_queries("bodies") == ["bodies", "body"]

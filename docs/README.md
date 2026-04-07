@@ -14,7 +14,7 @@
 `docs/architecture/` 当前只保留 5 份主文档，不再继续平行扩张：
 
 - 主文档：[小程序联调与用户体验开发设计文档](./architecture/mini-program-integration-and-ux-design.md)
-- 词典执行文档：[TECD3 本地词典接入方案](./architecture/ecdict-local-dictionary-integration.md)
+- 词典执行文档：[TECD3 本地词典接入方案](./architecture/tecd3-local-dictionary-integration.md)
 - 边界结论文档：[微信小程序技术边界](./architecture/mini-program-boundaries.md)
 - 上线与部署文档：[小程序正式上线架构与部署方案](./architecture/production-architecture-and-deployment-plan.md)
 - 每日精读文档：[每日精读模块设计文档](./architecture/daily-reader-module-design.md)
@@ -38,7 +38,7 @@
 - [微信小程序技术边界](./architecture/mini-program-boundaries.md)
 - [小程序联调与用户体验开发设计文档](./architecture/mini-program-integration-and-ux-design.md)
   - 包含当前结果页状态映射、前后端边界和 workflow 之外的小程序开发路线图
-- [TECD3 本地词典接入方案](./architecture/ecdict-local-dictionary-integration.md)
+- [TECD3 本地词典接入方案](./architecture/tecd3-local-dictionary-integration.md)
   - 覆盖 `/dict` 切换到 `TECD3` 离线词典导入、前后端协议、单词卡片字段、底部详情弹层与 PostgreSQL 真源方案
 - [小程序正式上线架构与部署方案](./architecture/production-architecture-and-deployment-plan.md)
   - 覆盖微信登录、云端资产、PostgreSQL、缓存分层、`TECD3` 词典真源与上线拓扑

@@ -5,7 +5,7 @@
 > 关联文档：
 > - [小程序联调与用户体验开发设计文档](./mini-program-integration-and-ux-design.md)
 > - [小程序正式上线架构与部署方案](./production-architecture-and-deployment-plan.md)
-> - [TECD3 本地词典接入方案](./ecdict-local-dictionary-integration.md)
+> - [TECD3 本地词典接入方案](./tecd3-local-dictionary-integration.md)
 
 ## 1. 背景与核心判断
 

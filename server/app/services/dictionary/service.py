@@ -50,12 +50,10 @@ class DictionaryService:
 
     async def lookup(self, word: str) -> dict[str, Any]:
         normalized = self._normalize(word)
-        for candidate in self._candidate_queries(normalized):
-            try:
-                return await self._provider.fetch(candidate)
-            except ValueError:
-                continue
-        raise LookupError(f"Word not found: {word}") from None
+        try:
+            return await self._provider.fetch(normalized)
+        except ValueError:
+            raise LookupError(f"Word not found: {word}") from None
 
     async def lookup_entry(self, entry_id: int) -> dict[str, Any]:
         try:
@@ -71,24 +69,6 @@ class DictionaryService:
         normalized = re.sub(r"^[^\w]+|[^\w]+$", "", normalized)
         normalized = self._ALIAS_MAP.get(normalized, normalized)
         return normalized
-
-    def _candidate_queries(self, normalized: str) -> list[str]:
-        candidates: list[str] = []
-        seen: set[str] = set()
-
-        def add(value: str) -> None:
-            if value and value not in seen:
-                seen.add(value)
-                candidates.append(value)
-
-        add(normalized)
-        if len(normalized) > 4 and normalized.endswith("ies"):
-            add(normalized[:-3] + "y")
-        elif len(normalized) > 4 and normalized.endswith(("ses", "xes", "zes", "ches", "shes", "oes")):
-            add(normalized[:-2])
-        elif len(normalized) > 2 and normalized.endswith("s") and not normalized.endswith("ss"):
-            add(normalized[:-1])
-        return candidates
 
 
 _service: DictionaryService | None = None
