@@ -59,8 +59,12 @@ async def code2session(code: str) -> WeChatSession:
         "grant_type": "authorization_code",
     }
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        resp = await client.get(url, params=params)
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url, params=params)
+    except (httpx.TimeoutException, httpx.ConnectError) as e:
+        logger.warning("WeChat network error: %s", e)
+        raise WeChatAPIError(-3, f"Network error: {e}") from e
 
     # 非 200 状态码（5xx 网关错误等）直接抛 502
     try:

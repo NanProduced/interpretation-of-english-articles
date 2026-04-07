@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     # 微信认证
     wechat_app_id: str = ""
     wechat_app_secret: str = ""
+    # 开发模式 bypass：设为 true 时，微信登录返回 mock 数据，跳过真实 API 调用
+    wechat_bypass: bool = False
     auth_session_expiry_days: int = 30
 
     model_config = SettingsConfigDict(

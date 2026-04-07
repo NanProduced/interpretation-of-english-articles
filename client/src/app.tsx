@@ -1,21 +1,80 @@
 import { PropsWithChildren, useEffect } from 'react'
 import Taro from '@tarojs/taro'
+import { useAuthStore } from './stores/auth'
+import { useArticleStore } from './stores/article'
+import { CloudSyncService } from './services/cloudSync.service'
+import { getFavorites, getVocabulary } from './services/storage'
 import './app.scss'
 
+const INTERRUPTED_STATE_KEY = 'analysis_interrupted'
+
 function App({ children }: PropsWithChildren<any>) {
-  // 处理小程序切回前台事件
+  // 启动时恢复认证状态
   useEffect(() => {
-    const handler = (options: any) => {
-      // 场景值参考：https://developers.weixin.qq.com/miniprogram/dev/reference/scene-list.html
-      // 1011=长按小程序码  1019=微信打开  1001=聊天顶部  等
-      // 暂时：所有切回前台场景统一处理，不区分来源
-      // 后续如有需要可按 scene 细化判断逻辑
-      console.log('[app] onShow', options.scene, options.path, options.query)
+    useAuthStore.getState().restore()
+  }, [])
+
+  // 处理小程序切前台/后台事件
+  useEffect(() => {
+    // 切后台：保存分析中断状态
+    const hideHandler = () => {
+      const { phase, recordId } = useArticleStore.getState()
+      if (phase === 'loading' && recordId) {
+        try {
+          Taro.setStorageSync(INTERRUPTED_STATE_KEY, {
+            interruptedAt: Date.now(),
+            recordId,
+          })
+        } catch {
+          // ignore
+        }
+      }
     }
 
-    Taro.onAppShow(handler)
+    // 切前台：恢复状态 + 尝试同步 pending 数据
+    const showHandler = async (options: any) => {
+      // 尝试静默同步 pending 数据（未登录则跳过）
+      if (useAuthStore.getState().isLoggedIn) {
+        const favorites = getFavorites()
+        const vocab = getVocabulary()
+        if (favorites.length > 0) {
+          CloudSyncService.syncAllFavorites(favorites)
+        }
+        if (vocab.length > 0) {
+          CloudSyncService.syncAllVocab(vocab)
+        }
+      }
+
+      // 检查是否分析中断需要恢复
+      let interrupted: { interruptedAt: number; recordId: string } | null = null
+      try {
+        interrupted = Taro.getStorageSync(INTERRUPTED_STATE_KEY)
+        Taro.removeStorageSync(INTERRUPTED_STATE_KEY)
+      } catch {
+        // ignore
+      }
+
+      if (!interrupted) return
+
+      const { phase, sceneData, recordId } = useArticleStore.getState()
+
+      // 只有分析进行中（loading）且没有拿到结果时才触发中断提示
+      if (phase === 'loading' && !sceneData && interrupted.recordId === recordId) {
+        // 转为可重试错误态，让用户在结果页选择重试
+        useArticleStore.setState({
+          phase: 'error',
+          error: '分析已中断，请重试',
+          errorCode: 'ANALYSIS_INTERRUPTED',
+          pageState: 'failed',
+        })
+      }
+    }
+
+    Taro.onAppHide(hideHandler)
+    Taro.onAppShow(showHandler)
     return () => {
-      Taro.offAppShow(handler)
+      Taro.offAppHide(hideHandler)
+      Taro.offAppShow(showHandler)
     }
   }, [])
 

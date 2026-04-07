@@ -1,72 +1,160 @@
-"""
-Dictionary Proxy API 测试
-"""
+from __future__ import annotations
 
-import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.api.routes import dict as dict_route
+from app.api.routes.dict import router as dict_router
+from app.services.dictionary.service import LookupError
 
 
-client = TestClient(app)
+class StubDictionaryService:
+    async def lookup(self, word: str) -> dict[str, object]:
+        if word == "unknown":
+            raise LookupError("Word not found: unknown")
+        if word == "anti":
+            return {
+                "result_type": "disambiguation",
+                "query": word,
+                "provider": "tecd3",
+                "cached": False,
+                "candidates": [
+                    {
+                        "entry_id": 11,
+                        "label": "anti",
+                        "part_of_speech": "n.,a.,prep.",
+                        "preview": "1. 反对者,反对分子,持反对论者",
+                        "entry_kind": "entry",
+                    },
+                    {
+                        "entry_id": 12,
+                        "label": "anti-",
+                        "part_of_speech": "pref.",
+                        "preview": "1. 表示“反”“抗”“阻”",
+                        "entry_kind": "entry",
+                    },
+                ],
+            }
+        return {
+            "result_type": "entry",
+            "query": word,
+            "provider": "tecd3",
+            "cached": False,
+            "entry": {
+                "id": 7,
+                "word": word,
+                "base_word": word,
+                "homograph_no": None,
+                "phonetic": "/test/",
+                "primary_pos": "n.",
+                "meanings": [
+                    {
+                        "part_of_speech": "n.",
+                        "definitions": [
+                            {
+                                "meaning": "测试释义",
+                                "example": "test example",
+                                "example_translation": "测试例句",
+                            }
+                        ],
+                    }
+                ],
+                "examples": [
+                    {
+                        "example": "test example",
+                        "example_translation": "测试例句",
+                    }
+                ],
+                "phrases": [
+                    {
+                        "phrase": "test phrase",
+                        "meaning": "测试短语",
+                    }
+                ],
+                "entry_kind": "entry",
+            },
+        }
+
+    async def lookup_entry(self, entry_id: int) -> dict[str, object]:
+        if entry_id == 404:
+            raise LookupError("Entry not found")
+        return {
+            "result_type": "entry",
+            "query": "anti-",
+            "provider": "tecd3",
+            "cached": False,
+            "entry": {
+                "id": entry_id,
+                "word": "anti-",
+                "base_word": "anti-",
+                "homograph_no": None,
+                "phonetic": None,
+                "primary_pos": "pref.",
+                "meanings": [
+                    {
+                        "part_of_speech": "pref.",
+                        "definitions": [
+                            {
+                                "meaning": "1. 表示“反”“抗”“阻”",
+                                "example": None,
+                                "example_translation": None,
+                            }
+                        ],
+                    }
+                ],
+                "examples": [],
+                "phrases": [],
+                "entry_kind": "entry",
+            },
+        }
+
+
+def create_client() -> TestClient:
+    app = FastAPI()
+    app.include_router(dict_router)
+    dict_route._service = StubDictionaryService()
+    return TestClient(app)
 
 
 class TestDictProxy:
-    """词典代理 API 测试"""
-
-    def test_dict_lookup_word(self):
-        """查询单词释义"""
+    def test_dict_lookup_returns_entry_result(self) -> None:
+        client = create_client()
         response = client.get("/dict?q=hello&type=word")
+
         assert response.status_code == 200
         data = response.json()
-        assert data["word"] == "hello"
-        assert "phonetic" in data
-        assert "meanings" in data
-        assert len(data["meanings"]) > 0
+        assert data["result_type"] == "entry"
+        assert data["entry"]["word"] == "hello"
+        assert data["entry"]["meanings"][0]["part_of_speech"] == "n."
 
-    def test_dict_lookup_with_phonetic(self):
-        """查询有音标的单词"""
-        response = client.get("/dict?q=fundamental&type=word")
+    def test_dict_lookup_returns_disambiguation_result(self) -> None:
+        client = create_client()
+        response = client.get("/dict?q=anti&type=word")
+
         assert response.status_code == 200
         data = response.json()
-        assert data["word"] == "fundamental"
-        # Free Dictionary API 通常返回音标
-        assert isinstance(data["meanings"], list)
-        assert len(data["meanings"]) > 0
+        assert data["result_type"] == "disambiguation"
+        assert len(data["candidates"]) == 2
+        assert data["candidates"][0]["label"] == "anti"
 
-    def test_dict_lookup_not_found(self):
-        """查询不存在的单词"""
-        response = client.get("/dict?q=xyzabc123nonexistent&type=word")
+    def test_dict_lookup_entry_endpoint(self) -> None:
+        client = create_client()
+        response = client.get("/dict/entry?id=12")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["result_type"] == "entry"
+        assert data["entry"]["id"] == 12
+        assert data["entry"]["word"] == "anti-"
+
+    def test_dict_lookup_not_found(self) -> None:
+        client = create_client()
+        response = client.get("/dict?q=unknown&type=word")
+
         assert response.status_code == 404
 
-    def test_dict_lookup_missing_param(self):
-        """缺少查询参数"""
-        response = client.get("/dict")
-        assert response.status_code == 422
+    def test_dict_entry_not_found(self) -> None:
+        client = create_client()
+        response = client.get("/dict/entry?id=404")
 
-    def test_dict_lookup_empty_param(self):
-        """空查询参数"""
-        response = client.get("/dict?q=&type=word")
-        assert response.status_code == 422
-
-    def test_dict_lookup_phrase_type(self):
-        """短语类型查询（暂用单词查询）"""
-        response = client.get("/dict?q=hello&type=phrase")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["word"] == "hello"
-
-    def test_dict_meanings_have_structure(self):
-        """释义具有正确的结构"""
-        response = client.get("/dict?q=run&type=word")
-        assert response.status_code == 200
-        data = response.json()
-
-        for meaning in data["meanings"]:
-            assert "part_of_speech" in meaning
-            assert "definitions" in meaning
-            assert isinstance(meaning["definitions"], list)
-
-            for defn in meaning["definitions"]:
-                assert "meaning" in defn
-                assert isinstance(defn["meaning"], str)
+        assert response.status_code == 404

@@ -2,13 +2,13 @@
  * API Client - 统一请求入口
  *
  * 所有 API 调用必须通过此模块
- * 支持环境配置 + 认证头注入预留
+ * 支持环境配置 + 认证头注入
  */
 
 import Taro from '@tarojs/taro'
 import { apiConfig, getAuthHeaders } from '../../config/api.config'
 import type { AnalyzeResponseDto } from '../../types/api/analyze-response.dto'
-import type { DictResponseDto } from '../../types/api/dict-response.dto'
+import type { DictEntryResultDto, DictResponseDto } from '../../types/api/dict-response.dto'
 
 /** API 错误类型 */
 export class ApiError extends Error {
@@ -26,7 +26,7 @@ export class ApiError extends Error {
 /** 请求选项 */
 interface RequestOptions {
   url: string
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   data?: unknown
   headers?: Record<string, string>
   timeout?: number
@@ -86,6 +86,27 @@ export async function request<T>(options: RequestOptions): Promise<T> {
   }
 }
 
+// ============ /auth API ============
+
+interface WeChatLoginResponse {
+  user_id: string
+  session_token: string
+  expires_at: string
+}
+
+/**
+ * 微信小程序登录
+ *
+ * 流程: wx.login() → POST /auth/wechat/login → 存 token
+ */
+export async function fetchWeChatLogin(code: string): Promise<WeChatLoginResponse> {
+  return request<WeChatLoginResponse>({
+    url: '/auth/wechat/login',
+    method: 'POST',
+    data: { code },
+  })
+}
+
 // ============ /analyze API ============
 
 /**
@@ -130,11 +151,17 @@ export async function fetchAnalyze(dto: AnalyzeRequest): Promise<AnalyzeResponse
 /**
  * 调用 /dict 接口查询单词释义
  *
- * MVP 使用本地 ECDICT 词典，只支持 word 类型查询。
+ * MVP 使用本地 TECD3 词典，只支持 word 类型查询。
  * phrase_gloss 由 AI glossary 直接提供，不走此接口。
  */
 export async function fetchDict(word: string): Promise<DictResponseDto> {
   return request<DictResponseDto>({
     url: `/dict?q=${encodeURIComponent(word)}&type=word`,
+  })
+}
+
+export async function fetchDictEntry(entryId: number): Promise<DictEntryResultDto> {
+  return request<DictEntryResultDto>({
+    url: `/dict/entry?id=${entryId}`,
   })
 }

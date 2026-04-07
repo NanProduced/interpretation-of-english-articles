@@ -1,12 +1,14 @@
 """
-PostgreSQL 版本的 ECDICT 查询实现。
+PostgreSQL 版本的 TECD3 词典查询实现。
 
-使用 app.database.connection.DB_POOL 提供 async 查询能力。
-字段名与 PostgreSQL schema 对齐：pos → part_of_speech。
+运行时通过 dict_lookup_targets 决定：
+- 单候选 -> entry
+- 多候选 -> disambiguation
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -15,106 +17,136 @@ from app.database import connection as db_connection
 
 @dataclass(frozen=True)
 class EntryRow:
-    """词条数据行（PostgreSQL 版本）"""
-    word: str
+    id: int
+    source: str
+    source_entry_key: str
+    entry_kind: str
+    display_headword: str
+    base_headword: str | None
+    homograph_no: int | None
+    primary_pos: str | None
     phonetic: str | None
-    definition: str | None
-    translation: str | None
-    pos: str | None  # PostgreSQL 列名
-    tag: str | None
-    exchange: str | None
-    bnc: int | None
-    frq: int | None
+    meanings_json: list[dict[str, Any]]
+    examples_json: list[dict[str, Any]]
+    phrases_json: list[dict[str, Any]]
+    sections_json: list[dict[str, Any]]
+    raw_html: str | None
+    parse_version: str
 
-    # 别名，保持向后兼容
-    @property
-    def part_of_speech(self) -> str | None:
-        return self.pos
+
+@dataclass(frozen=True)
+class CandidateRow:
+    entry_id: int
+    normalized_form: str
+    lookup_label: str
+    target_label: str
+    target_pos: str | None
+    preview_text: str | None
+    rank: int
+    match_kind: str
+    entry_kind: str
 
 
 def _row_to_entry(row: Any) -> EntryRow | None:
-    """将 asyncpg.Row 转换为 EntryRow 或 None"""
     if row is None:
         return None
     return EntryRow(
-        word=row["word"],
+        id=row["id"],
+        source=row["source"],
+        source_entry_key=row["source_entry_key"],
+        entry_kind=row["entry_kind"],
+        display_headword=row["display_headword"],
+        base_headword=row["base_headword"],
+        homograph_no=row["homograph_no"],
+        primary_pos=row["primary_pos"],
         phonetic=row["phonetic"],
-        definition=row["definition"],
-        translation=row["translation"],
-        pos=row["part_of_speech"],  # PostgreSQL 列名
-        tag=row["tag"],
-        exchange=row["exchange"],
-        bnc=row["bnc"],
-        frq=row["frq"],
+        meanings_json=_coerce_json_list(row["meanings_json"]),
+        examples_json=_coerce_json_list(row["examples_json"]),
+        phrases_json=_coerce_json_list(row["phrases_json"]),
+        sections_json=_coerce_json_list(row["sections_json"]),
+        raw_html=row["raw_html"],
+        parse_version=row["parse_version"],
     )
 
 
-async def exact_lookup(word: str) -> EntryRow | None:
-    """
-    精确查询词条。
+def _coerce_json_list(value: Any) -> list[dict[str, Any]]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+        return parsed if isinstance(parsed, list) else []
+    if isinstance(value, list):
+        return value
+    return list(value)
 
-    Args:
-        word: 归一化后的单词（小写）
 
-    Returns:
-        EntryRow 或 None（未找到）
-    """
+def _row_to_candidate(row: Any) -> CandidateRow:
+    return CandidateRow(
+        entry_id=row["entry_id"],
+        normalized_form=row["normalized_form"],
+        lookup_label=row["lookup_label"],
+        target_label=row["target_label"],
+        target_pos=row["target_pos"],
+        preview_text=row["preview_text"],
+        rank=row["rank"],
+        match_kind=row["match_kind"],
+        entry_kind=row["entry_kind"],
+    )
+
+
+async def fetch_entry(entry_id: int, source: str = "tecd3") -> EntryRow | None:
     if db_connection.DB_POOL is None:
         return None
     async with db_connection.DB_POOL.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT * FROM ecdict_entries WHERE LOWER(word) = LOWER($1)",
-            word,
+            """
+            SELECT *
+            FROM dict_entries
+            WHERE source = $1 AND id = $2
+            """,
+            source,
+            entry_id,
         )
         return _row_to_entry(row)
 
 
-async def lemma_lookup(word: str) -> tuple[EntryRow | None, str | None]:
-    """
-    Lemma 回退查询。
-
-    1. 先查 ecdict_lemmas 表获取 word 的 lemma（原形）
-    2. 再查 ecdict_entries 表获取 lemma 对应的词条
-
-    Args:
-        word: 归一化后的单词（小写）
-
-    Returns:
-        (EntryRow, lemma) 或 (None, None)（未找到）
-    """
+async def lookup_candidates(normalized_form: str, source: str = "tecd3") -> list[CandidateRow]:
     if db_connection.DB_POOL is None:
-        return None, None
+        return []
     async with db_connection.DB_POOL.acquire() as conn:
-        lemma_row = await conn.fetchrow(
-            "SELECT lemma FROM ecdict_lemmas WHERE LOWER(inflected_form) = LOWER($1)",
-            word,
+        rows = await conn.fetch(
+            """
+            SELECT
+              t.normalized_form,
+              t.lookup_label,
+              t.entry_id,
+              t.target_label,
+              t.target_pos,
+              t.preview_text,
+              t.rank,
+              t.match_kind,
+              e.entry_kind
+            FROM dict_lookup_targets t
+            JOIN dict_entries e
+              ON e.id = t.entry_id
+             AND e.source = t.source
+            WHERE t.source = $1
+              AND t.normalized_form = $2
+            ORDER BY t.rank ASC, t.id ASC
+            """,
+            source,
+            normalized_form,
         )
-        if lemma_row is None:
-            return None, None
 
-        lemma = lemma_row["lemma"]
-
-        entry_row = await conn.fetchrow(
-            "SELECT * FROM ecdict_entries WHERE LOWER(word) = LOWER($1)",
-            lemma,
-        )
-        return _row_to_entry(entry_row), lemma
-
-
-async def full_lookup(word: str) -> tuple[EntryRow | None, str | None]:
-    """
-    完整查询：先精确匹配，失败则走 lemma 回退。
-
-    Args:
-        word: 归一化后的单词（小写）
-
-    Returns:
-        (EntryRow, lemma_or_none)
-        - 精确匹配成功: (EntryRow, None)
-        - lemma 回退成功: (EntryRow, lemma)
-        - 都失败: (None, None)
-    """
-    entry = await exact_lookup(word)
-    if entry is not None:
-        return entry, None
-    return await lemma_lookup(word)
+    candidates: list[CandidateRow] = []
+    seen_entry_ids: set[int] = set()
+    for row in rows:
+        candidate = _row_to_candidate(row)
+        if candidate.entry_id in seen_entry_ids:
+            continue
+        seen_entry_ids.add(candidate.entry_id)
+        candidates.append(candidate)
+    return candidates

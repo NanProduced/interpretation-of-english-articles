@@ -410,7 +410,7 @@ flowchart TD
 - 接通“收藏全文”“记入生词本”等 CTA 的真实数据流
 - 明确结果页与历史/收藏/生词本的数据主键与回看策略
 
-##### Phase B.1：ECDICT 本地词典接入改造清单
+##### Phase B.1：TECD3 本地词典接入改造清单
 
 目标：
 
@@ -422,7 +422,7 @@ flowchart TD
 设计原则：
 
 - 小程序前端只调用自有服务域名下的 `/dict`
-- MVP 默认数据源为本地 `ECDICT`，不再依赖在线词典 provider
+- MVP 默认数据源调整为本地 `TECD3`，不再依赖在线词典 provider
 - 前端只消费稳定的词典视图模型，不感知词典底层存储结构
 - 生词本保存“渲染快照”，不要保存整份原始词典记录
 - 词典数据结构优先服务“结果页小卡片 + 底部详情页 + 生词本”，不追求学术级完整性
@@ -451,7 +451,8 @@ flowchart TD
 
 - 保留 `/dict` 作为唯一词典接口入口
 - 将当前“服务骨架 + 第三方 provider”的实现切换为 `route -> service -> local provider -> cache`
-- 本地 / 正式 provider 负责读取 `ECDICT` 导入后的词典表，并归一化返回
+- 本地 / 正式 provider 负责读取 `TECD3` 离线解析后导入的词典表，并归一化返回
+- `TECD3` 的 `.mdx/.mdd` 资源默认通过 `mdict-utils` 做离线解包/导出，再由 `import_tecd3.py` 解析导入 PostgreSQL
 - cache 层至少支持：
   - L1：进程内 TTL cache，用于热点词重复点击
   - L2：正式环境优先考虑 `PostgreSQL` 真源；`Redis` 作为第二阶段可选缓存层，不再继续扩展磁盘 JSON 文件缓存
@@ -468,11 +469,11 @@ flowchart TD
 - `server/app/services/dictionary/service.py`
 - `server/app/services/dictionary/cache.py`
 - `server/app/services/dictionary/providers/base.py`
-- `server/app/services/dictionary/providers/ecdict.py`
+- `server/app/services/dictionary/providers/tecd3.py`
 - `server/app/services/dictionary/normalizer.py`
 - `server/app/services/dictionary/lemma.py`
-- `server/scripts/import_ecdict.py`
-- 正式环境中的 `ecdict_entries / ecdict_lemmas` 表
+- `server/scripts/import_tecd3.py`
+- 正式环境中的 `dict_entries / dict_aliases` 表
 
 推荐的统一返回结构：
 
@@ -499,7 +500,7 @@ flowchart TD
     "tags": ["CET4"],
     "exchange": ["paradigm", "paradigms"]
   },
-  "provider": "ecdict",
+  "provider": "tecd3",
   "cached": true,
   "cache_expires_at": "2026-04-06T12:00:00Z"
 }
@@ -509,9 +510,9 @@ flowchart TD
 
 - `short_meaning`：服务 mini 卡片与生词本列表，不要求严格词典级专业度
 - `meanings[]`：服务 full 详情弹层
-- `lemma`：服务生词本去重、历史回看和词形还原
-- `tags`：服务考试标签等轻量扩展，不保证所有词都有值
-- `exchange`：服务词形变化展示与生词本归并
+- `lemma`：如后续需要词形归并可保留，否则允许为空
+- `tags`：非核心字段，可后置
+- `exchange`：非核心字段，可后置
 - `provider`：用于问题排查和后续多 provider 策略
 - `cached`：用于调试与观测，不强制前端展示
 
@@ -539,14 +540,14 @@ flowchart TD
 
 provider 选型建议：
 
-- MVP 默认 provider：`ECDICT`
-- 开发期可用本地 SQLite 导入验证，正式上线目标是迁入 `PostgreSQL`
-- 中期如需增强，可在 `ECDICT` 之上补语境释义增强或第二数据源
+- MVP 默认 provider：`TECD3`
+- 开发期可用本地 MDX 离线解析验证，正式上线目标是迁入 `PostgreSQL`
+- 中期如需增强，可在 `TECD3` 之上补语境释义增强或第二数据源
 - 当前阶段不建议继续依赖第三方在线词典 API 作为主 provider
 
 当前推荐决策：
 
-- 先将后端 `/dict` 切换为本地 `ECDICT` provider，完成结果页真实接线
+- 先将后端 `/dict` 切换为本地 `TECD3` provider，完成结果页真实接线
 - 不在小程序前端开放用户自配 API key
 - 如后续需要更丰富词典能力，再评估第二 provider 或语境增强
 - 短语标注直接以 glossary 解释为主，不再把 phrase 是否命中词典作为稳定性前提
@@ -554,9 +555,9 @@ provider 选型建议：
 文档维护要求：
 
 - 主线词典策略、`/dict` 协议和页面数据边界以本文档为准
-- 本次 `ECDICT` 接入的详细执行方案见 `docs/architecture/ecdict-local-dictionary-integration.md`
+- 本次 `TECD3` 接入的详细执行方案见 `docs/architecture/ecdict-local-dictionary-integration.md`
 - 正式上线架构、登录、云端数据和部署决策见 `docs/architecture/production-architecture-and-deployment-plan.md`
-- 如果后续新增第二 provider，应先更新本文档与 `ECDICT` 执行方案文档，再进入开发
+- 如果后续新增第二 provider，应先更新本文档与 `TECD3` 执行方案文档，再进入开发
 - 如果生词本模型扩展字段，应同步更新本节和主线三的数据模型边界
 
 #### Phase C：登录与身份态
@@ -1002,8 +1003,8 @@ provider 选型建议：
 | 云端历史记录接口 | 🔲 未开始 | 后端当前无对应路由 |
 | 输入草稿自动保存与离开保护 | ✅ 完成 | 输入页支持 500ms 防抖自动保存和离开提示 |
 | 词典前端接线 | ✅ 完成 | `WordPopup` 已接入真实 `/dict` API（`fetchDict` + `dict.adapter.ts`），失败降级 fallback |
-| 词典后端服务骨架 | ✅ 完成 | 已具备 `dict.py` + `DictionaryService` + `cache.py` 分层，后续将默认 provider 切换为本地 `ECDICT` |
-| ECDICT 迁入正式词典库 | 🔲 未开始 | 架构已定：开发期可用本地导入验证，正式上线目标是迁入 PostgreSQL |
+| 词典后端服务骨架 | ✅ 完成 | `/dict` 已切换到本地 `TECD3` provider，运行时查询 `dict_entries / dict_aliases` |
+| TECD3 迁入正式词典库 | ✅ 完成 | 已补齐 `TECD3` 导入脚本、PostgreSQL schema 与 `/dict` 查询链路 |
 
 ### 主线四：微信小程序平台能力接入
 
@@ -1020,7 +1021,7 @@ provider 选型建议：
 
 ---
 
-**最后更新：** 2026-04-06（将短语解释责任正式收口到 workflow glossary，补齐 `ECDICT` 本地词典边界，并把全文点词切分从简单双正则升级为轻量 lexer）
+**最后更新：** 2026-04-07（完成 `/dict` 切换到 `TECD3`，移除 `ECDICT` 运行时代码，并保持结果页点词与生词本链路可用）
 
 ### Bug 修复记录
 
@@ -1034,5 +1035,5 @@ provider 选型建议：
 | 2026-04-05 | 新增全文点词查词：结果页所有英文词均可点击查词 | `ParagraphBlock` + `ClickableWord` + `InlineMark` | 普通词触发 `/dict` mini 弹层，标注词保留 glossary + examTags + AI 增强，payload 统一为 `{ word, mark, event }` |
 | 2026-04-05 | 全文点词分词正则导致模拟器卡死 | `client/src/components/ParagraphBlock/utils.ts` | `[^a-zA-Z]*` 改为 `[^a-zA-Z]+`，消除零长度匹配导致的 `exec()` 死循环 |
 | 2026-04-05 | 词典后端服务化落地 | `server/app/api/routes/dict.py` + `server/app/services/dictionary/*` | `/dict` 已升级为 route → service → provider → cache 结构，支持缓存命中标记 |
-| 2026-04-05 | MVP 词典路线调整为本地 `ECDICT` | `docs/architecture/mini-program-integration-and-ux-design.md` | 不再以第三方在线词典 API 作为 MVP 主数据源，后续 `/dict` 默认 provider 切换为本地英中词典 |
+| 2026-04-07 | `/dict` 默认 provider 切换为 `TECD3` | `server/app/services/dictionary/*` + `server/scripts/import_tecd3.py` | 运行时查询收口到 PostgreSQL `dict_entries / dict_aliases`，并删除 `ECDICT` 旧代码 |
 | 2026-04-06 | 全文点词切分升级为轻量 lexer | `client/src/components/ParagraphBlock/utils.ts` | 不再依赖单条正则分词，改为面向阅读交互的扫描器，支持缩写、连字符词、撇号与特殊 token |

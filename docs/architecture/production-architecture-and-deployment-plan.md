@@ -4,7 +4,7 @@
 > 生效范围：覆盖微信登录、云端数据真源、词典数据部署、缓存策略、后端部署与正式环境边界。  
 > 关联文档：
 > - [小程序联调与用户体验开发设计文档](./mini-program-integration-and-ux-design.md)
-> - [ECDICT 词典接入方案](./ecdict-local-dictionary-integration.md)
+> - [TECD3 本地词典接入方案](./ecdict-local-dictionary-integration.md)
 > - [微信小程序产品与技术边界](./mini-program-boundaries.md)
 
 ## 1. 目标与结论
@@ -22,7 +22,7 @@
 本方案的最终结论是：
 
 - 正式业务数据库统一使用 `PostgreSQL`
-- `ECDICT` 词典数据也迁入 `PostgreSQL`
+- `TECD3` 离线解析后的词典数据也迁入 `PostgreSQL`
 - 当前基于磁盘 JSON 的词典缓存方案废弃
 - 缓存第一阶段使用进程内内存缓存即可
 - `Redis` 作为第二阶段增强能力预留，不作为当前上线阻塞项
@@ -89,8 +89,8 @@
 - `analysis_records`
 - `favorite_records`
 - `vocabulary_book`
-- `ecdict_entries`
-- `ecdict_lemmas`
+- `dict_entries`
+- `dict_aliases`
 - 后续 RAG 元数据与向量索引
 
 ## 3. 微信小程序官方能力边界
@@ -216,9 +216,8 @@ flowchart LR
 
 推荐最小词典表：
 
-- `ecdict_entries`
-- `ecdict_lemmas`
-- `ecdict_aliases`（可选）
+- `dict_entries`
+- `dict_aliases`
 
 ### 6.3 推荐结构
 
@@ -291,15 +290,15 @@ flowchart LR
 - `UNIQUE (user_id, lemma)` 优先
 - 如果 `lemma` 为空，可回退到 `word`
 
-## 7. ECDICT 迁移方案
+## 7. TECD3 迁移方案
 
 ### 7.1 最终方向
 
-`ECDICT` 不再长期停留在本地 `SQLite` 文件中。
+`TECD3` 不参与运行时查询，只作为离线解析源。
 
 正式方案改为：
 
-- `ECDICT CSV`
+- `TECD3.mdx / TECD3.mdd`
 - 导入 `PostgreSQL`
 - `/dict` 从 `PostgreSQL` 查询
 
@@ -318,38 +317,32 @@ flowchart LR
 
 ### 7.3 推荐词典表结构
 
-#### `ecdict_entries`
+#### `dict_entries`
 
-- `word` `TEXT PRIMARY KEY`
+- `id` `BIGSERIAL PRIMARY KEY`
+- `source` `TEXT`
+- `headword` `TEXT`
+- `normalized_headword` `TEXT`
 - `phonetic` `TEXT`
-- `definition` `TEXT`
-- `translation` `TEXT`
-- `pos` `TEXT`
-- `tag` `TEXT`
-- `exchange` `TEXT`
-- `bnc` `INTEGER`
-- `frq` `INTEGER`
+- `primary_pos` `TEXT`
+- `short_meaning` `TEXT`
+- `meanings_json` `JSONB`
+- `examples_json` `JSONB`
+- `phrases_json` `JSONB`
+- `raw_html` `TEXT`
+- `display_quality` `TEXT`
 
 索引建议：
 
-- `INDEX idx_ecdict_entries_word_lower ON ecdict_entries (lower(word))`
+- `UNIQUE INDEX idx_dict_entries_lookup ON dict_entries (source, normalized_headword)`
 
-#### `ecdict_lemmas`
-
-- `inflected_form` `TEXT PRIMARY KEY`
-- `lemma` `TEXT NOT NULL`
-
-索引建议：
-
-- `INDEX idx_ecdict_lemmas_lower ON ecdict_lemmas (lower(inflected_form))`
-
-#### `ecdict_aliases`（可选）
+#### `dict_aliases`
 
 用于处理：
 
 - `u.s.` -> `us`
 - `u.k.` -> `uk`
-- `e.g.` -> `eg`
+- 连字符或空格变体
 
 ### 7.4 `/dict` 查询顺序
 
@@ -358,7 +351,7 @@ flowchart LR
 1. normalize query
 2. alias 映射
 3. exact word hit
-4. lemma fallback
+4. not found
 5. not found
 
 `phrase_gloss` 不再进入 `/dict` 主查询路径。
@@ -385,7 +378,7 @@ flowchart LR
 - 登录
 - 云端用户资产
 - PostgreSQL 真源
-- `ECDICT` 迁移
+- `TECD3` 导入
 
 在这些还没建立前，先上 Redis 的收益不高，且会增加部署复杂度。
 
@@ -460,7 +453,7 @@ flowchart LR
 - 健康检查接口
 - 环境变量与模型配置
 - 数据库迁移脚本
-- `ECDICT` 导入脚本
+- `TECD3` 导入脚本
 - 日志与错误监控
 - 小程序正式域名联调
 
@@ -470,7 +463,7 @@ flowchart LR
 
 - 确定 `PostgreSQL`
 - 设计业务表和词典表
-- 迁移 `ECDICT`
+- 导入 `TECD3`
 - 废弃 JSON 文件缓存
 
 ### Phase 2：登录与会话
@@ -503,7 +496,7 @@ flowchart LR
 
 ### 12.1 数据库与模型定稿
 
-- 明确 `users`、`user_sessions`、`analysis_records`、`favorite_records`、`vocabulary_book`、`ecdict_entries`、`ecdict_lemmas`、`ecdict_aliases` 的最终字段
+- 明确 `users`、`user_sessions`、`analysis_records`、`favorite_records`、`vocabulary_book`、`dict_entries`、`dict_aliases` 的最终字段
 - 明确主键、唯一键、外键和索引策略
 - 明确 `analysis_records.render_scene_json`、`request_payload_json` 是否统一使用 `JSONB`
 - 明确 `vocabulary_book` 是否按 `user_id + lemma` 去重
@@ -538,7 +531,7 @@ flowchart LR
 - 明确正式运行环境：容器平台、PostgreSQL 服务、可选 Redis
 - 明确 API 域名、HTTPS 证书和小程序合法请求域名配置
 - 明确环境变量命名与注入方式
-- 明确数据库迁移、`ECDICT` 导入、回滚和健康检查流程
+- 明确数据库迁移、`TECD3` 导入、回滚和健康检查流程
 
 当前已落地的本地开发基线文件：
 
@@ -552,7 +545,7 @@ flowchart LR
 ### 12.6 开发节奏建议
 
 - 先做 `schema + migration`
-- 再做 `ECDICT -> PostgreSQL`
+- 再做 `TECD3 -> PostgreSQL`
 - 再做 `/dict` 查询切换
 - 再做微信登录与业务 session
 - 最后做云端历史、收藏、生词本与同步

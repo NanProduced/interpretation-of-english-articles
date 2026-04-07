@@ -1,9 +1,8 @@
 """
-ECDICT 词典查询缓存。
+TECD3 词典查询缓存。
 
 仅使用 L1 进程内内存缓存。
-L2 磁盘 JSON 缓存已废弃（见 production-architecture-and-deployment-plan.md）；
-正式真源为 PostgreSQL，Redis 为第二阶段可选增强。
+PostgreSQL 是当前唯一真源；Redis 仍为第二阶段可选增强。
 """
 
 from __future__ import annotations
@@ -13,8 +12,8 @@ from threading import Lock
 from typing import Any
 
 # L1: 进程内缓存配置
-_L1_CACHE: dict[str, tuple[dict[str, Any], float]] = {}  # word -> (data, expiry)
-_L1_TTL_SECONDS = 60 * 60  # 1 hour
+_L1_CACHE: dict[str, tuple[dict[str, Any], float]] = {}  # query -> (data, expiry)
+_L1_TTL_SECONDS = 60 * 60 * 24  # 24 hours
 _L1_MAX_SIZE = 1000
 _L1_LOCK = Lock()
 

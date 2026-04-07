@@ -10,7 +10,10 @@ import BottomSheetDetail from '../../components/BottomSheetDetail'
 import LucideIcon from '../../components/LucideIcon'
 import { LoadingIllustration, ErrorIllustration, EmptyIllustration } from '../../components/ResultIllustrations'
 import { useLayoutStore } from '../../stores/layout'
+import { useAuthStore } from '../../stores/auth'
 import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry } from '../../services/storage'
+import { CloudSyncService } from '../../services/cloudSync.service'
+import { ensureLoggedIn } from '../../services/auth'
 import { track } from '../../services/analytics'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
@@ -68,6 +71,14 @@ export default function Result() {
   }>({ visible: false, entry: null })
   const [loadingStep, setLoadingStep] = useState(0)
 
+  // 从 store 获取页面状态
+  const pageState = useArticleStore((s) => s.pageState)
+  const sceneData = useArticleStore((s) => s.sceneData)
+  const analyze = useArticleStore((s) => s.analyze)
+  const loadRecord = useArticleStore((s) => s.loadRecord)
+  const recordId = useArticleStore((s) => s.recordId)
+  const isReplayMode = useArticleStore((s) => s.isReplayMode)
+
   // === 加载状态：提示语轮播 ===
   useEffect(() => {
     let interval: any
@@ -78,14 +89,6 @@ export default function Result() {
     }
     return () => clearInterval(interval)
   }, [pageState])
-
-  // 从 store 获取页面状态
-  const pageState = useArticleStore((s) => s.pageState)
-  const sceneData = useArticleStore((s) => s.sceneData)
-  const analyze = useArticleStore((s) => s.analyze)
-  const loadRecord = useArticleStore((s) => s.loadRecord)
-  const recordId = useArticleStore((s) => s.recordId)
-  const isReplayMode = useArticleStore((s) => s.isReplayMode)
 
   // 收藏状态
   const [favorited, setFavorited] = useState(false)
@@ -167,7 +170,7 @@ export default function Result() {
     setBottomSheet({ visible: true, entry })
   }
 
-  const handleFavoriteEntry = (entry: SentenceEntryModel) => {
+  const handleFavoriteEntry = async (entry: SentenceEntryModel) => {
     if (!recordId) return
     const vocabEntry: VocabEntry = {
       id: `${recordId}_${entry.id}_${Date.now()}`,
@@ -181,6 +184,18 @@ export default function Result() {
     saveVocabEntry(vocabEntry)
     track('add_vocab', { entryType: entry.entryType, word: entry.title || entry.label })
     Taro.showToast({ title: '已记入生词本', icon: 'success', duration: 1500 })
+
+    // 静默同步云端（401 → 引导登录 → 重试）
+    try {
+      await CloudSyncService.syncVocab(vocabEntry)
+    } catch (err: any) {
+      if (err?.statusCode === 401) {
+        const relogin = await ensureLoggedIn()
+        if (relogin) {
+          await CloudSyncService.syncVocab(vocabEntry)
+        }
+      }
+    }
   }
 
   const handleHelpfulEntry = (entry: SentenceEntryModel) => {
@@ -191,20 +206,43 @@ export default function Result() {
     })
   }
 
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = async () => {
     if (!recordId) return
-    if (favorited) {
-      removeFavorite(recordId)
-      updateRecord(recordId, { isFavorited: false })
-      setFavorited(false)
-      track('favorite', { isFavorited: false })
-      Taro.showToast({ title: '已取消收藏', icon: 'none', duration: 1500 })
-    } else {
+    const isAdding = !favorited
+
+    if (isAdding) {
+      // 先写本地
       saveFavorite({ recordId, createdAt: Date.now() } as FavoriteRecord)
       updateRecord(recordId, { isFavorited: true })
       setFavorited(true)
       track('favorite', { isFavorited: true })
       Taro.showToast({ title: '已收藏', icon: 'success', duration: 1500 })
+
+      // 再同步云端（401 → 引导登录 → 重试）
+      try {
+        await CloudSyncService.syncFavorite(recordId, 'add')
+      } catch (err: any) {
+        if (err?.statusCode === 401) {
+          const relogin = await ensureLoggedIn()
+          if (relogin) {
+            await CloudSyncService.syncFavorite(recordId, 'add')
+          }
+        }
+        // 其他错误静默忽略
+      }
+    } else {
+      // 取消收藏
+      removeFavorite(recordId)
+      updateRecord(recordId, { isFavorited: false })
+      setFavorited(false)
+      track('favorite', { isFavorited: false })
+      Taro.showToast({ title: '已取消收藏', icon: 'none', duration: 1500 })
+
+      try {
+        await CloudSyncService.syncFavorite(recordId, 'remove')
+      } catch {
+        // 静默忽略删除失败的场景
+      }
     }
   }
 
@@ -425,25 +463,42 @@ export default function Result() {
         y={wordPopup.y}
         onClose={handleClosePopup}
         onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
-        onAddVocab={(w, dictResult) => {
-          if (!recordId || !dictResult) return
+        onAddVocab={async (w, dictResult) => {
+          if (!recordId || !dictResult || dictResult.resultType !== 'entry') return
+          const detailEntry = dictResult.entry
+          const detailMeanings = detailEntry.meanings
+          // 从首个 meaning 的 definitions 拼接派生，并在快照层截断
+          const derivedMeaning = detailMeanings[0]?.definitions
+            ?.map((d) => d.meaning)
+            .filter(Boolean)
+            .join('；') || ''
           const vocabEntry: VocabEntry = {
             id: `${recordId}_${w}_${Date.now()}`,
             recordId,
             word: w,
-            partOfSpeech: dictResult.meanings[0]?.partOfSpeech || '',
-            meaning: dictResult.meanings[0]?.definitions[0]?.meaning.slice(0, 200) || '',
+            partOfSpeech: detailMeanings[0]?.partOfSpeech || '',
+            meaning: derivedMeaning.slice(0, 200),
             addedAt: Date.now(),
             mastered: false,
-            // ECDICT 扩展字段
-            lemma: dictResult.entry?.lemma,
-            phonetic: dictResult.entry?.phonetic || dictResult.phonetic,
-            tags: dictResult.entry?.tags,
-            exchange: dictResult.entry?.exchange,
-            provider: dictResult.provider,
+            // 优先取 entry.baseWord ?? entry.word
+            lemma: detailEntry.baseWord ?? detailEntry.word,
+            phonetic: detailEntry.phonetic,
+            provider: dictResult.provider || 'tecd3',
           }
           saveVocabEntry(vocabEntry)
           track('add_vocab', { word: w })
+
+          // 静默同步云端（401 → 引导登录 → 重试）
+          try {
+            await CloudSyncService.syncVocab(vocabEntry)
+          } catch (err: any) {
+            if (err?.statusCode === 401) {
+              const relogin = await ensureLoggedIn()
+              if (relogin) {
+                await CloudSyncService.syncVocab(vocabEntry)
+              }
+            }
+          }
         }}
         onFavorite={(w) => { track('favorite_word', { word: w }) }}
       />

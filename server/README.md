@@ -33,7 +33,7 @@ uv run uvicorn app.main:app --reload
 当前正式方向已经收敛为：
 
 - 正式主库：`PostgreSQL`
-- 词典数据：`ECDICT` 迁入 `PostgreSQL`
+- 词典数据：`TECD3` 离线导入 `PostgreSQL`
 - 缓存：第一阶段先使用进程内缓存，`Redis` 作为本地调试和后续增强预留
 
 本地可直接使用仓库根目录的 [docker-compose.local.yml](../docker-compose.local.yml) 拉起：

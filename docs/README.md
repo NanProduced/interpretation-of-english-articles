@@ -11,12 +11,13 @@
 - 小程序技术边界：明确哪些能力可以由小程序原生或微信生态完成，哪些必须由我们自己实现
 - 运行与调试规范：明确模型配置、观测、实验与联调方式
 
-`docs/architecture/` 当前只保留 4 份主文档，不再继续平行扩张：
+`docs/architecture/` 当前只保留 5 份主文档，不再继续平行扩张：
 
 - 主文档：[小程序联调与用户体验开发设计文档](./architecture/mini-program-integration-and-ux-design.md)
-- 词典执行文档：[ECDICT 词典接入方案](./architecture/ecdict-local-dictionary-integration.md)
+- 词典执行文档：[TECD3 本地词典接入方案](./architecture/ecdict-local-dictionary-integration.md)
 - 边界结论文档：[微信小程序技术边界](./architecture/mini-program-boundaries.md)
 - 上线与部署文档：[小程序正式上线架构与部署方案](./architecture/production-architecture-and-deployment-plan.md)
+- 每日精读文档：[每日精读模块设计文档](./architecture/daily-reader-module-design.md)
 
 维护原则：
 
@@ -37,11 +38,13 @@
 - [微信小程序技术边界](./architecture/mini-program-boundaries.md)
 - [小程序联调与用户体验开发设计文档](./architecture/mini-program-integration-and-ux-design.md)
   - 包含当前结果页状态映射、前后端边界和 workflow 之外的小程序开发路线图
-- [ECDICT 词典接入方案](./architecture/ecdict-local-dictionary-integration.md)
-  - 覆盖 `/dict` 从第三方 API 切换到 `ECDICT`、前后端协议、生词本字段、短语边界与正式数据迁移影响范围
+- [TECD3 本地词典接入方案](./architecture/ecdict-local-dictionary-integration.md)
+  - 覆盖 `/dict` 切换到 `TECD3` 离线词典导入、前后端协议、单词卡片字段、底部详情弹层与 PostgreSQL 真源方案
 - [小程序正式上线架构与部署方案](./architecture/production-architecture-and-deployment-plan.md)
-  - 覆盖微信登录、云端资产、PostgreSQL、缓存分层、`ECDICT` 正式部署与上线拓扑
+  - 覆盖微信登录、云端资产、PostgreSQL、缓存分层、`TECD3` 词典真源与上线拓扑
   - 微信登录已实现：Session 管理（随机 Token + PostgreSQL）、`/auth/wechat/login`、`/auth/session/logout`、`/auth/session/me`
+- [每日精读模块设计文档](./architecture/daily-reader-module-design.md)
+  - 覆盖每日精读页面的信息架构、专用 workflow、正文轻量辅助、文末全篇解析与内容生产链路
 - [LangSmith 使用规范](./operations/langsmith-usage.md)
 - [回归集使用说明](./operations/regression-suite-usage.md)
 - [模型配置教程](./operations/model-configuration-usage.md)

@@ -1,40 +1,112 @@
 .profile-page {
   padding: 40rpx 48rpx;
-  background-color: #f8f8fa;
+  background-color: var(--color-bg);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 
   .header {
     margin-bottom: 64rpx;
-    .title { font-size: 48rpx; font-weight: bold; color: #030213; }
+    .title { font-size: 48rpx; font-weight: bold; color: var(--color-ink); }
   }
 
   .user-card {
     background-color: #fff;
     padding: 40rpx;
-    border-radius: 48rpx;
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     gap: 32rpx;
-    margin-bottom: 64rpx;
+    margin-bottom: 24rpx;
     box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.02);
+    position: relative;
 
-    .avatar {
-      width: 112rpx; height: 112rpx;
-      background-color: #030213;
-      color: #fff;
+    .avatar-btn {
+      width: 112rpx;
+      height: 112rpx;
+      padding: 0;
+      margin: 0;
       border-radius: 50%;
+      background-color: var(--color-ink);
+      color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 40rpx;
-      font-weight: bold;
+      flex-shrink: 0;
+      overflow: hidden;
+      line-height: normal;
+      border: none;
+      
+      &::after { border: none; }
+
+      .avatar-img {
+        width: 100%;
+        height: 100%;
+      }
+
+      .avatar-text {
+        font-size: 40rpx;
+        font-weight: bold;
+      }
     }
 
     .user-info {
-      .nickname { display: block; font-size: 36rpx; font-weight: bold; color: #030213; }
-      .stats { display: block; font-size: 24rpx; color: #999; margin-top: 4rpx; }
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      
+      .nickname {
+        display: block;
+        font-size: 40rpx;
+        font-weight: 700;
+        color: var(--color-ink);
+        font-family: var(--font-serif);
+      }
+
+      .nickname-input {
+        font-size: 40rpx;
+        font-weight: 700;
+        color: var(--color-ink);
+        height: 60rpx;
+        width: 100%;
+        font-family: var(--font-serif);
+      }
+
+      .stats-row {
+        margin-top: 12rpx;
+        display: flex;
+        align-items: baseline;
+        gap: 4rpx;
+
+        .stats-label {
+          font-size: 24rpx;
+          color: var(--text-sub);
+        }
+
+        .stats-value {
+          font-size: 30rpx;
+          font-weight: 600;
+          color: var(--color-ink);
+          font-family: var(--font-mono);
+          font-variant-numeric: tabular-nums;
+        }
+      }
+    }
+
+    .logout-icon-btn {
+      padding: 16rpx;
+      margin-right: -16rpx;
+      &:active { opacity: 0.6; }
+    }
+  }
+
+  .login-tip {
+    text-align: center;
+    margin-bottom: 40rpx;
+    .tip-text {
+      font-size: 24rpx;
+      color: var(--text-muted);
     }
   }
 
@@ -43,9 +115,9 @@
       margin-bottom: 48rpx;
       .group-title {
         display: block;
-        font-size: 20rpx;
+        font-size: 22rpx;
         font-weight: bold;
-        color: #999;
+        color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 2rpx;
         padding-left: 16rpx;
@@ -53,7 +125,7 @@
       }
       .group-box {
         background-color: #fff;
-        border-radius: 48rpx;
+        border-radius: var(--radius-lg);
         overflow: hidden;
         box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.02);
 
@@ -62,39 +134,66 @@
           align-items: center;
           justify-content: space-between;
           padding: 32rpx 40rpx;
-          border-bottom: 1rpx solid #f8f8fa;
+          border-bottom: 1rpx solid rgba(0, 0, 0, 0.03);
+          transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+          
           &:last-child { border-bottom: none; }
-          &:active { background-color: #fcfcfc; }
+
+          &:active {
+            background-color: #f9f9fb;
+            transform: scale(0.99);
+            border-bottom-color: transparent;
+          }
 
           .item-left {
             display: flex;
             align-items: center;
             gap: 24rpx;
+
             .icon-box {
-              width: 64rpx; height: 64rpx;
+              width: 68rpx;
+              height: 68rpx;
               border-radius: 20rpx;
               display: flex;
               align-items: center;
               justify-content: center;
-              
-              [class^='icon-'] { width: 32rpx; height: 32rpx; background-color: currentColor; mask-size: contain; mask-repeat: no-repeat; }
-              &.blue { background-color: #eff6ff; color: #3b82f6; .icon-settings { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E"); } }
-              &.yellow { background-color: #fffbeb; color: #eab308; .icon-bookmark { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z'/%3E%3C/svg%3E"); } }
-              &.gray { background-color: #f3f4f6; color: #6b7280; .icon-file { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z'/%3E%3Cpolyline points='14 2 14 8 20 8'/%3E%3C/svg%3E"); } .icon-info { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='16' x2='12' y2='12'/%3E%3Cline x1='12' y1='8' x2='12.01' y2='8'/%3E%3C/svg%3E"); } }
+              transition: transform 0.2s ease;
+              border: 1rpx solid rgba(0, 0, 0, 0.02);
+
+              &.blue { 
+                background-color: var(--color-card-blue); 
+                color: var(--color-info);
+                box-shadow: inset 0 0 12rpx rgba(66, 133, 244, 0.05);
+              }
+              &.yellow { 
+                background-color: var(--color-card-orange); 
+                color: var(--color-focus);
+                box-shadow: inset 0 0 12rpx rgba(251, 146, 60, 0.05);
+              }
+              &.gray { 
+                background-color: #f3f4f6; 
+                color: var(--text-sub);
+              }
             }
-            .label { font-size: 30rpx; font-weight: 500; color: #030213; }
+            .label { 
+              font-size: 30rpx; 
+              font-weight: 500; 
+              color: var(--color-ink);
+              letter-spacing: 0.5rpx;
+            }
           }
 
           .item-right {
             display: flex;
             align-items: center;
             gap: 12rpx;
-            .value-tag { font-size: 24rpx; font-weight: bold; background-color: #f3f4f6; color: #666; padding: 4rpx 16rpx; border-radius: 8rpx; }
-            .arrow-icon {
-              width: 32rpx; height: 32rpx;
-              background-color: #ccc;
-              mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") no-repeat center;
-              mask-size: contain;
+            .value-tag {
+              font-size: 24rpx;
+              font-weight: bold;
+              background-color: var(--color-bg);
+              color: var(--text-sub);
+              padding: 4rpx 16rpx;
+              border-radius: var(--radius-xs);
             }
           }
         }
@@ -106,8 +205,8 @@
     margin-top: auto;
     padding-bottom: 64rpx;
     text-align: center;
-    font-size: 20rpx;
-    color: #d1d5db;
+    font-size: 22rpx;
+    color: var(--text-muted);
     font-weight: 500;
   }
 }

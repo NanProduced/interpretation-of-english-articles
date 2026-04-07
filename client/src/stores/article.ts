@@ -6,6 +6,7 @@ import {
   ResultPageState,
 } from '../types/view/render-scene.vm'
 import { saveRecord, generateRecordId, getRecord } from '../services/storage'
+import { CloudSyncService } from '../services/cloudSync.service'
 import type { AnalysisRecord } from '../types/view/analysis-record.vm'
 import { track } from '../services/analytics'
 
@@ -111,6 +112,8 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
         isFavorited: false,
       }
       saveRecord(record)
+      // 静默同步到云端（未登录自动跳过，失败不阻塞）
+      CloudSyncService.syncRecord(record)
       track('analyze_success', { pageState })
 
       set({ sceneData: vm, phase, pageState, recordId })

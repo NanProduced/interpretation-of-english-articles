@@ -1,30 +1,18 @@
-"""
-词典服务
-
-提供统一的词典查询入口，处理查询词归一化。
-MVP 阶段仅使用本地 ECDICT 词典。
-"""
+"""词典服务。"""
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
-from app.services.dictionary.providers import EcdictProvider
+from app.services.dictionary.providers import Tecd3Provider
 
 
 class LookupError(Exception):
-    """词典查询失败（词不存在）"""
-    pass
+    """词典查询失败（词不存在）。"""
 
 
 class DictionaryService:
-    """
-    词典服务
-
-    MVP 阶段仅使用本地 ECDICT 词典，不再依赖第三方在线 API。
-    """
-
-    # Alias 归一化映射
     _ALIAS_MAP: dict[str, str] = {
         "u.s.": "us",
         "u.k.": "uk",
@@ -38,63 +26,75 @@ class DictionaryService:
         "vs.": "vs",
         "etc.": "etc",
     }
+    _TRANSLATION_MAP = str.maketrans(
+        {
+            "’": "'",
+            "‘": "'",
+            "“": '"',
+            "”": '"',
+            "⁰": "0",
+            "¹": "1",
+            "²": "2",
+            "³": "3",
+            "⁴": "4",
+            "⁵": "5",
+            "⁶": "6",
+            "⁷": "7",
+            "⁸": "8",
+            "⁹": "9",
+        }
+    )
 
     def __init__(self) -> None:
-        self._provider = EcdictProvider()
+        self._provider = Tecd3Provider()
 
     async def lookup(self, word: str) -> dict[str, Any]:
-        """
-        查询单词释义。
-
-        流程：
-        1. 归一化查询词（trim + lowercase + alias 映射）
-        2. 使用 ECDICT 本地 provider 查询
-        3. 未命中则抛出 LookupError
-
-        Args:
-            word: 原始查询词
-
-        Returns:
-            DictionaryResult 字典
-
-        Raises:
-            LookupError: 词不存在或查询失败
-        """
         normalized = self._normalize(word)
+        for candidate in self._candidate_queries(normalized):
+            try:
+                return await self._provider.fetch(candidate)
+            except ValueError:
+                continue
+        raise LookupError(f"Word not found: {word}") from None
+
+    async def lookup_entry(self, entry_id: int) -> dict[str, Any]:
         try:
-            return await self._provider.fetch(normalized)
+            return await self._provider.fetch_entry(entry_id)
         except ValueError:
-            raise LookupError(f"Word not found: {word}") from None
+            raise LookupError(f"Entry not found: {entry_id}") from None
 
     def _normalize(self, word: str) -> str:
-        """
-        归一化查询词。
-
-        1. trim 去除首尾空白
-        2. lowercase 转为小写
-        3. alias 映射处理缩写
-
-        Args:
-            word: 原始查询词
-
-        Returns:
-            归一化后的查询词
-        """
-        normalized = word.strip().lower()
-
-        # alias 归一化
-        if normalized in self._ALIAS_MAP:
-            normalized = self._ALIAS_MAP[normalized]
-
+        normalized = word.strip().translate(self._TRANSLATION_MAP).lower()
+        normalized = normalized.replace("·", "").replace("•", "")
+        normalized = re.sub(r"(?<=\S)\s+([0-9]+)$", r"\1", normalized)
+        normalized = self._ALIAS_MAP.get(normalized, normalized)
+        normalized = re.sub(r"^[^\w]+|[^\w]+$", "", normalized)
+        normalized = self._ALIAS_MAP.get(normalized, normalized)
         return normalized
 
+    def _candidate_queries(self, normalized: str) -> list[str]:
+        candidates: list[str] = []
+        seen: set[str] = set()
 
-# 服务单例
+        def add(value: str) -> None:
+            if value and value not in seen:
+                seen.add(value)
+                candidates.append(value)
+
+        add(normalized)
+        if len(normalized) > 4 and normalized.endswith("ies"):
+            add(normalized[:-3] + "y")
+        elif len(normalized) > 4 and normalized.endswith(("ses", "xes", "zes", "ches", "shes", "oes")):
+            add(normalized[:-2])
+        elif len(normalized) > 2 and normalized.endswith("s") and not normalized.endswith("ss"):
+            add(normalized[:-1])
+        return candidates
+
+
 _service: DictionaryService | None = None
 
 
 def get_service() -> DictionaryService:
-    """获取 DictionaryService 单例"""
     global _service
     if _service is None:
         _service = DictionaryService()
