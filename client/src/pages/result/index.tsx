@@ -18,6 +18,18 @@ import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import './index.scss'
 
+/** 阅读变体映射表 */
+const VARIANT_LABELS: Record<string, string> = {
+  gaokao: '高考英语',
+  cet: '四六级',
+  gre: 'GRE',
+  ielts_toefl: '雅思/托福',
+  beginner_reading: '入门阅读',
+  intermediate_reading: '中级阅读',
+  intensive_reading: '深度精读',
+  academic_general: '学术英语',
+}
+
 /** 页面模式选项 */
 const PAGE_MODE_OPTIONS = [
   { value: 'immersive', label: '原文' },
@@ -158,6 +170,12 @@ export default function Result() {
     setSelectedWord(null)
   }
 
+  const handleScroll = () => {
+    if (wordPopup.visible && wordPopup.mode === 'mini') {
+      handleClosePopup()
+    }
+  }
+
   const handleToggleFavorite = async () => {
     if (!recordId) return
     const isAdding = !favorited
@@ -213,13 +231,24 @@ export default function Result() {
   }
 
   // === 通用页面外壳 ===
-  const pageShell = (extraContent: React.ReactNode) => (
-    <View className='result-page'>
-      <NavBar title='Claread透读' showBack showHome />
-      <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
-      {extraContent}
-    </View>
-  )
+  const pageShell = (extraContent: React.ReactNode) => {
+    const { request } = sceneData || {}
+    const levelLabel = request ? VARIANT_LABELS[request.readingVariant] : ''
+    const sourceLabel = request?.sourceType === 'user_input' ? '手动输入' : '每日文章'
+
+    return (
+      <View className='result-page'>
+        <NavBar 
+          title='Claread透读' 
+          subtitle={levelLabel ? `${levelLabel} · ${sourceLabel}` : undefined}
+          showBack 
+          showHome 
+        />
+        <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
+        {extraContent}
+      </View>
+    )
+  }
 
   // === 降级提示条（基于 pageState，不暴露技术细节） ===
   const renderDegradedBanner = (state: ResultPageState) => {
@@ -383,9 +412,8 @@ export default function Result() {
       {/* 降级提示条：位于 mode-tabs 下方 */}
       {renderDegradedBanner(pageState)}
 
-      <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false}>
+      <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={handleScroll}>
         <View className='article-container'>
-          {renderArticleHeader()}
           {renderParagraphs()}
           <View className='bottom-spacer' />
         </View>

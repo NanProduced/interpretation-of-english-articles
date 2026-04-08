@@ -74,14 +74,21 @@ export async function request<T>(options: RequestOptions): Promise<T> {
 
     // Taro.request 可能的网络错误
     if (error instanceof Error) {
-      if (error.message.includes('timeout')) {
+      const msg = error.message.toLowerCase()
+      // 超时类错误：timeout / etimedout / etimeout / timedout
+      if (msg.includes('timeout') || msg.includes('etimedout') || msg.includes('etimeout') || msg.includes('timedout')) {
         throw new ApiError('请求超时', 'TIMEOUT', 0)
       }
-      if (error.message.includes('network') || error.message.includes('ERR_')) {
+      // 网络类错误：network / err_ / econnreset / econnrefused / enotfound / eai_again
+      if (msg.includes('network') || msg.includes('err_') || msg.includes('econnreset') ||
+          msg.includes('econnrefused') || msg.includes('enotfound') || msg.includes('eai_again') ||
+          msg.includes('socket') || msg.includes('aborted')) {
         throw new ApiError('网络错误', 'NETWORK_ERROR', 0)
       }
     }
 
+    // 记录完整错误便于调试
+    console.error('[api] request failed:', error)
     throw new ApiError('未知错误', 'UNKNOWN', 0, error)
   }
 }

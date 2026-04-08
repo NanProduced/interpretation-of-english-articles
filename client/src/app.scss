@@ -1,10 +1,11 @@
 /* 全局 Design Tokens - 适配自 Figma 新设计与 Goodnotes 质感 */
 page {
-  // 基础颜色 (Brand Palette) - 模拟高质感纸张
+  // 品牌色 (Brand Palette) - 模拟高质感纸张
   --color-ink: #121212;           // 极深炭黑，替代纯黑 (更护眼，更有质感)
   --color-bg: #FAF9F9;            // 页面背景 (Goodnotes 暖白)
   --primary-color: var(--color-ink);
   --bg-color: var(--color-bg);
+  --color-white: #FFFFFF;
 
   // 语义色 - 墨水/荧光笔质感 (OKLCH 逻辑配色，饱和度适中)
   --color-info:      #2E5BB2;     // 藏青 (info)
@@ -13,21 +14,33 @@ page {
   --color-phrase:    #6D28D9;     // 丁香 (phrase)
   --color-grammar:   #047857;     // 松石 (grammar)
 
-  --vocab-color: var(--color-exam);
-  --grammar-color: var(--color-grammar);
-  --phrase-color: var(--color-phrase);
-  --warning-color: var(--color-focus);
+  // --- Category: Vocab (Amber/Orange) ---
+  --vocab-surface: #FFF8EB;
+  --vocab-border:  #FFE8CC;
+  --vocab-accent:  #F59E0B;
+  --vocab-label:   #D97706;
+  --vocab-content: #92400E;
 
-  // 推荐卡片颜色 (更细腻的半透明背景)
-  --color-card-blue:   rgba(46, 91, 178, 0.04);
-  --color-card-orange: rgba(180, 83, 9, 0.04);
-  --color-card-purple: rgba(109, 40, 217, 0.04);
-  
+  // --- Category: Grammar (Indigo/Purple) ---
+  --grammar-surface: #F5F3FF;
+  --grammar-border:  #EDE9FE;
+  --grammar-accent:  #8B5CF6;
+  --grammar-label:   #7C3AED;
+  --grammar-content: #5B21B6;
+
+  // --- Category: Sentence (Emerald/Green) ---
+  --sentence-surface: #F0FDF4;
+  --sentence-border:  #DCFCE7;
+  --sentence-accent:  #10B981;
+  --sentence-label:   #059669;
+  --sentence-content: #065F46;
+
   // 文字层级
   --text-main: #1A1A1A;
   --text-sub:  #646470;           // 略带冷调的灰，增加高级感
   --text-muted: #A1A1AA;
   --border-color: rgba(0, 0, 0, 0.04);
+  --border-light: rgba(0, 0, 0, 0.02);
   
   // 圆角系统 (8rpx grid)
   --radius-lg: 40rpx;   // 调小一点更显精致

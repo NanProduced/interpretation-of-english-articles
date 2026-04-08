@@ -5,11 +5,11 @@
   // --- Immersive Mode ---
   &.immersive {
     .english-paragraph {
-      line-height: 1.8;
+      line-height: var(--leading-relaxed);
     }
     .english-flow {
       font-size: 34rpx;
-      color: #1a1a1a;
+      color: var(--text-main);
       font-family: var(--font-english-serif), serif;
     }
   }
@@ -19,7 +19,7 @@
     .sentence-block {
       margin-bottom: 40rpx;
       padding-bottom: 40rpx;
-      border-bottom: 1rpx solid #f0f0f0;
+      border-bottom: 1rpx solid var(--border-color);
 
       &:last-child {
         border-bottom: none;
@@ -33,10 +33,10 @@
     }
 
     .english-flow {
-      font-size: 36rpx;
-      line-height: 1.6;
-      font-weight: 500;
-      color: #000;
+      font-size: var(--text-lg);
+      line-height: var(--leading-normal);
+      font-weight: var(--weight-medium);
+      color: var(--color-ink);
       font-family: var(--font-english-serif), serif;
     }
 
@@ -44,10 +44,10 @@
       margin-bottom: 20rpx;
       
       .translation-text {
-        font-size: 28rpx;
-        line-height: 1.6;
-        color: #666;
-        font-weight: 400;
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+        color: var(--text-sub);
+        font-weight: var(--weight-normal);
       }
     }
 
@@ -69,16 +69,16 @@
   }
 }
 
-// Override InlineMark/ClickableWord styles within ParagraphBlock if needed
+// Override InlineMark/ClickableWord styles within ParagraphBlock
 .tone-vocab, .tone-phrase, .tone-context {
   text-decoration: underline;
   text-decoration-style: dashed;
-  text-decoration-color: rgba(79, 70, 229, 0.3); // indigo-600/30
+  text-decoration-color: rgba(245, 158, 11, 0.3); // vocab-accent with opacity
 }
 
 .tone-grammar {
   text-decoration: underline;
   text-decoration-style: solid;
   text-decoration-thickness: 2rpx;
-  text-decoration-color: rgba(139, 92, 246, 0.4); // violet-500/40
+  text-decoration-color: rgba(139, 92, 246, 0.4); // grammar-accent with opacity
 }

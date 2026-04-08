@@ -116,6 +116,11 @@ def validate_grammar_draft(
             warnings.append(f"sentence_analysis: sentence_id {s.sentence_id} not found")
             continue
         sent_text = sentence_map[s.sentence_id].text
+        if not s.chunks:
+            warnings.append(
+                f"sentence_analysis: chunks missing for sentence {s.sentence_id}; "
+                "SentenceAnalysis should usually include 2-6 chunks"
+            )
         if s.chunks:
             for chunk in s.chunks:
                 if chunk.text not in sent_text:

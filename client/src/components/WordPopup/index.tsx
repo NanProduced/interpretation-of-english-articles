@@ -100,11 +100,17 @@ export default function WordPopup({
 
     let left = x - popupWidth / 2
     let top = y - popupHeight - offset
+    let isFlipped = false
 
     // 边缘处理
     if (left < 10) left = 10
     if (left + popupWidth > screenWidth - 10) left = screenWidth - popupWidth - 10
-    if (top < 80) top = y + offset // 如果上方不够，翻转到下方
+    
+    // 如果上方不够（考虑状态栏和导航栏高度，通常 80px 足够），翻转到下方
+    if (top < 80) {
+      top = y + offset
+      isFlipped = true
+    }
 
     const popupStyle: React.CSSProperties = {
       position: 'fixed',
@@ -116,7 +122,7 @@ export default function WordPopup({
     return (
       <View className='word-popup-overlay mini-overlay' onClick={onClose}>
         <View
-          className={`mini-word-card ${isLLMAnnotated ? 'is-ai' : ''}`}
+          className={`mini-word-card ${isLLMAnnotated ? 'is-ai' : ''} ${isFlipped ? 'is-flipped' : ''}`}
           style={popupStyle}
           onClick={(e) => {
             e.stopPropagation()
@@ -148,7 +154,12 @@ export default function WordPopup({
             )}
           </View>
           
-          <View className='mini-arrow' style={{ left: `${Math.max(20, Math.min(popupWidth - 20, x - left))}px` }} />
+          <View 
+            className='mini-arrow' 
+            style={{ 
+              left: `${Math.max(20, Math.min(popupWidth - 20, x - left))}px`
+            }} 
+          />
         </View>
       </View>
     )
@@ -271,7 +282,7 @@ export default function WordPopup({
                 onAddVocab?.(entry.word, dictResult)
               }}
             >
-              <LucideIcon name='plus' size={18} color='#fff' />
+              <LucideIcon name='plus' size={18} color='var(--color-white)' />
               <Text>记入生词本</Text>
             </View>
           ) : null}

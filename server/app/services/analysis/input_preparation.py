@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     import spacy.language
 
 __all__ = ["prepare_input", "PreparedInput"]
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Module-level regex patterns (kept for backward-compatible sanitize_text)
@@ -293,6 +294,89 @@ def _is_fast_path_eligible(
     return True, None
 
 
+def _is_heading_like_line(line: str, next_line: str) -> bool:
+    """
+    Heuristic: detect a short standalone heading line at the start of a paragraph.
+
+    Used to split inputs like:
+        April Fool's traditions
+        In the UK, jokes and tricks ...
+
+    without breaking normal wrapped body text.
+    """
+    stripped = line.strip()
+    next_stripped = next_line.strip()
+    if not stripped or not next_stripped:
+        return False
+
+    # Headings are short and compact.
+    if len(stripped) > 60:
+        return False
+    if len(stripped.split()) > 8:
+        return False
+
+    # A heading line should not already look like a sentence.
+    if stripped[-1:] in {".", "?", "!", ":", ";", ","}:
+        return False
+    if any(ch in stripped for ch in [".", "?", "!", ";", ","]):
+        return False
+
+    # The following line should look like real prose.
+    if len(next_stripped) < 20:
+        return False
+    if not next_stripped[0].isupper():
+        return False
+
+    return True
+
+
+def _split_paragraph_spans(render_text: str) -> list[tuple[int, int]]:
+    """
+    Split paragraphs by blank lines first, then apply a heading-aware split
+    for blocks that begin with a short standalone title line.
+    """
+    base_spans: list[tuple[int, int]] = []
+    offset = 0
+    for para_block in render_text.split("\n\n"):
+        stripped = para_block.strip()
+        if not stripped:
+            continue
+        para_start = render_text.find(stripped, offset)
+        if para_start == -1:
+            para_start = offset
+        para_end = para_start + len(stripped)
+        offset = para_end
+        base_spans.append((para_start, para_end))
+
+    paragraph_spans: list[tuple[int, int]] = []
+    for para_start, para_end in base_spans:
+        para_text = render_text[para_start:para_end]
+        if "\n" not in para_text:
+            paragraph_spans.append((para_start, para_end))
+            continue
+
+        first_line, remainder = para_text.split("\n", 1)
+        next_line = remainder.split("\n", 1)[0] if remainder else ""
+
+        if _is_heading_like_line(first_line, next_line):
+            heading_end = para_start + len(first_line)
+            remainder_start = heading_end + 1
+            remainder_text = para_text[len(first_line) + 1 :].strip()
+
+            paragraph_spans.append((para_start, heading_end))
+            if remainder_text:
+                abs_remainder_start = render_text.find(remainder_text, remainder_start)
+                if abs_remainder_start == -1:
+                    abs_remainder_start = remainder_start
+                paragraph_spans.append(
+                    (abs_remainder_start, abs_remainder_start + len(remainder_text))
+                )
+        else:
+            paragraph_spans.append((para_start, para_end))
+
+    return paragraph_spans
+
+
 # ---------------------------------------------------------------------------
 # Layer 5: paragraph + sentence splitting
 # ---------------------------------------------------------------------------
@@ -318,18 +402,12 @@ def _check_spacy_model() -> bool:
         )
         nlp.enable_pipe("senter")
         _spacy_available = True
-        import logging
-
-        logging.getLogger(__name__).info(
-            "spaCy model en_core_web_sm loaded successfully"
-        )
+        logger.info("prepare_input: spaCy model en_core_web_sm loaded successfully")
         return True
     except (ImportError, OSError, Exception) as e:
         _spacy_available = False
-        import logging
-
-        logging.getLogger(__name__).warning(
-            f"spaCy model en_core_web_sm unavailable: {e}. "
+        logger.warning(
+            f"prepare_input: spaCy model en_core_web_sm unavailable: {e}. "
             "Install with: python -m spacy download en_core_web_sm"
         )
         return False
@@ -440,6 +518,12 @@ def _build_sentences_from_spacy_spans(
         para_start, _ = paragraph_spans[para_idx]
         abs_start = para_start + sent_start_rel
         abs_end = para_start + sent_end_rel
+
+        while abs_start < abs_end and render_text[abs_start].isspace():
+            abs_start += 1
+        while abs_end > abs_start and render_text[abs_end - 1].isspace():
+            abs_end -= 1
+
         sentence_text = render_text[abs_start:abs_end]
         sentences.append(
             PreparedSentence(
@@ -473,18 +557,7 @@ def layer5_split(
     actions: list[str] = []
 
     # ---- Paragraph split (always by blank lines) ----
-    paragraph_spans: list[tuple[int, int]] = []
-    offset = 0
-    for para_block in render_text.split("\n\n"):
-        stripped = para_block.strip()
-        if not stripped:
-            continue
-        para_start = render_text.find(stripped, offset)
-        if para_start == -1:
-            para_start = offset
-        para_end = para_start + len(stripped)
-        offset = para_end
-        paragraph_spans.append((para_start, para_end))
+    paragraph_spans = _split_paragraph_spans(render_text)
 
     # ---- Sentence split ----
     if fast_path:
@@ -530,6 +603,17 @@ def layer5_split(
     else:
         sentences = _split_sentences_regex(render_text, paragraph_spans)
         actions.append("regex_sentence_split")
+
+    logger.info(
+        "prepare_input: layer5_split completed",
+        extra={
+            "paragraph_count": len(paragraph_spans),
+            "sentence_count": len(sentences),
+            "fast_path": fast_path,
+            "forced_regex_action": forced_regex_action,
+            "split_actions": actions,
+        },
+    )
 
     # ---- Build PreparedParagraph with sentence_ids ----
     sent_idx_by_para: dict[int, list[str]] = {
@@ -728,9 +812,7 @@ def _run_pipeline_fallback(
     当 spaCy 不可用时的降级路径。
     强制走 regex 断句，action 记录为 "regex_sentence_split_no_spacy"（显式降级，可观测）。
     """
-    import logging
-
-    logging.getLogger(__name__).warning(
+    logger.warning(
         "prepare_input: spaCy model unavailable, using regex fallback for sentence splitting"
     )
     all_actions = list(all_actions_initial)
@@ -816,6 +898,14 @@ def _run_pipeline(source_text: str) -> _PipelineResult:
 
     # If spaCy is unavailable, force fast_path=False (no point trying spaCy)
     if _spacy_available is False and structure_hint.text_type == "article_en":
+        logger.info(
+            "prepare_input: skip fast_path because spaCy is unavailable",
+            extra={
+                "text_type": text_type,
+                "language_detected": language_detected,
+                "english_ratio": round(english_ratio, 4),
+            },
+        )
         # Force to regex path; don't bother with fast-path check
         return _run_pipeline_fallback(
             source_text=source_text,
@@ -829,6 +919,17 @@ def _run_pipeline(source_text: str) -> _PipelineResult:
     # Fast-path decision
     fast_path, fallback_reason = _is_fast_path_eligible(
         structure_hint, english_ratio, text
+    )
+    logger.info(
+        "prepare_input: fast_path decision",
+        extra={
+            "fast_path": fast_path,
+            "fallback_reason": fallback_reason,
+            "text_type": text_type,
+            "language_detected": language_detected,
+            "english_ratio": round(english_ratio, 4),
+            "source_length": len(text),
+        },
     )
 
     # Sanitize text (after structure/lang detection, before splitting)
@@ -859,6 +960,19 @@ def _run_pipeline(source_text: str) -> _PipelineResult:
     final_report = SanitizeReport(
         actions=all_actions,
         removed_segment_count=max(sanitize_report.removed_segment_count, remove_actions_count),
+    )
+
+    logger.info(
+        "prepare_input: pipeline completed",
+        extra={
+            "text_type": text_type,
+            "fast_path": fast_path,
+            "fallback_reason": fallback_reason,
+            "language_detected": language_detected,
+            "paragraph_count": len(paragraphs),
+            "sentence_count": len(sentences),
+            "actions": all_actions,
+        },
     )
 
     return _PipelineResult(

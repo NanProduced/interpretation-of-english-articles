@@ -64,7 +64,7 @@ function renderPlainSegmentAsClickableWords(
           word={token.text}
           isSaved={isSaved}
           className={isSelected ? 'active' : ''}
-          onClick={(w) => onWordClick?.({ word: w, mark: null })}
+          onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e })}
         />
       )
     }
@@ -153,7 +153,7 @@ function renderTextWithMarks(
               word={token.text}
               isSaved={isSaved}
               className={[toneClass, isSelected ? 'active' : ''].filter(Boolean).join(' ')}
-              onClick={(w) => onWordClick?.({ word: w, mark: null })}
+              onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e })}
             />
           )
         }

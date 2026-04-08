@@ -91,6 +91,16 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
 
     try {
       const dto = await fetchAnalyze(params)
+      // 调试日志：确认后端返回的原始数据结构
+      console.log('[article] analyze dto received:', {
+        hasData: !!dto,
+        schemaVersion: (dto as any)?.schema_version,
+        hasArticle: !!(dto as any)?.article,
+        articleParagraphs: (dto as any)?.article?.paragraphs?.length,
+        articleSentences: (dto as any)?.article?.sentences?.length,
+        inlineMarksCount: (dto as any)?.inline_marks?.length,
+        userFacingState: (dto as any)?.user_facing_state,
+      })
       const vm: RenderSceneVm = analyzeResponseDtoToVm(dto)
       const phase = isEmptyResult(vm) ? 'empty' : 'success'
       const pageState = derivePageState(phase, null, vm)
@@ -118,6 +128,15 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
 
       set({ sceneData: vm, phase, pageState, recordId })
     } catch (err: any) {
+      // 详细日志，便于调试
+      console.error('[article] analyze failed:', {
+        name: err?.name,
+        message: err?.message,
+        code: err?.code,
+        statusCode: err?.statusCode,
+        response: err?.response,
+        stack: err?.stack,
+      })
       const message = err?.message || '网络或服务异常，请稍后重试'
       const code = err?.code || 'UNKNOWN'
       const phase: ArticlePhase = 'error'

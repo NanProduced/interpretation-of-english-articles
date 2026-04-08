@@ -270,17 +270,7 @@ def _format_grammar_spans(spans: list[SpanRef]) -> str:
 
 
 def _format_grammar_note_content(annotation: GrammarNote) -> str:
-    span_lines = _format_grammar_spans(annotation.spans)
-    if not span_lines:
-        return annotation.note_zh
-    return "\n\n".join(
-        [
-            "**核心结论**",
-            annotation.note_zh,
-            "**锚点定位**",
-            span_lines,
-        ]
-    )
+    return annotation.note_zh
 
 
 def _format_chunks(chunks: list[Chunk] | None) -> str:
@@ -294,10 +284,9 @@ def _format_chunks(chunks: list[Chunk] | None) -> str:
 
 def _format_sentence_analysis_content(annotation: SentenceAnalysis) -> str:
     chunks_text = _format_chunks(annotation.chunks)
-    sections = ["**整句理解**", annotation.analysis_zh]
-    if chunks_text:
-        sections.extend(["**阅读顺序拆解**", chunks_text])
-    return "\n\n".join(sections)
+    if not chunks_text:
+        return annotation.analysis_zh
+    return "\n\n".join([annotation.analysis_zh, chunks_text])
 
 
 def _project_sentence_analysis(

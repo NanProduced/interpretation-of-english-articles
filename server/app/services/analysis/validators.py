@@ -256,29 +256,38 @@ def validate_sentence_analysis(
         )
         return result
 
+    chunks = annotation.chunks or []
+
     # 检查 chunks
-    if len(annotation.chunks) < 2:
+    if not chunks:
+        result.add_warning(
+            "chunks_missing",
+            "SentenceAnalysis.chunks 缺失；对复杂句建议提供 2-6 个 chunks 以支持结构化渲染",
+        )
+        return result
+
+    if len(chunks) < 2:
         result.add_warning(
             "chunks_too_few",
-            f"SentenceAnalysis.chunks 建议至少 2 个，当前: {len(annotation.chunks)}",
+            f"SentenceAnalysis.chunks 建议至少 2 个，当前: {len(chunks)}",
         )
 
-    if len(annotation.chunks) > 8:
+    if len(chunks) > 8:
         result.add_warning(
             "chunks_too_many",
-            f"SentenceAnalysis.chunks 建议最多 8 个，当前: {len(annotation.chunks)}",
+            f"SentenceAnalysis.chunks 建议最多 8 个，当前: {len(chunks)}",
         )
 
     # 检查 order 连续性
-    orders = [c.order for c in annotation.chunks]
-    expected_orders = list(range(1, len(annotation.chunks) + 1))
+    orders = [c.order for c in chunks]
+    expected_orders = list(range(1, len(chunks) + 1))
     if sorted(orders) != expected_orders:
         result.add_error(
             "chunks_order_invalid",
             f"SentenceAnalysis.chunks order 必须连续: {orders}",
         )
 
-    for i, chunk in enumerate(annotation.chunks):
+    for i, chunk in enumerate(chunks):
         if not _is_substring(chunk.text, sentence_text):
             result.add_error(
                 "chunk_not_substring",

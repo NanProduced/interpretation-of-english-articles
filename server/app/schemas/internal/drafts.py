@@ -50,7 +50,7 @@ class GrammarDraft(BaseModel):
     设计原则：
     - 不负责词汇标注、词典查语、逐句翻译
     - 优先覆盖显著复杂句，不追求数量
-    - sentence_analysis.chunks 降级为可选增强字段
+    - sentence_analysis.chunks 允许为空，但默认应提供，避免只给泛化说明而不做结构拆解
     """
 
     model_config = BASE_MODEL_CONFIG
@@ -61,7 +61,7 @@ class GrammarDraft(BaseModel):
     )
     sentence_analyses: list[SentenceAnalysis] = Field(
         default_factory=list,
-        description="长难句拆解列表（chunks 为可选）",
+        description="长难句拆解列表（chunks 默认应提供，仅在无法稳定拆块时允许为空）",
     )
 
 

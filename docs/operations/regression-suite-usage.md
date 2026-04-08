@@ -1,6 +1,6 @@
 # 回归集使用说明
 
-版本：`v1.0.0`
+版本：`v2.0.0`
 
 状态：当前有效。本文档描述的是 **本地调试与输出质量提升** 用的回归集组件，不属于生产主链。
 
@@ -95,9 +95,25 @@
 }
 ```
 
-## 4. expectation 字段说明
+## 4. V2 设计原则
 
-### 4.1 `must_hit`
+V2 的目标不再是要求模型“复现某一版人工标注答案”，而是检查下面三类能力：
+
+1. `contract`：结构与底线不退化
+2. `core_quality`：关键现象仍能被命中
+3. `anti_overannotation`：简单文本不过度讲解
+
+V2 默认遵循这些规则：
+
+1. `must_hit` 只保留真正不可缺失的高价值现象，不再把大量具体词汇选点写死。
+2. `count_bounds` 以 `max` 为主，防止过度标注；只有在“该能力确实应出现”时才设置低门槛 `min`。
+3. `vocab_highlight` 不再设置激进的最小数量要求，避免把“克制但合理”的输出判成失败。
+4. 样本重点从“是否选中了指定单词”转为“是否命中了正确类型的讲解”。
+5. 反向样本（简单文本不过度解析）仍然保留强约束。
+
+## 5. expectation 字段说明
+
+### 5.1 `must_hit`
 
 表示输出中必须命中的目标。
 
@@ -134,7 +150,7 @@
 - `level`
 - `message_contains`
 
-### 4.2 `must_not_hit`
+### 5.2 `must_not_hit`
 
 表示明确不希望出现的输出，用于压制低价值标注。
 
@@ -144,7 +160,7 @@
 2. 不要把简单句误做 `SentenceAnalysis`
 3. 不要出现明显不该有的 warning
 
-### 4.3 `count_bounds`
+### 5.3 `count_bounds`
 
 表示数量边界。
 
@@ -163,17 +179,17 @@
 }
 ```
 
-### 4.4 `max_warning_count`
+### 5.4 `max_warning_count`
 
 控制单个 sample 允许出现的 warning 总量。
 
-### 4.5 `require_full_translation`
+### 5.5 `require_full_translation`
 
 若为 `true`，要求所有句子都有翻译。
 
-## 5. 本地运行
+## 6. 本地运行
 
-### 5.1 跑整个回归集
+### 6.1 跑整个回归集
 
 在仓库根目录执行：
 
@@ -182,28 +198,28 @@ cd server
 rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local
 ```
 
-### 5.2 只跑一个 sample
+### 6.2 只跑一个 sample
 
 ```bash
 cd server
 rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --sample-id movie_excerpt_core
 ```
 
-### 5.3 指定模型 preset
+### 6.3 指定模型 preset
 
 ```bash
 cd server
 rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --model-preset qwen35_plus_default
 ```
 
-### 5.4 指定默认 profile
+### 6.4 指定默认 profile
 
 ```bash
 cd server
 rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --default-profile kimi-k25
 ```
 
-### 5.5 输出结果
+### 6.5 输出结果
 
 脚本执行后会输出本次 run 的目录，例如：
 
@@ -222,7 +238,7 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --defaul
 2. `summary.json`
 3. 某个 sample 的 `*.response.json`
 
-### 5.6 自定义输出目录前缀
+### 6.6 自定义输出目录前缀
 
 使用 `--mark` 参数可以为输出目录添加自定义文件夹前缀，方便区分不同实验：
 
@@ -248,9 +264,9 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --mark d
 
 **注意**：不加 `--mark` 时，输出目录结构不变，仍为 `.../server/.sample/regression/runs/20260401-210000-default`。
 
-## 6. 如何解读结果
+## 7. 如何解读结果
 
-### 6.1 通过不代表可上线
+### 7.1 通过不代表可上线
 
 这套回归集的作用是：
 
@@ -260,21 +276,37 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --mark d
 
 它不能单独证明“已经达到上线标准”。
 
-### 6.2 失败优先级
+### 7.2 失败优先级
 
 建议按这个顺序判断问题：
 
 1. schema 是否通过
 2. translations 是否完整
-3. `ContextGloss / GrammarNote / SentenceAnalysis` 是否命中关键点
-4. 是否出现低价值 `VocabHighlight`
+3. `ContextGloss / PhraseGloss / GrammarNote / SentenceAnalysis` 是否命中真正关键的现象
+4. 是否出现低价值 `VocabHighlight` 或明显过标注
 5. warning 是否异常增多
 
-## 7. 使用 LangSmith
+### 7.3 V1 与 V2 的区别
+
+如果你看到历史 run 的通过率很低，先确认它是不是在用旧的“强指定答案”思路看结果。
+
+V1 的主要问题是：
+
+1. `must_hit` 太多，容易把合理多解任务测成单解任务
+2. `vocab_highlight` 最低数量要求过高
+3. 一些样本把“具体选哪个词”当作主目标，而不是“整体是否有用”
+
+V2 的目标是：
+
+1. 让回归集更适合生成式标注任务
+2. 让失败更接近真实退化，而不是风格偏差
+3. 让不同模型之间的比较更有解释性
+
+## 8. 使用 LangSmith
 
 可以，且推荐，但建议作为**实验管理层**而不是唯一执行入口。
 
-### 7.1 同步本地回归集到 LangSmith dataset
+### 8.1 同步本地回归集到 LangSmith dataset
 
 ```bash
 cd server
@@ -295,7 +327,7 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py sync-langsmith --d
 3. 每条 example 的 `inputs` 保留请求参数
 4. 每条 example 的 `outputs` 写入 `expectations`
 
-### 7.2 用 LangSmith evaluate 跑实验
+### 8.2 用 LangSmith evaluate 跑实验
 
 ```bash
 cd server
@@ -327,7 +359,7 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-langsmith --ex
 1. `run-local` 不依赖 LangSmith，可独立用于本地 smoke 与 prompt 调试。
 2. `sync-langsmith` 和 `run-langsmith` 需要本地可用的 LangSmith SDK 与相应环境变量。
 
-## 8. 何时增加新 sample
+## 9. 何时增加新 sample
 
 建议只在以下情况新增 sample：
 
@@ -342,14 +374,14 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-langsmith --ex
 1. `3-5` 个核心 smoke samples
 2. `5-10` 个扩展 regression samples
 
-## 9. 维护原则
+## 10. 维护原则
 
 1. 样本集是本地调试资产，不进入生产链路。
 2. 评测目标是“发现退化”，不是替代人工评审。
 3. 每次只修改一类 prompt 或模型因素，再跑回归，避免无法归因。
 4. 若样本长期不能反映当前产品目标，应直接调整或删除，不保留历史包袱。
 
-## 10. 建议的下一步
+## 11. 建议的下一步
 
 当前这套工具搭好后，建议按这个顺序使用：
 

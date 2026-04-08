@@ -6,7 +6,7 @@ interface ClickableWordProps {
   word: string
   isSaved?: boolean // 是否已加入生词本
   className?: string // 额外样式类，如 tone-grammar
-  onClick: (word: string) => void
+  onClick: (word: string, event: any) => void
 }
 
 /**
@@ -21,7 +21,7 @@ const ClickableWord = memo(function ClickableWord({ word, isSaved, className, on
       className={['clickable-word', className, isSaved ? 'saved' : ''].filter(Boolean).join(' ')}
       onClick={(e) => {
         e.stopPropagation()
-        onClick(word)
+        onClick(word, e)
       }}
       role='button'
       aria-label={`${isSaved ? '已收藏生词: ' : '查词: '}${word}`}

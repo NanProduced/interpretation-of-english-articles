@@ -231,7 +231,13 @@ class SentenceAnalysis(BaseModel):
     sentence_id: str = Field(description="句子ID")
     label: str = Field(min_length=1, description="句型概述")
     analysis_zh: str = Field(min_length=1, description="中文解析，说明句子主干、层次关系和理解难点")
-    chunks: list[Chunk] | None = Field(default=None, description="按阅读顺序拆解的句子成分（可选增强字段）")
+    chunks: list[Chunk] | None = Field(
+        default=None,
+        description=(
+            "按阅读顺序拆解的句子成分。默认应提供 2-6 个 chunks；"
+            "只有在确实无法稳定拆出真实子串时才允许为空。"
+        ),
+    )
 
 
 Annotation = Annotated[

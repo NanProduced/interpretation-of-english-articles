@@ -424,6 +424,28 @@ def test_paragraph_span_exact_mapping() -> None:
         )
 
 
+def test_heading_line_is_split_from_first_body_sentence() -> None:
+    """
+    A short heading line followed by prose should not be merged into the first
+    body sentence, otherwise translation/grammar alignment drifts.
+    """
+    text = (
+        "April Fool's traditions\n"
+        "In the UK, jokes and tricks can be played up until noon on 1 April.\n"
+        "After midday it's considered bad luck to play a trick."
+    )
+    result = prepare_input(text)
+
+    assert len(result.paragraphs) == 2, [p.text for p in result.paragraphs]
+    assert result.paragraphs[0].text == "April Fool's traditions"
+    assert result.paragraphs[1].text.startswith("In the UK, jokes and tricks")
+
+    assert len(result.sentences) == 3, [s.text for s in result.sentences]
+    assert result.sentences[0].text == "April Fool's traditions"
+    assert result.sentences[1].text == "In the UK, jokes and tricks can be played up until noon on 1 April."
+    assert result.sentences[2].text == "After midday it's considered bad luck to play a trick."
+
+
 # ---------------------------------------------------------------------------
 # _check_spacy_model behavior
 # ---------------------------------------------------------------------------
