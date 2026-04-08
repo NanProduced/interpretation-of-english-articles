@@ -219,13 +219,15 @@ def _project_grammar_note(
             sentence_obj, annotation.sentence_id, annotation.spans
         )
 
+    content = _format_grammar_note_content(annotation)
+
     sentence_entry = SentenceEntry(
         id=_stable_id("se", {"type": annotation.type, "model": annotation.model_dump()}),
         sentence_id=annotation.sentence_id,
         entry_type="grammar_note",
         label=annotation.label,
         title=annotation.label,
-        content=annotation.note_zh,
+        content=content,
     )
 
     if resolved_anchor is None:
@@ -258,13 +260,44 @@ def _validate_chunks(chunks: list[Chunk] | None, sentence_text: str) -> bool:
     return all(chunk.text in sentence_text for chunk in chunks)
 
 
+def _format_grammar_spans(spans: list[SpanRef]) -> str:
+    if not spans:
+        return ""
+    return "\n".join(
+        f"- **{span.role or '关键成分'}**：`{span.text}`"
+        for span in spans
+    )
+
+
+def _format_grammar_note_content(annotation: GrammarNote) -> str:
+    span_lines = _format_grammar_spans(annotation.spans)
+    if not span_lines:
+        return annotation.note_zh
+    return "\n\n".join(
+        [
+            "**核心结论**",
+            annotation.note_zh,
+            "**锚点定位**",
+            span_lines,
+        ]
+    )
+
+
 def _format_chunks(chunks: list[Chunk] | None) -> str:
     if not chunks:
         return ""
     return "\n".join(
-        f"- **{chunk.label}**: {chunk.text}"
+        f"- **{chunk.order}. {chunk.label}**：`{chunk.text}`"
         for chunk in sorted(chunks, key=lambda item: item.order)
     )
+
+
+def _format_sentence_analysis_content(annotation: SentenceAnalysis) -> str:
+    chunks_text = _format_chunks(annotation.chunks)
+    sections = ["**整句理解**", annotation.analysis_zh]
+    if chunks_text:
+        sections.extend(["**阅读顺序拆解**", chunks_text])
+    return "\n\n".join(sections)
 
 
 def _project_sentence_analysis(
@@ -279,12 +312,7 @@ def _project_sentence_analysis(
             "message": "SentenceAnalysis chunks 校验失败，降级为普通讲解",
             "sentence_id": annotation.sentence_id,
         })
-    chunks_text = _format_chunks(annotation.chunks)
-    content = (
-        f"{annotation.analysis_zh}\n\n{chunks_text}"
-        if chunks_text
-        else annotation.analysis_zh
-    )
+    content = _format_sentence_analysis_content(annotation)
     sentence_entry = SentenceEntry(
         id=_stable_id("se", {"type": annotation.type, "model": annotation.model_dump()}),
         sentence_id=annotation.sentence_id,

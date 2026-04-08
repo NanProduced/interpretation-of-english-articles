@@ -64,6 +64,9 @@ def test_grammar_note_projects_to_inline_mark_and_entry() -> None:
     assert len(outcome.result.inline_marks) == 1
     assert len(outcome.result.sentence_entries) == 1
     assert outcome.result.sentence_entries[0].entry_type == "grammar_note"
+    assert "**核心结论**" in outcome.result.sentence_entries[0].content
+    assert "**锚点定位**" in outcome.result.sentence_entries[0].content
+    assert "`So`" in outcome.result.sentence_entries[0].content
 
 
 def test_sentence_analysis_projects_to_entry_only() -> None:
@@ -97,6 +100,9 @@ def test_sentence_analysis_projects_to_entry_only() -> None:
     assert len(outcome.result.inline_marks) == 0
     assert len(outcome.result.sentence_entries) == 1
     assert outcome.result.sentence_entries[0].entry_type == "sentence_analysis"
+    assert "**整句理解**" in outcome.result.sentence_entries[0].content
+    assert "**阅读顺序拆解**" in outcome.result.sentence_entries[0].content
+    assert "**1. 主语**" in outcome.result.sentence_entries[0].content
 
 
 def test_mixed_annotations_project_correctly() -> None:

@@ -91,8 +91,16 @@ class PreparedInput(BaseModel):
     sanitize_report: SanitizeReport = Field(description="输入清洗报告。")
     english_ratio: float = Field(ge=0.0, le=1.0, description="render_text 中英文字符的粗略占比。")
     noise_ratio: float = Field(ge=0.0, le=1.0, description="原始输入中被视为噪音并被处理的比例。")
-    text_type: Literal["article", "list", "code", "other"] = Field(
-        description="本地粗判得到的文本类型。"
+    text_type: Literal[
+        "article_en", "article_mixed", "structured_doc", "html_like", "code_like", "other"
+    ] = Field(description="本地粗判得到的文本类型。")
+    fast_path: bool = Field(
+        default=False,
+        description="是否走了快路径（规范英文正文 + spaCy 断句）。",
+    )
+    language_detected: str | None = Field(
+        default=None,
+        description="ISO 639-1 主语言码（如 'en'、'zh'）。",
     )
 
 

@@ -272,13 +272,24 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
             ),
         }
 
-    if prepared_input.text_type in {"code", "other"}:
-        # 弱拦截：记录 warning 但继续流程，让 agent 有机会处理
+    PROCEED_FAST = {"article_en"}
+    PROCEED_WARN = {"article_mixed", "structured_doc", "html_like"}
+    FAIL_WARN = {"code_like", "other"}
+
+    if prepared_input.text_type in FAIL_WARN:
         warnings.append(
             Warning(
                 code="UNSUPPORTED_TEXT_TYPE",
                 level="warning",
                 message=f"文本类型为 {prepared_input.text_type}，可能影响标注质量。",
+            )
+        )
+    elif prepared_input.text_type in PROCEED_WARN:
+        warnings.append(
+            Warning(
+                code="TEXT_TYPE_NEEDS_CARE",
+                level="info",
+                message=f"文本类型为 {prepared_input.text_type}，将继续分析但需注意质量。",
             )
         )
 

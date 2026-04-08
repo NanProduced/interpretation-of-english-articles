@@ -134,7 +134,18 @@
       "Bash(/c/Users/nanpr/miniprogram/interpretation-of-english-articles/server/.venv/Scripts/python.exe:*)",
       "Bash(.venv/Scripts/python.exe -m pytest tests/test_dict_lemma_fallback.py tests/test_dict_tecd3.py -v)",
       "Bash(.venv/Scripts/python.exe:*)",
-      "mcp__plugin_everything-claude-code_exa__web_fetch_exa"
+      "mcp__plugin_everything-claude-code_exa__web_fetch_exa",
+      "Bash(python3.exe -c \"lines=open\\('app/services/analysis/input_preparation.py',encoding='utf-8'\\).read\\(\\).split\\(chr\\(10\\)\\); print\\(repr\\(lines[50]\\)\\)\")",
+      "Bash(python3.exe -c \"print\\(open\\('app/services/analysis/input_preparation.py',encoding='utf-8'\\).read\\(\\).split\\('\\\\n'\\)[50]\\)\")",
+      "Bash(python3 -c ':*)",
+      "Bash(/c/Python313/python.exe -m py_compile app/services/analysis/input_preparation.py)",
+      "Bash(/c/Python313/python.exe -m py_compile app/schemas/internal/analysis.py)",
+      "Bash(/c/Python313/python.exe -m pip install ftfy spacy langdetect -q)",
+      "Bash(/c/Python313/python.exe -m pip install ftfy spacy langdetect)",
+      "Bash(/c/Python313/python.exe -m pytest tests/test_analyze_workflow.py -v)",
+      "Bash(mypy app/services/analysis/input_preparation.py app/schemas/internal/analysis.py --ignore-missing-import)",
+      "Bash(find . -name \"*.pyc\" -delete)",
+      "Bash(find . -name \"__pycache__\" -type d -exec rm -rf {} +)"
     ]
   }
 }

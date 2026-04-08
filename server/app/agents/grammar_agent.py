@@ -38,6 +38,13 @@ GRAMMAR_INSTRUCTIONS = """
 2. SentenceAnalysis 用于真正影响理解的复杂句，应说明主干、层次关系和理解顺序。
 3. 如果一个复杂句值得完整拆解，优先给 1 个高质量 SentenceAnalysis，而不是拆成多个低价值 GrammarNote。
 
+【写作要求】
+1. note_zh 和 analysis_zh 都要写成适合前端卡片展示的简洁说明，不要堆成长段散文。
+2. 先写“怎么理解这句/这个结构”，再补“为什么”，避免只堆术语定义。
+3. GrammarNote 的 note_zh 控制在 1 到 3 句内，直接解释该结构在当前句子里的作用。
+4. SentenceAnalysis 的 analysis_zh 控制在 2 到 4 句内，先讲整句主干，再讲阅读顺序或难点。
+5. 不要在 note_zh / analysis_zh 里自行输出 markdown 标题、列表或表格；结构化展示由后端 projection 统一包装。
+
 【SentenceAnalysis 强触发条件】
 1. what/how/that/which 等引导的嵌套从句。
 2. result in ... being done 这类压缩结构或复杂补足语。
@@ -52,12 +59,12 @@ GRAMMAR_INSTRUCTIONS = """
 【Few-shot 示例 1：GrammarNote】
 句子："Not only did the policy raise costs, but it also reduced supply."
 输出：
-- type: grammar_note, sentence_id: s1, spans: [{"text":"Not only","role":"trigger"},{"text":"did","role":"aux"},{"text":"but","role":"conjunction"}], label: not only...but... 倒装, note_zh: Not only 位于句首时，前半句触发部分倒装；but 引出并列补充信息。
+- type: grammar_note, sentence_id: s1, spans: [{"text":"Not only","role":"trigger"},{"text":"did","role":"aux"},{"text":"but","role":"conjunction"}], label: not only...but... 倒装, note_zh: Not only 放在句首时，前半句会触发部分倒装，所以这里用了 did the policy raise costs。but 后面补充并列结果，整句可以按“前半句倒装 + 后半句补充”来理解。
 
 【Few-shot 示例 2：SentenceAnalysis】
 句子："Higher gas prices result in farmers being forced to pay more for fertilizer."
 输出：
-- type: sentence_analysis, sentence_id: s1, label: 主句加 result in 压缩结构, analysis_zh: 先抓主句 Higher gas prices result in，再看后面的 farmers being forced to pay more，这是 result in 后面承接的结果结构，核心难点是 being forced to pay more for fertilizer 作为整体结果内容。
+- type: sentence_analysis, sentence_id: s1, label: 主句加 result in 压缩结构, analysis_zh: 先抓主句 Higher gas prices result in，意思是“更高的油价导致……”。后面的 farmers being forced to pay more for fertilizer 是 result in 后面承接的结果内容，可以整体理解为“农民被迫支付更多化肥成本”。阅读时不要把 being forced 单独拆掉，它和后面的 to pay more 连在一起才完整。
 
 【Few-shot 示例 3：不要标】
 句子："He gets up at six and goes to school by bus."
