@@ -627,6 +627,84 @@ result = _check_spacy_model()
 spacy>=3.8.0,<4.0.0
 ```
 
+## 12.2 完整依赖说明与启动检查
+
+本模块（`input_preparation.py`）依赖以下 Python 包和模型，均通过 `pyproject.toml` 声明，由 `uv sync` / `pip install -e .` 自动安装。
+
+### 依赖总览
+
+| 包 | 版本约束 | 用途 | 缺失行为 |
+|---|---|---|---|
+| `ftfy` | `>=6.2.0,<7.0.0` | Unicode 修复、乱码恢复 | 跳过文本修复，原文透传 |
+| `beautifulsoup4` | `>=4.12.3,<5.0.0` | HTML → 纯文本提取 | 自动降级为 regex 兜底 |
+| `spacy` | `>=3.8.0,<4.0.0` | 英文断句 + sentence segmentation | 降级为改进 regex 断句 |
+| `langdetect` | `>=1.0.9,<2.0.0` | 文档级主语言检测 | 跳过语言检测，默认英文 |
+
+### 依赖安装（开发环境）
+
+```bash
+cd server
+uv sync
+```
+
+这会自动安装所有 Python 包依赖（`ftfy`、`beautifulsoup4`、`spacy`、`langdetect` 等）。
+
+### spaCy 模型手动安装（必做）
+
+spaCy 的语言模型**不是**通过 `pip` / `uv sync` 自动安装的，必须单独下载：
+
+```bash
+cd server
+python -m spacy download en_core_web_sm
+```
+
+如果未安装，首次调用 `prepare_input()` 时会触发降级：
+
+- 日志：`WARNING: spaCy model en_core_web_sm unavailable: {OSError}`
+- 断句降级为改进 regex（`regex_sentence_split_no_spacy` action）
+- **功能继续可用**，只是缩写断句正确率下降
+
+### Docker / 生产部署
+
+在 Dockerfile 或 entrypoint 中加入模型下载步骤：
+
+```dockerfile
+RUN python -m spacy download en_core_web_sm
+```
+
+或在 `docker-compose.yml` 的 `command` 中加入：
+
+```yaml
+command: >
+  sh -c "python -m spacy download en_core_web_sm && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+```
+
+### 启动时检查脚本（可选）
+
+首次部署后可用以下命令验证所有依赖：
+
+```bash
+cd server
+uv run python -c "
+from app.services.analysis.input_preparation import _check_spacy_model
+from app.services.analysis.input_preparation import layer2_minimal_fix, layer3_detect_structure, layer4_detect_language
+print('spacy model:', 'OK' if _check_spacy_model() else 'MISSING (will use regex fallback)')
+print('ftfy:', 'available' if layer2_minimal_fix.__code__.co_code else 'N/A')
+print('All deps loaded.')
+"
+```
+
+### 快速修复：完全没有 spaCy 环境
+
+如果 spaCy 完全不可用（如纯离线环境），仍可强制走 regex 路径，验证断句功能：
+
+```bash
+cd server
+uv run python -m pytest tests/test_prepare_input_regression.py::test_regex_fallback_us_abbreviation_not_split -v
+```
+
+该测试绕过 spaCy，直接验证 `_split_sentences_regex` 的缩写保护逻辑。
+
 ## 13. 测试与回归要求
 
 需要新增 preprocess regression cases，至少覆盖：
