@@ -1,13 +1,12 @@
 .profile-page {
-  padding: 40rpx 48rpx;
   background-color: var(--color-bg);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 
-  .header {
-    margin-bottom: 64rpx;
-    .title { font-size: 48rpx; font-weight: bold; color: var(--color-ink); }
+  .profile-scroll {
+    flex: 1;
+    padding: 32rpx 48rpx;
   }
 
   .user-card {

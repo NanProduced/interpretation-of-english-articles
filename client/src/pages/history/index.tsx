@@ -2,9 +2,14 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { getRecordIds, getRecord, deleteRecord } from '../../services/storage'
+import { useAuthStore } from '../../stores/auth'
+import { fetchCloudRecords, deleteCloudRecord } from '../../services/api/records.client'
+import { fetchCloudFavorites } from '../../services/api/favorites.client'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
 import { track } from '../../services/analytics'
+import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
+import { useLayoutStore } from '../../stores/layout'
 import './index.scss'
 
 /** 格式化日期 */
@@ -43,25 +48,46 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
   const [records, setRecords] = useState<AnalysisRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
+  const { navBarHeight } = useLayoutStore()
 
   const filteredRecords = activeTab === 'favorites'
     ? records.filter((r) => r.isFavorited)
     : records
 
-  const loadRecords = useCallback(() => {
+  const loadRecords = useCallback(async () => {
     setLoading(true)
-    try {
-      const ids = getRecordIds()
-      const loaded: AnalysisRecord[] = []
-      for (const id of ids) {
-        const record = getRecord(id)
-        if (record) loaded.push(record)
+    const { isLoggedIn } = useAuthStore.getState()
+
+    if (isLoggedIn) {
+      try {
+        const [recordResult, favResult] = await Promise.all([
+          fetchCloudRecords(),
+          fetchCloudFavorites(),
+        ])
+        const favIds = new Set(favResult.items.map((f) => f.recordId))
+        const merged: AnalysisRecord[] = recordResult.items.map((r) => ({
+          ...r,
+          isFavorited: favIds.has(r.recordId),
+        }))
+        setRecords(merged)
+        track('view_history', { count: merged.length, source: 'cloud' })
+        setLoading(false)
+        return
+      } catch {
+        // 云端读取失败，降级到本地
       }
-      setRecords(loaded)
-      track('view_history', { count: loaded.length })
-    } finally {
-      setLoading(false)
     }
+
+    // 本地兜底
+    const ids = getRecordIds()
+    const loaded: AnalysisRecord[] = []
+    for (const id of ids) {
+      const record = getRecord(id)
+      if (record) loaded.push(record)
+    }
+    setRecords(loaded)
+    track('view_history', { count: loaded.length, source: 'local' })
+    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -92,7 +118,13 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
       confirmColor: '#ef4444',
       success: (res) => {
         if (res.confirm) {
+          // 本地一定删
           deleteRecord(recordId)
+          // 云端也同步删除（失败静默忽略）
+          const { isLoggedIn } = useAuthStore.getState()
+          if (isLoggedIn) {
+            deleteCloudRecord(recordId).catch(() => {})
+          }
           loadRecords()
         }
       },
@@ -109,11 +141,8 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
 
   return (
     <View className={`history-page ${isSubView ? 'sub-view' : ''}`}>
-      {!isSubView && (
-        <View className='header'>
-          <Text className='title'>历史解读</Text>
-        </View>
-      )}
+      {!isSubView && <NavBar title='历史解读' />}
+      {!isSubView && <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />}
 
       <View className='filter-tabs'>
         <View

@@ -5,15 +5,17 @@
  * 以及学习统计和设置入口。
  */
 
-import { View, Text, ScrollView, Image, Button, Input, type BaseEventOrig, type InputProps } from '@tarojs/components'
+import { View, Text, ScrollView, Image, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { useConfigStore } from '../../stores/config'
 import { useAuthStore } from '../../stores/auth'
-import { fetchWeChatLogin, request } from '../../services/api/client'
+import { ensureLoggedIn } from '../../services/auth'
 import { getAllRecords, getVocabulary } from '../../services/storage'
+import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
+import { useLayoutStore } from '../../stores/layout'
 import './index.scss'
 
 interface ProfilePageProps {
@@ -22,7 +24,8 @@ interface ProfilePageProps {
 
 export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const { purpose } = useConfigStore()
-  const { isLoggedIn, userInfo, login, logout, fetchUserInfo, updateUserInfo } = useAuthStore()
+  const { navBarHeight } = useLayoutStore()
+  const { isLoggedIn, userInfo, logout, fetchUserInfo, updateUserInfo } = useAuthStore()
   const [articleCount, setArticleCount] = useState(0)
   const [wordCount, setWordCount] = useState(0)
   const [loggingIn, setLoggingIn] = useState(false)
@@ -40,17 +43,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const handleLogin = async () => {
     setLoggingIn(true)
     try {
-      const loginResult = await Taro.login()
-      if (!loginResult.code) {
-        Taro.showToast({ title: '微信登录失败', icon: 'none' })
-        return
-      }
-      const res = await fetchWeChatLogin(loginResult.code)
-      login(res.session_token, { user_id: res.user_id })
-      Taro.showToast({ title: '登录成功', icon: 'success' })
-    } catch (err) {
-      console.error('[profile] login error', err)
-      Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
+      await ensureLoggedIn()
     } finally {
       setLoggingIn(false)
     }
@@ -72,36 +65,16 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     })
   }
 
-  const onChooseAvatar = async (e: any) => {
+  const onChooseAvatar = (e: any) => {
     const { avatarUrl } = e.detail
-    // 实际项目中这里应上传到服务器，这里先模拟更新本地状态
+    // 头像更新仅保存在本地（后端暂无用户资料更新接口）
     updateUserInfo({ avatar_url: avatarUrl })
-    
-    // 如果有后端 API 支持更新头像，可以在此调用
-    try {
-      await request({
-        url: '/auth/user/update',
-        method: 'POST',
-        data: { avatar_url: avatarUrl }
-      })
-    } catch (err) {
-      console.error('Update avatar failed', err)
-    }
   }
 
-  const onNicknameChange = async (e: BaseEventOrig<InputProps.InputValueEventDetail>) => {
+  const onNicknameChange = (e: any) => {
     const nickname = e.detail.value
+    // 昵称更新仅保存在本地（后端暂无用户资料更新接口）
     updateUserInfo({ nickname })
-    
-    try {
-      await request({
-        url: '/auth/user/update',
-        method: 'POST',
-        data: { nickname }
-      })
-    } catch (err) {
-      console.error('Update nickname failed', err)
-    }
   }
 
   const purposeMap: Record<string, string> = {
@@ -138,12 +111,9 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
   return (
     <View className={`profile-page ${isSubView ? 'sub-view' : ''}`}>
+      {!isSubView && <NavBar title='我的' />}
+      {!isSubView && <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />}
       <ScrollView scrollY className='profile-scroll'>
-        {!isSubView && (
-          <View className='header'>
-            <Text className='title'>我的</Text>
-          </View>
-        )}
 
         {/* User Card */}
         <View className='user-card'>

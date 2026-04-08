@@ -5,9 +5,9 @@
   background-color: var(--color-bg); 
   transition: background-color 0.4s ease;
 
-  // 聚焦状态：Header 变淡，让位给内容
+  // 聚焦状态：让位给内容
   &.is-focused {
-    .compact-header {
+    .custom-navbar-container {
       opacity: 0.3;
       transform: translateY(-8rpx);
     }
@@ -17,46 +17,6 @@
     }
     .bottom-bar {
       box-shadow: 0 -24rpx 64rpx rgba(0, 0, 0, 0.06);
-    }
-  }
-
-  .compact-header {
-    padding-top: 80rpx; 
-    padding-left: 32rpx;
-    padding-right: 32rpx;
-    padding-bottom: 24rpx;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background-color: var(--color-bg);
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-
-    .header-left, .header-right {
-      width: 80rpx;
-      height: 80rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      &:active { opacity: 0.6; }
-    }
-
-    .page-title {
-      font-size: 32rpx;
-      font-weight: var(--weight-bold);
-      color: var(--color-ink);
-      font-family: var(--font-serif);
-    }
-
-    .clear-btn {
-      width: 64rpx;
-      height: 64rpx;
-      background-color: rgba(0, 0, 0, 0.03);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      &:active { background-color: rgba(0, 0, 0, 0.08); transform: scale(0.9); }
     }
   }
 

@@ -1,19 +1,14 @@
 .history-page {
-  padding: 40rpx 48rpx;
   background-color: #f8f8fa;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 
-  .header {
-    margin-bottom: 32rpx;
-    .title { font-size: 48rpx; font-weight: bold; color: #030213; }
-  }
-
   .filter-tabs {
     display: flex;
     gap: 16rpx;
     margin-bottom: 32rpx;
+    padding: 32rpx 48rpx 0;
   }
 
   .filter-tab {
@@ -37,6 +32,8 @@
 
   .list-area {
     flex: 1;
+    padding: 0 48rpx;
+    
     .history-card {
       background-color: #fff;
       padding: 32rpx;

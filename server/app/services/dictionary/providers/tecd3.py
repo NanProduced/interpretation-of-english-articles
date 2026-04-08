@@ -2,6 +2,14 @@
 TECD3 本地词典 Provider。
 
 使用 PostgreSQL 中的 dict_entries / dict_lookup_targets 提供查询能力。
+
+Lookup 优先级：
+1. exact headword / lookup target
+2. redirect
+3. disambiguation
+4. .nlp imported lookup targets
+5. lemma fallback（LemmInflect 还原词形后再查）
+6. 404
 """
 
 from __future__ import annotations
@@ -11,6 +19,7 @@ from typing import Any
 from app.services.dictionary.cache import get as cache_get
 from app.services.dictionary.cache import set as cache_set
 from app.services.dictionary.db_pg import CandidateRow, EntryRow, fetch_entry, lookup_candidates
+from app.services.dictionary.lemma import get_lemma_candidates
 from app.services.dictionary.schemas import (
     DictionaryCandidate,
     DictionaryDisambiguationResult,
@@ -37,7 +46,11 @@ class Tecd3Provider:
 
         candidates = await lookup_candidates(query, source=self.source)
         if not candidates:
-            raise ValueError(f"Word not found: {query}")
+            # 只有单词查询（非短语）才尝试 lemma fallback
+            if " " not in query:
+                candidates = await self._lemma_fallback(query)
+            if not candidates:
+                raise ValueError(f"Word not found: {query}")
 
         if len(candidates) == 1:
             entry = await fetch_entry(candidates[0].entry_id, source=self.source)
@@ -49,6 +62,30 @@ class Tecd3Provider:
 
         cache_set(cache_key, result)
         return result
+
+    async def _lemma_fallback(self, query: str) -> list[CandidateRow]:
+        """
+        通过 LemmInflect 还原词形，用还原后的 lemma 候选查询词典。
+
+        策略：收集所有 lemma 命中的候选，去重后返回完整列表。
+        这样 "axes" / "leaves" 等多歧义词可以触发 disambiguation，
+        而单 lemma 命中（如 "humans" → "human"）仍走 entry 分支。
+        """
+        lemma_candidates = get_lemma_candidates(query)
+        all_rows: list[CandidateRow] = []
+        seen_entry_ids: set[int] = set()
+
+        for lemma in lemma_candidates:
+            rows = await lookup_candidates(lemma, source=self.source)
+            for row in rows:
+                if row.entry_id not in seen_entry_ids:
+                    seen_entry_ids.add(row.entry_id)
+                    all_rows.append(row)
+
+        # 按 rank + id 排序，保持与原始 lookup 一致的顺序
+        all_rows.sort(key=lambda r: (r.rank, r.entry_id))
+        return all_rows
+
 
     async def fetch_entry(self, entry_id: int) -> dict[str, Any]:
         cache_key = f"{self.source}:{self.cache_version}:entry:{entry_id}"

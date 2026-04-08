@@ -19,6 +19,8 @@ dependencies = [
     "beautifulsoup4>=4.12.3,<5.0.0",
     # Redis（可选，redis_enabled=False 时不阻塞启动）
     "redis>=5.2.0,<6.0.0",
+    # 词典 lemma fallback
+    "lemminflect>=0.2.3,<1.0.0",
 ]
 
 [dependency-groups]

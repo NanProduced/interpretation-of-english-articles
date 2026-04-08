@@ -37,7 +37,7 @@ project.private.config.json
 .sample/
 
 # ecdict词典文件
-.ecdict/
+.dict/
 
 .screenshot/
 

@@ -7,6 +7,7 @@
 import Taro from '@tarojs/taro'
 import { useAuthStore } from '../stores/auth'
 import { fetchWeChatLogin } from './api/client'
+import { getFavorites, getVocabulary } from './storage'
 
 /**
  * 引导用户登录
@@ -15,7 +16,8 @@ import { fetchWeChatLogin } from './api/client'
  * 1. 检查是否已登录（已登录直接返回 true）
  * 2. 弹出确认对话框
  * 3. 用户确认 → 调用 wx.login → 后端换取 session token → 存到 auth store
- * 4. 用户取消 → 返回 false
+ * 4. 登录成功后，同步本地收藏和生词本到云端
+ * 5. 用户取消 → 返回 false
  *
  * @returns true = 登录成功，false = 用户取消或失败
  */
@@ -49,10 +51,39 @@ export async function ensureLoggedIn(): Promise<boolean> {
     const res = await fetchWeChatLogin(loginResult.code)
     useAuthStore.getState().login(res.session_token, { user_id: res.user_id })
     Taro.showToast({ title: '登录成功', icon: 'success' })
+
+    // 登录成功后，同步本地资产到云端（静默进行，失败不阻塞）
+    // 注意：syncLocalAssetsToCloud 内部是 fire-and-forget，这里不需要 await
+    syncLocalAssetsToCloud()
+
     return true
   } catch (err) {
     console.warn('[auth] ensureLoggedIn failed', err)
     Taro.showToast({ title: '登录失败，请重试', icon: 'none' })
     return false
+  }
+}
+
+/**
+ * 登录后同步本地收藏和生词本到云端
+ * 在 ensureLoggedIn 成功之后调用，避免未登录时浪费请求
+ */
+async function syncLocalAssetsToCloud(): Promise<void> {
+  try {
+    // 延迟导入避免循环依赖
+    const { CloudSyncService } = await import('./cloudSync.service')
+
+    const favorites = getFavorites()
+    const vocab = getVocabulary()
+
+    if (favorites.length > 0) {
+      CloudSyncService.syncAllFavorites(favorites)
+    }
+    if (vocab.length > 0) {
+      CloudSyncService.syncAllVocab(vocab)
+    }
+  } catch (err) {
+    // 静默失败，不影响登录流程
+    console.warn('[auth] syncLocalAssetsToCloud failed', err)
   }
 }

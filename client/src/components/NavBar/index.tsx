@@ -11,9 +11,19 @@ interface NavBarProps {
   showHome?: boolean;
   background?: string;
   color?: string;
+  onBack?: () => void;
+  renderRight?: React.ReactNode;
 }
 
-export default function NavBar({ title, showBack, showHome, background = 'var(--bg-color)', color = 'var(--color-ink)' }: NavBarProps) {
+export default function NavBar({ 
+  title, 
+  showBack, 
+  showHome, 
+  background = 'var(--bg-color)', 
+  color = 'var(--color-ink)',
+  onBack,
+  renderRight
+}: NavBarProps) {
   const { setNavHeights } = useLayoutStore()
   const [navStyle, setNavStyle] = useState({
     statusBarHeight: 0,
@@ -38,7 +48,13 @@ export default function NavBar({ title, showBack, showHome, background = 'var(--
     })
   }, [setNavHeights])
 
-  const handleBack = () => { Taro.navigateBack() }
+  const handleBack = () => { 
+    if (onBack) {
+      onBack()
+    } else {
+      Taro.navigateBack() 
+    }
+  }
   const handleHome = () => { Taro.reLaunch({ url: '/pages/home/index' }) }
 
   return (
@@ -68,7 +84,9 @@ export default function NavBar({ title, showBack, showHome, background = 'var(--
           )}
         </View>
         <Text className='navbar-title' style={{ color }}>{title}</Text>
-        <View style={{ width: '80px' }} />
+        <View className='navbar-right' style={{ width: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          {renderRight}
+        </View>
       </View>
     </View>
   )

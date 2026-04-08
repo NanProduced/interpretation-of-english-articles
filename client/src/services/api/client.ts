@@ -107,6 +107,30 @@ export async function fetchWeChatLogin(code: string): Promise<WeChatLoginRespons
   })
 }
 
+interface SessionUserResponse {
+  user_id: string
+  session_id: string
+  avatar_url?: string
+  nickname?: string
+}
+
+/** 获取当前会话用户信息 */
+export async function fetchSessionUser(): Promise<SessionUserResponse> {
+  return request<SessionUserResponse>({
+    url: '/auth/session/me',
+    method: 'GET',
+  })
+}
+
+/** 登出（撤销 session） */
+export async function fetchSessionLogout(sessionToken: string): Promise<void> {
+  return request<void>({
+    url: '/auth/session/logout',
+    method: 'POST',
+    data: { session_token: sessionToken },
+  })
+}
+
 // ============ /analyze API ============
 
 /**

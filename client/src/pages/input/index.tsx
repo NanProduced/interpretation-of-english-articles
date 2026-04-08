@@ -6,6 +6,8 @@ import { useArticleStore } from '../../stores/article'
 import { saveDraft, getDraft, clearDraft } from '../../services/storage'
 import { track } from '../../services/analytics'
 import LucideIcon from '../../components/LucideIcon'
+import NavBar from '../../components/NavBar'
+import { useLayoutStore } from '../../stores/layout'
 import './index.scss'
 
 /** 目的 -> API 参数映射 */
@@ -31,6 +33,7 @@ export default function InputPage() {
   const [clipboardContent, setClipboardContent] = useState('')
   const [showClipboardBubble, setShowClipboardBubble] = useState(false)
   const { purpose } = useConfigStore()
+  const { navBarHeight } = useLayoutStore()
   const analyze = useArticleStore((s) => s.analyze)
 
   // 简单的单词计数

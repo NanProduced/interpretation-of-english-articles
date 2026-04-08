@@ -123,7 +123,17 @@
       "Read(//c/Users/nanpr/**)",
       "Bash(rtk git:*)",
       "Bash(curl -s \"http://127.0.0.1:55612/dict?q=hello\")",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(rtk pnpm:*)",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(.venv/Scripts/pip.exe install:*)",
+      "Bash(ls /c/Users/nanpr/miniprogram/interpretation-of-english-articles/server/.venv/Scripts/pip*)",
+      "Bash(/c/Users/nanpr/miniprogram/interpretation-of-english-articles/server/.venv/Scripts/python.exe -m pip install \"lemmInflect>=0.5.0,<1.0.0\" -q)",
+      "Bash(ls:*)",
+      "Bash(uv --version)",
+      "Bash(/c/Users/nanpr/miniprogram/interpretation-of-english-articles/server/.venv/Scripts/python.exe:*)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/test_dict_lemma_fallback.py tests/test_dict_tecd3.py -v)",
+      "Bash(.venv/Scripts/python.exe:*)"
     ]
   }
 }

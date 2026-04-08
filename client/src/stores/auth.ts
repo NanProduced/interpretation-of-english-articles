@@ -59,6 +59,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
+    // 异步调用后端登出（fire-and-forget），不阻塞本地清理
+    const token = useAuthStore.getState().token
+    if (token) {
+      import('../services/api/client').then(({ fetchSessionLogout }) => {
+        fetchSessionLogout(token).catch(() => {
+          // 登出 API 失败静默忽略，token 已本地清除
+        })
+      })
+    }
     Taro.removeStorageSync(AUTH_TOKEN_KEY)
     Taro.removeStorageSync(AUTH_USER_KEY)
     set({ token: null, userInfo: null, isLoggedIn: false })
@@ -84,26 +93,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!token) return
 
     try {
-      const res = await Taro.request({
-        url: `${Taro.getStorageSync('API_BASE_URL') || ''}/auth/session/me`,
-        method: 'GET',
-        header: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        timeout: 10000,
-      })
-      if (res.statusCode === 200 && res.data) {
-        const data = res.data as any
-        const userInfo: UserInfo = {
-          user_id: data.user_id,
-          session_id: data.session_id,
-          avatar_url: data.avatar_url,
-          nickname: data.nickname,
-        }
-        Taro.setStorageSync(AUTH_USER_KEY, JSON.stringify(userInfo))
-        set({ userInfo })
+      const { fetchSessionUser } = await import('../services/api/client')
+      const data = await fetchSessionUser()
+      const userInfo: UserInfo = {
+        user_id: data.user_id,
+        session_id: data.session_id,
+        avatar_url: data.avatar_url,
+        nickname: data.nickname,
       }
+      Taro.setStorageSync(AUTH_USER_KEY, JSON.stringify(userInfo))
+      set({ userInfo })
     } catch {
       // 网络错误，静默忽略，下次请求会自然触发 401
     }
