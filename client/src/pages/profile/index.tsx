@@ -7,11 +7,13 @@
 
 import { View, Text, ScrollView, Image, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useConfigStore } from '../../stores/config'
 import { useAuthStore } from '../../stores/auth'
 import { ensureLoggedIn } from '../../services/auth'
 import { getAllRecords, getVocabulary } from '../../services/storage'
+import { fetchCloudRecords } from '../../services/api/records.client'
+import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
@@ -28,38 +30,65 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const { isLoggedIn, userInfo, logout, fetchUserInfo, updateUserInfo } = useAuthStore()
   const [articleCount, setArticleCount] = useState(0)
   const [wordCount, setWordCount] = useState(0)
-  const [loggingIn, setLoggingIn] = useState(false)
+  const [loadingStats, setLoadingStats] = useState(false)
 
+  /**
+   * 加载统计数据。
+   * - 已登录：优先从云端读取（articleCount = 云端记录数，wordCount = 云端生词本数）
+   * - 未登录：从本地读取
+   */
+  const loadStats = useCallback(async () => {
+    setLoadingStats(true)
+    if (isLoggedIn) {
+      try {
+        const [recordResult, vocabResult] = await Promise.all([
+          fetchCloudRecords(1, 1),
+          fetchCloudVocabulary(1, 1),
+        ])
+        setArticleCount(recordResult.total)
+        setWordCount(vocabResult.total)
+      } catch {
+        // 云端读取失败，降级到本地
+        const records = getAllRecords()
+        setArticleCount(records.length)
+        const vocab = getVocabulary()
+        setWordCount(vocab.length)
+      }
+    } else {
+      const records = getAllRecords()
+      setArticleCount(records.length)
+      const vocab = getVocabulary()
+      setWordCount(vocab.length)
+    }
+    setLoadingStats(false)
+  }, [isLoggedIn])
+
+  // 启动时加载 + isLoggedIn 变化时重新加载
   useEffect(() => {
-    const records = getAllRecords()
-    setArticleCount(records.length)
-    const vocab = getVocabulary()
-    setWordCount(vocab.length)
+    loadStats()
     if (isLoggedIn) {
       fetchUserInfo()
     }
-  }, [isLoggedIn])
+  }, [isLoggedIn, loadStats])
 
   const handleLogin = async () => {
-    setLoggingIn(true)
-    try {
-      await ensureLoggedIn()
-    } finally {
-      setLoggingIn(false)
+    const success = await ensureLoggedIn()
+    if (success) {
+      // ensureLoggedIn 成功后 auth store 已更新，useEffect 会自动触发 loadStats
     }
   }
 
   const handleLogout = () => {
     Taro.showModal({
       title: '确认退出登录？',
-      content: '退出后，您的阅读进度和生词本将停止同步到云端。',
+      content: '退出后，您的阅读进度和生词本将保留在本地，云端同步暂停。',
       confirmText: '退出登录',
       confirmColor: '#ef4444',
       cancelText: '取消',
       success: (res) => {
         if (res.confirm) {
           logout()
-          Taro.showToast({ title: '已安全退出', icon: 'success' })
+          // 登出后，useEffect 会检测到 isLoggedIn=false，自动切换到本地统计
         }
       }
     })
@@ -67,13 +96,11 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
   const onChooseAvatar = (e: any) => {
     const { avatarUrl } = e.detail
-    // 头像更新仅保存在本地（后端暂无用户资料更新接口）
     updateUserInfo({ avatar_url: avatarUrl })
   }
 
   const onNicknameChange = (e: any) => {
     const nickname = e.detail.value
-    // 昵称更新仅保存在本地（后端暂无用户资料更新接口）
     updateUserInfo({ nickname })
   }
 
@@ -117,8 +144,8 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
         {/* User Card */}
         <View className='user-card'>
-          <Button 
-            className='avatar-btn' 
+          <Button
+            className='avatar-btn'
             openType={isLoggedIn ? 'chooseAvatar' : undefined}
             onChooseAvatar={isLoggedIn ? onChooseAvatar : undefined}
             onClick={!isLoggedIn ? handleLogin : undefined}
@@ -129,7 +156,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
               <View className='avatar-text'>{avatarChar}</View>
             )}
           </Button>
-          
+
           <View className='user-info'>
             {isLoggedIn ? (
               <Input
@@ -145,7 +172,9 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
               <Text className='nickname' onClick={handleLogin}>点击登录微信</Text>
             )}
             <View className='stats-row'>
-              {articleCount > 0 ? (
+              {loadingStats ? (
+                <Text className='stats-label'>加载中...</Text>
+              ) : articleCount > 0 ? (
                 <>
                   <Text className='stats-label'>已读 </Text>
                   <Text className='stats-value'>{articleCount}</Text>
@@ -166,7 +195,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
         <View className='login-tip'>
           <Text className='tip-text'>
-            {isLoggedIn ? '已登录 · 数据将同步到云端' : '登录后可同步数据到云端，跨设备查看'}
+            {isLoggedIn ? '已登录 · 数据已同步到云端' : '登录后可同步数据到云端，跨设备查看'}
           </Text>
         </View>
 

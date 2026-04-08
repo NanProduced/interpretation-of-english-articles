@@ -32,8 +32,11 @@ interface AuthState {
   /** 登出，清除所有认证状态 */
   logout: () => void
 
-  /** 从本地存储恢复认证状态（启动时调用） */
-  restore: () => void
+  /**
+   * 从本地存储恢复认证状态，并验证 token 有效性（启动时调用）。
+   * 异步执行：本地状态立即设置，验证结果静默更新。
+   */
+  restore: () => Promise<void>
 
   /** 调用 /auth/session/me 获取最新用户信息 */
   fetchUserInfo: () => Promise<void>
@@ -73,17 +76,52 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ token: null, userInfo: null, isLoggedIn: false })
   },
 
-
-  restore: () => {
+  restore: async () => {
     try {
       const token = Taro.getStorageSync(AUTH_TOKEN_KEY) as string | undefined
       const userInfoRaw = Taro.getStorageSync(AUTH_USER_KEY) as string | undefined
-      if (token && userInfoRaw) {
-        const userInfo = JSON.parse(userInfoRaw) as UserInfo
-        set({ token, userInfo, isLoggedIn: true })
+
+      if (!token) return
+
+      // 先从 localStorage 恢复显示状态
+      if (userInfoRaw) {
+        try {
+          const userInfo = JSON.parse(userInfoRaw) as UserInfo
+          set({ token, userInfo, isLoggedIn: true })
+        } catch {
+          // JSON 解析失败，只设置 token，等 /me 验证后补充 userInfo
+          set({ token, userInfo: null, isLoggedIn: true })
+        }
+      } else {
+        set({ token, userInfo: null, isLoggedIn: true })
       }
+
+      // 后台验证 token + 补充 userInfo（静默，失败不影响显示状态）
+      const { fetchSessionUser } = await import('../services/api/client')
+      fetchSessionUser()
+        .then((data) => {
+          const userInfo: UserInfo = {
+            user_id: data.user_id,
+            session_id: data.session_id,
+            avatar_url: data.avatar_url,
+            nickname: data.nickname,
+          }
+          Taro.setStorageSync(AUTH_USER_KEY, JSON.stringify(userInfo))
+          set({ userInfo })
+        })
+        .catch((err: unknown) => {
+          // 401 / auth error → token 无效，清除登录态
+          const isAuthError =
+            (err as { statusCode?: number })?.statusCode === 401 ||
+            (err as { code?: string })?.code === 'HTTP_ERROR'
+          if (isAuthError) {
+            Taro.removeStorageSync(AUTH_TOKEN_KEY)
+            Taro.removeStorageSync(AUTH_USER_KEY)
+            set({ token: null, userInfo: null, isLoggedIn: false })
+          }
+          // 其他错误（网络）静默忽略，保持当前状态
+        })
     } catch {
-      // ignore parse errors, treat as not logged in
       set({ token: null, userInfo: null, isLoggedIn: false })
     }
   },
@@ -104,7 +142,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       Taro.setStorageSync(AUTH_USER_KEY, JSON.stringify(userInfo))
       set({ userInfo })
     } catch {
-      // 网络错误，静默忽略，下次请求会自然触发 401
+      // 网络错误，静默忽略
     }
   },
 }))

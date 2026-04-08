@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -106,7 +107,7 @@ async def get_or_create_user_by_wechat(
             openid,
             unionid,
             get_settings().wechat_app_id or None,
-            auth_payload,
+            json.dumps(auth_payload),
         )
 
         return user_id

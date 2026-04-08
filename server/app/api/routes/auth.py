@@ -9,7 +9,6 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from app.config.settings import get_settings
 from app.services.auth import (
     create_session,
     get_or_create_user_by_wechat,
@@ -47,36 +46,6 @@ async def wechat_login(
     5. 返回 session_token
     """
     code = body.code
-    settings = get_settings()
-
-    # 开发模式 bypass：跳过微信 API，直接用 mock 数据创建 session
-    if settings.wechat_bypass:
-        mock_openid = f"mock_openid_{code[:16]}"
-        auth_payload = {"session_key": "mock_session_key", "unionid": None}
-        user_id = await get_or_create_user_by_wechat(
-            openid=mock_openid,
-            unionid=None,
-            auth_payload=auth_payload,
-        )
-        client_ip: str | None = None
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            client_ip = forwarded.split(",")[0].strip()
-        else:
-            client_ip = request.client.host if request.client else None
-        token, expires_at = await create_session(
-            user_id=user_id,
-            provider="wechat_miniprogram",
-            provider_user_id=mock_openid,
-            auth_payload=auth_payload,
-            client_platform="wechat_miniprogram",
-            ip_address=client_ip,
-        )
-        return {
-            "user_id": str(user_id),
-            "session_token": token,
-            "expires_at": expires_at.isoformat(),
-        }
 
     # 微信 code2Session
     try:

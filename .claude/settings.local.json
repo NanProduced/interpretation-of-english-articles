@@ -133,7 +133,8 @@
       "Bash(uv --version)",
       "Bash(/c/Users/nanpr/miniprogram/interpretation-of-english-articles/server/.venv/Scripts/python.exe:*)",
       "Bash(.venv/Scripts/python.exe -m pytest tests/test_dict_lemma_fallback.py tests/test_dict_tecd3.py -v)",
-      "Bash(.venv/Scripts/python.exe:*)"
+      "Bash(.venv/Scripts/python.exe:*)",
+      "mcp__plugin_everything-claude-code_exa__web_fetch_exa"
     ]
   }
 }
