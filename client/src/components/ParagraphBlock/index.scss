@@ -1,108 +1,84 @@
 .paragraph-block {
-  margin-bottom: 72rpx; // 增加段落间距，更符合阅读器审美
+  margin-bottom: 48rpx;
+  padding: 0 32rpx;
 
-  &.immersive, &.bilingual {
+  // --- Immersive Mode ---
+  &.immersive {
     .english-paragraph {
-      margin-bottom: 24rpx;
+      line-height: 1.8;
+    }
+    .english-flow {
+      font-size: 34rpx;
+      color: #1a1a1a;
+      font-family: var(--font-english-serif), serif;
     }
   }
 
+  // --- Intensive Mode ---
   &.intensive {
-    margin-bottom: 56rpx;
+    .sentence-block {
+      margin-bottom: 40rpx;
+      padding-bottom: 40rpx;
+      border-bottom: 1rpx solid #f0f0f0;
+
+      &:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+    }
+
+    .sentence-main {
+      margin-bottom: 16rpx;
+    }
+
+    .english-flow {
+      font-size: 36rpx;
+      line-height: 1.6;
+      font-weight: 500;
+      color: #000;
+      font-family: var(--font-english-serif), serif;
+    }
+
+    .sentence-translation {
+      margin-bottom: 20rpx;
+      
+      .translation-text {
+        font-size: 28rpx;
+        line-height: 1.6;
+        color: #666;
+        font-weight: 400;
+      }
+    }
+
+    .analysis-cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12rpx;
+    }
+  }
+
+  // --- Common Elements ---
+  .sentence-span {
+    display: inline;
+  }
+
+  .space-char {
+    display: inline;
+    white-space: pre;
   }
 }
 
-.english-paragraph {
-  line-height: var(--leading-relaxed);
+// Override InlineMark/ClickableWord styles within ParagraphBlock if needed
+.tone-vocab, .tone-phrase, .tone-context {
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: rgba(79, 70, 229, 0.3); // indigo-600/30
 }
 
-.english-flow {
-  font-size: var(--text-lg);
-  color: var(--color-ink);
-  font-family: var(--font-serif); // 全局使用 Serif
-  font-weight: var(--weight-normal);
-  line-height: var(--leading-relaxed);
-  letter-spacing: var(--tracking-normal);
-  word-spacing: 0.05em; // 增加词间距，更透气
-}
-
-.sentence-span {
-  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  &.active {
-    background-color: var(--active-highlight-bg);
-    border-radius: 4rpx;
-  }
-}
-
-.space-char {
-  display: inline;
-  white-space: pre-wrap;
-}
-
-// === Bilingual Mode Polish ===
-.bilingual {
-  .translation-paragraph {
-    margin-top: 12rpx;
-    padding-left: 20rpx;
-    border-left: 4rpx solid rgba(0, 0, 0, 0.03); // 细腻的左边线引导视觉
-    opacity: 0.9;
-  }
-}
-
-.translation-text {
-  font-size: var(--text-base); // 增大中文翻译 26 -> 30
-  color: var(--text-sub);
-  line-height: var(--leading-normal);
-  font-weight: var(--weight-normal);
-  font-family: var(--font-sans);
-  display: block;
-}
-
-// === Intensive Mode Refinement (Margin Note Style) ===
-.sentence-block {
-  margin-bottom: 64rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 20rpx;
-  position: relative;
-  padding-bottom: 32rpx;
-
-  // 移除生硬的分割线，改用更大的垂直节奏
-  &::after {
-    display: none;
-  }
-
-  &:last-child {
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-}
-
-.sentence-main {
-  .english-flow {
-    font-size: var(--text-lg);
-    line-height: var(--leading-relaxed);
-  }
-}
-
-.sentence-analysis {
-  margin-top: -8rpx; // 让 chip 靠近句子
-}
-
-.analysis-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-}
-
-.sentence-translation {
-  margin-top: 0;
-  padding-left: 20rpx;
-  border-left: 3rpx solid rgba(0, 0, 0, 0.02);
-  
-  .translation-text {
-    font-size: var(--text-base);
-    color: var(--text-sub);
-    font-style: italic; // 精读模式下翻译稍微弱化，突出分析
-  }
+.tone-grammar {
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: 2rpx;
+  text-decoration-color: rgba(139, 92, 246, 0.4); // violet-500/40
 }

@@ -2,8 +2,8 @@ import { useMemo, memo } from 'react'
 import { View, Text } from '@tarojs/components'
 import { InlineMarkModel, SentenceEntryModel, VisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
 import InlineMark from '../InlineMark'
-import SentenceActionChip from '../SentenceActionChip'
 import ClickableWord from '../ClickableWord'
+import AnalysisCard from '../AnalysisCard'
 import { tokenizeText } from './utils'
 import './index.scss'
 
@@ -23,15 +23,13 @@ export interface WordClickPayload {
 interface ParagraphBlockProps {
   sentences: SentenceModel[]
   translations: TranslationModel[]
-  showTranslation: boolean
   inlineMarks: InlineMarkModel[]
   activeMarkId?: string | null
-  selectedWord?: string | null // 新增：当前选中的单词
+  selectedWord?: string | null
   tailEntries: SentenceEntryModel[]
-  pageMode: 'immersive' | 'bilingual' | 'intensive'
-  vocabList?: string[] // 新增已加入生词本的单词列表
+  pageMode: 'immersive' | 'intensive'
+  vocabList?: string[]
   onWordClick?: (payload: WordClickPayload) => void
-  onChipClick?: (entry: SentenceEntryModel) => void
 }
 
 function findTextAnchorPosition(text: string, anchorText: string, occurrence = 1): number {
@@ -80,9 +78,15 @@ function renderTextWithMarks(
   activeMarkId?: string | null,
   selectedWord?: string | null,
   vocabList?: string[],
-  onWordClick?: (payload: WordClickPayload) => void
+  onWordClick?: (payload: WordClickPayload) => void,
+  isImmersive?: boolean
 ) {
-  if (marks.length === 0) {
+  // 沉浸模式下只保留词汇相关的标记（vocab, phrase, context）
+  const visibleMarks = isImmersive 
+    ? marks.filter(m => ['vocab', 'phrase', 'context'].includes(m.visualTone))
+    : marks
+
+  if (visibleMarks.length === 0) {
     return (
       <Text className='sentence-text'>
         {renderPlainSegmentAsClickableWords(text, selectedWord, vocabList, onWordClick)}
@@ -92,7 +96,7 @@ function renderTextWithMarks(
 
   const flatParts: Array<{ mark: InlineMarkModel; start: number; end: number; text: string }> = []
 
-  marks.forEach((m) => {
+  visibleMarks.forEach((m) => {
     if (m.anchor.kind === 'text') {
       const pos = findTextAnchorPosition(text, m.anchor.anchorText, m.anchor.occurrence || 1)
       if (pos >= 0) {
@@ -136,11 +140,6 @@ function renderTextWithMarks(
       resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, onWordClick))
     }
 
-    /**
-     * clickable=False 的 mark（如 grammar_note）不创建点击热区。
-     * 内部单词仍可独立点击，不被 mark 吞掉。
-     * 视觉上仍展示 tone 样式。
-     */
     if (!item.mark.clickable) {
       const toneClass = `tone-${item.mark.visualTone}`
       const tokens = tokenizeText(item.text)
@@ -192,7 +191,6 @@ function renderTextWithMarks(
 const ParagraphBlock = memo(function ParagraphBlock({
   sentences,
   translations,
-  showTranslation,
   inlineMarks,
   activeMarkId,
   selectedWord,
@@ -200,7 +198,6 @@ const ParagraphBlock = memo(function ParagraphBlock({
   pageMode,
   vocabList,
   onWordClick,
-  onChipClick,
 }: ParagraphBlockProps) {
   const marksBySentenceId = useMemo(() => {
     const map = new Map<string, InlineMarkModel[]>()
@@ -221,11 +218,6 @@ const ParagraphBlock = memo(function ParagraphBlock({
     return map
   }, [tailEntries])
 
-  const fullTranslation = sentences
-    .map(s => translations.find(t => t.sentenceId === s.sentenceId)?.translationZh)
-    .filter(Boolean)
-    .join(' ')
-
   if (pageMode === 'immersive') {
     return (
       <View className='paragraph-block immersive'>
@@ -235,38 +227,13 @@ const ParagraphBlock = memo(function ParagraphBlock({
               const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
               return (
                 <Text key={sentence.sentenceId} className='sentence-span'>
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick)}
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, true)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
             })}
           </Text>
         </View>
-      </View>
-    )
-  }
-
-  if (pageMode === 'bilingual') {
-    return (
-      <View className='paragraph-block bilingual'>
-        <View className='english-paragraph'>
-          <Text className='english-flow'>
-            {sentences.map((sentence, idx) => {
-              const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
-              return (
-                <Text key={sentence.sentenceId} className='sentence-span'>
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick)}
-                  {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
-                </Text>
-              )
-            })}
-          </Text>
-        </View>
-        {fullTranslation && (
-          <View className='translation-paragraph'>
-            <Text className='translation-text'>{fullTranslation}</Text>
-          </View>
-        )}
       </View>
     )
   }
@@ -278,31 +245,69 @@ const ParagraphBlock = memo(function ParagraphBlock({
         const sentenceEntries = entriesBySentenceId.get(sentence.sentenceId) || []
         const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
 
+        // 收集解析卡片
+        const analysisCards = [
+          // 1. 词汇/短语卡片 (从 inlineMarks 中带有 glossary 的生成)
+          ...sentenceMarks
+            .filter(m => m.glossary && ['vocab', 'phrase', 'context'].includes(m.visualTone))
+            .map(m => ({
+              id: m.id,
+              type: 'vocab' as const,
+              title: m.lookupText || (m.anchor.kind === 'text' ? m.anchor.anchorText : m.id),
+              label: m.visualTone === 'phrase' ? '核心短语' : m.visualTone === 'context' ? '语境释义' : '核心词汇',
+              content: m.glossary?.zh || m.glossary?.gloss || '',
+              phonetic: '', // InlineMark 暂时没存音标
+              tags: m.examTags,
+            })),
+          // 2. 语法卡片 (从 sentenceEntries 筛选)
+          ...sentenceEntries
+            .filter(e => e.entryType === 'grammar_note')
+            .map(e => ({
+              id: e.id,
+              type: 'grammar' as const,
+              title: e.title || e.label,
+              label: '语法要点',
+              content: e.content,
+            })),
+          // 3. 句式卡片 (从 sentenceEntries 筛选)
+          ...sentenceEntries
+            .filter(e => e.entryType === 'sentence_analysis')
+            .map(e => ({
+              id: e.id,
+              type: 'sentence' as const,
+              title: e.label,
+              label: '句式解析',
+              content: e.content,
+            })),
+        ]
+
         return (
           <View key={sentence.sentenceId} className='sentence-block'>
             <View className='sentence-main'>
               <Text className='english-flow'>
-                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick)}
+                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false)}
               </Text>
             </View>
 
-            {sentenceEntries.length > 0 && (
-              <View className='sentence-analysis'>
-                <View className='analysis-chips'>
-                  {sentenceEntries.map((entry) => (
-                    <SentenceActionChip
-                      key={entry.id}
-                      entry={entry}
-                      onClick={onChipClick}
-                    />
-                  ))}
-                </View>
+            {sentenceTranslation && (
+              <View className='sentence-translation'>
+                <Text className='translation-text'>{sentenceTranslation}</Text>
               </View>
             )}
 
-            {showTranslation && sentenceTranslation && (
-              <View className='sentence-translation'>
-                <Text className='translation-text'>{sentenceTranslation}</Text>
+            {analysisCards.length > 0 && (
+              <View className='analysis-cards-list'>
+                {analysisCards.map((card) => (
+                  <AnalysisCard
+                    key={card.id}
+                    type={card.type}
+                    title={card.title}
+                    label={card.label}
+                    content={card.content}
+                    phonetic={card.phonetic}
+                    tags={card.tags}
+                  />
+                ))}
               </View>
             )}
           </View>

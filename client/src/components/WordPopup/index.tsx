@@ -22,7 +22,6 @@ interface WordPopupProps {
 
 function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): string {
   if (!entry?.meanings?.length) return ''
-  // 仅取首个义项的所有释义，分号拼接
   return entry.meanings[0]?.definitions
     ?.map((d) => d.meaning)
     .filter(Boolean)
@@ -30,7 +29,7 @@ function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): stri
 }
 
 export default function WordPopup({
-  visible, mode = 'full', mark, word, x = 0, y = 0,
+  visible, mode = 'mini', mark, word, x = 0, y = 0,
   onClose, onExpand, onAddVocab, onFavorite,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
@@ -38,20 +37,19 @@ export default function WordPopup({
   const [screenWidth, setScreenWidth] = useState(375)
 
   const lookupText = mark?.lookupText || word
-  const lookupKind = mark?.lookupKind
   const glossary = mark?.glossary
   const examTags = mark?.examTags
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
   const detailMeanings = entry?.meanings || []
-  const miniMeaning = getEntrySummary(entry)
+  const miniMeaning = glossary?.zh || glossary?.gloss || getEntrySummary(entry)
 
-  const shouldSkipDictFetch = mark?.annotationType === 'phrase_gloss' && glossary?.zh
+  const isLLMAnnotated = !!glossary
 
   useEffect(() => {
     if (!visible || !lookupText) return
-    if (shouldSkipDictFetch) return
+    // 如果是短语且已有 AI 释义，仍建议拉取词典以备展开查看更多例句
     void fetchDictionary(lookupText)
-  }, [visible, lookupText, shouldSkipDictFetch])
+  }, [visible, lookupText])
 
   useEffect(() => {
     Taro.getSystemInfo({}).then((info) => setScreenWidth(info.windowWidth || 375))
@@ -59,7 +57,7 @@ export default function WordPopup({
 
   const fetchDictionary = async (text: string) => {
     setLoading(true)
-    setDictResult(null) // 清空旧数据，防止词头残留
+    setDictResult(null)
     try {
       const dto = await fetchDict(text)
       setDictResult(dictResponseDtoToVm(dto))
@@ -73,7 +71,7 @@ export default function WordPopup({
 
   const fetchEntryDetail = async (entryId: number, expand = false) => {
     setLoading(true)
-    setDictResult(null) // 清空旧数据，防止词头残留
+    setDictResult(null)
     try {
       const dto = await fetchDictEntry(entryId)
       setDictResult(dictResponseDtoToVm(dto))
@@ -95,118 +93,79 @@ export default function WordPopup({
   const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
 
   if (mode === 'mini') {
-    const safeLeft = x > screenWidth - 260 ? screenWidth - 280 : Math.max(20, x - 130)
-    const safeTop = y > 200 ? y - 160 : y + 40
+    // 定位逻辑优化：强制居中于点击点上方，处理边缘溢出
+    const popupWidth = 240
+    const popupHeight = 120
+    const offset = 12
+
+    let left = x - popupWidth / 2
+    let top = y - popupHeight - offset
+
+    // 边缘处理
+    if (left < 10) left = 10
+    if (left + popupWidth > screenWidth - 10) left = screenWidth - popupWidth - 10
+    if (top < 80) top = y + offset // 如果上方不够，翻转到下方
 
     const popupStyle: React.CSSProperties = {
       position: 'fixed',
-      left: `${safeLeft}px`,
-      top: `${safeTop}px`,
+      left: `${left}px`,
+      top: `${top}px`,
       zIndex: 1000,
     }
 
     return (
       <View className='word-popup-overlay mini-overlay' onClick={onClose}>
         <View
-          className='mini-word-card'
+          className={`mini-word-card ${isLLMAnnotated ? 'is-ai' : ''}`}
           style={popupStyle}
           onClick={(e) => {
             e.stopPropagation()
-            // 无论是 entry 还是 disambiguation，点击卡片都允许展开
             onExpand?.()
           }}
         >
           <View className='mini-header'>
             <View className='mini-word-info'>
               <Text className='mini-word'>{entry?.word || lookupText}</Text>
-              {entry?.phonetic && <Text className='mini-phonetic'>{entry.phonetic}</Text>}
+              {isLLMAnnotated && <View className='ai-tag'>AI</View>}
             </View>
-            <View className='mini-actions'>
-              <View
-                className='mini-icon-btn'
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handlePlayAudio()
-                }}
-              >
-                <LucideIcon name='volume2' size={16} color='var(--text-sub)' />
-              </View>
-              <View
-                className='mini-icon-btn'
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onFavorite?.(lookupText)
-                  Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 })
-                }}
-              >
-                <LucideIcon name='star' size={16} color='var(--text-sub)' />
-              </View>
-            </View>
+            <LucideIcon name='chevron-right' size={14} color='var(--text-muted)' />
           </View>
 
           <View className='mini-content'>
-            {loading ? (
+            {loading && !miniMeaning ? (
               <Text className='mini-loading'>查询中...</Text>
-            ) : isEntryResult && entry && detailMeanings[0] ? (
+            ) : miniMeaning ? (
               <View className='mini-def-row'>
-                <Text className='mini-pos'>{detailMeanings[0].partOfSpeech}</Text>
-                <Text className='mini-def' numberOfLines={1}>
+                {entry?.primaryPos && <Text className='mini-pos'>{entry.primaryPos}</Text>}
+                <Text className='mini-def' numberOfLines={2}>
                   {miniMeaning}
                 </Text>
               </View>
-            ) : isDisambiguationResult && dictResult.candidates.length ? (
-              <View className='mini-disambiguation-list'>
-                {dictResult.candidates.slice(0, 4).map((candidate) => (
-                  <View
-                    key={candidate.entryId}
-                    className='mini-candidate-item'
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void fetchEntryDetail(candidate.entryId, true)
-                    }}
-                  >
-                    <View className='mini-candidate-header'>
-                      <Text className='mini-candidate-label'>{candidate.label}</Text>
-                      {candidate.partOfSpeech && <Text className='mini-pos'>{candidate.partOfSpeech}</Text>}
-                    </View>
-                    {candidate.preview && (
-                      <Text className='mini-candidate-preview' numberOfLines={1}>
-                        {candidate.preview}
-                      </Text>
-                    )}
-                  </View>
-                ))}
-              </View>
+            ) : isDisambiguationResult ? (
+              <Text className='mini-def'>该词有多个义项，点击查看</Text>
             ) : (
               <Text className='mini-loading'>未找到释义</Text>
             )}
           </View>
-
-          <View className='mini-footer'>
-            <Text className='mini-hint'>
-              {isDisambiguationResult 
-                ? (dictResult.candidates.length > 4 ? '查看更多选项' : '选择词义') 
-                : '点击查看详情'}
-            </Text>
-            <LucideIcon name='chevronRight' size={12} color='var(--text-muted)' />
-          </View>
+          
+          <View className='mini-arrow' style={{ left: `${Math.max(20, Math.min(popupWidth - 20, x - left))}px` }} />
         </View>
       </View>
     )
   }
 
   return (
-    <View className='word-popup-overlay' onClick={onClose}>
+    <View className='word-popup-overlay full-overlay' onClick={onClose}>
       <View className='word-popup-container' onClick={(e) => e.stopPropagation()}>
         <View className='popup-drag-handle' />
         <View className='popup-header'>
           <View className='word-info'>
             <View className='word-text-row'>
               <Text className='word-text'>{entry?.word || lookupText}</Text>
-              {lookupKind && <Text className='word-kind-tag'>{lookupKind}</Text>}
+              {isLLMAnnotated && <View className='ai-badge'>AI 解析</View>}
             </View>
             <View className='word-sub-info'>
-              {entry?.phonetic && <Text className='word-phonetic'>{entry.phonetic}</Text>}
+              {entry?.phonetic && <Text className='word-phonetic'>[{entry.phonetic}]</Text>}
               {examTags && examTags.length > 0 && (
                 <View className='exam-tags'>
                   {examTags.map(tag => (
@@ -218,7 +177,7 @@ export default function WordPopup({
           </View>
           <View className='header-right-actions'>
             <View className='audio-btn-large' onClick={handlePlayAudio}>
-              <LucideIcon name='volume2' size={24} color='var(--text-main)' />
+              <LucideIcon name='volume2' size={24} color='var(--color-primary)' />
             </View>
             <View className='popup-close-btn' onClick={onClose}>
               <LucideIcon name='x' size={24} color='var(--text-muted)' />
@@ -228,93 +187,70 @@ export default function WordPopup({
 
         <ScrollView className='popup-scroll-content' scrollY>
           {glossary && (
-            <View className='glossary-card'>
-              <View className='glossary-card-header'>
-                <LucideIcon name='sparkles' size={16} color='var(--color-ink)' />
-                <Text className='glossary-card-title'>AI 深度解析</Text>
+            <View className='glossary-section'>
+              <View className='section-title'>
+                <LucideIcon name='sparkles' size={14} color='var(--color-primary)' />
+                <Text>上下文语境义</Text>
               </View>
-              <View className='glossary-card-body'>
-                {glossary.zh && <Text className='glossary-zh'>{glossary.zh}</Text>}
-                {glossary.gloss && <Text className='glossary-gloss'>{glossary.gloss}</Text>}
+              <View className='glossary-content'>
+                <Text className='glossary-zh'>{glossary.zh || glossary.gloss}</Text>
                 {glossary.reason && <Text className='glossary-reason'>{glossary.reason}</Text>}
               </View>
             </View>
           )}
 
-          {loading ? (
-            <View className='popup-loading-state'><Text>正在检索词库...</Text></View>
-          ) : isDisambiguationResult ? (
-            <View className='dict-entries'>
-              <View className='disambiguation-title'>
-                <Text className='disambiguation-text'>该词有多个义项，请选择：</Text>
+          <View className='dict-section'>
+            <View className='section-title'>
+              <LucideIcon name='book' size={14} color='var(--text-sub)' />
+              <Text>词典详细释义</Text>
+            </View>
+
+            {loading ? (
+              <View className='popup-loading-state'><Text>正在检索词库...</Text></View>
+            ) : isDisambiguationResult ? (
+              <View className='disambiguation-list'>
+                {dictResult.candidates.map((candidate) => (
+                  <View
+                    key={candidate.entryId}
+                    className='candidate-item'
+                    onClick={() => void fetchEntryDetail(candidate.entryId)}
+                  >
+                    <View className='candidate-main'>
+                      <Text className='candidate-label'>{candidate.label}</Text>
+                      {candidate.partOfSpeech && <Text className='candidate-pos'>{candidate.partOfSpeech}</Text>}
+                    </View>
+                    {candidate.preview && <Text className='candidate-preview'>{candidate.preview}</Text>}
+                    <LucideIcon name='chevron-right' size={16} color='#ccc' />
+                  </View>
+                ))}
               </View>
-              {dictResult.candidates.map((candidate) => (
-                <View
-                  key={candidate.entryId}
-                  className='meaning-block clickable'
-                  onClick={() => void fetchEntryDetail(candidate.entryId)}
-                >
-                  <View className='pos-tag'>{candidate.partOfSpeech || candidate.entryKind}</View>
-                  <View className='definition-list'>
-                    <View className='def-item'>
-                      <Text className='def-en-example'>{candidate.label}</Text>
-                      {candidate.preview && <Text className='def-zh'>{candidate.preview}</Text>}
+            ) : isEntryResult && entry ? (
+              <View className='meanings-list'>
+                {detailMeanings.map((meaning, idx) => (
+                  <View key={idx} className='meaning-item'>
+                    <Text className='pos-tag'>{meaning.partOfSpeech}</Text>
+                    <View className='definitions'>
+                      {meaning.definitions.map((def, defIdx) => (
+                        <View key={defIdx} className='def-row'>
+                          <Text className='def-text'>{def.meaning}</Text>
+                          {def.example && (
+                            <View className='def-example-block'>
+                              <Text className='def-example-en'>{def.example}</Text>
+                              {def.exampleTranslation && <Text className='def-example-zh'>{def.exampleTranslation}</Text>}
+                            </View>
+                          )}
+                        </View>
+                      ))}
                     </View>
                   </View>
-                  <LucideIcon name='chevronRight' size={16} color='#ccc' />
-                </View>
-              ))}
-            </View>
-          ) : isEntryResult && entry ? (
-            <View className='dict-entries'>
-              {detailMeanings.map((meaning, idx) => (
-                <View key={idx} className='meaning-block'>
-                  <View className='pos-tag'>{meaning.partOfSpeech}</View>
-                  <View className='definition-list'>
-                    {meaning.definitions.map((def, defIdx) => (
-                      <View key={defIdx} className='def-item'>
-                        <Text className='def-zh'>{def.meaning}</Text>
-                        {def.example && <Text className='def-en-example'>"{def.example}"</Text>}
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ))}
-              {entry.examples.length ? (
-                <View className='meaning-block'>
-                  <View className='pos-tag'>例句</View>
-                  <View className='definition-list'>
-                    {entry.examples.map((example, idx) => (
-                      <View key={idx} className='def-item'>
-                        <Text className='def-en-example'>"{example.example}"</Text>
-                        {example.exampleTranslation && (
-                          <Text className='def-zh'>{example.exampleTranslation}</Text>
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-              {entry.phrases.length ? (
-                <View className='meaning-block'>
-                  <View className='pos-tag'>短语</View>
-                  <View className='definition-list'>
-                    {entry.phrases.map((phrase, idx) => (
-                      <View key={idx} className='def-item'>
-                        <Text className='def-en-example'>{phrase.phrase}</Text>
-                        {phrase.meaning && <Text className='def-zh'>{phrase.meaning}</Text>}
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-            </View>
-          ) : !loading && (
-            <View className='popup-empty-state'>
-              <LucideIcon name='searchX' size={48} color='var(--text-muted)' />
-              <Text className='empty-text'>未找到词条释义</Text>
-            </View>
-          )}
+                ))}
+              </View>
+            ) : !loading && (
+              <View className='popup-empty-state'>
+                <Text className='empty-text'>未找到更多词条释义</Text>
+              </View>
+            )}
+          </View>
         </ScrollView>
 
         <View className='popup-footer-actions safe-area-bottom'>
@@ -326,18 +262,17 @@ export default function WordPopup({
             }}
           >
             <LucideIcon name='star' size={18} color='var(--text-sub)' />
-            <Text className='btn-text'>收藏</Text>
+            <Text>收藏</Text>
           </View>
           {isEntryResult && entry && entry.id > 0 ? (
             <View
               className='footer-action-btn primary'
               onClick={() => {
                 onAddVocab?.(entry.word, dictResult)
-                Taro.showToast({ title: '已记入生词本', icon: 'success', duration: 1500 })
               }}
             >
               <LucideIcon name='plus' size={18} color='#fff' />
-              <Text className='btn-text'>记入生词本</Text>
+              <Text>记入生词本</Text>
             </View>
           ) : null}
         </View>

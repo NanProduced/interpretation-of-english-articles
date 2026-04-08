@@ -133,7 +133,7 @@ export type ResultPageState =
   | 'timeout'
   | 'network_fail'
 
-export type PageMode = 'immersive' | 'bilingual' | 'intensive'
+export type PageMode = 'immersive' | 'intensive'
 
 export interface DictionaryMeaning {
   partOfSpeech: string

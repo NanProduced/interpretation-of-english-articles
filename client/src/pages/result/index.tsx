@@ -2,11 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useArticleStore } from '../../stores/article'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
-import { InlineMarkModel, SentenceEntryModel, PageMode, ResultPageState } from '../../types/view/render-scene.vm'
+import { InlineMarkModel, PageMode, ResultPageState } from '../../types/view/render-scene.vm'
 import NavBar from '../../components/NavBar'
 import ParagraphBlock, { type WordClickPayload } from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
-import BottomSheetDetail from '../../components/BottomSheetDetail'
 import LucideIcon from '../../components/LucideIcon'
 import { LoadingIllustration, ErrorIllustration, EmptyIllustration } from '../../components/ResultIllustrations'
 import { useLayoutStore } from '../../stores/layout'
@@ -21,8 +20,7 @@ import './index.scss'
 
 /** 页面模式选项 */
 const PAGE_MODE_OPTIONS = [
-  { value: 'immersive', label: '沉浸' },
-  { value: 'bilingual', label: '双语' },
+  { value: 'immersive', label: '原文' },
   { value: 'intensive', label: '精读' },
 ] as const
 
@@ -52,7 +50,7 @@ const PAGE_STATE_MESSAGES: Record<ResultPageState, { title: string; subtitle: st
 
 export default function Result() {
   const { navBarHeight } = useLayoutStore()
-  const [pageMode, setPageMode] = useState<PageMode>('bilingual')
+  const [pageMode, setPageMode] = useState<PageMode>('intensive')
   const [showSecondaryMessage, setShowSecondaryMessage] = useState(false)
   const [vocabList, setVocabList] = useState<string[]>([]) // 已加入生词本的单词列表
   const [wordPopup, setWordPopup] = useState<{
@@ -65,10 +63,6 @@ export default function Result() {
   }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null)
   const [selectedWord, setSelectedWord] = useState<string | null>(null)
-  const [bottomSheet, setBottomSheet] = useState<{
-    visible: boolean
-    entry: SentenceEntryModel | null
-  }>({ visible: false, entry: null })
   const [loadingStep, setLoadingStep] = useState(0)
 
   // 从 store 获取页面状态
@@ -99,8 +93,6 @@ export default function Result() {
       setFavorited(isFavorited(recordId))
     }
   }, [recordId])
-
-  const showTranslation = pageMode === 'bilingual' || pageMode === 'intensive'
 
   // === 回看模式：URL 带有 recordId 时从 storage 加载 ===
   useEffect(() => {
@@ -142,7 +134,7 @@ export default function Result() {
 
   const handleWordClick = ({ word, mark, event }: WordClickPayload) => {
     const isAIAnnotated = !!(mark?.glossary)
-    const initialMode = isAIAnnotated ? 'full' : 'mini'
+    const initialMode = 'mini' // 始终先弹出小卡片
     setActiveMarkId(mark?.id ?? null)
     setSelectedWord(word)
 
@@ -152,9 +144,9 @@ export default function Result() {
       if (event.changedTouches && event.changedTouches[0]) {
         clientX = event.changedTouches[0].clientX
         clientY = event.changedTouches[0].clientY
-      } else if (event.detail && event.detail.x !== undefined) {
-        clientX = event.detail.x
-        clientY = event.detail.y
+      } else if (event.detail && (event.detail.x !== undefined || event.detail.clientX !== undefined)) {
+        clientX = event.detail.x ?? event.detail.clientX
+        clientY = event.detail.y ?? event.detail.clientY
       }
     }
     setWordPopup({ visible: true, mode: initialMode, mark: mark ?? null, word, x: clientX, y: clientY })
@@ -164,46 +156,6 @@ export default function Result() {
     setWordPopup({ ...wordPopup, visible: false })
     setActiveMarkId(null)
     setSelectedWord(null)
-  }
-
-  const handleChipClick = (entry: SentenceEntryModel) => {
-    setBottomSheet({ visible: true, entry })
-  }
-
-  const handleFavoriteEntry = async (entry: SentenceEntryModel) => {
-    if (!recordId) return
-    const vocabEntry: VocabEntry = {
-      id: `${recordId}_${entry.id}_${Date.now()}`,
-      recordId,
-      word: entry.title || entry.label,
-      partOfSpeech: entry.entryType === 'grammar_note' ? '语法' : '句式',
-      meaning: entry.content.slice(0, 200),
-      addedAt: Date.now(),
-      mastered: false,
-    }
-    saveVocabEntry(vocabEntry)
-    track('add_vocab', { entryType: entry.entryType, word: entry.title || entry.label })
-    Taro.showToast({ title: '已记入生词本', icon: 'success', duration: 1500 })
-
-    // 静默同步云端（401 → 引导登录 → 重试）
-    try {
-      await CloudSyncService.syncVocab(vocabEntry)
-    } catch (err: any) {
-      if (err?.statusCode === 401) {
-        const relogin = await ensureLoggedIn()
-        if (relogin) {
-          await CloudSyncService.syncVocab(vocabEntry)
-        }
-      }
-    }
-  }
-
-  const handleHelpfulEntry = (entry: SentenceEntryModel) => {
-    track('entry_helpful', {
-      entryType: entry.entryType,
-      entryId: entry.id,
-      label: entry.label,
-    })
   }
 
   const handleToggleFavorite = async () => {
@@ -396,7 +348,7 @@ export default function Result() {
           key={paragraph.paragraphId}
           sentences={sentences}
           translations={sceneData!.translations}
-          showTranslation={showTranslation}
+          showTranslation={pageMode === 'intensive'}
           inlineMarks={sceneData!.inlineMarks}
           activeMarkId={activeMarkId}
           selectedWord={selectedWord}
@@ -404,7 +356,6 @@ export default function Result() {
           tailEntries={sceneData!.sentenceEntries}
           pageMode={pageMode}
           onWordClick={handleWordClick}
-          onChipClick={handleChipClick}
         />
       )
     })
@@ -501,14 +452,6 @@ export default function Result() {
           }
         }}
         onFavorite={(w) => { track('favorite_word', { word: w }) }}
-      />
-
-      <BottomSheetDetail
-        visible={bottomSheet.visible}
-        entry={bottomSheet.entry}
-        onClose={() => setBottomSheet({ ...bottomSheet, visible: false })}
-        onFavorite={handleFavoriteEntry}
-        onHelpful={handleHelpfulEntry}
       />
     </>
   )

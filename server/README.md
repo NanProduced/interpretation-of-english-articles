@@ -28,6 +28,8 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
+> **注意**：`prepare_input` 模块依赖 spaCy 语言模型 `en_core_web_sm`（需手动 `python -m spacy download en_core_web_sm`）。完整依赖说明见 [prepare-input-preprocessing-redesign.md](../docs/workflow/v3/prepare-input-preprocessing-redesign.md#122-完整依赖说明与启动检查)。
+
 ## 本地数据库与缓存
 
 当前正式方向已经收敛为：
