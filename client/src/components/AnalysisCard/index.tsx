@@ -114,9 +114,6 @@ export default function AnalysisCard({
     <View className={`analysis-card ${config.colorClass} ${isExpanded ? 'expanded' : 'collapsed'}`}>
       <View className='card-header' onClick={() => setIsExpanded(!isExpanded)}>
         <View className='header-left'>
-          <View className='icon-wrapper'>
-            <LucideIcon name={config.icon} size={14} color={config.accentColor} />
-          </View>
           <Text className='card-label'>{label || config.defaultLabel}</Text>
         </View>
         <View className='header-right'>
@@ -128,7 +125,7 @@ export default function AnalysisCard({
         </View>
       </View>
 
-      <View className='card-body'>
+      <View className='card-body' onClick={() => !isExpanded && setIsExpanded(true)}>
         <View className='card-title-row'>
           <Text className='card-title'>{title}</Text>
           {phonetic && <Text className='card-phonetic'>/{phonetic}/</Text>}
@@ -141,7 +138,7 @@ export default function AnalysisCard({
           )}
         </View>
         
-        {isExpanded && (
+        <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
           <View className='card-content-wrapper'>
             {type === 'sentence' && structuredData && structuredData.chunks.length > 0 ? (
               <View className='structured-analysis'>
@@ -167,7 +164,7 @@ export default function AnalysisCard({
               <Text className='card-content'>{content}</Text>
             )}
           </View>
-        )}
+        </View>
       </View>
     </View>
   )

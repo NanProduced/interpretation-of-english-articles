@@ -1,32 +1,36 @@
 .analysis-card {
-  margin-top: 16rpx;
+  margin-top: 24rpx;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 1rpx solid transparent;
+  border: 1rpx solid var(--border-color);
   background: var(--color-white);
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
+  position: relative;
 
-  // --- Type Variants ---
-  &.type-vocab {
-    background: var(--vocab-surface);
-    border-color: var(--vocab-border);
-    .icon-wrapper { color: var(--vocab-accent); }
-    .card-label { color: var(--vocab-label); }
-    .card-title { color: var(--vocab-content); }
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 8rpx;
+    z-index: 2;
   }
 
+  // --- Type Variants ---
   &.type-grammar {
+    &::before { background: var(--grammar-accent); }
     background: var(--grammar-surface);
     border-color: var(--grammar-border);
-    .icon-wrapper { color: var(--grammar-accent); }
     .card-label { color: var(--grammar-label); }
     .card-title { color: var(--grammar-content); }
   }
 
   &.type-sentence {
+    &::before { background: var(--sentence-accent); }
     background: var(--sentence-surface);
     border-color: var(--sentence-border);
-    .icon-wrapper { color: var(--sentence-accent); }
     .card-label { color: var(--sentence-label); }
     .card-title { color: var(--sentence-content); }
   }
@@ -36,8 +40,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12rpx 20rpx;
-    background: rgba(255, 255, 255, 0.4);
+    padding: 16rpx 24rpx 16rpx 32rpx;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(4px);
     
     .header-left {
       display: flex;
@@ -45,152 +50,173 @@
       gap: 12rpx;
     }
 
-    .icon-wrapper {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
     .card-label {
-      font-size: var(--text-xs);
-      font-weight: var(--weight-semibold);
-      letter-spacing: 0.05em;
+      font-size: 22rpx;
+      font-weight: var(--weight-bold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
   }
 
   .card-body {
-    padding: 20rpx;
+    padding: 24rpx 24rpx 24rpx 32rpx;
     
     .card-title-row {
       display: flex;
       align-items: baseline;
       flex-wrap: wrap;
-      gap: 12rpx;
+      gap: 16rpx;
     }
 
     .card-title {
-      font-size: var(--text-base);
+      font-size: 32rpx;
       font-weight: var(--weight-bold);
+      color: var(--color-ink);
       font-family: var(--font-english-serif), serif;
+      letter-spacing: -0.01em;
+      line-height: 1.4;
     }
 
     .card-phonetic {
-      font-size: var(--text-xs);
+      font-size: 24rpx;
       color: var(--text-sub);
+      font-style: italic;
       font-family: var(--font-english-sans), sans-serif;
-    }
-
-    .card-tags {
-      display: flex;
-      gap: 8rpx;
-      margin-left: 8rpx;
     }
 
     .tag-badge {
       font-size: 20rpx;
-      padding: 2rpx 10rpx;
-      border-radius: var(--radius-xs);
-      background: var(--border-color);
+      padding: 4rpx 12rpx;
+      border-radius: 6rpx;
+      background: rgba(0, 0, 0, 0.05);
       color: var(--text-sub);
+      font-weight: var(--weight-medium);
     }
   }
 
   .card-content-wrapper {
-    margin-top: 16rpx;
-    padding-top: 16rpx;
-    border-top: 1rpx dashed var(--border-color);
+    margin-top: 24rpx;
+    padding-top: 24rpx;
+    border-top: 1rpx dashed rgba(0, 0, 0, 0.08);
   }
 
   .card-content {
-    font-size: var(--text-sm);
+    font-size: 28rpx;
     color: var(--text-main);
-    line-height: var(--leading-normal);
+    line-height: 1.7; // 增加行高提升可读性
     display: block;
     white-space: pre-wrap;
+    font-family: var(--font-sans);
+    letter-spacing: 0.01em;
   }
 
   // --- Structured Analysis (Sentence Breakdown) ---
   .structured-analysis {
     .analysis-summary {
-      font-size: var(--text-sm);
-      color: var(--text-main);
-      line-height: var(--leading-normal);
+      font-size: 28rpx;
+      color: var(--text-sub);
+      line-height: 1.6;
       display: block;
-      margin-bottom: 24rpx;
-      font-weight: var(--weight-medium);
+      margin-bottom: 32rpx;
+      padding: 20rpx 24rpx;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans); // 摘要使用无衬线体保持现代感
+      border: 1rpx solid rgba(0, 0, 0, 0.02);
     }
   }
 
   .analysis-steps {
     display: flex;
     flex-direction: column;
-    gap: 0; // Handled by dot-line
 
     .step-item {
       display: flex;
-      gap: 20rpx;
-      min-height: 80rpx;
+      gap: 24rpx;
     }
 
     .step-dot-line {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 40rpx;
+      width: 48rpx;
       flex-shrink: 0;
     }
 
     .step-dot {
-      width: 36rpx;
-      height: 36rpx;
-      border-radius: 50%;
+      width: 42rpx;
+      height: 42rpx;
+      border-radius: 12rpx;
       background: var(--sentence-accent);
       color: var(--color-white);
-      font-size: 20rpx;
+      font-size: 22rpx;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: var(--weight-bold);
+      font-family: var(--font-mono); // 序号使用等宽字体
+      box-shadow: 0 4rpx 8rpx rgba(var(--sentence-accent-rgb), 0.2);
       z-index: 1;
     }
 
     .step-line {
       flex: 1;
-      width: 2rpx;
-      background: var(--sentence-border);
-      margin: 4rpx 0;
+      width: 4rpx;
+      background: color-mix(in srgb, var(--sentence-accent), transparent 70%);
+      margin: 8rpx 0;
+      border-radius: 2rpx;
     }
 
     .step-content {
       flex: 1;
-      padding-bottom: 24rpx;
+      padding-bottom: 36rpx;
     }
 
     .step-label {
-      display: block;
-      font-size: 20rpx;
+      display: inline-block;
+      font-size: 22rpx;
       font-weight: var(--weight-bold);
-      color: var(--text-sub);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 4rpx;
+      color: var(--sentence-label);
+      background: color-mix(in srgb, var(--sentence-accent), transparent 92%);
+      padding: 4rpx 16rpx;
+      border-radius: 6rpx;
+      margin-bottom: 12rpx;
+      font-family: var(--font-sans);
     }
 
     .step-text {
       display: block;
-      font-size: var(--text-sm);
-      color: var(--text-main);
-      line-height: 1.4;
-      font-family: var(--font-english-serif), serif;
-      background: rgba(255, 255, 255, 0.5);
-      padding: 8rpx 12rpx;
-      border-radius: var(--radius-xs);
-      border-left: 4rpx solid var(--sentence-accent);
+      font-size: 32rpx; // 略微增大英文解析块字号
+      color: var(--color-ink);
+      line-height: 1.5;
+      font-family: var(--font-english-serif), serif; // 核心英文使用衬线体
+      font-variant-numeric: oldstyle-nums;
+      background: var(--color-white);
+      padding: 20rpx 24rpx;
+      border-radius: var(--radius-sm);
+      border: 1rpx solid rgba(0, 0, 0, 0.04);
+      box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.03);
     }
   }
 
-  // --- States ---
+  .card-content-expandable {
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    
+    &.hide {
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    &.show {
+      max-height: 2000rpx; // 足够大的高度支持长解析
+      opacity: 1;
+    }
+  }
+
   &.collapsed {
-    // Keep minimal height
+    .card-body { padding-bottom: 24rpx; }
+    &:active { transform: scale(0.99); opacity: 0.95; }
   }
 }

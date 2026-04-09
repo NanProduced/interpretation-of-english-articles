@@ -29,10 +29,30 @@ function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): stri
 }
 
 const TONE_META: Record<VisualTone, { label: string; color: string; bg: string }> = {
-  vocab: { label: '核心词汇', color: '#B45309', bg: '#FFD166' },
-  phrase: { label: '核心短语', color: '#6D28D9', bg: '#B2A4FF' },
-  context: { label: '语境释义', color: '#0369A1', bg: '#90E0EF' },
-  grammar: { label: '语法解析', color: '#047857', bg: '#6EE7B7' },
+  vocab: { label: '词汇', color: '#B45309', bg: '#FFD166' },
+  phrase: { label: '短语', color: '#6D28D9', bg: '#B2A4FF' },
+  context: { label: '语境', color: '#0369A1', bg: '#90E0EF' },
+  grammar: { label: '语法', color: '#047857', bg: '#6EE7B7' },
+}
+
+const PHRASE_KIND_LABELS: Record<string, string> = {
+  phrase: '短语',
+  collocation: '固定搭配',
+  phrasal_verb: '动词短语',
+  idiom: '习语',
+  proper_noun: '专有名词',
+  compound: '复合概念',
+}
+
+const MINI_LABEL_MAP: Record<string, string> = {
+  vocab: '词汇',
+  context: '语境',
+  phrase: '短语',
+  collocation: '搭配',
+  phrasal_verb: '短语',
+  idiom: '习语',
+  proper_noun: '专名',
+  compound: '复合',
 }
 
 export default function WordPopup({
@@ -46,6 +66,19 @@ export default function WordPopup({
   const lookupText = mark?.lookupText || word
   const glossary = mark?.glossary
   const toneMeta = mark ? TONE_META[mark.visualTone] : null
+  
+  // 核心逻辑：获取当前标注的专业文案
+  // 优先取具体的子类型映射（PHRASE_KIND_LABELS），若没有则取 toneMeta 的基础分类
+  const professionalLabel = (mark?.lookupKind && PHRASE_KIND_LABELS[mark.lookupKind])
+    ? PHRASE_KIND_LABELS[mark.lookupKind]
+    : (toneMeta?.label || 'AI 解析')
+
+  // Mini 模式标签映射
+  const miniLabel = (mark?.lookupKind && MINI_LABEL_MAP[mark.lookupKind])
+    ? MINI_LABEL_MAP[mark.lookupKind]
+    : (mark ? MINI_LABEL_MAP[mark.visualTone] : 'AI')
+
+  const kindLabel = mark?.lookupKind ? PHRASE_KIND_LABELS[mark.lookupKind] : null
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
   const detailMeanings = entry?.meanings || []
   const miniMeaning = glossary?.zh || glossary?.gloss || getEntrySummary(entry)
@@ -113,7 +146,7 @@ export default function WordPopup({
     if (left < 10) left = 10
     if (left + popupWidth > screenWidth - 10) left = screenWidth - popupWidth - 10
     
-    // 如果上方不够（考虑状态栏和导航栏高度，通常 80px 足够），翻转到下方
+    // 如果上方不够（考虑状态栏 and 导航栏高度，通常 80px 足够），翻转到下方
     if (top < 80) {
       top = y + offset
       isFlipped = true
@@ -144,7 +177,7 @@ export default function WordPopup({
                   className='ai-tag' 
                   style={{ backgroundColor: toneMeta.bg, color: toneMeta.color }}
                 >
-                  {toneMeta.label.slice(0, 2)}
+                  {miniLabel}
                 </View>
               )}
             </View>
@@ -194,14 +227,16 @@ export default function WordPopup({
           <View className='word-info'>
             <View className='word-text-row'>
               <Text className='word-text'>{entry?.word || lookupText}</Text>
-              {isLLMAnnotated && toneMeta && (
-                <View 
-                  className='ai-badge'
-                  style={{ backgroundColor: `color-mix(in srgb, ${toneMeta.bg}, transparent 80%)`, color: toneMeta.color, borderColor: toneMeta.bg }}
-                >
-                  {toneMeta.label}
-                </View>
-              )}
+              <View className='header-tags'>
+                {isLLMAnnotated && toneMeta && (
+                  <View 
+                    className='ai-badge'
+                    style={{ backgroundColor: `color-mix(in srgb, ${toneMeta.bg}, transparent 80%)`, color: toneMeta.color, borderColor: toneMeta.bg }}
+                  >
+                    {professionalLabel}
+                  </View>
+                )}
+              </View>
             </View>
             <View className='word-sub-info'>
               {entry?.phonetic && (
@@ -227,7 +262,7 @@ export default function WordPopup({
             >
               <View className='section-title'>
                 <LucideIcon name='sparkles' size={14} color={toneMeta?.color ?? 'var(--color-primary)'} />
-                <Text>{toneMeta ? `AI ${toneMeta.label}` : 'AI 解析'}</Text>
+                <Text>AI {professionalLabel}语境解析</Text>
               </View>
               <View className='glossary-content'>
                 <Text className='glossary-zh' style={{ color: toneMeta?.color }}>{glossary.zh || glossary.gloss}</Text>
@@ -239,11 +274,14 @@ export default function WordPopup({
           <View className='dict-section'>
             <View className='section-title'>
               <LucideIcon name='book' size={14} color='var(--text-sub)' />
-              <Text>词典详细释义</Text>
+              <Text>{isLLMAnnotated ? '词典详细释义' : '通用释义'}</Text>
             </View>
 
             {loading ? (
-              <View className='popup-loading-state'><Text>正在检索词库...</Text></View>
+              <View className='popup-loading-state'>
+                <View className='loading-spinner' />
+                <Text>正在检索权威词库...</Text>
+              </View>
             ) : isDisambiguationResult ? (
               <View className='disambiguation-list'>
                 {dictResult.candidates.map((candidate) => (

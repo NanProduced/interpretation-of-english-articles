@@ -43,7 +43,6 @@ class CountBound(BaseModel):
 
 
 class RegressionExpectations(BaseModel):
-    must_hit: list[ExpectedMatch] = Field(default_factory=list)
     must_not_hit: list[ExpectedMatch] = Field(default_factory=list)
     count_bounds: dict[str, CountBound] = Field(default_factory=dict)
     max_warning_count: int | None = Field(default=None, ge=0)
@@ -197,11 +196,6 @@ def evaluate_response(sample: RegressionSample, result: RenderSceneModel) -> dic
     translated_sentence_ids = {item.sentence_id for item in result.translations}
     translation_complete = expected_sentence_ids == translated_sentence_ids
 
-    must_hit_failures = [
-        expectation.model_dump(mode="json")
-        for expectation in sample.expectations.must_hit
-        if not any(_matches(record, expectation) for record in all_records)
-    ]
     must_not_hit_failures = [
         expectation.model_dump(mode="json")
         for expectation in sample.expectations.must_not_hit
@@ -221,8 +215,7 @@ def evaluate_response(sample: RegressionSample, result: RenderSceneModel) -> dic
 
     translation_failed = sample.expectations.require_full_translation and not translation_complete
     passed = not (
-        must_hit_failures
-        or must_not_hit_failures
+        must_not_hit_failures
         or count_failures
         or warning_limit_failed
         or translation_failed
@@ -236,7 +229,6 @@ def evaluate_response(sample: RegressionSample, result: RenderSceneModel) -> dic
         "warning_count": len(result.warnings),
         "translation_complete": translation_complete,
         "counts": counts,
-        "must_hit_failures": must_hit_failures,
         "must_not_hit_failures": must_not_hit_failures,
         "count_failures": count_failures,
         "warning_limit_failed": warning_limit_failed,
@@ -480,8 +472,6 @@ def _write_run_bundle(output_root: Path, evaluated_samples: list[EvaluatedSample
             summary = item.summary
             lines.append(f"### {item.sample.id}")
             lines.append(f"- 耗时：`{summary['duration_ms']} ms`")
-            if summary["must_hit_failures"]:
-                lines.append(f"- must_hit 未命中：`{len(summary['must_hit_failures'])}`")
             if summary["must_not_hit_failures"]:
                 lines.append(f"- must_not_hit 误命中：`{len(summary['must_not_hit_failures'])}`")
             if summary["count_failures"]:
@@ -520,6 +510,8 @@ def _write_run_bundle(output_root: Path, evaluated_samples: list[EvaluatedSample
             "",
             "## 说明",
             "",
+            "- 当前 `passed/failed` 只表示 contract gate 是否通过，不代表语义质量已经最佳。",
+            "- 语义质量、讲解帮助度、标注取舍是否合理，建议另配 LLM-as-judge 或人工 spot check。",
             "- `run-local` 当前直接统计壁钟耗时。",
             "- token 字段来自 workflow 聚合 usage 摘要；若显示为 `-`，表示该次运行未拿到 usage。",
             "- 如已开启 LangSmith tracing，可在对应 trace 中查看 LLM usage 详情。",
@@ -669,12 +661,6 @@ def run_langsmith(args: argparse.Namespace) -> int:
         except Exception as exc:
             return {"score": 0, "comment": f"schema invalid: {type(exc).__name__}"}
 
-    def must_hit_evaluator(run, example):
-        outputs = run.outputs if hasattr(run, "outputs") else run.get("outputs", {}) or {}
-        summary = outputs.get("summary", {})
-        failures = summary.get("must_hit_failures", [])
-        return {"score": 1 if not failures else 0, "comment": f"must_hit_failures={len(failures)}"}
-
     def must_not_hit_evaluator(run, example):
         outputs = run.outputs if hasattr(run, "outputs") else run.get("outputs", {}) or {}
         summary = outputs.get("summary", {})
@@ -743,7 +729,6 @@ def run_langsmith(args: argparse.Namespace) -> int:
         data=data,
         evaluators=[
             schema_valid_evaluator,
-            must_hit_evaluator,
             must_not_hit_evaluator,
             translation_coverage_evaluator,
             drop_log_evaluator,

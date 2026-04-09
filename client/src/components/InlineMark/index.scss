@@ -30,20 +30,22 @@
   &.underline {
     padding-bottom: 2rpx;
     
+    // 语法下划线：加粗并使用高饱和色，确保在各种分辨率下清晰
     &.tone-grammar {
-      border-bottom: 4.5rpx solid var(--grammar-accent);
+      border-bottom: 5rpx solid var(--grammar-accent);
+      box-shadow: 0 2rpx 4rpx rgba(139, 92, 246, 0.15); // 微弱外发光增加存在感
     }
     
     &.tone-vocab {
-      border-bottom: 3rpx solid rgba(255, 209, 102, 0.8);
+      border-bottom: 4rpx solid rgba(255, 193, 7, 0.9);
     }
     
     &.tone-phrase {
-      border-bottom: 3rpx solid rgba(178, 164, 255, 0.8);
+      border-bottom: 4rpx solid rgba(139, 92, 246, 0.9);
     }
     
     &.tone-context {
-      border-bottom: 3rpx solid rgba(144, 224, 239, 0.8);
+      border-bottom: 4rpx solid rgba(3, 169, 244, 0.9);
     }
   }
 

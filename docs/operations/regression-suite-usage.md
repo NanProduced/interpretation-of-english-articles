@@ -1,6 +1,6 @@
 # 回归集使用说明
 
-版本：`v2.0.0`
+版本：`v2.1.0`
 
 状态：当前有效。本文档描述的是 **本地调试与输出质量提升** 用的回归集组件，不属于生产主链。
 
@@ -69,13 +69,6 @@
     "source_type": "user_input"
   },
   "expectations": {
-    "must_hit": [
-      {
-        "kind": "inline_mark",
-        "annotation_type": "context_gloss",
-        "lookup_text": "rendered"
-      }
-    ],
     "must_not_hit": [
       {
         "kind": "inline_mark",
@@ -100,57 +93,21 @@
 V2 的目标不再是要求模型“复现某一版人工标注答案”，而是检查下面三类能力：
 
 1. `contract`：结构与底线不退化
-2. `core_quality`：关键现象仍能被命中
-3. `anti_overannotation`：简单文本不过度讲解
+2. `anti_overannotation`：简单文本不过度讲解
+3. `semantic_quality`：交给 LLM-as-judge 或人工 spot check
 
 V2 默认遵循这些规则：
 
-1. `must_hit` 只保留真正不可缺失的高价值现象，不再把大量具体词汇选点写死。
+1. 本地回归默认不再使用 `must_hit`，避免把合理多解的生成任务误判成“未命中标准答案”。
 2. `count_bounds` 以 `max` 为主，防止过度标注；只有在“该能力确实应出现”时才设置低门槛 `min`。
 3. `vocab_highlight` 不再设置激进的最小数量要求，避免把“克制但合理”的输出判成失败。
-4. 样本重点从“是否选中了指定单词”转为“是否命中了正确类型的讲解”。
+4. 样本重点从“是否选中了指定单词”转为“是否越界、是否过标、是否破坏 contract”。
 5. 反向样本（简单文本不过度解析）仍然保留强约束。
+6. 语义质量、讲解帮助度、标注取舍优劣，建议另配 LLM-as-judge，不纳入当前硬门禁。
 
 ## 5. expectation 字段说明
 
-### 5.1 `must_hit`
-
-表示输出中必须命中的目标。
-
-支持三种 `kind`：
-
-1. `inline_mark`
-2. `sentence_entry`
-3. `warning`
-
-常用匹配字段：
-
-#### `inline_mark`
-
-- `annotation_type`
-- `sentence_id`
-- `lookup_text`
-- `visual_tone`
-- `render_type`
-- `anchor_text`
-- `anchor_text_contains`
-- `glossary_contains`
-
-#### `sentence_entry`
-
-- `entry_type`
-- `sentence_id`
-- `label`
-- `label_contains`
-- `content_contains`
-
-#### `warning`
-
-- `code`
-- `level`
-- `message_contains`
-
-### 5.2 `must_not_hit`
+### 5.1 `must_not_hit`
 
 表示明确不希望出现的输出，用于压制低价值标注。
 
@@ -160,7 +117,7 @@ V2 默认遵循这些规则：
 2. 不要把简单句误做 `SentenceAnalysis`
 3. 不要出现明显不该有的 warning
 
-### 5.3 `count_bounds`
+### 5.2 `count_bounds`
 
 表示数量边界。
 
@@ -179,11 +136,11 @@ V2 默认遵循这些规则：
 }
 ```
 
-### 5.4 `max_warning_count`
+### 5.3 `max_warning_count`
 
 控制单个 sample 允许出现的 warning 总量。
 
-### 5.5 `require_full_translation`
+### 5.4 `require_full_translation`
 
 若为 `true`，要求所有句子都有翻译。
 
@@ -275,6 +232,7 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --mark d
 3. 快速验证关键组件是否还在产出
 
 它不能单独证明“已经达到上线标准”。
+它的 `passed / failed` 更接近 **contract gate**，不是“语义质量总评分”。
 
 ### 7.2 失败优先级
 
@@ -282,7 +240,7 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-local --mark d
 
 1. schema 是否通过
 2. translations 是否完整
-3. `ContextGloss / PhraseGloss / GrammarNote / SentenceAnalysis` 是否命中真正关键的现象
+3. `ContextGloss / PhraseGloss / GrammarNote / SentenceAnalysis` 是否出现明显越界或异常过标
 4. 是否出现低价值 `VocabHighlight` 或明显过标注
 5. warning 是否异常增多
 
@@ -344,14 +302,15 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-langsmith --ex
 当前内置的 evaluator 是 deterministic code evaluator：
 
 1. `schema_valid_evaluator`
-2. `must_hit_evaluator`
-3. `must_not_hit_evaluator`
-4. `translation_coverage_evaluator`
+2. `must_not_hit_evaluator`
+3. `translation_coverage_evaluator`
+4. `drop_log_evaluator`
+5. `repair_log_evaluator`
 
 这套 evaluator 的目标是先保证：
 
 1. 结构不退化
-2. 关键组件不消失
+2. 关键组件不越界
 3. 低价值标注不过度反弹
 
 注意：
@@ -387,6 +346,6 @@ rtk test .venv\Scripts\python.exe scripts\regression_suite.py run-langsmith --ex
 
 1. 先用 `run-local` 调 prompt
 2. 再用 `run-langsmith` 记录实验
-3. 当 sample 稳定后，再考虑补 LLM-as-judge evaluator
+3. 再补 LLM-as-judge evaluator 做语义质量对比
 
 这样成本最低，也最不容易把评测系统本身做得过重。

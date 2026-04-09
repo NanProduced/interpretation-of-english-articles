@@ -44,6 +44,15 @@ export type VisualTone = 'vocab' | 'phrase' | 'context' | 'grammar'
 
 export type RenderType = 'background' | 'underline'
 
+export type PhraseKind = 
+  | 'word' 
+  | 'phrase' 
+  | 'collocation' 
+  | 'phrasal_verb' 
+  | 'idiom' 
+  | 'proper_noun' 
+  | 'compound'
+
 export interface InlineMarkModel {
   id: string
   annotationType: AnnotationType
@@ -52,7 +61,7 @@ export interface InlineMarkModel {
   visualTone: VisualTone
   clickable: boolean
   lookupText?: string
-  lookupKind?: 'word' | 'phrase'
+  lookupKind?: PhraseKind
   glossary?: InlineGlossary
   parentId?: string
 }
