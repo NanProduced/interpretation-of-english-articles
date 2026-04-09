@@ -16,6 +16,7 @@
 
 // --- Mini Card ---
 .mini-word-card {
+  box-sizing: border-box;
   width: 480rpx;
   background: var(--color-white);
   border-radius: var(--radius-sm);
@@ -24,8 +25,10 @@
   border: 1rpx solid var(--border-color);
   position: relative;
   
-  &.is-ai {
-    border-left: 8rpx solid var(--color-primary);
+  transition: transform 0.1s ease, background-color 0.1s ease;
+  &:active {
+    background: var(--color-bg);
+    transform: scale(0.98);
   }
 
   .mini-header {
@@ -50,12 +53,13 @@
 
   .ai-tag {
     font-size: 18rpx;
-    background: var(--color-primary);
-    color: var(--color-white);
+    background: var(--color-bg);
+    color: var(--color-primary);
     padding: 2rpx 8rpx;
     border-radius: 4rpx;
     font-weight: var(--weight-bold);
     flex-shrink: 0;
+    border: 1rpx solid var(--border-color);
   }
 
   .mini-kind-tag {
@@ -131,6 +135,7 @@
 
 // --- Full Container ---
 .word-popup-container {
+  box-sizing: border-box;
   width: 100%;
   background: var(--color-white);
   border-top-left-radius: var(--radius-lg);
@@ -178,12 +183,12 @@
 
   .ai-badge {
     font-size: 22rpx;
-    background: var(--grammar-surface);
+    background: var(--color-bg);
     color: var(--color-primary);
     padding: 4rpx 16rpx;
     border-radius: 8rpx;
     font-weight: var(--weight-bold);
-    border: 1rpx solid var(--grammar-border);
+    border: 1rpx solid var(--border-color);
   }
 
   .kind-badge {
@@ -217,6 +222,7 @@
 }
 
 .popup-scroll-content {
+  box-sizing: border-box;
   flex: 1;
   padding: 30rpx 40rpx;
 }
@@ -238,30 +244,7 @@
   }
 }
 
-.glossary-section.highlighted-ai {
-  .glossary-content {
-    background: color-mix(in srgb, var(--color-primary), transparent 95%);
-    padding: 32rpx;
-    border-radius: var(--radius-md);
-    border: 2rpx solid color-mix(in srgb, var(--color-primary), transparent 85%);
-    box-shadow: 0 4rpx 12rpx rgba(var(--color-primary-rgb), 0.05);
 
-    .glossary-zh {
-      font-size: var(--text-lg);
-      color: var(--color-primary);
-      font-weight: var(--weight-bold);
-      display: block;
-      margin-bottom: 16rpx;
-    }
-
-    .glossary-reason {
-      font-size: var(--text-sm);
-      color: var(--text-main);
-      line-height: 1.6;
-      opacity: 0.9;
-    }
-  }
-}
 
 .glossary-content {
   background: var(--color-bg);
@@ -332,7 +315,8 @@
       font-size: var(--text-base);
       font-weight: var(--weight-semibold);
       color: var(--color-ink);
-      word-break: break-word;
+      word-break: break-all;
+      white-space: pre-wrap;
     }
 
     .candidate-pos {
@@ -388,7 +372,8 @@
       color: var(--text-main);
       font-weight: var(--weight-medium);
       line-height: 1.5;
-      word-break: break-word;
+      word-break: break-all;
+      white-space: pre-wrap;
     }
 
     .def-example-block {
@@ -407,7 +392,8 @@
       display: block;
       font-family: var(--font-english-serif), serif;
       line-height: 1.4;
-      word-break: break-word;
+      word-break: break-all;
+      white-space: pre-wrap;
     }
 
     .def-example-zh {
@@ -415,7 +401,8 @@
       color: var(--text-muted);
       display: block;
       line-height: 1.4;
-      word-break: break-word;
+      word-break: break-all;
+      white-space: pre-wrap;
     }
   }
 }

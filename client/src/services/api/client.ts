@@ -199,14 +199,11 @@ export async function fetchAnalyze(dto: AnalyzeRequest): Promise<AnalyzeResponse
 // ============ /dict API ============
 
 /**
- * 调用 /dict 接口查询单词释义
- *
- * MVP 使用本地 TECD3 词典，只支持 word 类型查询。
- * phrase_gloss 由 AI glossary 直接提供，不走此接口。
+ * 调用 /dict 接口查询单词或短语释义
  */
-export async function fetchDict(word: string): Promise<DictResponseDto> {
+export async function fetchDict(word: string, type: 'word' | 'phrase' = 'word'): Promise<DictResponseDto> {
   return request<DictResponseDto>({
-    url: `/dict?q=${encodeURIComponent(word)}&type=word`,
+    url: `/dict?q=${encodeURIComponent(word)}&type=${type}`,
   })
 }
 

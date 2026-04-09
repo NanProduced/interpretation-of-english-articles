@@ -103,7 +103,8 @@ export default function WordPopup({
     setLoading(true)
     setDictResult(null)
     try {
-      const dto = await fetchDict(text)
+      const type = text.trim().includes(' ') ? 'phrase' : 'word'
+      const dto = await fetchDict(text, type)
       setDictResult(dictResponseDtoToVm(dto))
     } catch (err) {
       console.error('[dict] fetch error', err)
@@ -137,22 +138,21 @@ export default function WordPopup({
   const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
 
   if (mode === 'mini') {
-    // 定位逻辑优化：强制居中于点击点上方，处理边缘溢出
+    // 定位逻辑优化：使用 CSS translateY 动态适应高度
     // 480rpx 在屏幕上的实际像素宽度
     const popupWidth = (screenWidth * 480) / 750
-    const popupHeight = 140
     const offset = 12
 
     let left = x - popupWidth / 2
-    let top = y - popupHeight - offset
+    let top = y - offset
     let isFlipped = false
 
     // 边缘处理
     if (left < 10) left = 10
     if (left + popupWidth > screenWidth - 10) left = screenWidth - popupWidth - 10
     
-    // 如果上方不够（考虑状态栏 and 导航栏高度，通常 80px 足够），翻转到下方
-    if (top < 80) {
+    // 如果上方悬空距离不足（预估卡片高度140px左右），翻转到下方
+    if (y < 150) {
       top = y + offset
       isFlipped = true
     }
@@ -163,6 +163,7 @@ export default function WordPopup({
       top: `${top}px`,
       zIndex: 1000,
       width: `${popupWidth}px`,
+      transform: isFlipped ? 'none' : 'translateY(-100%)',
     }
 
     return (
@@ -180,10 +181,7 @@ export default function WordPopup({
               <Text className='mini-word'>{entry?.word || lookupText}</Text>
               {entry?.phonetic && <Text className='mini-phonetic'>/{entry.phonetic}/</Text>}
               {isLLMAnnotated && toneMeta && (
-                <View 
-                  className='ai-tag' 
-                  style={{ backgroundColor: toneMeta.bg, color: toneMeta.color }}
-                >
+                <View className='ai-tag'>
                   {miniLabel}
                 </View>
               )}
@@ -196,7 +194,6 @@ export default function WordPopup({
               <Text className='mini-loading'>查询中...</Text>
             ) : miniMeaning ? (
               <View className='mini-def-row'>
-                {!isLLMAnnotated && entry?.primaryPos && <Text className='mini-pos'>{entry.primaryPos}</Text>}
                 <Text 
                   className={`mini-def ${isLLMAnnotated ? 'is-ai-def' : ''}`} 
                   style={isLLMAnnotated && toneMeta ? { color: toneMeta.color } : {}}
@@ -236,10 +233,7 @@ export default function WordPopup({
               <Text className='word-text'>{entry?.word || lookupText}</Text>
               <View className='header-tags'>
                 {isLLMAnnotated && toneMeta && (
-                  <View 
-                    className='ai-badge'
-                    style={{ backgroundColor: `color-mix(in srgb, ${toneMeta.bg}, transparent 80%)`, color: toneMeta.color, borderColor: toneMeta.bg }}
-                  >
+                  <View className='ai-badge'>
                     {professionalLabel}
                   </View>
                 )}
@@ -263,16 +257,13 @@ export default function WordPopup({
 
         <ScrollView className='popup-scroll-content' scrollY style={{ flex: 1, height: '1px' }}>
           {glossary && (
-            <View 
-              className='glossary-section highlighted-ai'
-              style={{ '--ai-accent': toneMeta?.color ?? 'var(--color-primary)' } as any}
-            >
+            <View className='glossary-section'>
               <View className='section-title'>
-                <LucideIcon name='sparkles' size={14} color={toneMeta?.color ?? 'var(--color-primary)'} />
+                <LucideIcon name='sparkles' size={14} color='var(--color-primary)' />
                 <Text>AI {professionalLabel}语境解析</Text>
               </View>
               <View className='glossary-content'>
-                <View className='glossary-zh' style={{ color: toneMeta?.color }}>{glossary.zh || glossary.gloss}</View>
+                <View className='glossary-zh'>{glossary.zh || glossary.gloss}</View>
                 {glossary.reason && <View className='glossary-reason'>{glossary.reason}</View>}
               </View>
             </View>
