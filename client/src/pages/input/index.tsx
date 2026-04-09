@@ -187,10 +187,9 @@ export default function InputPage() {
       <View className='bottom-bar safe-area-bottom'>
         <View className='bar-top-row'>
           <View className='ink-stats'>
-            <View className={`ink-bottle ${wordsCount >= 10 ? 'ready' : ''}`}>
-              <View className='ink-level' style={{ height: Math.min(100, (wordsCount / 10) * 100) + '%' }} />
-            </View>
-            <Text className='stats-text'>{wordsCount} words</Text>
+            <Text className={`stats-text ${wordsCount >= 10 ? 'ready' : ''}`}>
+              {wordsCount} words
+            </Text>
           </View>
         </View>
 

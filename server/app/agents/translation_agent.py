@@ -9,7 +9,8 @@ from pydantic_ai import Agent
 
 from app.schemas.internal.drafts import TranslationDraft
 from app.services.analysis.example_strategy import ExampleEntry
-from app.services.analysis.prompt_strategy import PromptStrategy
+from app.services.analysis.prompt_composer import build_agent_prompt
+from app.services.analysis.prompt_strategy import PromptStrategy, build_prompt_sections
 
 
 @dataclass
@@ -22,70 +23,46 @@ class TranslationAgentDeps:
 
 
 TRANSLATION_INSTRUCTIONS = """
-你是一名翻译标注器，负责英文文章的逐句翻译。
+你是英语阅读翻译标注器，为英文文章生成逐句中文翻译。
 
-任务：为每个英文句子生成中文翻译。
+核心原则：
+1. 所有句子都必须有翻译，不得遗漏。
+2. 句间翻译保持连贯，前后文代词指代要一致。
+3. 不输出 schema 之外的内容。
 
-【核心原则】
-1. 逐句翻译完整，所有句子都必须有翻译。
-2. 翻译要自然流畅，符合中文表达习惯。
-3. 句间翻译保持连贯。
-4. 不添加额外解释，不输出 schema 之外的内容。
+翻译风格（基线：自然意译）：
+1. 用自然流畅的中文表达，允许为了中文通顺而调整语序。
+2. 保留原句的语气和重点，不改变信息量。
+3. 英文中省略但中文需要的成分，适当补全以保证可读性。
+4. 长句翻译时保持为一句中文，不拆分为多句（除非原句本身含分号或破折号分隔的独立部分）。
 
-【翻译风格】
-1. 自然流畅的中文。
-2. 保留原句的语气和重点。
-3. 专有名词、术语可保留英文或括注中文。
+专名与术语处理：
+- 人名：保留英文原名，不音译（如 Andrew Smith → Andrew Smith）。
+- 机构名/品牌名：首次出现时"中文（英文）"，如"烂番茄（Rotten Tomatoes）"；后续直接用中文。
+- 学术术语：首次出现时"中文（英文）"，如"温室效应（greenhouse effect）"；后续直接用中文。
+- 无通用中文译名的术语直接保留英文。
 
-【输出前自检】
-1. 所有句子都有翻译。
-2. 翻译是通顺的中文，不是逐字硬译。
+边界情况：
+- 标题、小标题、图注等非完整句也需翻译。
+- 引用内容照常翻译，不加引号标注"原文引用"。
+- 括号内容随句翻译，不单独处理。
+
+【示例 1：普通句 · 自然意译】
+原句："The visuals rendered the ancient world far more vivid than earlier documentaries."
+翻译：这些画面把远古世界呈现得比以往的纪录片生动得多。
+→ 语序微调（把 far more vivid 提前），补全了"这些"让中文更自然。
+
+【示例 2：含专名的句子】
+原句："The documentary scored 100 per cent on Rotten Tomatoes, making it the highest-rated nature film."
+翻译：这部纪录片在烂番茄（Rotten Tomatoes）上获得了百分之百的好评，成为评分最高的自然类影片。
+→ 机构名首次出现用"中文（英文）"格式。
 """.strip()
 
-
-def _render_strategy(strategy: PromptStrategy) -> list[str]:
-    lines = [
-        f"- reading_goal: {strategy.reading_goal}",
-        f"- reading_variant: {strategy.reading_variant}",
-    ]
-    if strategy.translation_style:
-        lines.append(f"- translation_style: {strategy.translation_style}")
-    if strategy.translation_style == "natural":
-        lines.append("- 执行方式: 优先自然、通顺、忠实的中文表达。")
-    elif strategy.translation_style == "academic":
-        lines.append("- 执行方式: 保留更正式、更书面的语气。")
-    elif strategy.translation_style == "exam":
-        lines.append("- 执行方式: 表达清晰直白，便于学习者理解句子结构。")
-    return lines
-
-
-def _render_examples(examples: list[ExampleEntry]) -> list[str]:
-    if not examples:
-        return []
-    lines = ["补充示例："]
-    for idx, example in enumerate(examples, start=1):
-        lines.extend(
-            [
-                f"{idx}. [{example.example_type}] {example.sentence_text}",
-                example.output_fragment,
-            ]
-        )
-    return lines
-
-
 def build_translation_prompt(deps: TranslationAgentDeps) -> str:
-    sentence_lines = [
-        f"{sentence['sentence_id']}: {sentence['text']}"
-        for sentence in deps.sentences
-    ]
-    return "\n".join(
-        [
-            "策略：",
-            *_render_strategy(deps.prompt_strategy),
-            *(_render_examples(deps.examples)),
-            "句子列表：",
-            *sentence_lines,
-        ]
+    return build_agent_prompt(
+        strategy_sections=build_prompt_sections(deps.prompt_strategy),
+        examples=deps.examples,
+        sentences=deps.sentences,
     )
 
 

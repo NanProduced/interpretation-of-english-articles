@@ -10,18 +10,14 @@
     flex-shrink: 0;
   }
 
-  // 聚焦状态：让位给内容
+  // 聚焦状态：键盘弹起，bottom-bar 隐藏，mode-chip 淡化，让出全部空间给输入
   &.is-focused {
-    .custom-navbar-container {
-      opacity: 0.3;
-      transform: translateY(-8rpx);
+    .bottom-bar {
+      display: none;
     }
     .mode-chip {
       opacity: 0.5;
       transform: scale(0.9) translateY(-8rpx);
-    }
-    .bottom-bar {
-      box-shadow: 0 -24rpx 64rpx rgba(0, 0, 0, 0.06);
     }
   }
 
@@ -119,36 +115,18 @@
     .ink-stats {
       display: flex;
       align-items: center;
-      gap: 20rpx;
-
-      .ink-bottle {
-        width: 32rpx;
-        height: 48rpx;
-        border: 2rpx solid var(--text-muted);
-        border-radius: 6rpx;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.3s ease;
-
-        &.ready {
-          border-color: var(--color-ink);
-          .ink-level { background-color: var(--color-ink); }
-        }
-
-        .ink-level {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          background-color: var(--text-muted);
-          transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-      }
+      gap: 8rpx;
 
       .stats-text {
-        font-size: 24rpx;
+        font-size: 28rpx;
         color: var(--text-sub);
         font-weight: var(--weight-bold);
+        font-family: var(--font-serif);
+        transition: color 0.3s ease;
+
+        &.ready {
+          color: var(--color-ink);
+        }
       }
     }
 
