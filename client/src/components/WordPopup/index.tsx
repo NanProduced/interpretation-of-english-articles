@@ -28,6 +28,13 @@ function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): stri
     .join('；') || ''
 }
 
+const TONE_META: Record<VisualTone, { label: string; color: string; bg: string }> = {
+  vocab: { label: '核心词汇', color: '#B45309', bg: '#FFD166' },
+  phrase: { label: '核心短语', color: '#6D28D9', bg: '#B2A4FF' },
+  context: { label: '语境释义', color: '#0369A1', bg: '#90E0EF' },
+  grammar: { label: '语法解析', color: '#047857', bg: '#6EE7B7' },
+}
+
 export default function WordPopup({
   visible, mode = 'mini', mark, word, x = 0, y = 0,
   onClose, onExpand, onAddVocab, onFavorite,
@@ -38,6 +45,7 @@ export default function WordPopup({
 
   const lookupText = mark?.lookupText || word
   const glossary = mark?.glossary
+  const toneMeta = mark ? TONE_META[mark.visualTone] : null
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
   const detailMeanings = entry?.meanings || []
   const miniMeaning = glossary?.zh || glossary?.gloss || getEntrySummary(entry)
@@ -131,7 +139,14 @@ export default function WordPopup({
           <View className='mini-header'>
             <View className='mini-word-info'>
               <Text className='mini-word'>{entry?.word || lookupText}</Text>
-              {isLLMAnnotated && <View className='ai-tag'>AI</View>}
+              {isLLMAnnotated && toneMeta && (
+                <View 
+                  className='ai-tag' 
+                  style={{ backgroundColor: toneMeta.bg, color: toneMeta.color }}
+                >
+                  {toneMeta.label.slice(0, 2)}
+                </View>
+              )}
             </View>
             <LucideIcon name='chevron-right' size={14} color='var(--text-muted)' />
           </View>
@@ -141,13 +156,20 @@ export default function WordPopup({
               <Text className='mini-loading'>查询中...</Text>
             ) : miniMeaning ? (
               <View className='mini-def-row'>
-                {entry?.primaryPos && <Text className='mini-pos'>{entry.primaryPos}</Text>}
-                <Text className='mini-def' numberOfLines={2}>
+                {!isLLMAnnotated && entry?.primaryPos && <Text className='mini-pos'>{entry.primaryPos}</Text>}
+                <Text 
+                  className={`mini-def ${isLLMAnnotated ? 'is-ai-def' : ''}`} 
+                  style={isLLMAnnotated && toneMeta ? { color: toneMeta.color } : {}}
+                  numberOfLines={2}
+                >
                   {miniMeaning}
                 </Text>
               </View>
             ) : isDisambiguationResult ? (
-              <Text className='mini-def'>该词有多个义项，点击查看</Text>
+              <View className='mini-disambiguation-hint'>
+                <LucideIcon name='list' size={12} color='var(--color-primary)' />
+                <Text className='mini-def'>该词有多个义项，点击查看</Text>
+              </View>
             ) : (
               <Text className='mini-loading'>未找到释义</Text>
             )}
@@ -172,16 +194,25 @@ export default function WordPopup({
           <View className='word-info'>
             <View className='word-text-row'>
               <Text className='word-text'>{entry?.word || lookupText}</Text>
-              {isLLMAnnotated && <View className='ai-badge'>AI 解析</View>}
+              {isLLMAnnotated && toneMeta && (
+                <View 
+                  className='ai-badge'
+                  style={{ backgroundColor: `color-mix(in srgb, ${toneMeta.bg}, transparent 80%)`, color: toneMeta.color, borderColor: toneMeta.bg }}
+                >
+                  {toneMeta.label}
+                </View>
+              )}
             </View>
             <View className='word-sub-info'>
-              {entry?.phonetic && <Text className='word-phonetic'>[{entry.phonetic}]</Text>}
+              {entry?.phonetic && (
+                <View className='phonetic-row'>
+                  <LucideIcon name='volume-2' size={14} color='var(--text-muted)' />
+                  <Text className='word-phonetic'>/{entry.phonetic}/</Text>
+                </View>
+              )}
             </View>
           </View>
           <View className='header-right-actions'>
-            <View className='audio-btn-large' onClick={handlePlayAudio}>
-              <LucideIcon name='volume2' size={24} color='var(--color-primary)' />
-            </View>
             <View className='popup-close-btn' onClick={onClose}>
               <LucideIcon name='x' size={24} color='var(--text-muted)' />
             </View>
@@ -190,13 +221,16 @@ export default function WordPopup({
 
         <ScrollView className='popup-scroll-content' scrollY>
           {glossary && (
-            <View className='glossary-section'>
+            <View 
+              className='glossary-section highlighted-ai'
+              style={{ '--ai-accent': toneMeta?.color ?? 'var(--color-primary)' } as any}
+            >
               <View className='section-title'>
-                <LucideIcon name='sparkles' size={14} color='var(--color-primary)' />
-                <Text>上下文语境义</Text>
+                <LucideIcon name='sparkles' size={14} color={toneMeta?.color ?? 'var(--color-primary)'} />
+                <Text>{toneMeta ? `AI ${toneMeta.label}` : 'AI 解析'}</Text>
               </View>
               <View className='glossary-content'>
-                <Text className='glossary-zh'>{glossary.zh || glossary.gloss}</Text>
+                <Text className='glossary-zh' style={{ color: toneMeta?.color }}>{glossary.zh || glossary.gloss}</Text>
                 {glossary.reason && <Text className='glossary-reason'>{glossary.reason}</Text>}
               </View>
             </View>

@@ -1,25 +1,31 @@
 .paragraph-block {
-  margin-bottom: 48rpx;
-  padding: 0 32rpx;
+  margin-bottom: 64rpx;
+  padding: 0 40rpx;
 
-  // --- Immersive Mode ---
+  // --- Immersive Mode (极致原文体验) ---
   &.immersive {
+    margin-bottom: 80rpx;
+    
     .english-paragraph {
-      line-height: var(--leading-relaxed);
+      line-height: var(--leading-relaxed); // 1.8
+      text-align: left;
+      letter-spacing: -0.01em;
     }
+    
     .english-flow {
-      font-size: 34rpx;
+      font-size: 36rpx; // 稍微增大，提升阅读舒适度
       color: var(--text-main);
       font-family: var(--font-english-serif), serif;
+      font-variant-numeric: oldstyle-nums; // 衬线体开启旧体数字更显专业
     }
   }
 
-  // --- Intensive Mode ---
+  // --- Intensive Mode (精雕细琢解析) ---
   &.intensive {
     .sentence-block {
-      margin-bottom: 40rpx;
-      padding-bottom: 40rpx;
-      border-bottom: 1rpx solid var(--border-color);
+      margin-bottom: 56rpx;
+      padding-bottom: 48rpx;
+      border-bottom: 1rpx solid var(--border-light);
 
       &:last-child {
         border-bottom: none;
@@ -29,23 +35,28 @@
     }
 
     .sentence-main {
-      margin-bottom: 16rpx;
+      margin-bottom: 24rpx;
     }
 
     .english-flow {
-      font-size: var(--text-lg);
-      line-height: var(--leading-normal);
+      font-size: 34rpx;
+      line-height: 1.65;
       font-weight: var(--weight-medium);
       color: var(--color-ink);
       font-family: var(--font-english-serif), serif;
+      letter-spacing: -0.005em;
     }
 
     .sentence-translation {
-      margin-bottom: 20rpx;
+      margin-bottom: 32rpx;
+      background: rgba(var(--border-color), 0.02);
+      padding: 16rpx 24rpx;
+      border-radius: var(--radius-sm);
+      border-left: 6rpx solid var(--border-light);
       
       .translation-text {
-        font-size: var(--text-sm);
-        line-height: var(--leading-normal);
+        font-size: 28rpx;
+        line-height: 1.6;
         color: var(--text-sub);
         font-weight: var(--weight-normal);
       }
@@ -54,7 +65,7 @@
     .analysis-cards-list {
       display: flex;
       flex-direction: column;
-      gap: 12rpx;
+      gap: 16rpx;
     }
   }
 
@@ -69,16 +80,6 @@
   }
 }
 
-// Override InlineMark/ClickableWord styles within ParagraphBlock
-.tone-vocab, .tone-phrase, .tone-context {
-  text-decoration: underline;
-  text-decoration-style: dashed;
-  text-decoration-color: rgba(245, 158, 11, 0.3); // vocab-accent with opacity
-}
+// 移除这些冗余的 override，由 InlineMark 自身处理视觉呈现
+// 这样可以确保标记的视觉统一性，不再产生多余的下划线叠加
 
-.tone-grammar {
-  text-decoration: underline;
-  text-decoration-style: solid;
-  text-decoration-thickness: 2rpx;
-  text-decoration-color: rgba(139, 92, 246, 0.4); // grammar-accent with opacity
-}

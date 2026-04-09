@@ -164,12 +164,19 @@ function renderTextWithMarks(
       continue
     }
 
+    const isVocabulary = ['vocab', 'phrase', 'context'].includes(item.mark.visualTone)
     const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
     const isSaved = vocabList?.includes(item.text.toLowerCase())
+    
+    // 词汇类强制使用 background (marker) 渲染
+    const effectiveMark = isVocabulary 
+      ? { ...item.mark, renderType: 'background' as const } 
+      : item.mark
+
     resultElements.push(
       <InlineMark
         key={item.mark.id}
-        mark={item.mark}
+        mark={effectiveMark}
         text={item.text}
         isActive={isActive}
         isSaved={isSaved}
@@ -247,18 +254,6 @@ const ParagraphBlock = memo(function ParagraphBlock({
 
         // 收集解析卡片
         const analysisCards: (AnalysisCardProps & { id: string })[] = [
-          // 1. 词汇/短语卡片 (从 inlineMarks 中带有 glossary 的生成)
-          ...sentenceMarks
-            .filter(m => m.glossary && ['vocab', 'phrase', 'context'].includes(m.visualTone))
-            .map(m => ({
-              id: m.id,
-              type: 'vocab' as const,
-              title: m.lookupText || (m.anchor.kind === 'text' ? m.anchor.anchorText : m.id),
-              label: m.visualTone === 'phrase' ? '核心短语' : m.visualTone === 'context' ? '语境释义' : '核心词汇',
-              content: m.glossary?.zh || m.glossary?.gloss || '',
-              phonetic: '',
-              tags: [] as string[],
-            })),
           // 2. 语法卡片 (从 sentenceEntries 筛选)
           ...sentenceEntries
             .filter(e => e.entryType === 'grammar_note')
