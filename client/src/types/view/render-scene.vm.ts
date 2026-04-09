@@ -54,7 +54,6 @@ export interface InlineMarkModel {
   lookupText?: string
   lookupKind?: 'word' | 'phrase'
   glossary?: InlineGlossary
-  examTags?: string[]
   parentId?: string
 }
 

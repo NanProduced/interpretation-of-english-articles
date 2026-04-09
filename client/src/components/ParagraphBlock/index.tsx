@@ -3,7 +3,7 @@ import { View, Text } from '@tarojs/components'
 import { InlineMarkModel, SentenceEntryModel, VisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
 import InlineMark from '../InlineMark'
 import ClickableWord from '../ClickableWord'
-import AnalysisCard from '../AnalysisCard'
+import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
 import { tokenizeText } from './utils'
 import './index.scss'
 
@@ -246,7 +246,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
         const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
 
         // 收集解析卡片
-        const analysisCards = [
+        const analysisCards: (AnalysisCardProps & { id: string })[] = [
           // 1. 词汇/短语卡片 (从 inlineMarks 中带有 glossary 的生成)
           ...sentenceMarks
             .filter(m => m.glossary && ['vocab', 'phrase', 'context'].includes(m.visualTone))
@@ -256,8 +256,8 @@ const ParagraphBlock = memo(function ParagraphBlock({
               title: m.lookupText || (m.anchor.kind === 'text' ? m.anchor.anchorText : m.id),
               label: m.visualTone === 'phrase' ? '核心短语' : m.visualTone === 'context' ? '语境释义' : '核心词汇',
               content: m.glossary?.zh || m.glossary?.gloss || '',
-              phonetic: '', // InlineMark 暂时没存音标
-              tags: m.examTags,
+              phonetic: '',
+              tags: [] as string[],
             })),
           // 2. 语法卡片 (从 sentenceEntries 筛选)
           ...sentenceEntries
@@ -268,6 +268,8 @@ const ParagraphBlock = memo(function ParagraphBlock({
               title: e.title || e.label,
               label: '语法要点',
               content: e.content,
+              phonetic: undefined,
+              tags: undefined,
             })),
           // 3. 句式卡片 (从 sentenceEntries 筛选)
           ...sentenceEntries
@@ -278,6 +280,8 @@ const ParagraphBlock = memo(function ParagraphBlock({
               title: e.label,
               label: '句式解析',
               content: e.content,
+              phonetic: undefined,
+              tags: undefined,
             })),
         ]
 
@@ -297,9 +301,9 @@ const ParagraphBlock = memo(function ParagraphBlock({
 
             {analysisCards.length > 0 && (
               <View className='analysis-cards-list'>
-                {analysisCards.map((card) => (
+                {analysisCards.map((card, idx) => (
                   <AnalysisCard
-                    key={card.id}
+                    key={(card as any).id ?? idx}
                     type={card.type}
                     title={card.title}
                     label={card.label}

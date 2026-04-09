@@ -10,25 +10,13 @@ import LucideIcon from '../../components/LucideIcon'
 import { LoadingIllustration, ErrorIllustration, EmptyIllustration } from '../../components/ResultIllustrations'
 import { useLayoutStore } from '../../stores/layout'
 import { useAuthStore } from '../../stores/auth'
-import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry } from '../../services/storage'
+import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry, getVocabulary } from '../../services/storage'
 import { CloudSyncService } from '../../services/cloudSync.service'
 import { ensureLoggedIn } from '../../services/auth'
 import { track } from '../../services/analytics'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import './index.scss'
-
-/** 阅读变体映射表 */
-const VARIANT_LABELS: Record<string, string> = {
-  gaokao: '高考英语',
-  cet: '四六级',
-  gre: 'GRE',
-  ielts_toefl: '雅思/托福',
-  beginner_reading: '入门阅读',
-  intermediate_reading: '中级阅读',
-  intensive_reading: '深度精读',
-  academic_general: '学术英语',
-}
 
 /** 页面模式选项 */
 const PAGE_MODE_OPTIONS = [
@@ -64,7 +52,7 @@ export default function Result() {
   const { navBarHeight } = useLayoutStore()
   const [pageMode, setPageMode] = useState<PageMode>('intensive')
   const [showSecondaryMessage, setShowSecondaryMessage] = useState(false)
-  const [vocabList, setVocabList] = useState<string[]>([]) // 已加入生词本的单词列表
+  const [vocabList, setVocabList] = useState<string[]>([])
   const [wordPopup, setWordPopup] = useState<{
     visible: boolean
     mode: 'mini' | 'full'
@@ -118,7 +106,15 @@ export default function Result() {
     }
   }, [loadRecord])
 
-  // === 加载状态：5 秒后显示次级提示 ===
+  // === 加载生词本：提取当前文章的单词列表 ===
+  useEffect(() => {
+    if (!recordId) return
+    const all = getVocabulary()
+    const words = all
+      .filter((v: { recordId: string }) => v.recordId === recordId)
+      .map((v: { word: string }) => v.word.toLowerCase())
+    setVocabList(words)
+  }, [recordId])
   useEffect(() => {
     if (pageState === 'loading') {
       const timer = setTimeout(() => setShowSecondaryMessage(true), 5000)
@@ -165,7 +161,7 @@ export default function Result() {
   }
 
   const handleClosePopup = () => {
-    setWordPopup({ ...wordPopup, visible: false })
+    setWordPopup((prev) => ({ ...prev, visible: false }))
     setActiveMarkId(null)
     setSelectedWord(null)
   }
@@ -232,17 +228,12 @@ export default function Result() {
 
   // === 通用页面外壳 ===
   const pageShell = (extraContent: React.ReactNode) => {
-    const { request } = sceneData || {}
-    const levelLabel = request ? VARIANT_LABELS[request.readingVariant] : ''
-    const sourceLabel = request?.sourceType === 'user_input' ? '手动输入' : '每日文章'
-
     return (
       <View className='result-page'>
-        <NavBar 
-          title='Claread透读' 
-          subtitle={levelLabel ? `${levelLabel} · ${sourceLabel}` : undefined}
-          showBack 
-          showHome 
+        <NavBar
+          title='Claread透读'
+          showBack
+          showHome
         />
         <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
         {extraContent}
@@ -377,7 +368,6 @@ export default function Result() {
           key={paragraph.paragraphId}
           sentences={sentences}
           translations={sceneData!.translations}
-          showTranslation={pageMode === 'intensive'}
           inlineMarks={sceneData!.inlineMarks}
           activeMarkId={activeMarkId}
           selectedWord={selectedWord}

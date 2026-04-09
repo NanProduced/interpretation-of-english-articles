@@ -38,7 +38,6 @@ export default function WordPopup({
 
   const lookupText = mark?.lookupText || word
   const glossary = mark?.glossary
-  const examTags = mark?.examTags
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
   const detailMeanings = entry?.meanings || []
   const miniMeaning = glossary?.zh || glossary?.gloss || getEntrySummary(entry)
@@ -177,13 +176,6 @@ export default function WordPopup({
             </View>
             <View className='word-sub-info'>
               {entry?.phonetic && <Text className='word-phonetic'>[{entry.phonetic}]</Text>}
-              {examTags && examTags.length > 0 && (
-                <View className='exam-tags'>
-                  {examTags.map(tag => (
-                    <Text key={tag} className='exam-tag'>{tag}</Text>
-                  ))}
-                </View>
-              )}
             </View>
           </View>
           <View className='header-right-actions'>

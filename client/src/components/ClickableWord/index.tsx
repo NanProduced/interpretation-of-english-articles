@@ -23,8 +23,6 @@ const ClickableWord = memo(function ClickableWord({ word, isSaved, className, on
         e.stopPropagation()
         onClick(word, e)
       }}
-      role='button'
-      aria-label={`${isSaved ? '已收藏生词: ' : '查词: '}${word}`}
     >
       {word}
     </Text>
