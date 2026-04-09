@@ -32,6 +32,7 @@ export interface InlineGlossary {
   zh?: string
   gloss?: string
   reason?: string
+  phraseType?: 'collocation' | 'phrasal_verb' | 'idiom' | 'proper_noun' | 'compound'
 }
 
 export type AnnotationType =

@@ -79,7 +79,8 @@ function renderTextWithMarks(
   selectedWord?: string | null,
   vocabList?: string[],
   onWordClick?: (payload: WordClickPayload) => void,
-  isImmersive?: boolean
+  isImmersive?: boolean,
+  grammarDigestMap?: Map<string, number>
 ) {
   // 沉浸模式下只保留词汇相关的标记（vocab, phrase, context）
   const visibleMarks = isImmersive 
@@ -142,20 +143,51 @@ function renderTextWithMarks(
 
     if (!item.mark.clickable) {
       const toneClass = `tone-${item.mark.visualTone}`
+      
+      let badgeIndex: number | null = null
+      if (item.mark.visualTone === 'grammar' && grammarDigestMap) {
+        // 由于我们在后端绑定了 im_xxxx 和 se_xxxx 的 xxxx 后缀
+        const digest = item.mark.id.replace(/^im_/, '')
+        if (grammarDigestMap.has(digest)) {
+          badgeIndex = grammarDigestMap.get(digest)!
+        }
+      }
+
       const tokens = tokenizeText(item.text)
       const grammarWords = tokens.map((token, idx) => {
+        const isLastToken = idx === tokens.length - 1
+        
         if (token.type === 'word') {
           const isSaved = vocabList?.includes(token.text.toLowerCase())
           const isSelected = selectedWord === token.text
-          return (
-            <ClickableWord
-              key={`gw-${item.mark.id}-${idx}`}
-              word={token.text}
-              isSaved={isSaved}
-              className={[toneClass, isSelected ? 'active' : ''].filter(Boolean).join(' ')}
-              onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e })}
-            />
-          )
+          
+          if (isLastToken && badgeIndex !== null) {
+            return (
+              <Text key={`wrap-${item.mark.id}-${idx}`} className='grammar-badge-wrapper'>
+                <ClickableWord
+                  word={token.text}
+                  isSaved={isSaved}
+                  className={[toneClass, isSelected ? 'active' : ''].filter(Boolean).join(' ')}
+                  onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e })}
+                />
+                <Text className='grammar-badge'>[{badgeIndex}]</Text>
+              </Text>
+            )
+          } else {
+            return (
+              <ClickableWord
+                key={`gw-${item.mark.id}-${idx}`}
+                word={token.text}
+                isSaved={isSaved}
+                className={[toneClass, isSelected ? 'active' : ''].filter(Boolean).join(' ')}
+                onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e })}
+              />
+            )
+          }
+        }
+        
+        if (isLastToken && badgeIndex !== null) {
+          return <Text key={`gp-${idx}`}>{token.text}<Text className='grammar-badge'>[{badgeIndex}]</Text></Text>
         }
         return <Text key={`gp-${idx}`}>{token.text}</Text>
       })
@@ -251,15 +283,22 @@ const ParagraphBlock = memo(function ParagraphBlock({
     const sentenceEntries = entriesBySentenceId.get(sentence.sentenceId) || []
     const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
 
+    // 建立当前句子的 grammar 引流字典
+    const grammarDigestMap = new Map<string, number>()
+    const grammarEntries = sentenceEntries.filter(e => e.entryType === 'grammar_note')
+    grammarEntries.forEach((entry, idx) => {
+      const digest = entry.id.replace(/^se_/, '')
+      grammarDigestMap.set(digest, idx + 1)
+    })
+
     const analysisCards: (AnalysisCardProps & { id: string })[] = [
-      ...sentenceEntries
-        .filter(e => e.entryType === 'grammar_note')
-        .map(e => ({
+      ...grammarEntries.map((e, idx) => ({
           id: e.id,
           type: 'grammar' as const,
           title: e.title || e.label,
           label: '语法要点',
           content: e.content,
+          badgeIndex: idx + 1, // 传递给卡片组件的绑定序号
         })),
       ...sentenceEntries
         .filter(e => e.entryType === 'sentence_analysis')
@@ -272,7 +311,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
         })),
     ]
 
-    return { sentence, sentenceMarks, sentenceTranslation, analysisCards }
+    return { sentence, sentenceMarks, sentenceTranslation, analysisCards, grammarDigestMap }
   })
 
   // 将没有解析卡片的连续句子合并为一个 Chunk
@@ -303,7 +342,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
             <View key={chunk.id} className='sentence-block'>
               <View className='sentence-main'>
                 <Text className='english-flow'>
-                  {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false)}
+                  {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, item.grammarDigestMap)}
                 </Text>
               </View>
 
@@ -324,6 +363,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       content={card.content}
                       phonetic={card.phonetic}
                       tags={card.tags}
+                      badgeIndex={card.badgeIndex}
                     />
                   ))}
                 </View>
@@ -343,7 +383,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                 <Text className='english-flow'>
                   {chunk.items.map((item, idx) => (
                     <Text key={item.sentence.sentenceId} className='sentence-span'>
-                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false)}
+                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, item.grammarDigestMap)}
                       {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
                     </Text>
                   ))}

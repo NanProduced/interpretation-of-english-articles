@@ -22,41 +22,75 @@
   }
 
   // --- Type Variants ---
+  &.type-vocab {
+    background: var(--color-white);
+    border: 1rpx solid var(--border-color);
+    
+    .card-category-label { color: var(--vocab-content); }
+    .badge-index-circle { background: var(--vocab-accent); color: var(--color-white); }
+    .title-tag-badge { background: var(--vocab-surface); color: var(--vocab-content); border: 1rpx solid var(--vocab-border); }
+  }
+
+  &.type-phrase {
+    background: var(--color-white);
+    border: 1rpx solid var(--border-color);
+    
+    .card-category-label { color: var(--phrase-content); }
+    .badge-index-circle { background: var(--phrase-accent); color: var(--color-white); }
+    .title-tag-badge { background: var(--phrase-surface); color: var(--phrase-content); border: 1rpx solid var(--phrase-border); }
+  }
+
   &.type-grammar {
-    &::before { background: var(--grammar-accent); }
-    .card-label { color: color-mix(in srgb, var(--grammar-accent) 80%, var(--text-sub)); }
+    background: var(--color-white);
+    border: 1rpx solid var(--border-color);
+    
+    .card-category-label { color: var(--grammar-content); }
+    .badge-index-circle { background: var(--grammar-accent); color: var(--color-white); }
+    .title-tag-badge { background: var(--grammar-surface); color: var(--grammar-content); border: 1rpx solid var(--grammar-border); }
   }
 
   &.type-sentence {
-    &::before { background: var(--sentence-accent); }
-    .card-label { color: color-mix(in srgb, var(--sentence-accent) 80%, var(--text-sub)); }
+    background: var(--color-white);
+    border: 1rpx solid var(--border-color);
+    
+    .card-category-label { color: var(--sentence-content); }
+    .badge-index-circle { background: var(--sentence-accent); color: var(--color-white); }
+    .title-tag-badge { background: var(--sentence-surface); color: var(--sentence-content); border: 1rpx solid var(--sentence-border); }
+  }
+
+  &.type-context {
+    background: var(--color-white);
+    border: 1rpx solid var(--border-color);
+    
+    .card-category-label { color: var(--info-content); }
+    .badge-index-circle { background: var(--color-info); color: var(--color-white); }
+    .title-tag-badge { background: var(--blue-bg); color: var(--color-info); border: 1rpx solid rgba(46, 91, 178, 0.1); }
   }
 
   // --- Structure ---
   .card-summary-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 8rpx 16rpx 8rpx 24rpx;
-    background: transparent;
-    cursor: pointer;
-    min-height: 48rpx;
-    gap: 16rpx;
-    
-    .summary-main {
-      flex: 1;
-      display: flex;
-      align-items: baseline;
-      gap: 12rpx;
-      min-width: 0; // 允许文字截断
+    justify-content: space-between;
+    padding: 24rpx 32rpx;
+    transition: background-color 0.2s ease;
+
+    &:active {
+      background: var(--color-bg);
     }
 
-    .card-label {
-      font-size: 20rpx;
-      font-weight: var(--weight-bold);
-      letter-spacing: 0.05em;
-      opacity: 0.8;
-      flex-shrink: 0;
+    .summary-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12rpx;
+
+      .card-category-label {
+        font-size: var(--text-sm);
+        font-weight: var(--weight-bold);
+        min-width: 0;
+      }
     }
 
     .card-title {
@@ -83,14 +117,41 @@
   }
 
   .card-body {
-    padding: 0 16rpx 12rpx 24rpx;
-    
+    padding: 0 32rpx 32rpx;
+
+    .card-title-badges {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+      margin-bottom: 24rpx;
+      flex-wrap: wrap;
+
+      .badge-index-circle {
+        width: 44rpx;
+        height: 44rpx;
+        border-radius: 22rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26rpx;
+        font-weight: var(--weight-bold);
+        font-family: var(--font-mono);
+      }
+
+      .title-tag-badge {
+        padding: 6rpx 20rpx;
+        border-radius: 12rpx;
+        font-size: var(--text-sm);
+        font-weight: var(--weight-bold);
+      }
+    }
+
     .card-meta-row {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       flex-wrap: wrap;
       gap: 16rpx;
-      margin-top: 8rpx;
+      margin-bottom: 24rpx;
       margin-bottom: 12rpx;
     }
 
@@ -125,6 +186,11 @@
     white-space: pre-wrap;
     font-family: var(--font-sans);
     letter-spacing: 0.01em;
+
+    .markdown-bold {
+      font-weight: var(--weight-bold);
+      color: var(--text-main);
+    }
   }
 
   // --- Structured Analysis (Sentence Breakdown) ---

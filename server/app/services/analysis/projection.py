@@ -169,7 +169,7 @@ def _project_phrase_gloss(
         clickable=True,
         lookup_text=annotation.text,
         lookup_kind="phrase",
-        glossary=InlineGlossary(zh=annotation.zh),
+        glossary=InlineGlossary(zh=annotation.zh, phrase_type=annotation.phrase_type),
     )
     return inline_mark, warnings
 
@@ -221,8 +221,11 @@ def _project_grammar_note(
 
     content = _format_grammar_note_content(annotation)
 
+    # NOTE: To allow frontend correlation, we use the EXACT same dictionary structure to generate the stable ID suffix.
+    stable_payload_dict = annotation.model_dump()
+    
     sentence_entry = SentenceEntry(
-        id=_stable_id("se", {"type": annotation.type, "model": annotation.model_dump()}),
+        id=_stable_id("se", {"type": annotation.type, "shared_binding": stable_payload_dict}),
         sentence_id=annotation.sentence_id,
         entry_type="grammar_note",
         label=annotation.label,
@@ -240,7 +243,7 @@ def _project_grammar_note(
         return None, sentence_entry, warnings
 
     inline_mark = InlineMark(
-        id=_stable_id("im", {"type": annotation.type, "anchor": annotation.model_dump()}),
+        id=_stable_id("im", {"type": annotation.type, "shared_binding": stable_payload_dict}),
         annotation_type="grammar_note",
         anchor=resolved_anchor,
         render_type="underline",

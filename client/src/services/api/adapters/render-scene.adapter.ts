@@ -78,11 +78,12 @@ function transformInlineMark(mark: DtoInlineMark): InlineMarkModel {
     clickable: mark.clickable,
     lookupText: mark.lookup_text,
     lookupKind: mark.lookup_kind,
-    glossary: mark.glossary
+        glossary: mark.glossary
       ? {
           zh: mark.glossary.zh,
           gloss: mark.glossary.gloss,
           reason: mark.glossary.reason,
+          phraseType: mark.glossary.phrase_type,
         }
       : undefined,
   }

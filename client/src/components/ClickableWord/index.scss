@@ -19,9 +19,12 @@
     font-weight: var(--weight-medium);
   }
 
-  // grammar_note 等非点击热区 mark 内的单词，保留 tone 颜色
+  // grammar_note 等非点击热区 mark 内的单词，保留 tone 视觉提示 (对应后端的 span 锚点)
   &.tone-grammar {
-    color: var(--grammar-color);
+    color: var(--color-ink);
+    border-bottom: 2rpx dashed var(--grammar-accent); // 明确的下划线批注感
+    background: linear-gradient(to top, var(--grammar-surface) 30%, transparent 30%); // 荧光笔半遮盖效果
+    font-weight: var(--weight-medium);
   }
 
   &.tone-vocab {

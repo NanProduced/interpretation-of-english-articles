@@ -72,17 +72,18 @@ export default function WordPopup({
   const toneMeta = mark ? TONE_META[mark.visualTone] : null
   
   // 核心逻辑：获取当前标注的专业文案
-  // 优先取具体的子类型映射（PHRASE_KIND_LABELS），若没有则取 toneMeta 的基础分类
-  const professionalLabel = (mark?.lookupKind && PHRASE_KIND_LABELS[mark.lookupKind])
-    ? PHRASE_KIND_LABELS[mark.lookupKind]
+  // 优先取具体的短语子类型（glossary.phraseType），其次取 mark.lookupKind，最后取基础 visualTone
+  const effectivePhraseKind = glossary?.phraseType || mark?.lookupKind
+
+  const professionalLabel = (effectivePhraseKind && PHRASE_KIND_LABELS[effectivePhraseKind])
+    ? PHRASE_KIND_LABELS[effectivePhraseKind]
     : (toneMeta?.label || 'AI 解析')
 
   // Mini 模式标签映射
-  const miniLabel = (mark?.lookupKind && MINI_LABEL_MAP[mark.lookupKind])
-    ? MINI_LABEL_MAP[mark.lookupKind]
+  const miniLabel = (effectivePhraseKind && MINI_LABEL_MAP[effectivePhraseKind])
+    ? MINI_LABEL_MAP[effectivePhraseKind]
     : (mark ? MINI_LABEL_MAP[mark.visualTone] : 'AI')
 
-  const kindLabel = mark?.lookupKind ? PHRASE_KIND_LABELS[mark.lookupKind] : null
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
   const detailMeanings = entry?.meanings || []
   const miniMeaning = glossary?.zh || glossary?.gloss || getEntrySummary(entry)
@@ -260,11 +261,18 @@ export default function WordPopup({
             <View className='glossary-section'>
               <View className='section-title'>
                 <LucideIcon name='sparkles' size={14} color='var(--color-primary)' />
-                <Text>AI {professionalLabel}语境解析</Text>
+                <Text>AI 语境解析 · {professionalLabel}</Text>
               </View>
               <View className='glossary-content'>
-                <View className='glossary-zh'>{glossary.zh || glossary.gloss}</View>
-                {glossary.reason && <View className='glossary-reason'>{glossary.reason}</View>}
+                <View className='glossary-main-zh'>
+                  <Text className='zh-text'>{glossary.zh || glossary.gloss}</Text>
+                </View>
+                {glossary.reason && (
+                  <View className='glossary-reason-box'>
+                    <LucideIcon name='info' size={12} color='var(--color-primary)' />
+                    <Text className='reason-text'>{glossary.reason}</Text>
+                  </View>
+                )}
               </View>
             </View>
           )}

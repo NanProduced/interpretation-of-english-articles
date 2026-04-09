@@ -68,6 +68,7 @@ export interface InlineGlossary {
   zh?: string
   gloss?: string
   reason?: string
+  phrase_type?: 'collocation' | 'phrasal_verb' | 'idiom' | 'proper_noun' | 'compound'
 }
 
 export interface TextAnchor {

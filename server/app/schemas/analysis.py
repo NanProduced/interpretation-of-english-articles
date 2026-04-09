@@ -87,6 +87,7 @@ class InlineGlossary(BaseModel):
     zh: str | None = Field(default=None, description="中文释义")
     gloss: str | None = Field(default=None, description="语境义")
     reason: str | None = Field(default=None, description="为什么词典义不够好")
+    phrase_type: Literal["collocation", "phrasal_verb", "idiom", "proper_noun", "compound"] | None = Field(default=None, description="短语类型")
 
 
 class TextAnchor(BaseModel):

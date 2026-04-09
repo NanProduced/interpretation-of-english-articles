@@ -20,6 +20,7 @@ export interface AnalysisCardProps {
   phonetic?: string
   tags?: string[]
   initiallyExpanded?: boolean
+  badgeIndex?: number
 }
 
 const TYPE_CONFIG = {
@@ -86,6 +87,18 @@ function parseSentenceAnalysis(content: string): { summary: string; chunks: Anal
   }
 }
 
+function renderMarkdownContent(content: string) {
+  if (!content) return null
+  const parts = content.split(/(\*\*.*?\*\*)/g)
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      const text = part.slice(2, -2)
+      return <Text key={idx} className='markdown-bold'>{text}</Text>
+    }
+    return <Text key={idx}>{part}</Text>
+  })
+}
+
 export default function AnalysisCard({
   type,
   title,
@@ -94,6 +107,7 @@ export default function AnalysisCard({
   phonetic,
   tags,
   initiallyExpanded,
+  badgeIndex,
 }: AnalysisCardProps) {
   const globalDefaultExpanded = useConfigStore((s) => s.defaultCardExpanded)
   const [isExpanded, setIsExpanded] = useState(initiallyExpanded ?? globalDefaultExpanded)
@@ -114,8 +128,8 @@ export default function AnalysisCard({
     <View className={`analysis-card ${config.colorClass} ${isExpanded ? 'expanded' : 'collapsed'}`}>
       <View className='card-summary-row' onClick={() => setIsExpanded(!isExpanded)}>
         <View className='summary-main'>
-          <Text className='card-label'>[{label || config.defaultLabel}]</Text>
-          <Text className='card-title' numberOfLines={isExpanded ? undefined : 1}>{title}</Text>
+          <LucideIcon name={config.icon} size={16} color={config.accentColor} />
+          <Text className='card-category-label'>{label || config.defaultLabel}</Text>
         </View>
         <View className='summary-icon'>
           <LucideIcon 
@@ -128,6 +142,13 @@ export default function AnalysisCard({
 
       <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
         <View className='card-body'>
+          {/* 这里是如 Figma 稿中的紫色标签区域 */}
+          <View className='card-title-badges'>
+            {badgeIndex !== undefined && (
+              <View className='badge-index-circle'>{badgeIndex}</View>
+            )}
+            <View className='title-tag-badge'>{title}</View>
+          </View>
           {/* Phonetic and tags moved inside the expandable body if they exist */}
           {(phonetic || (tags && tags.length > 0)) && (
             <View className='card-meta-row'>
@@ -164,7 +185,7 @@ export default function AnalysisCard({
                 </View>
               </View>
             ) : (
-              <Text className='card-content'>{content}</Text>
+              <Text className='card-content'>{renderMarkdownContent(content)}</Text>
             )}
           </View>
         </View>
