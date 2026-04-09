@@ -408,23 +408,21 @@ export default function Result() {
       <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={handleScroll}>
         <View className='article-container'>
           {renderParagraphs()}
+          
+          {/* Article End Actions */}
+          <View className='article-end-actions'>
+            <View className={`end-btn-secondary ${favorited ? 'favorited' : ''}`} onClick={handleToggleFavorite}>
+              <LucideIcon name='bookmark' size={18} color={favorited ? 'var(--color-warn)' : 'var(--text-main)'} />
+              <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏'}</Text>
+            </View>
+            <View className='end-btn-primary' onClick={handleRetry}>
+              <LucideIcon name='plus' size={18} color='#fff' />
+              <Text>再分析一篇</Text>
+            </View>
+          </View>
           <View className='bottom-spacer' />
         </View>
       </ScrollView>
-
-      {/* Global Bottom Action Bar */}
-      <View className='global-action-bar safe-area-bottom'>
-        <View className='action-bar-inner'>
-          <View className={`secondary-action ${favorited ? 'favorited' : ''}`} onClick={handleToggleFavorite}>
-            <LucideIcon name={favorited ? 'star' : 'star'} size={20} color={favorited ? 'var(--color-warn)' : 'var(--text-sub)'} />
-            <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏全文'}</Text>
-          </View>
-          <View className='primary-action' onClick={handleRetry}>
-            <LucideIcon name='refresh-cw' size={18} color='#fff' />
-            <Text>再分析一篇</Text>
-          </View>
-        </View>
-      </View>
 
       <WordPopup
         visible={wordPopup.visible}

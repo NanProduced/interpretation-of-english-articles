@@ -41,7 +41,7 @@
 - [TECD3 本地词典接入方案](./architecture/tecd3-local-dictionary-integration.md)
   - 覆盖 `/dict` 切换到 `TECD3` 离线词典导入、前后端协议、单词卡片字段、底部详情弹层与 PostgreSQL 真源方案
 - [小程序正式上线架构与部署方案](./architecture/production-architecture-and-deployment-plan.md)
-  - 覆盖微信登录、云端资产、PostgreSQL、缓存分层、`TECD3` 词典真源与上线拓扑
+  - 覆盖微信登录、云端资产、PostgreSQL、缓存分层、`TECD3` 词典真源、analyze 任务中心、幂等/单任务控制与额度账本
   - 微信登录已实现：Session 管理（随机 Token + PostgreSQL）、`/auth/wechat/login`、`/auth/session/logout`、`/auth/session/me`
 - [每日精读模块设计文档](./architecture/daily-reader-module-design.md)
   - 覆盖每日精读页面的信息架构、专用 workflow、正文轻量辅助、文末全篇解析与内容生产链路

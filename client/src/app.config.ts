@@ -5,6 +5,7 @@ export default {
     'pages/input/index',
     'pages/result/index',
     'pages/history/index',
+    'pages/vocab/index',
     'pages/profile/index'
   ],
   window: {

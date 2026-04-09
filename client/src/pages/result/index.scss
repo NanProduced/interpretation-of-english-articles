@@ -166,80 +166,67 @@
   font-weight: var(--weight-bold);
 }
 
-// Global Bottom Action Bar
-.global-action-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(to top, var(--bg-color) 60%, transparent);
-  border-top: none;
-  z-index: 900;
-  padding: 48rpx 0 calc(24rpx + env(safe-area-inset-bottom));
-  pointer-events: none;
-}
-
-.action-bar-inner {
+// === Article End Actions ===
+.article-end-actions {
   display: flex;
-  padding: 0 48rpx;
-  gap: 16rpx;
+  margin-top: 100rpx; // 增加段间距，让文章与底部操作区有足够的阅读间隔
+  padding: 64rpx 0 0;
+  border-top: 1rpx dashed rgba(0, 0, 0, 0.1); // 使用更清晰的虚线颜色，避免看不清
+  gap: 32rpx; // 增加按钮间的留白
   align-items: center;
-  justify-content: flex-end;
-  pointer-events: auto;
 }
 
-.secondary-action {
-  flex: 0 0 auto;
-  height: 72rpx;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1rpx solid var(--border-color);
-  border-radius: 36rpx;
+.end-btn-secondary {
+  flex: 1;
+  height: 100rpx; // 稍微增高按钮，使点击区域更从容
+  background: var(--color-white);
+  border: 2rpx solid transparent; // 预留边框位避免重绘
+  border-radius: var(--radius-md); // 24rpx 对齐主流阅读软件的温润感
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 32rpx;
-  gap: 8rpx;
-  box-shadow: 0 4rpx 12rpx var(--border-color);
-
+  gap: 12rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04); // 添加微妙阴影使其在浅色背景中悬浮
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  
   text {
-    font-size: var(--text-sm);
+    font-size: var(--text-base);
     font-weight: var(--weight-medium);
-    color: var(--text-sub);
+    color: var(--text-main);
   }
 
   &:active {
-    background: var(--border-color);
+    background: var(--color-bg);
     transform: scale(0.98);
   }
 
   &.favorited {
-    background: var(--vocab-surface);
-    border-color: var(--vocab-border);
-    text.favorited-text { color: var(--vocab-label); }
+    border-color: var(--color-warn);
+    text.favorited-text { color: var(--color-warn); }
   }
 }
 
-.primary-action {
-  flex: 0 0 auto;
-  height: 72rpx;
+.end-btn-primary {
+  flex: 1.5; 
+  height: 100rpx;
   background: var(--color-ink);
-  border-radius: 36rpx;
-  padding: 0 32rpx;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+  gap: 12rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12); // 主操作按钮增亮阴影层级
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   text {
-    font-size: var(--text-sm);
+    font-size: 32rpx; // 稍微加大字号
     font-weight: var(--weight-bold);
     color: var(--color-white);
+    letter-spacing: 0.02em; // 增加字间距提升高级感
   }
 
   &:active {
-    opacity: 0.9;
+    opacity: 0.85;
     transform: scale(0.98);
   }
 }

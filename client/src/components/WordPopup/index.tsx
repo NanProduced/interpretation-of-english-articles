@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { InlineMarkModel, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
+import { InlineMarkModel, type VisualTone, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
 import { fetchDict, fetchDictEntry } from '../../services/api/client'
 import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
 import LucideIcon from '../LucideIcon'

@@ -208,7 +208,11 @@ flowchart LR
 
 - `users`
 - `user_sessions`
+- `analysis_tasks`
+- `analysis_task_events`
 - `analysis_records`
+- `user_credit_accounts`
+- `user_credit_ledger`
 - `favorite_records`
 - `vocabulary_book`
 
@@ -244,6 +248,7 @@ flowchart LR
 
 - `id`
 - `user_id`
+- `task_id`
 - `source_text`
 - `request_payload_json`
 - `render_scene_json`
@@ -256,6 +261,110 @@ flowchart LR
 
 - `render_scene_json` 推荐用 `JSONB`
 - 历史回看默认读取快照，不自动重跑 `/analyze`
+- 分析请求一提交就应创建记录，`analysis_records` 既承担“结果快照”，也承担“历史页中的处理中卡片”
+- `analysis_status` 建议扩展为 `queued / running / succeeded / failed / cancelled / expired`
+
+#### `analysis_tasks`
+
+- `id`
+- `user_id`
+- `analysis_record_id`
+- `idempotency_key`
+- `request_fingerprint`
+- `status`
+- `worker_token`
+- `queue_name`
+- `attempt_no`
+- `failure_code`
+- `failure_message`
+- `usage_summary_json`
+- `quota_cost_points`
+- `queued_at`
+- `started_at`
+- `finished_at`
+- `created_at`
+- `updated_at`
+
+约束建议：
+
+- `UNIQUE (user_id, idempotency_key)`：保证同一次点击或同一次重试请求不会重复创建任务
+- `UNIQUE (user_id) WHERE status IN ('queued', 'running', 'finalizing')`：保证同一用户同一时间只有一个活跃 analyze 任务
+- `UNIQUE (analysis_record_id)`：一个任务只服务一条结果记录
+
+说明：
+
+- `analysis_tasks` 是执行控制平面，负责排队、幂等、并发控制、失败重试与额度结算
+- `analysis_records` 是用户资产平面，负责历史回看、收藏、生词本引用与结果快照
+- 两者拆开后，既能做“处理中可回看”，也不会把执行态和展示态混成一张难维护的大表
+
+#### `analysis_task_events`
+
+- `id`
+- `task_id`
+- `event_type`
+- `event_payload_json`
+- `created_at`
+
+事件建议至少覆盖：
+
+- `task_submitted`
+- `task_deduplicated`
+- `task_queued`
+- `task_started`
+- `llm_stage_started`
+- `llm_stage_finished`
+- `task_succeeded`
+- `task_failed`
+- `quota_deducted`
+- `quota_refund_skipped`
+
+作用：
+
+- 为“用户提交后退出小程序，回来还能追溯任务过程”提供审计基础
+- 为后续排查超时、重复扣费、异常失败、模型成本异常提供证据链
+
+#### `user_credit_accounts`
+
+- `user_id`
+- `daily_free_points`
+- `daily_used_points`
+- `bonus_points`
+- `last_reset_on`
+- `policy_version`
+- `created_at`
+- `updated_at`
+
+说明：
+
+- `daily_free_points` 是每日重置额度
+- `bonus_points` 是活动赠送、人工补偿、邀请码奖励等长期额度
+- 两类余额必须分开存，不能把“每日重置”与“赠送余额”揉成一个字段
+
+#### `user_credit_ledger`
+
+- `id`
+- `user_id`
+- `task_id`
+- `entry_type`
+- `points`
+- `bucket_type`
+- `balance_after`
+- `metadata_json`
+- `created_at`
+
+`entry_type` 建议包括：
+
+- `daily_grant`
+- `bonus_grant`
+- `analysis_deduct`
+- `manual_adjust`
+- `refund`
+
+说明：
+
+- 所有额度变化都走 append-only ledger，余额表只是快照
+- 这样既能支持“每天 50 次”，也能支持未来按 token 折算积分
+- 失败任务默认不扣减；如果未来引入预占额度，也必须在失败时自动冲正
 
 #### `favorite_records`
 
@@ -426,6 +535,190 @@ flowchart LR
 - `PATCH /vocabulary/{id}`
 - `DELETE /vocabulary/{id}`
 
+### 9.1 `/analyze` 要升级为“提交任务”语义
+
+当前后端 `POST /analyze` 仍是同步直出 `RenderSceneModel`，这不适合小程序正式链路，原因有三点：
+
+- LLM 解析耗时长，用户切后台、退页、弱网时会丢失上下文
+- 同步请求无法天然承载“单用户单任务”“幂等去重”“失败不扣额度”
+- 历史记录与执行过程割裂，无法把“处理中”稳定展示到记录页
+
+正式方案建议改为：
+
+1. 小程序提交 analyze 请求时，后端立即创建 `analysis_record + analysis_task`
+2. 接口快速返回 `202 Accepted`
+3. 小程序使用 `task_id / record_id` 轮询任务状态
+4. 任务完成后，结果快照写回 `analysis_records.render_scene_json`
+5. 历史页和结果页都只读 `analysis_records` 真源，不自动重跑
+
+建议的正式接口：
+
+- `POST /analysis-tasks`
+- `GET /analysis-tasks/{task_id}`
+- `GET /analysis-tasks/current`
+- `POST /analysis-tasks/{task_id}/retry`
+- `GET /records?include_processing=true`
+- `GET /me/quota`
+
+兼容建议：
+
+- 当前同步 `POST /analyze` 可保留为本地调试或回归测试入口
+- 小程序正式环境不要再直接等待 `/analyze` 返回最终结果
+
+### 9.2 幂等与“单用户单任务”控制
+
+这部分要同时防两类重复：
+
+- 同一次点击被前端重复发送
+- 同一用户在前一个任务未完成时再次发起新任务
+
+推荐策略：
+
+#### 前端
+
+- 每次点击“开始解析”前先生成 `client_record_id`
+- 同一次提交再生成 `idempotency_key`
+- loading 态期间禁用再次提交按钮
+- 结果页、历史页、App 恢复时始终以 `task_id / record_id` 查询当前状态，不重发原始 analyze 请求
+
+#### 后端
+
+- 请求进入后先对 `text + reading_goal + reading_variant + source_type + extended` 做归一化并生成 `request_fingerprint`
+- 在一个数据库事务里先查 `(user_id, idempotency_key)` 是否已存在
+- 若已存在，直接返回已有 `task_id / record_id / status`，不重复入队
+- 若不存在，再检查该用户是否已有 `queued / running / finalizing` 的活跃任务
+- 若已有活跃任务，返回 `409 ACTIVE_TASK_EXISTS`，并附带当前活跃 `task_id / record_id`
+- 若没有活跃任务，才创建新任务并入队
+
+为什么要同时保留 `idempotency_key` 和 `request_fingerprint`：
+
+- `idempotency_key` 解决“同一次点击重发”
+- `request_fingerprint` 解决“内容相同但前端误生成了新 key”时的二次校验与风控分析
+
+### 9.3 任务生命周期与可追溯性
+
+建议把 analyze 生命周期收敛成一套稳定状态机：
+
+- `queued`
+- `running`
+- `finalizing`
+- `succeeded`
+- `failed`
+- `cancelled`
+- `expired`
+
+推荐节点：
+
+1. `task_submitted`
+2. `task_queued`
+3. `task_started`
+4. `vocabulary_agent_started`
+5. `grammar_agent_started`
+6. `translation_agent_started`
+7. `usage_collected`
+8. `task_succeeded` 或 `task_failed`
+9. `quota_deducted` 或 `quota_refund_skipped`
+
+记录规则：
+
+- `analysis_records` 保存面向用户的快照与最终状态
+- `analysis_task_events` 保存过程审计
+- `analysis_tasks.usage_summary_json` 保存聚合 token 使用量与模型信息
+- 任务失败时必须写 `failure_code / failure_message`，不能只丢日志
+
+这样设计后，即便用户在 loading 中退出小程序：
+
+- 任务仍可继续执行
+- 历史记录页能看到“处理中 / 失败 / 已完成”
+- 结果页恢复时能通过 `record_id` 找回对应任务状态
+
+### 9.4 额度、次数与积分的推荐方案
+
+你们当前的业务要求其实包含两套约束：
+
+- 产品层：前期给每个用户每天 50 次免费调用
+- 成本层：不同任务真实 token 消耗差异很大，未来可能要按成本折算
+
+推荐不要在数据库里只保存“今日已用次数”，而是直接落地成“积分账户 + 账本”，再由策略层决定如何展示成“50 次/天”。
+
+建议策略：
+
+#### 面向用户的展示
+
+- 默认文案仍显示“今日免费解析 50 次”
+- 赠送额度单独显示为“额外积分”或“奖励额度”
+- 不把每日免费额度和赠送额度混在一个剩余数字里
+
+#### 面向后端的计费
+
+- 每次任务成功后，基于 `usage_summary_json.total_tokens` 计算 `cost_points`
+- 扣减顺序建议为：`daily_free_points -> bonus_points`
+- 任务失败不扣减
+- 如果未来要做预占额度，失败时必须自动冲正
+
+#### MVP 阶段的保守落地
+
+为了避免一开始就把复杂 token 计费暴露给用户，建议两阶段推进：
+
+1. `Launch 阶段`
+   - 用户视角按“成功一次扣 1 次”运行
+   - 后端同时记录真实 token 和 shadow points，但先不影响用户展示
+2. `Refine 阶段`
+   - 根据真实成本数据，把 `cost_points` 从固定 1 切到按 token 折算
+   - 前端展示从“次数”升级为“积分 + 预计可解析次数”
+
+这样做的好处：
+
+- 现在就能满足“每天 50 次、失败不扣、奖励单独送”的业务要求
+- 未来切到 Manus 类积分模型时，不需要重做表结构和对账逻辑
+
+### 9.5 配额校验与扣减时机
+
+推荐时机：
+
+- `提交前校验是否有可用额度`
+- `任务成功后再真正扣减`
+
+不推荐：
+
+- 提交时直接扣减且失败不返还
+- 只在前端本地算次数
+
+原因：
+
+- 你们已经要求“执行失败不能扣减次数”
+- 单用户单任务前提下，不需要复杂的多任务额度预占
+- 额度真源必须在服务端，否则很容易被绕过
+
+### 9.6 推荐实施顺序
+
+P0：
+
+- 扩展 `analysis_records.analysis_status`
+- 新增 `analysis_tasks`
+- 新增 `analysis_task_events`
+- 新增 `user_credit_accounts`
+- 新增 `user_credit_ledger`
+- 把 token usage 从 LangSmith/agent usage 汇总落到任务表
+
+P1：
+
+- 新增 `POST /analysis-tasks`
+- 新增 `GET /analysis-tasks/{id}`
+- 历史记录接口支持返回处理中记录
+- 前端结果页改为“提交任务 + 轮询”
+
+P2：
+
+- 增加 `GET /me/quota`
+- 接入每日免费额度 + 奖励额度
+- 先按固定 1 次扣减，同时记录 shadow points
+
+P3：
+
+- 根据真实成本数据切换到 token -> points 折算
+- 增加人工补偿、活动赠送、邀请码奖励后台入口
+
 ## 10. 部署建议
 
 ### 10.1 推荐部署拓扑
@@ -497,9 +790,11 @@ flowchart LR
 ### 12.1 数据库与模型定稿
 
 - 明确 `users`、`user_sessions`、`analysis_records`、`favorite_records`、`vocabulary_book`、`dict_entries`、`dict_aliases` 的最终字段
+- 明确 `analysis_tasks`、`analysis_task_events`、`user_credit_accounts`、`user_credit_ledger` 的最终字段
 - 明确主键、唯一键、外键和索引策略
 - 明确 `analysis_records.render_scene_json`、`request_payload_json` 是否统一使用 `JSONB`
 - 明确 `vocabulary_book` 是否按 `user_id + lemma` 去重
+- 明确 `analysis_records` 与 `analysis_tasks` 的一对一关系及状态同步规则
 
 ### 12.2 认证协议定稿
 
@@ -521,10 +816,12 @@ flowchart LR
 ### 12.4 API Contract 定稿
 
 - `/dict`：切换为 PostgreSQL 词典真源后的返回结构最终确认
+- `/analysis-tasks`：创建、查询、重试、冲突返回结构确认
 - `/records`：列表、详情、创建、删除、分页字段确认
 - `/favorites`：增删查协议确认
 - `/vocabulary`：增删改查协议确认
 - `/auth/*`：登录、刷新、退出协议确认
+- `/me/quota`：每日额度、奖励额度、扣减明细的返回结构确认
 
 ### 12.5 部署准备定稿
 
@@ -545,10 +842,11 @@ flowchart LR
 ### 12.6 开发节奏建议
 
 - 先做 `schema + migration`
+- 再做 `analysis task center + quota ledger`
 - 再做 `TECD3 -> PostgreSQL`
 - 再做 `/dict` 查询切换
 - 再做微信登录与业务 session
-- 最后做云端历史、收藏、生词本与同步
+- 最后做云端历史、收藏、生词本、异步 analyze 与同步
 
 ### 12.7 与 UI/UX 并行时的约束
 

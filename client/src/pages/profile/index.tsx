@@ -126,7 +126,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           label: "我的生词本",
           value: wordCount > 0 ? `${wordCount}词` : "暂无生词",
           icon: 'bookmark',
-          url: '/pages/history/index',
+          url: '/pages/vocab/index',
           color: 'yellow',
         },
       ]

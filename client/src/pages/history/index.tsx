@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { getRecordIds, getRecord, deleteRecord, getVocabulary } from '../../services/storage'
+import { getRecordIds, getRecord, deleteRecord } from '../../services/storage'
 import { useAuthStore } from '../../stores/auth'
 import { fetchCloudRecords, deleteCloudRecord } from '../../services/api/records.client'
 import { fetchCloudFavorites } from '../../services/api/favorites.client'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
-import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
@@ -39,19 +38,16 @@ function getDisplayTitle(sourceText: string): string {
   return firstLine.length > 50 ? `${firstLine.slice(0, 50)}...` : firstLine
 }
 
-type FilterTab = 'all' | 'favorites' | 'vocab'
+type FilterTab = 'all' | 'favorites'
 
 interface HistoryPageProps {
   isSubView?: boolean
-  /** 外部传入默认 tab（如从生词本入口进入） */
-  defaultTab?: FilterTab
 }
 
-export default function HistoryPage({ isSubView = false, defaultTab }: HistoryPageProps) {
+export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
   const [records, setRecords] = useState<AnalysisRecord[]>([])
-  const [vocabList, setVocabList] = useState<VocabEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<FilterTab>(defaultTab || 'all')
+  const [activeTab, setActiveTab] = useState<FilterTab>('all')
   const { navBarHeight } = useLayoutStore()
 
   const filteredRecords = activeTab === 'favorites'
@@ -94,23 +90,9 @@ export default function HistoryPage({ isSubView = false, defaultTab }: HistoryPa
     setLoading(false)
   }, [])
 
-  // 加载生词本
-  const loadVocab = useCallback(() => {
-    const all = getVocabulary()
-    setVocabList(all)
-  }, [])
-
   useEffect(() => {
     loadRecords()
-    loadVocab()
-    // 读取 URL 参数，支持从外部跳转时指定 tab
-    const pages = Taro.getCurrentPages()
-    const current = pages[pages.length - 1]
-    const params = (current as any).options || {}
-    if (params.vtab && ['all', 'favorites', 'vocab'].includes(params.vtab)) {
-      setActiveTab(params.vtab as FilterTab)
-    }
-  }, [loadRecords, loadVocab])
+  }, [loadRecords])
 
   // 下拉刷新（仅在非子视图模式下处理）
   const loadRecordsRef = useRef(loadRecords)
@@ -157,12 +139,6 @@ export default function HistoryPage({ isSubView = false, defaultTab }: HistoryPa
     Taro.navigateTo({ url: '/pages/input/index' })
   }
 
-  const handleVocabClick = (entry: VocabEntry) => {
-    if (entry.recordId) {
-      goToResult(entry.recordId)
-    }
-  }
-
   return (
     <View className={`history-page ${isSubView ? 'sub-view' : ''}`}>
       {!isSubView && <NavBar title='历史解读' />}
@@ -181,49 +157,13 @@ export default function HistoryPage({ isSubView = false, defaultTab }: HistoryPa
         >
           <Text className='filter-tab-label'>已收藏</Text>
         </View>
-        <View
-          className={`filter-tab ${activeTab === 'vocab' ? 'active' : ''}`}
-          onClick={() => setActiveTab('vocab')}
-        >
-          <Text className='filter-tab-label'>生词本</Text>
-        </View>
       </View>
 
       <ScrollView
         scrollY
         className='list-area'
       >
-        {activeTab === 'vocab' ? (
-          // 生词本 tab
-          loading && vocabList.length === 0 ? null : vocabList.length === 0 ? (
-            <View className='empty-state'>
-              <Text className='empty-text'>暂无生词</Text>
-              <View className='empty-action' onClick={goToInput}>
-                <Text className='empty-sub'>去读一篇文章，记下不认识的词吧 →</Text>
-              </View>
-            </View>
-          ) : (
-            vocabList.map((entry) => (
-              <View
-                key={entry.id}
-                className='history-card'
-                onClick={() => handleVocabClick(entry)}
-              >
-                <View className='card-header'>
-                  <Text className='item-title'>{entry.word}</Text>
-                  <Text className='config-tag' style={{ fontSize: '22rpx' }}>
-                    {entry.partOfSpeech}
-                  </Text>
-                </View>
-                <View className='card-footer'>
-                  <Text className='date-text' style={{ flex: 1 }}>{entry.meaning}</Text>
-                </View>
-              </View>
-            ))
-          )
-        ) : (
-          // 全部 / 已收藏 tab
-          loading && records.length === 0 ? null : filteredRecords.length === 0 ? (
+        {loading && records.length === 0 ? null : filteredRecords.length === 0 ? (
             <View className='empty-state'>
               <Text className='empty-text'>
                 {activeTab === 'favorites' ? '暂无收藏记录' : '暂无解读记录'}
@@ -262,8 +202,7 @@ export default function HistoryPage({ isSubView = false, defaultTab }: HistoryPa
                 </View>
               </View>
             ))
-          )
-        )}
+          )}
         <View style={{ height: '160rpx' }} />
       </ScrollView>
 
