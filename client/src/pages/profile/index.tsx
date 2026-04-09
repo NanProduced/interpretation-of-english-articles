@@ -18,6 +18,7 @@ import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
+import { getDisplayLabel, ReadingGoal } from '../../config/purpose'
 import './index.scss'
 
 interface ProfilePageProps {
@@ -25,7 +26,7 @@ interface ProfilePageProps {
 }
 
 export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
-  const { purpose } = useConfigStore()
+  const { purpose, level } = useConfigStore()
   const { navBarHeight } = useLayoutStore()
   const { isLoggedIn, userInfo, logout, fetchUserInfo, updateUserInfo } = useAuthStore()
   const [articleCount, setArticleCount] = useState(0)
@@ -104,17 +105,17 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     updateUserInfo({ nickname })
   }
 
-  const purposeMap: Record<string, string> = {
-    'daily': '日常阅读',
-    'exam': 'CET-4 备考',
-    'academic': '学术/专业'
-  }
-
   const menuGroups = [
     {
       title: "学习管理",
       items: [
-        { label: "当前模式配置", value: purposeMap[purpose] || "未设置", icon: 'settings', url: '/pages/onboarding/index', color: 'blue' },
+        { 
+          label: "当前模式配置", 
+          value: getDisplayLabel(purpose as ReadingGoal, level), 
+          icon: 'settings', 
+          url: '/pages/onboarding/index', 
+          color: 'blue' 
+        },
         { label: "我的生词本", value: wordCount > 0 ? `${wordCount}词` : "暂无生词", icon: 'bookmark', color: 'yellow' },
       ]
     },

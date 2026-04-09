@@ -2,8 +2,13 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: var(--color-bg); 
+  height: 100dvh;
+  background-color: var(--color-bg);
   transition: background-color 0.4s ease;
+
+  .nav-placeholder {
+    flex-shrink: 0;
+  }
 
   // 聚焦状态：让位给内容
   &.is-focused {
@@ -26,13 +31,14 @@
     flex-direction: column;
     padding: 32rpx 48rpx;
     position: relative;
+    overflow: hidden;
 
     .mode-chip {
       align-self: flex-start;
       display: inline-flex;
       align-items: center;
       gap: 12rpx;
-      padding: 8rpx 24rpx;
+      padding: 10rpx 24rpx;
       background-color: #fff;
       border-radius: 100rpx;
       border: 1rpx solid var(--border-color);
@@ -107,7 +113,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 40rpx;
+      margin-bottom: 32rpx;
     }
 
     .ink-stats {
@@ -143,18 +149,6 @@
         font-size: 24rpx;
         color: var(--text-sub);
         font-weight: var(--weight-bold);
-      }
-    }
-
-    .toggle-group {
-      display: flex;
-      align-items: center;
-      gap: 12rpx;
-
-      .toggle-label {
-        font-size: 24rpx;
-        color: var(--text-sub);
-        font-weight: var(--weight-medium);
       }
     }
 
@@ -194,9 +188,4 @@
     opacity: 1;
     transform: scale(1) translateY(0);
   }
-}
-
-@keyframes placeholder-fade {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
 }

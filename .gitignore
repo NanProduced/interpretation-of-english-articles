@@ -23,7 +23,9 @@ server/**/*.pyc
 .env
 .env.*
 !.env.example
-config/
+/config/
+server/config/
+client/config/
 
 # IDE / tool state
 .idea/

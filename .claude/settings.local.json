@@ -145,7 +145,8 @@
       "Bash(/c/Python313/python.exe -m pytest tests/test_analyze_workflow.py -v)",
       "Bash(mypy app/services/analysis/input_preparation.py app/schemas/internal/analysis.py --ignore-missing-import)",
       "Bash(find . -name \"*.pyc\" -delete)",
-      "Bash(find . -name \"__pycache__\" -type d -exec rm -rf {} +)"
+      "Bash(find . -name \"__pycache__\" -type d -exec rm -rf {} +)",
+      "mcp__zai-mcp-server__analyze_image"
     ]
   }
 }
