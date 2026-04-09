@@ -59,7 +59,7 @@ class RecordResponse(BaseModel):
 
     id: UUID
     user_id: UUID
-    client_record_id: str
+    client_record_id: str | None
     source_type: str
     title: str | None
     source_text: str

@@ -48,6 +48,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # 3. 初始化 LangSmith
     setup_langsmith(settings)
 
+    # 4. 恢复服务重启前残留的活跃任务（标记为 failed，允许用户重试）
+    try:
+        from app.services.analysis.task_executor import recover_stuck_tasks
+
+        recovered = await recover_stuck_tasks()
+        if recovered:
+            logger.info("Recovered %d stuck tasks on startup", recovered)
+    except Exception as e:
+        logger.warning("Failed to recover stuck tasks on startup: %s", e)
+
     yield
 
     # 关闭时清理

@@ -22,7 +22,7 @@
     position: absolute;
     background: var(--border-color);
     border-radius: 2rpx;
-    
+
     &.line-1 {
       width: 1rpx;
       height: 200rpx;
@@ -30,7 +30,7 @@
       top: 10%;
       animation: float-line 8s ease-in-out infinite;
     }
-    
+
     &.line-2 {
       width: 300rpx;
       height: 1rpx;
@@ -38,7 +38,7 @@
       top: 40%;
       animation: float-line 12s ease-in-out infinite reverse;
     }
-    
+
     &.line-3 {
       width: 1rpx;
       height: 150rpx;
@@ -150,6 +150,7 @@
 
 .loading-footer {
   margin-top: 100rpx;
+
   .footer-text {
     font-size: 22rpx;
     color: var(--text-muted);
@@ -162,6 +163,7 @@
     transform: scale(0.8);
     opacity: 0.8;
   }
+
   100% {
     transform: scale(1.6);
     opacity: 0;
@@ -169,10 +171,13 @@
 }
 
 @keyframes glimmer-slide {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateX(-40rpx);
     opacity: 0.3;
   }
+
   50% {
     transform: translateX(40rpx);
     opacity: 1;
@@ -180,9 +185,12 @@
 }
 
 @keyframes float-line {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translate(0, 0);
   }
+
   50% {
     transform: translate(20rpx, -20rpx);
   }
