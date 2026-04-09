@@ -112,33 +112,36 @@ export default function AnalysisCard({
 
   return (
     <View className={`analysis-card ${config.colorClass} ${isExpanded ? 'expanded' : 'collapsed'}`}>
-      <View className='card-header' onClick={() => setIsExpanded(!isExpanded)}>
-        <View className='header-left'>
-          <Text className='card-label'>{label || config.defaultLabel}</Text>
+      <View className='card-summary-row' onClick={() => setIsExpanded(!isExpanded)}>
+        <View className='summary-main'>
+          <Text className='card-label'>[{label || config.defaultLabel}]</Text>
+          <Text className='card-title' numberOfLines={isExpanded ? undefined : 1}>{title}</Text>
         </View>
-        <View className='header-right'>
+        <View className='summary-icon'>
           <LucideIcon 
             name={isExpanded ? 'chevron-up' : 'chevron-down'} 
             size={16} 
-            color='var(--text-sub)' 
+            color='var(--text-muted)' 
           />
         </View>
       </View>
 
-      <View className='card-body' onClick={() => !isExpanded && setIsExpanded(true)}>
-        <View className='card-title-row'>
-          <Text className='card-title'>{title}</Text>
-          {phonetic && <Text className='card-phonetic'>/{phonetic}/</Text>}
-          {tags && tags.length > 0 && (
-            <View className='card-tags'>
-              {tags.map((tag) => (
-                <View key={tag} className='tag-badge'>{tag}</View>
-              ))}
+      <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
+        <View className='card-body'>
+          {/* Phonetic and tags moved inside the expandable body if they exist */}
+          {(phonetic || (tags && tags.length > 0)) && (
+            <View className='card-meta-row'>
+              {phonetic && <Text className='card-phonetic'>/{phonetic}/</Text>}
+              {tags && tags.length > 0 && (
+                <View className='card-tags'>
+                  {tags.map((tag) => (
+                    <View key={tag} className='tag-badge'>{tag}</View>
+                  ))}
+                </View>
+              )}
             </View>
           )}
-        </View>
-        
-        <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
+
           <View className='card-content-wrapper'>
             {type === 'sentence' && structuredData && structuredData.chunks.length > 0 ? (
               <View className='structured-analysis'>

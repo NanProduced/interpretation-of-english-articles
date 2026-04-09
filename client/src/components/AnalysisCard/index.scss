@@ -33,46 +33,65 @@
   }
 
   // --- Structure ---
-  .card-header {
+  .card-summary-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8rpx 16rpx 2rpx 24rpx; // 极限压缩顶部与底部内边距
-    background: transparent; // 移除毛玻璃背景
+    padding: 8rpx 16rpx 8rpx 24rpx;
+    background: transparent;
+    cursor: pointer;
+    min-height: 48rpx;
+    gap: 16rpx;
     
-    .header-left {
+    .summary-main {
+      flex: 1;
       display: flex;
-      align-items: center;
+      align-items: baseline;
       gap: 12rpx;
+      min-width: 0; // 允许文字截断
     }
 
     .card-label {
-      font-size: 20rpx; // 缩小标签
+      font-size: 20rpx;
       font-weight: var(--weight-bold);
       letter-spacing: 0.05em;
-      text-transform: uppercase;
       opacity: 0.8;
-    }
-  }
-
-  .card-body {
-    padding: 4rpx 16rpx 12rpx 24rpx; // 压缩内边距
-    
-    .card-title-row {
-      display: flex;
-      align-items: baseline;
-      flex-wrap: wrap;
-      gap: 16rpx;
+      flex-shrink: 0;
     }
 
     .card-title {
-      font-size: 30rpx; // 缩小字号
-      font-weight: var(--weight-medium); // 降低字重
+      font-size: 28rpx;
+      font-weight: var(--weight-medium);
       color: var(--color-ink);
       font-family: var(--font-english-serif), serif;
       letter-spacing: 0;
       line-height: 1.4;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       transition: color 0.3s ease;
+    }
+    
+    .summary-icon {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.6;
+    }
+  }
+
+  .card-body {
+    padding: 0 16rpx 12rpx 24rpx;
+    
+    .card-meta-row {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 16rpx;
+      margin-top: 8rpx;
+      margin-bottom: 12rpx;
     }
 
     .card-phonetic {
@@ -93,8 +112,8 @@
   }
 
   .card-content-wrapper {
-    margin-top: 16rpx;
-    padding-top: 20rpx;
+    margin-top: 8rpx;
+    padding-top: 16rpx;
     border-top: 1rpx dashed rgba(0, 0, 0, 0.06); // 极弱的分隔线
   }
 
@@ -212,32 +231,37 @@
 
   // --- Dynamic States ---
   &.collapsed {
-    margin-top: 4rpx; // 折叠时几乎贴在一起
+    margin-top: 0; // 完全贴合
     
     &::before {
-      top: 18rpx;
-      bottom: 18rpx;
-      width: 4rpx; // 折叠时色条变细
-      opacity: 0.3; // 进一步弱化色彩
-    }
-    
-    .card-body { 
-      padding-bottom: 8rpx; 
+      top: 14rpx;
+      bottom: 14rpx;
+      width: 4rpx;
+      opacity: 0.2;
     }
     
     .card-title {
-      color: var(--text-sub); // 标题变灰，减弱视觉重量
+      color: var(--text-sub);
+      font-size: 26rpx; // 进一步缩小字号，使其像副文本
     }
     
+    .summary-icon {
+      opacity: 0.3;
+    }
+
     &:active { transform: scale(0.99); opacity: 0.8; }
   }
   
   &.expanded {
-    background: rgba(0, 0, 0, 0.015); // 展开时增加极其微弱的底板以承载内容
-    margin-bottom: 24rpx; // 展开时撑开底部空间
+    background: rgba(0, 0, 0, 0.015);
+    margin-bottom: 24rpx;
     margin-top: 16rpx;
+    padding-bottom: 12rpx;
     
     &::before {
+      top: 16rpx;
+      bottom: 16rpx;
+      width: 6rpx;
       opacity: 0.8;
     }
   }

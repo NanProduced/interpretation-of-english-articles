@@ -22,10 +22,14 @@ interface WordPopupProps {
 
 function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): string {
   if (!entry?.meanings?.length) return ''
-  return entry.meanings[0]?.definitions
-    ?.map((d) => d.meaning)
+  return entry.meanings
+    .map((m) => {
+      const firstDef = m.definitions?.[0]?.meaning
+      if (!firstDef) return null
+      return m.partOfSpeech ? `${m.partOfSpeech} ${firstDef}` : firstDef
+    })
     .filter(Boolean)
-    .join('；') || ''
+    .join('；')
 }
 
 const TONE_META: Record<VisualTone, { label: string; color: string; bg: string }> = {
@@ -134,8 +138,9 @@ export default function WordPopup({
 
   if (mode === 'mini') {
     // 定位逻辑优化：强制居中于点击点上方，处理边缘溢出
-    const popupWidth = 240
-    const popupHeight = 120
+    // 480rpx 在屏幕上的实际像素宽度
+    const popupWidth = (screenWidth * 480) / 750
+    const popupHeight = 140
     const offset = 12
 
     let left = x - popupWidth / 2
@@ -157,10 +162,11 @@ export default function WordPopup({
       left: `${left}px`,
       top: `${top}px`,
       zIndex: 1000,
+      width: `${popupWidth}px`,
     }
 
     return (
-      <View className='word-popup-overlay mini-overlay' onClick={onClose}>
+      <View className='word-popup-overlay mini-overlay' onClick={onClose} catchMove>
         <View
           className={`mini-word-card ${isLLMAnnotated ? 'is-ai' : ''} ${isFlipped ? 'is-flipped' : ''}`}
           style={popupStyle}
@@ -172,6 +178,7 @@ export default function WordPopup({
           <View className='mini-header'>
             <View className='mini-word-info'>
               <Text className='mini-word'>{entry?.word || lookupText}</Text>
+              {entry?.phonetic && <Text className='mini-phonetic'>/{entry.phonetic}/</Text>}
               {isLLMAnnotated && toneMeta && (
                 <View 
                   className='ai-tag' 
@@ -254,7 +261,7 @@ export default function WordPopup({
           </View>
         </View>
 
-        <ScrollView className='popup-scroll-content' scrollY>
+        <ScrollView className='popup-scroll-content' scrollY style={{ flex: 1, height: '1px' }}>
           {glossary && (
             <View 
               className='glossary-section highlighted-ai'
@@ -265,8 +272,8 @@ export default function WordPopup({
                 <Text>AI {professionalLabel}语境解析</Text>
               </View>
               <View className='glossary-content'>
-                <Text className='glossary-zh' style={{ color: toneMeta?.color }}>{glossary.zh || glossary.gloss}</Text>
-                {glossary.reason && <Text className='glossary-reason'>{glossary.reason}</Text>}
+                <View className='glossary-zh' style={{ color: toneMeta?.color }}>{glossary.zh || glossary.gloss}</View>
+                {glossary.reason && <View className='glossary-reason'>{glossary.reason}</View>}
               </View>
             </View>
           )}
@@ -291,11 +298,13 @@ export default function WordPopup({
                     onClick={() => void fetchEntryDetail(candidate.entryId)}
                   >
                     <View className='candidate-main'>
-                      <Text className='candidate-label'>{candidate.label}</Text>
-                      {candidate.partOfSpeech && <Text className='candidate-pos'>{candidate.partOfSpeech}</Text>}
+                      <View className='candidate-title-row'>
+                        <Text className='candidate-label'>{candidate.label}</Text>
+                        {candidate.partOfSpeech && <Text className='candidate-pos'>{candidate.partOfSpeech}</Text>}
+                      </View>
+                      {candidate.preview && <View className='candidate-preview'>{candidate.preview}</View>}
                     </View>
-                    {candidate.preview && <Text className='candidate-preview'>{candidate.preview}</Text>}
-                    <LucideIcon name='chevron-right' size={16} color='#ccc' />
+                    <LucideIcon name='chevron-right' size={16} color='var(--border-color)' />
                   </View>
                 ))}
               </View>
@@ -307,11 +316,11 @@ export default function WordPopup({
                     <View className='definitions'>
                       {meaning.definitions.map((def, defIdx) => (
                         <View key={defIdx} className='def-row'>
-                          <Text className='def-text'>{def.meaning}</Text>
+                          <View className='def-text'>{def.meaning}</View>
                           {def.example && (
                             <View className='def-example-block'>
-                              <Text className='def-example-en'>{def.example}</Text>
-                              {def.exampleTranslation && <Text className='def-example-zh'>{def.exampleTranslation}</Text>}
+                              <View className='def-example-en'>{def.example}</View>
+                              {def.exampleTranslation && <View className='def-example-zh'>{def.exampleTranslation}</View>}
                             </View>
                           )}
                         </View>
