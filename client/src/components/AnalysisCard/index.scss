@@ -1,38 +1,35 @@
 .analysis-card {
-  margin-top: 24rpx;
+  margin-top: 8rpx; // 极大缩小默认顶部间距
   border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 1rpx solid var(--border-color);
-  background: var(--color-white);
+  border: none; // 彻底移除实体边框
+  background: transparent; // 默认透明，完全融入背景
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
+  box-shadow: none; // 移除阴影
   position: relative;
 
   &::before {
     content: '';
     position: absolute;
     left: 0;
-    top: 0;
-    bottom: 0;
-    width: 8rpx;
+    top: 16rpx; // 不占满全高，留出呼吸感
+    bottom: 16rpx;
+    width: 6rpx; // 调细强调条
+    border-radius: 6rpx;
     z-index: 2;
+    opacity: 0.5; // 降低色彩饱和度，使其不喧宾夺主
+    transition: all 0.3s ease;
   }
 
   // --- Type Variants ---
   &.type-grammar {
     &::before { background: var(--grammar-accent); }
-    background: var(--grammar-surface);
-    border-color: var(--grammar-border);
-    .card-label { color: var(--grammar-label); }
-    .card-title { color: var(--grammar-content); }
+    .card-label { color: color-mix(in srgb, var(--grammar-accent) 80%, var(--text-sub)); }
   }
 
   &.type-sentence {
     &::before { background: var(--sentence-accent); }
-    background: var(--sentence-surface);
-    border-color: var(--sentence-border);
-    .card-label { color: var(--sentence-label); }
-    .card-title { color: var(--sentence-content); }
+    .card-label { color: color-mix(in srgb, var(--sentence-accent) 80%, var(--text-sub)); }
   }
 
   // --- Structure ---
@@ -40,9 +37,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16rpx 24rpx 16rpx 32rpx;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(4px);
+    padding: 8rpx 16rpx 2rpx 24rpx; // 极限压缩顶部与底部内边距
+    background: transparent; // 移除毛玻璃背景
     
     .header-left {
       display: flex;
@@ -51,15 +47,16 @@
     }
 
     .card-label {
-      font-size: 22rpx;
+      font-size: 20rpx; // 缩小标签
       font-weight: var(--weight-bold);
-      letter-spacing: 0.08em;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
+      opacity: 0.8;
     }
   }
 
   .card-body {
-    padding: 24rpx 24rpx 24rpx 32rpx;
+    padding: 4rpx 16rpx 12rpx 24rpx; // 压缩内边距
     
     .card-title-row {
       display: flex;
@@ -69,35 +66,36 @@
     }
 
     .card-title {
-      font-size: 32rpx;
-      font-weight: var(--weight-bold);
+      font-size: 30rpx; // 缩小字号
+      font-weight: var(--weight-medium); // 降低字重
       color: var(--color-ink);
       font-family: var(--font-english-serif), serif;
-      letter-spacing: -0.01em;
+      letter-spacing: 0;
       line-height: 1.4;
+      transition: color 0.3s ease;
     }
 
     .card-phonetic {
-      font-size: 24rpx;
-      color: var(--text-sub);
+      font-size: 22rpx;
+      color: var(--text-muted);
       font-style: italic;
       font-family: var(--font-english-sans), sans-serif;
     }
 
     .tag-badge {
-      font-size: 20rpx;
-      padding: 4rpx 12rpx;
-      border-radius: 6rpx;
-      background: rgba(0, 0, 0, 0.05);
-      color: var(--text-sub);
-      font-weight: var(--weight-medium);
+      font-size: 18rpx;
+      padding: 2rpx 10rpx;
+      border-radius: 4rpx;
+      background: rgba(0, 0, 0, 0.03);
+      color: var(--text-muted);
+      font-weight: var(--weight-normal);
     }
   }
 
   .card-content-wrapper {
-    margin-top: 24rpx;
-    padding-top: 24rpx;
-    border-top: 1rpx dashed rgba(0, 0, 0, 0.08);
+    margin-top: 16rpx;
+    padding-top: 20rpx;
+    border-top: 1rpx dashed rgba(0, 0, 0, 0.06); // 极弱的分隔线
   }
 
   .card-content {
@@ -118,11 +116,10 @@
       line-height: 1.6;
       display: block;
       margin-bottom: 32rpx;
-      padding: 20rpx 24rpx;
-      background: rgba(255, 255, 255, 0.5);
+      padding: 16rpx 24rpx;
+      background: rgba(0, 0, 0, 0.02); // 替换原来的白底为极其微弱的灰底
       border-radius: var(--radius-sm);
-      font-family: var(--font-sans); // 摘要使用无衬线体保持现代感
-      border: 1rpx solid rgba(0, 0, 0, 0.02);
+      font-family: var(--font-sans);
     }
   }
 
@@ -132,70 +129,68 @@
 
     .step-item {
       display: flex;
-      gap: 24rpx;
+      gap: 20rpx;
     }
 
     .step-dot-line {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 48rpx;
+      width: 40rpx;
       flex-shrink: 0;
     }
 
     .step-dot {
-      width: 42rpx;
-      height: 42rpx;
-      border-radius: 12rpx;
-      background: var(--sentence-accent);
+      width: 36rpx;
+      height: 36rpx;
+      border-radius: 10rpx;
+      background: color-mix(in srgb, var(--sentence-accent), transparent 20%);
       color: var(--color-white);
-      font-size: 22rpx;
+      font-size: 20rpx;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: var(--weight-bold);
-      font-family: var(--font-mono); // 序号使用等宽字体
-      box-shadow: 0 4rpx 8rpx rgba(var(--sentence-accent-rgb), 0.2);
+      font-family: var(--font-mono);
       z-index: 1;
     }
 
     .step-line {
       flex: 1;
-      width: 4rpx;
-      background: color-mix(in srgb, var(--sentence-accent), transparent 70%);
+      width: 3rpx;
+      background: color-mix(in srgb, var(--sentence-accent), transparent 85%);
       margin: 8rpx 0;
       border-radius: 2rpx;
     }
 
     .step-content {
       flex: 1;
-      padding-bottom: 36rpx;
+      padding-bottom: 32rpx;
     }
 
     .step-label {
       display: inline-block;
-      font-size: 22rpx;
+      font-size: 20rpx;
       font-weight: var(--weight-bold);
-      color: var(--sentence-label);
-      background: color-mix(in srgb, var(--sentence-accent), transparent 92%);
-      padding: 4rpx 16rpx;
-      border-radius: 6rpx;
-      margin-bottom: 12rpx;
+      color: var(--text-sub);
+      background: transparent; // 移除背景色
+      padding: 0;
+      margin-bottom: 8rpx;
       font-family: var(--font-sans);
+      opacity: 0.8;
     }
 
     .step-text {
       display: block;
-      font-size: 32rpx; // 略微增大英文解析块字号
+      font-size: 30rpx;
       color: var(--color-ink);
       line-height: 1.5;
-      font-family: var(--font-english-serif), serif; // 核心英文使用衬线体
+      font-family: var(--font-english-serif), serif;
       font-variant-numeric: oldstyle-nums;
-      background: var(--color-white);
-      padding: 20rpx 24rpx;
-      border-radius: var(--radius-sm);
-      border: 1rpx solid rgba(0, 0, 0, 0.04);
-      box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.03);
+      background: transparent; // 移除卡片化背景
+      padding: 0;
+      border: none; // 移除边框
+      box-shadow: none; // 移除阴影
     }
   }
 
@@ -210,13 +205,40 @@
     }
     
     &.show {
-      max-height: 2000rpx; // 足够大的高度支持长解析
+      max-height: 2000rpx;
       opacity: 1;
     }
   }
 
+  // --- Dynamic States ---
   &.collapsed {
-    .card-body { padding-bottom: 24rpx; }
-    &:active { transform: scale(0.99); opacity: 0.95; }
+    margin-top: 4rpx; // 折叠时几乎贴在一起
+    
+    &::before {
+      top: 18rpx;
+      bottom: 18rpx;
+      width: 4rpx; // 折叠时色条变细
+      opacity: 0.3; // 进一步弱化色彩
+    }
+    
+    .card-body { 
+      padding-bottom: 8rpx; 
+    }
+    
+    .card-title {
+      color: var(--text-sub); // 标题变灰，减弱视觉重量
+    }
+    
+    &:active { transform: scale(0.99); opacity: 0.8; }
+  }
+  
+  &.expanded {
+    background: rgba(0, 0, 0, 0.015); // 展开时增加极其微弱的底板以承载内容
+    margin-bottom: 24rpx; // 展开时撑开底部空间
+    margin-top: 16rpx;
+    
+    &::before {
+      opacity: 0.8;
+    }
   }
 }

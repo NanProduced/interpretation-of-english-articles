@@ -245,72 +245,119 @@ const ParagraphBlock = memo(function ParagraphBlock({
     )
   }
 
+  // --- Intensive Mode Chunking Logic ---
+  const sentenceDataList = sentences.map(sentence => {
+    const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
+    const sentenceEntries = entriesBySentenceId.get(sentence.sentenceId) || []
+    const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
+
+    const analysisCards: (AnalysisCardProps & { id: string })[] = [
+      ...sentenceEntries
+        .filter(e => e.entryType === 'grammar_note')
+        .map(e => ({
+          id: e.id,
+          type: 'grammar' as const,
+          title: e.title || e.label,
+          label: '语法要点',
+          content: e.content,
+        })),
+      ...sentenceEntries
+        .filter(e => e.entryType === 'sentence_analysis')
+        .map(e => ({
+          id: e.id,
+          type: 'sentence' as const,
+          title: e.label,
+          label: '句式解析',
+          content: e.content,
+        })),
+    ]
+
+    return { sentence, sentenceMarks, sentenceTranslation, analysisCards }
+  })
+
+  // 将没有解析卡片的连续句子合并为一个 Chunk
+  const chunks: { id: string; hasCards: boolean; items: typeof sentenceDataList }[] = []
+  let currentChunk: typeof chunks[0] | null = null
+
+  sentenceDataList.forEach(item => {
+    if (item.analysisCards.length > 0) {
+      // 有卡片的句子必须独立成块
+      chunks.push({ id: item.sentence.sentenceId, hasCards: true, items: [item] })
+      currentChunk = null
+    } else {
+      // 没有卡片的句子合并到当前的无卡片块中
+      if (!currentChunk || currentChunk.hasCards) {
+        currentChunk = { id: `chunk-${item.sentence.sentenceId}`, hasCards: false, items: [] }
+        chunks.push(currentChunk)
+      }
+      currentChunk.items.push(item)
+    }
+  })
+
   return (
     <View className='paragraph-block intensive'>
-      {sentences.map((sentence) => {
-        const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
-        const sentenceEntries = entriesBySentenceId.get(sentence.sentenceId) || []
-        const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
+      {chunks.map((chunk) => {
+        if (chunk.hasCards) {
+          const item = chunk.items[0]
+          return (
+            <View key={chunk.id} className='sentence-block'>
+              <View className='sentence-main'>
+                <Text className='english-flow'>
+                  {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false)}
+                </Text>
+              </View>
 
-        // 收集解析卡片
-        const analysisCards: (AnalysisCardProps & { id: string })[] = [
-          // 2. 语法卡片 (从 sentenceEntries 筛选)
-          ...sentenceEntries
-            .filter(e => e.entryType === 'grammar_note')
-            .map(e => ({
-              id: e.id,
-              type: 'grammar' as const,
-              title: e.title || e.label,
-              label: '语法要点',
-              content: e.content,
-              phonetic: undefined,
-              tags: undefined,
-            })),
-          // 3. 句式卡片 (从 sentenceEntries 筛选)
-          ...sentenceEntries
-            .filter(e => e.entryType === 'sentence_analysis')
-            .map(e => ({
-              id: e.id,
-              type: 'sentence' as const,
-              title: e.label,
-              label: '句式解析',
-              content: e.content,
-              phonetic: undefined,
-              tags: undefined,
-            })),
-        ]
+              {item.sentenceTranslation && (
+                <View className='sentence-translation'>
+                  <Text className='translation-text'>{item.sentenceTranslation}</Text>
+                </View>
+              )}
 
-        return (
-          <View key={sentence.sentenceId} className='sentence-block'>
-            <View className='sentence-main'>
-              <Text className='english-flow'>
-                {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false)}
-              </Text>
+              {item.analysisCards.length > 0 && (
+                <View className='analysis-cards-list'>
+                  {item.analysisCards.map((card, idx) => (
+                    <AnalysisCard
+                      key={(card as any).id ?? idx}
+                      type={card.type}
+                      title={card.title}
+                      label={card.label}
+                      content={card.content}
+                      phonetic={card.phonetic}
+                      tags={card.tags}
+                    />
+                  ))}
+                </View>
+              )}
             </View>
+          )
+        } else {
+          // 合并渲染无卡片的句子
+          const mergedTranslation = chunk.items
+            .map(i => i.sentenceTranslation)
+            .filter(Boolean)
+            .join(' ')
 
-            {sentenceTranslation && (
-              <View className='sentence-translation'>
-                <Text className='translation-text'>{sentenceTranslation}</Text>
+          return (
+            <View key={chunk.id} className='sentence-block chunk-merged'>
+              <View className='sentence-main'>
+                <Text className='english-flow'>
+                  {chunk.items.map((item, idx) => (
+                    <Text key={item.sentence.sentenceId} className='sentence-span'>
+                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false)}
+                      {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
+                    </Text>
+                  ))}
+                </Text>
               </View>
-            )}
 
-            {analysisCards.length > 0 && (
-              <View className='analysis-cards-list'>
-                {analysisCards.map((card, idx) => (
-                  <AnalysisCard
-                    key={(card as any).id ?? idx}
-                    type={card.type}
-                    title={card.title}
-                    label={card.label}
-                    content={card.content}
-                    phonetic={card.phonetic}
-                    tags={card.tags}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        )
+              {mergedTranslation && (
+                <View className='sentence-translation merged'>
+                  <Text className='translation-text'>{mergedTranslation}</Text>
+                </View>
+              )}
+            </View>
+          )
+        }
       })}
     </View>
   )

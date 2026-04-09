@@ -22,9 +22,11 @@
 
   // --- Intensive Mode (精雕细琢解析) ---
   &.intensive {
+    margin-bottom: 100rpx; // 显著增加段落间距，恢复文章的章节感
+
     .sentence-block {
-      margin-bottom: 56rpx;
-      padding-bottom: 48rpx;
+      margin-bottom: 48rpx;
+      padding-bottom: 40rpx;
       border-bottom: 1rpx solid var(--border-light);
 
       &:last-child {
@@ -32,10 +34,19 @@
         margin-bottom: 0;
         padding-bottom: 0;
       }
+      
+      &.chunk-merged {
+        padding-bottom: 32rpx;
+        margin-bottom: 40rpx;
+        
+        .sentence-translation.merged {
+          margin-bottom: 0; // 无卡片时，翻译即为区块终点
+        }
+      }
     }
 
     .sentence-main {
-      margin-bottom: 24rpx;
+      margin-bottom: 12rpx; // 让英文与下方的翻译紧密贴合
     }
 
     .english-flow {
@@ -48,17 +59,16 @@
     }
 
     .sentence-translation {
-      margin-bottom: 32rpx;
-      background: rgba(var(--border-color), 0.02);
-      padding: 16rpx 24rpx;
-      border-radius: var(--radius-sm);
-      border-left: 6rpx solid var(--border-light);
+      margin-bottom: 24rpx; // 与下方解析卡片的距离
+      // 彻底去除冗余的背景与边框，回归极简纯文本排版
       
       .translation-text {
         font-size: 28rpx;
         line-height: 1.6;
-        color: var(--text-sub);
+        color: var(--text-muted); // 统一使用弱化颜色，确保英文主体地位
         font-weight: var(--weight-normal);
+        font-family: var(--font-sans);
+        letter-spacing: 0.01em;
       }
     }
 

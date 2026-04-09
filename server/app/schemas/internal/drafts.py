@@ -1,19 +1,14 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal
-
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from app.schemas.internal.analysis import (
     BASE_MODEL_CONFIG,
-    Chunk,
     ContextGloss,
-    ExamTag,
     GrammarNote,
     PhraseGloss,
     SentenceAnalysis,
     SentenceTranslation,
-    SpanRef,
     VocabHighlight,
 )
 
