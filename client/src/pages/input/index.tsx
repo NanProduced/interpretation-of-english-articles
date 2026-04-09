@@ -8,6 +8,7 @@ import { saveDraft, getDraft, clearDraft } from '../../services/storage'
 import { track } from '../../services/analytics'
 import LucideIcon from '../../components/LucideIcon'
 import NavBar from '../../components/NavBar'
+import BottomSheetSelect from '../../components/BottomSheetSelect'
 import { READING_CONFIG_MAP, getDisplayLabel, getApiParams, ReadingGoal } from '../../config/purpose'
 import './index.scss'
 
@@ -16,6 +17,7 @@ export default function InputPage() {
   const [isFocused, setIsFocused] = useState(false)
   const [clipboardContent, setClipboardContent] = useState('')
   const [showClipboardBubble, setShowClipboardBubble] = useState(false)
+  const [showModeSheet, setShowModeSheet] = useState(false)
   
   // 从 Store 获取默认配置
   const { purpose, level } = useConfigStore()
@@ -95,36 +97,11 @@ export default function InputPage() {
   }
 
   const handleModeChange = () => {
-    // 简单的临时修改方案：弹出操作菜单
-    const goals = Object.keys(READING_CONFIG_MAP) as ReadingGoal[]
-    const goalLabels = goals.map(g => READING_CONFIG_MAP[g].label)
-    
-    Taro.showActionSheet({
-      itemList: goalLabels,
-      success: (res) => {
-        const selectedGoal = goals[res.tapIndex]
-        const config = READING_CONFIG_MAP[selectedGoal]
-        
-        if (config.variants) {
-          // 如果有变体，进一步选择变体
-          const variantLabels = config.variants.map(v => v.label)
-          Taro.showActionSheet({
-            itemList: variantLabels,
-            success: (vRes) => {
-              setTempConfig({
-                purpose: selectedGoal,
-                level: config.variants![vRes.tapIndex].value
-              })
-            }
-          })
-        } else {
-          setTempConfig({
-            purpose: selectedGoal,
-            level: config.defaultVariant
-          })
-        }
-      }
-    })
+    setShowModeSheet(true)
+  }
+
+  const handleModeSelect = (goal: ReadingGoal, level: string | null) => {
+    setTempConfig({ purpose: goal, level })
   }
 
   const handleSubmit = () => {
@@ -222,6 +199,15 @@ export default function InputPage() {
           <LucideIcon name='sparkles' size={18} color='#fff' />
         </View>
       </View>
+
+      {/* 自定义 BottomSheet 选择分析模式 */}
+      <BottomSheetSelect
+        visible={showModeSheet}
+        currentGoal={tempConfig.purpose}
+        currentLevel={tempConfig.level}
+        onClose={() => setShowModeSheet(false)}
+        onSelect={handleModeSelect}
+      />
     </View>
   )
 }
