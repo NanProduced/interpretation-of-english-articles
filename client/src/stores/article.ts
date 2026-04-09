@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { fetchAnalyze, AnalyzeRequest } from '../services/api'
 import { analyzeResponseDtoToVm } from '../services/api/adapters/render-scene.adapter'
+import { normalizeServerAnalyzeParams } from '../config/purpose'
 import {
   RenderSceneVm,
   ResultPageState,
@@ -87,10 +88,21 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
   isReplayMode: false,
 
   analyze: async (params: AnalyzeRequest) => {
-    set({ phase: 'loading', error: null, errorCode: null, requestParams: params, isReplayMode: false })
+    const normalizedRequest = {
+      ...params,
+      ...normalizeServerAnalyzeParams(params.reading_goal, params.reading_variant),
+    } as AnalyzeRequest
+
+    set({
+      phase: 'loading',
+      error: null,
+      errorCode: null,
+      requestParams: normalizedRequest,
+      isReplayMode: false,
+    })
 
     try {
-      const dto = await fetchAnalyze(params)
+      const dto = await fetchAnalyze(normalizedRequest)
       // 调试日志：确认后端返回的原始数据结构
       console.log('[article] analyze dto received:', {
         hasData: !!dto,
@@ -109,10 +121,10 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       const recordId = generateRecordId()
       const record: AnalysisRecord = {
         recordId,
-        sourceText: params.text,
+        sourceText: normalizedRequest.text,
         requestPayload: {
-          reading_goal: params.reading_goal,
-          reading_variant: params.reading_variant,
+          reading_goal: normalizedRequest.reading_goal,
+          reading_variant: normalizedRequest.reading_variant,
           source_type: 'user_input',
         },
         renderScene: vm,
@@ -146,10 +158,10 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       const recordId = generateRecordId()
       const record: AnalysisRecord = {
         recordId,
-        sourceText: params.text,
+        sourceText: normalizedRequest.text,
         requestPayload: {
-          reading_goal: params.reading_goal,
-          reading_variant: params.reading_variant,
+          reading_goal: normalizedRequest.reading_goal,
+          reading_variant: normalizedRequest.reading_variant,
           source_type: 'user_input',
         },
         renderScene: null,
@@ -180,8 +192,10 @@ export const useArticleStore = create<ArticleState>((set, get) => ({
       sceneData: record.renderScene,
       requestParams: record.sourceText ? {
         text: record.sourceText,
-        reading_goal: record.requestPayload.reading_goal,
-        reading_variant: record.requestPayload.reading_variant,
+        ...normalizeServerAnalyzeParams(
+          record.requestPayload.reading_goal,
+          record.requestPayload.reading_variant
+        ),
         source_type: 'user_input',
       } : null,
       recordId,

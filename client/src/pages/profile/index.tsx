@@ -73,8 +73,14 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   }, [isLoggedIn, loadStats])
 
   const handleLogin = async () => {
-    const success = await ensureLoggedIn()
-    if (success) {
+    // 立即设置标志，防止 app.tsx restore 和 handleLogin 重复触发跳转
+    ;(Taro as any)._navigatingToOnboarding = true
+    const result = await ensureLoggedIn()
+    if (result.success) {
+      // 首次登录（未设置过用户配置），跳转 onboarding
+      if (result.isFirstLogin) {
+        Taro.navigateTo({ url: '/pages/onboarding/index' })
+      }
       // ensureLoggedIn 成功后 auth store 已更新，useEffect 会自动触发 loadStats
     }
   }
@@ -109,14 +115,20 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     {
       title: "学习管理",
       items: [
-        { 
-          label: "当前模式配置", 
-          value: getDisplayLabel(purpose as ReadingGoal, level), 
-          icon: 'settings', 
-          url: '/pages/onboarding/index', 
-          color: 'blue' 
+        {
+          label: "当前模式配置",
+          value: getDisplayLabel(purpose as ReadingGoal, level),
+          icon: 'settings',
+          url: '/pages/onboarding/index',
+          color: 'blue',
         },
-        { label: "我的生词本", value: wordCount > 0 ? `${wordCount}词` : "暂无生词", icon: 'bookmark', color: 'yellow' },
+        {
+          label: "我的生词本",
+          value: wordCount > 0 ? `${wordCount}词` : "暂无生词",
+          icon: 'bookmark',
+          url: '/pages/history/index',
+          color: 'yellow',
+        },
       ]
     },
     {
@@ -132,6 +144,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     if (item.url) {
       Taro.navigateTo({ url: item.url })
     }
+    // 无 url 的项（如"当前模式配置"）为纯信息展示，不触发导航
   }
 
   const displayName = userInfo?.nickname || (isLoggedIn ? `用户 ${(userInfo?.user_id || '').slice(0, 8)}` : '未登录')
@@ -215,7 +228,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                     </View>
                     <View className='item-right'>
                       {item.value && <Text className='value-tag'>{item.value}</Text>}
-                      <LucideIcon name='chevronRight' size={16} color='#ccc' />
+                      {item.url && <LucideIcon name='chevronRight' size={16} color='#ccc' />}
                     </View>
                   </View>
                 ))}

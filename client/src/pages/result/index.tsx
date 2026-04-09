@@ -79,7 +79,7 @@ export default function Result() {
     if (pageState === 'loading') {
       interval = setInterval(() => {
         setLoadingStep(s => (s + 1) % 5) // 5 is the length of loadingSteps in render
-      }, 2500)
+      }, 2000)
     }
     return () => clearInterval(interval)
   }, [pageState])
@@ -120,7 +120,7 @@ export default function Result() {
   }, [recordId])
   useEffect(() => {
     if (pageState === 'loading') {
-      const timer = setTimeout(() => setShowSecondaryMessage(true), 5000)
+      const timer = setTimeout(() => setShowSecondaryMessage(true), 4000)
       return () => clearTimeout(timer)
     } else {
       setShowSecondaryMessage(false)
@@ -285,7 +285,7 @@ export default function Result() {
           <Text className='state-title'>{loadingSteps[loadingStep]}</Text>
           <Text className='state-subtitle'>AI 正在分析并生成解读内容</Text>
           {showSecondaryMessage && (
-            <Text className='state-subtitle-secondary'>请稍候，长文章需要较多计算时间</Text>
+            <Text className='state-subtitle-secondary'>内容较长，可以喝杯咖啡稍等</Text>
           )}
         </View>
       </View>
@@ -421,7 +421,7 @@ export default function Result() {
           </View>
           <View className='primary-action' onClick={handleRetry}>
             <LucideIcon name='refresh-cw' size={18} color='#fff' />
-            <Text>继续分析</Text>
+            <Text>再分析一篇</Text>
           </View>
         </View>
       </View>

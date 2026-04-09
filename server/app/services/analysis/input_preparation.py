@@ -762,9 +762,10 @@ def sanitize_text(source_text: str) -> tuple[str, SanitizeReport]:
     text = CONTROL_CHAR_PATTERN.sub("", text)
 
     # 10. 空格与换行归一化
+    # Preserve blank lines so paragraph boundaries survive into layer5_split().
     lines = [MULTISPACE_PATTERN.sub(" ", ln).strip() for ln in text.split("\n")]
-    cleaned = "\n".join(ln for ln in lines if ln).strip()
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = "\n".join(lines)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
     if cleaned != text:
         actions.append("collapse_spaces")
 

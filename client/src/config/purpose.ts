@@ -59,6 +59,12 @@ export const READING_CONFIG_MAP: Record<ReadingGoal, PurposeOption> = {
   }
 };
 
+const SERVER_GOAL_TO_UI_GOAL: Record<string, ReadingGoal> = {
+  exam: 'exam',
+  daily_reading: 'daily',
+  academic: 'academic',
+};
+
 const LEGACY_VARIANT_ALIASES: Record<string, ReadingVariant> = {
   cet4: 'cet',
   cet6: 'cet',
@@ -106,4 +112,12 @@ export const getApiParams = (goal: ReadingGoal, variant?: string | null) => {
     reading_goal: config.serverGoal,
     reading_variant: normalizeVariantForGoal(goal, variant)
   };
+};
+
+export const normalizeServerAnalyzeParams = (
+  readingGoal: string,
+  readingVariant?: string | null
+) => {
+  const goal = SERVER_GOAL_TO_UI_GOAL[readingGoal] || 'daily';
+  return getApiParams(goal, readingVariant);
 };

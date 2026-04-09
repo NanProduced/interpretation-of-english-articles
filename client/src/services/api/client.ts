@@ -23,6 +23,25 @@ export class ApiError extends Error {
   }
 }
 
+function extractApiErrorMessage(statusCode: number, responseData: unknown): string {
+  if (!responseData || typeof responseData !== 'object') {
+    return `请求失败: ${statusCode}`
+  }
+
+  const detail = (responseData as any).detail
+  if (typeof detail === 'string' && detail.trim()) {
+    return `请求失败: ${statusCode} - ${detail}`
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    const firstDetail = detail[0]
+    if (typeof firstDetail?.msg === 'string') {
+      return `请求失败: ${statusCode} - ${firstDetail.msg}`
+    }
+  }
+
+  return `请求失败: ${statusCode}`
+}
+
 /** 请求选项 */
 interface RequestOptions {
   url: string
@@ -59,7 +78,7 @@ export async function request<T>(options: RequestOptions): Promise<T> {
 
     if (statusCode >= 400) {
       throw new ApiError(
-        `请求失败: ${statusCode}`,
+        extractApiErrorMessage(statusCode, responseData),
         'HTTP_ERROR',
         statusCode,
         responseData

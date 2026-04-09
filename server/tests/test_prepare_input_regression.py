@@ -424,6 +424,16 @@ def test_paragraph_span_exact_mapping() -> None:
         )
 
 
+def test_crlf_blank_line_preserves_two_paragraphs() -> None:
+    """CRLF blank lines must survive sanitization so paragraphs do not merge."""
+    result = prepare_input("First paragraph.\r\n\r\nSecond paragraph.")
+
+    assert result.render_text == "First paragraph.\n\nSecond paragraph."
+    assert len(result.paragraphs) == 2, [p.text for p in result.paragraphs]
+    assert result.paragraphs[0].text == "First paragraph."
+    assert result.paragraphs[1].text == "Second paragraph."
+
+
 def test_heading_line_is_split_from_first_body_sentence() -> None:
     """
     A short heading line followed by prose should not be merged into the first

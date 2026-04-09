@@ -146,7 +146,9 @@
       "Bash(mypy app/services/analysis/input_preparation.py app/schemas/internal/analysis.py --ignore-missing-import)",
       "Bash(find . -name \"*.pyc\" -delete)",
       "Bash(find . -name \"__pycache__\" -type d -exec rm -rf {} +)",
-      "mcp__zai-mcp-server__analyze_image"
+      "mcp__zai-mcp-server__analyze_image",
+      "mcp__plugin_everything-claude-code_context7__resolve-library-id",
+      "mcp__plugin_everything-claude-code_context7__query-docs"
     ]
   }
 }

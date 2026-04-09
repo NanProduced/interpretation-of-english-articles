@@ -11,7 +11,17 @@ const INTERRUPTED_STATE_KEY = 'analysis_interrupted'
 function App({ children }: PropsWithChildren<any>) {
   // 启动时恢复认证状态
   useEffect(() => {
-    useAuthStore.getState().restore()
+    const restoreState = async () => {
+      await useAuthStore.getState().restore()
+      if ((Taro as any)._navigatingToOnboarding) return
+      ;(Taro as any)._navigatingToOnboarding = true
+      // restore 完成后检查是否首次登录（已登录但未设置过用户配置）→ 跳转 onboarding
+      const { isLoggedIn } = useAuthStore.getState()
+      if (isLoggedIn && !Taro.getStorageSync('user_configured')) {
+        Taro.navigateTo({ url: '/pages/onboarding/index' })
+      }
+    }
+    restoreState()
   }, [])
 
   // 处理小程序切前台/后台事件
