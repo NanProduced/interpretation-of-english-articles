@@ -96,12 +96,15 @@ export default function Result() {
 
   // === 回看模式：URL 带有 recordId 时从 storage 加载 ===
   useEffect(() => {
+    // 每次页面挂载时都检查 replay 参数，确保不会因为旧 state 导致闪现旧结果
     const pages = Taro.getCurrentPages()
     const current = pages[pages.length - 1]
     const params = (current as any).options || {}
     const { recordId: urlRecordId, mode } = params
 
     if (mode === 'replay' && urlRecordId) {
+      // 进入回看模式前先重置，避免旧数据闪现
+      useArticleStore.getState().reset()
       loadRecord(urlRecordId)
     }
   }, [loadRecord])
@@ -220,9 +223,9 @@ export default function Result() {
       track('retry', { pageState })
       useArticleStore.getState().analyze(requestParams)
     } else {
-      // success (normal/degraded): 返回输入页
+      // success (normal/degraded): 重置状态，跳转到输入页继续分析新的文本
       reset()
-      Taro.navigateBack()
+      Taro.redirectTo({ url: '/pages/input/index' })
     }
   }
 
@@ -418,7 +421,7 @@ export default function Result() {
           </View>
           <View className='primary-action' onClick={handleRetry}>
             <LucideIcon name='refresh-cw' size={18} color='#fff' />
-            <Text>重新分析</Text>
+            <Text>继续分析</Text>
           </View>
         </View>
       </View>

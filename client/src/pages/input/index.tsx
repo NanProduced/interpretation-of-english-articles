@@ -117,6 +117,8 @@ export default function InputPage() {
       is_temporary_config: tempConfig.purpose !== purpose || tempConfig.level !== level
     })
     clearDraft()
+    // 重置状态，确保进入 Result 页时一定显示 loading，避免闪现旧结果
+    useArticleStore.getState().reset()
     analyze({
       text: content,
       reading_goal: reading_goal as any,
@@ -124,7 +126,8 @@ export default function InputPage() {
       source_type: 'user_input',
       extended: false,
     })
-    Taro.navigateTo({ url: '/pages/result/index' })
+    // redirectTo 销毁当前页，防止用户通过返回键回到未重置的 Input 页
+    Taro.redirectTo({ url: '/pages/result/index' })
   }
 
   return (

@@ -1,7 +1,17 @@
 export type ReadingGoal = 'exam' | 'academic' | 'daily';
+export type ServerReadingGoal = 'exam' | 'daily_reading' | 'academic';
+export type ReadingVariant =
+  | 'gaokao'
+  | 'cet'
+  | 'gre'
+  | 'ielts_toefl'
+  | 'beginner_reading'
+  | 'intermediate_reading'
+  | 'intensive_reading'
+  | 'academic_general';
 
 export interface VariantOption {
-  value: string; // This matches the reading_variant expected by the server
+  value: ReadingVariant; // This matches the reading_variant expected by the server
   label: string;
 }
 
@@ -9,8 +19,8 @@ export interface PurposeOption {
   label: string;
   description: string;
   icon: string;
-  serverGoal: string; // This matches the reading_goal expected by the server
-  defaultVariant: string;
+  serverGoal: ServerReadingGoal; // This matches the reading_goal expected by the server
+  defaultVariant: ReadingVariant;
   variants?: VariantOption[];
 }
 
@@ -49,16 +59,40 @@ export const READING_CONFIG_MAP: Record<ReadingGoal, PurposeOption> = {
   }
 };
 
+const LEGACY_VARIANT_ALIASES: Record<string, ReadingVariant> = {
+  cet4: 'cet',
+  cet6: 'cet',
+  kaoyan: 'gre',
+  ielts: 'ielts_toefl',
+  toefl: 'ielts_toefl',
+  beginner: 'beginner_reading',
+  intermediate: 'intermediate_reading',
+  advanced: 'intensive_reading',
+};
+
+export const normalizeVariantForGoal = (
+  goal: ReadingGoal,
+  variant?: string | null
+): ReadingVariant => {
+  const config = READING_CONFIG_MAP[goal];
+  const candidate =
+    (variant && LEGACY_VARIANT_ALIASES[variant]) ||
+    (variant as ReadingVariant | null) ||
+    config.defaultVariant;
+  const allowedVariants = config.variants?.map((item) => item.value) || [config.defaultVariant];
+  return allowedVariants.includes(candidate) ? candidate : config.defaultVariant;
+};
+
 /**
  * 获取显示的标签文本
  */
 export const getDisplayLabel = (goal: ReadingGoal, variant?: string | null) => {
   const config = READING_CONFIG_MAP[goal];
   if (!config) return '未知模式';
-  
-  const currentVariant = variant || config.defaultVariant;
+
+  const currentVariant = normalizeVariantForGoal(goal, variant);
   if (!config.variants) return config.label;
-  
+
   const variantLabel = config.variants.find(v => v.value === currentVariant)?.label;
   return variantLabel ? `${config.label} (${variantLabel})` : config.label;
 };
@@ -70,6 +104,6 @@ export const getApiParams = (goal: ReadingGoal, variant?: string | null) => {
   const config = READING_CONFIG_MAP[goal];
   return {
     reading_goal: config.serverGoal,
-    reading_variant: variant || config.defaultVariant
+    reading_variant: normalizeVariantForGoal(goal, variant)
   };
 };

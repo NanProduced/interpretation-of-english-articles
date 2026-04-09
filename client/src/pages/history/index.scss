@@ -1,6 +1,10 @@
 .history-page {
   background-color: var(--color-bg);
   min-height: 100vh;
+  width: 100%;
+  max-width: 750rpx;
+  overflow: hidden;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
 
@@ -32,7 +36,10 @@
 
   .list-area {
     flex: 1;
+    width: 100%;
+    overflow: hidden;
     padding: 0 48rpx;
+    box-sizing: border-box;
     
     .history-card {
       background-color: #fff;

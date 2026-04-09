@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useConfigStore, UserPurpose } from '../../stores/config'
+import { READING_CONFIG_MAP } from '../../config/purpose'
 import './index.scss'
 
 export default function Onboarding() {
@@ -43,20 +44,9 @@ export default function Onboarding() {
     { id: 'academic', title: '学术/专业阅读', desc: '论文、行业报告、技术文档', icon: 'grad' },
   ]
 
-  const levelsMap: Record<string, { id: string; label: string }[]> = {
-    exam: [
-      { id: 'gaokao', label: '高考英语' },
-      { id: 'cet4', label: 'CET-4 四级' },
-      { id: 'cet6', label: 'CET-6 六级' },
-      { id: 'kaoyan', label: '考研英语' },
-      { id: 'ielts', label: '雅思 IELTS' },
-      { id: 'toefl', label: '托福 TOEFL' },
-    ],
-    daily: [
-      { id: 'beginner', label: '刚开始读英文文章' },
-      { id: 'intermediate', label: '能读大部分但有些词不认识' },
-      { id: 'advanced', label: '想精读提升，攻克长难句' },
-    ],
+  const levelsMap = {
+    exam: READING_CONFIG_MAP.exam.variants || [],
+    daily: READING_CONFIG_MAP.daily.variants || [],
   }
 
   return (
@@ -90,7 +80,10 @@ export default function Onboarding() {
                   <View
                     key={p.id}
                     className={`option-card ${isSelected ? 'selected' : ''}`}
-                    onClick={() => setPurpose(p.id as UserPurpose)}
+                    onClick={() => {
+                      setPurpose(p.id as UserPurpose)
+                      setLevel(null)
+                    }}
                   >
                     <View className='icon-circle'>
                       <View className={`icon-${p.icon}`} />
@@ -115,12 +108,12 @@ export default function Onboarding() {
 
             <View className='level-list'>
               {(purpose && purpose !== 'academic' ? levelsMap[purpose] : []).map((l) => {
-                const isSelected = level === l.id
+                const isSelected = level === l.value
                 return (
                   <View
-                    key={l.id}
+                    key={l.value}
                     className={`level-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => setLevel(l.id)}
+                    onClick={() => setLevel(l.value)}
                   >
                     <Text className='level-label'>{l.label}</Text>
                   </View>
