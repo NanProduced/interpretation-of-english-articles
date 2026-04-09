@@ -8,6 +8,7 @@ import ParagraphBlock, { type WordClickPayload } from '../../components/Paragrap
 import WordPopup from '../../components/WordPopup'
 import LucideIcon from '../../components/LucideIcon'
 import { LoadingIllustration, ErrorIllustration, EmptyIllustration } from '../../components/ResultIllustrations'
+import ActiveLoading from '../../components/ActiveLoading'
 import { useLayoutStore } from '../../stores/layout'
 import { useAuthStore } from '../../stores/auth'
 import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry, getVocabulary } from '../../services/storage'
@@ -51,7 +52,6 @@ const PAGE_STATE_MESSAGES: Record<ResultPageState, { title: string; subtitle: st
 export default function Result() {
   const { navBarHeight } = useLayoutStore()
   const [pageMode, setPageMode] = useState<PageMode>('intensive')
-  const [showSecondaryMessage, setShowSecondaryMessage] = useState(false)
   const [vocabList, setVocabList] = useState<string[]>([])
   const [wordPopup, setWordPopup] = useState<{
     visible: boolean
@@ -63,7 +63,6 @@ export default function Result() {
   }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null)
   const [selectedWord, setSelectedWord] = useState<string | null>(null)
-  const [loadingStep, setLoadingStep] = useState(0)
 
   // 从 store 获取页面状态
   const pageState = useArticleStore((s) => s.pageState)
@@ -73,16 +72,7 @@ export default function Result() {
   const recordId = useArticleStore((s) => s.recordId)
   const isReplayMode = useArticleStore((s) => s.isReplayMode)
 
-  // === 加载状态：提示语轮播 ===
-  useEffect(() => {
-    let interval: any
-    if (pageState === 'loading') {
-      interval = setInterval(() => {
-        setLoadingStep(s => (s + 1) % 5) // 5 is the length of loadingSteps in render
-      }, 2000)
-    }
-    return () => clearInterval(interval)
-  }, [pageState])
+
 
   // 收藏状态
   const [favorited, setFavorited] = useState(false)
@@ -118,14 +108,7 @@ export default function Result() {
       .map((v: { word: string }) => v.word.toLowerCase())
     setVocabList(words)
   }, [recordId])
-  useEffect(() => {
-    if (pageState === 'loading') {
-      const timer = setTimeout(() => setShowSecondaryMessage(true), 4000)
-      return () => clearTimeout(timer)
-    } else {
-      setShowSecondaryMessage(false)
-    }
-  }, [pageState])
+
 
   // === 分享能力 ===
   useShareAppMessage(() => {
@@ -271,23 +254,9 @@ export default function Result() {
   // === 状态分支 ===
 
   if (pageState === 'loading') {
-    const loadingSteps = [
-      '正在解析文章结构...',
-      '分析重点句式与语法...',
-      '智能标注高阶词汇...',
-      '同步你的阅读偏好...',
-      '生成精读解析卡片...'
-    ]
     return pageShell(
       <View className='state-container'>
-        <View className='state-vertical'>
-          <LoadingIllustration />
-          <Text className='state-title'>{loadingSteps[loadingStep]}</Text>
-          <Text className='state-subtitle'>AI 正在分析并生成解读内容</Text>
-          {showSecondaryMessage && (
-            <Text className='state-subtitle-secondary'>内容较长，可以喝杯咖啡稍等</Text>
-          )}
-        </View>
+        <ActiveLoading />
       </View>
     )
   }
