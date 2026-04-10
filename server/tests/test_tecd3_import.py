@@ -193,6 +193,151 @@ NLP_ENTRY_HTML = """
 </body></html>
 """
 
+ABBREVIATION_ENTRY_HTML = """
+<html><body>
+  <div class="eDiv" id="aar-entry">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan">AAR</span>
+        </div>
+      </div>
+      <div class="mdict-entry-nav">
+        <ul class="mdict-entry-nav-list">
+          <li class="mdict-entry-nav-item"><a class="mdict-entry-nav-link" href="#mdict-pos-1">abbr.</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="sg">
+      <a class="mdict-pos-anchor" id="mdict-pos-1" name="mdict-pos-1"></a>
+      <div class="se1">
+        <div class="sgPosDiv"><span class="posg"><span class="pos">ABBREVIATION 缩略词</span></span></div>
+        <ol class="se2g">
+          <li class="se2"><span class="df">air-to-air refueling 空中加油</span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
+DEMONSTRATIVE_PRONOUN_HTML = """
+<html><body>
+  <div class="eDiv" id="that-entry">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan">that</span>
+        </div>
+      </div>
+    </div>
+    <div class="sg">
+      <div class="se1">
+        <div class="sgPosDiv"><span class="posg"><span class="pos">DEMONSTRATIVE PRONOUN 指示代词</span></span></div>
+        <ol class="se2g">
+          <li class="se2"><span class="df">那，那个</span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
+COMBINING_FORM_NAV_HTML = """
+<html><body>
+  <div class="eDiv" id="dynamo-entry">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan">dy·na·mo-</span>
+        </div>
+      </div>
+      <div class="mdict-entry-nav">
+        <ul class="mdict-entry-nav-list">
+          <li class="mdict-entry-nav-item"><a class="mdict-entry-nav-link" href="#mdict-pos-1">comb.</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="sg">
+      <a class="mdict-pos-anchor" id="mdict-pos-1" name="mdict-pos-1"></a>
+      <div class="se1">
+        <div class="sgPosDiv"><span class="posg"><span class="pos">COMBINING FORM 组合语素</span></span></div>
+        <ol class="se2g">
+          <li class="se2"><span class="df">表示“力”“动力”</span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
+NUMBERED_NAV_POS_HTML = """
+<html><body>
+  <div class="eDiv" id="suffix-entry">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan">-wise</span>
+        </div>
+      </div>
+      <div class="mdict-entry-nav">
+        <ul class="mdict-entry-nav-list">
+          <li class="mdict-entry-nav-item"><a class="mdict-entry-nav-link" href="#mdict-pos-1">suf. 2</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="sg">
+      <a class="mdict-pos-anchor" id="mdict-pos-1" name="mdict-pos-1"></a>
+      <div class="se1">
+        <div class="sgPosDiv"><span class="posg"><span class="pos">SUFFIX 后缀</span></span></div>
+        <ol class="se2g">
+          <li class="se2"><span class="df">表示“方向”“方式”</span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
+DYNAMO_MULTI_EXAMPLE_HTML = """
+<html><body>
+  <div class="eDiv" id="dynamo-multi">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan">dy·na·mo-</span>
+        </div>
+      </div>
+      <div class="mdict-entry-nav">
+        <ul class="mdict-entry-nav-list">
+          <li class="mdict-entry-nav-item"><a class="mdict-entry-nav-link" href="#mdict-pos-1">comb.</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="sg">
+      <a class="mdict-pos-anchor" id="mdict-pos-1" name="mdict-pos-1"></a>
+      <div class="se1">
+        <div class="sgPosDiv"><span class="posg"><span class="pos">COMBINING FORM 组合语素</span></span></div>
+        <ol class="se2g se2gOne">
+          <li class="se2">
+            <span class="corrSe2FirstLine"><span class="df">表示“力”“动力”</span><br/></span>
+            <ul class="egBlock">
+              <li class="eg">
+                <exw>
+                  <a class="ex" href="entry://dynamoelectric"><i>dynamo</i>electric</a>
+                  <span class="commaSepa"></span>
+                  <a class="ex" href="entry://dynamometer"><i>dynamo</i>meter</a>
+                </exw>
+              </li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
 
 DISAMB_HTML = """
 <html><body>
@@ -328,6 +473,48 @@ def test_parse_entry_html_extracts_hidden_nlp_lookup_forms() -> None:
     assert parsed is not None
     assert parsed.primary_pos == "n."
     assert parsed.nlp_forms == ["crews", "crewing", "crewed", "crew up"]
+
+
+def test_parse_entry_html_normalizes_abbreviation_and_nav_pos_labels() -> None:
+    parsed = parse_entry_html("AAR · abbr.", ABBREVIATION_ENTRY_HTML)
+
+    assert parsed is not None
+    assert parsed.primary_pos == "abbr."
+    assert parsed.meanings_json[0]["part_of_speech"] == "abbr."
+
+
+def test_parse_entry_html_normalizes_demonstrative_pronoun_to_pron() -> None:
+    parsed = parse_entry_html("that", DEMONSTRATIVE_PRONOUN_HTML)
+
+    assert parsed is not None
+    assert parsed.primary_pos == "pron."
+    assert parsed.meanings_json[0]["part_of_speech"] == "pron."
+
+
+def test_parse_entry_html_normalizes_combining_form_nav_alias() -> None:
+    parsed = parse_entry_html("dynamo- · comb. form", COMBINING_FORM_NAV_HTML)
+
+    assert parsed is not None
+    assert parsed.primary_pos == "comb. form"
+    assert parsed.meanings_json[0]["part_of_speech"] == "comb. form"
+
+
+def test_parse_entry_html_strips_numeric_suffix_from_nav_pos_label() -> None:
+    parsed = parse_entry_html("-wise · suf.", NUMBERED_NAV_POS_HTML)
+
+    assert parsed is not None
+    assert parsed.primary_pos == "suf."
+    assert parsed.meanings_json[0]["part_of_speech"] == "suf."
+
+
+def test_parse_entry_html_preserves_multi_example_blocks() -> None:
+    parsed = parse_entry_html("dynamo- · comb. form", DYNAMO_MULTI_EXAMPLE_HTML)
+
+    assert parsed is not None
+    assert parsed.primary_pos == "comb. form"
+    assert parsed.meanings_json[0]["definitions"][0]["meaning"] == '表示"力" "动力"'
+    assert parsed.meanings_json[0]["definitions"][0]["example"] == "dynamo electric；dynamo meter"
+    assert parsed.examples_json[0]["example"] == "dynamo electric；dynamo meter"
 
 
 def test_parse_disambiguation_html_extracts_candidates() -> None:

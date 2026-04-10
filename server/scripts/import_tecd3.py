@@ -36,17 +36,45 @@ POS_LABEL_MAP: dict[str, str] = {
     "NOUN 名词": "n.",
     "ADJECTIVE 形容词": "adj.",
     "ADVERB 副词": "adv.",
+    "ABBREVIATION 缩略词": "abbr.",
     "PREPOSITION 介词": "prep.",
     "TRANSITIVE VERB 及物动词": "vt.",
     "INTRANSITIVE VERB 不及物动词": "vi.",
+    "VERB 动词": "v.",
     "PREFIX 前缀": "pref.",
+    "SUFFIX 后缀": "suf.",
     "CONJUNCTION 连词": "conj.",
     "PRONOUN 代词": "pron.",
+    "DEMONSTRATIVE PRONOUN 指示代词": "pron.",
+    "RELATIVE PRONOUN 关系代词": "pron.",
     "INTERJECTION 感叹词": "int.",
     "ARTICLE 冠词": "art.",
     "AUXILIARY VERB 助动词": "aux. v.",
+    "SUBSTITUTE VERB 替代动词": "v.",
     "MODAL VERB 情态动词": "modal v.",
     "COMBINING FORM 组合语素": "comb. form",
+    "abbr.": "abbr.",
+    "adj.": "adj.",
+    "adv.": "adv.",
+    "art.": "art.",
+    "aux.": "aux. v.",
+    "aux. v.": "aux. v.",
+    "comb.": "comb. form",
+    "comb. form": "comb. form",
+    "conj.": "conj.",
+    "int.": "int.",
+    "n.": "n.",
+    "pref.": "pref.",
+    "prep.": "prep.",
+    "pron.": "pron.",
+    "suf.": "suf.",
+    "v.": "v.",
+    "vi.": "vi.",
+    "vt.": "vt.",
+}
+
+POS_LABEL_CASEFOLD_MAP: dict[str, str] = {
+    key.casefold(): value for key, value in POS_LABEL_MAP.items()
 }
 
 TRANSLATION_MAP = str.maketrans(
@@ -181,14 +209,18 @@ def _normalize_meaning_text(value: str) -> str:
     text = _clean_text(value.translate(TRANSLATION_MAP))
     text = re.sub(r"\s*=\s*", "=", text)
     text = re.sub(r"\s*;\s*", "; ", text)
+    text = text.replace('""', '" "')
     return text
 
 
 def _normalize_pos_label(value: str | None, nav_label: str | None = None) -> str:
-    if nav_label:
-        return _clean_text(nav_label)
-    text = _clean_text(value)
-    return POS_LABEL_MAP.get(text, text)
+    for raw in (nav_label, value):
+        text = _clean_text(raw)
+        if not text:
+            continue
+        text = re.sub(r"(?<=\S)\s+\d+$", "", text)
+        return POS_LABEL_MAP.get(text, POS_LABEL_CASEFOLD_MAP.get(text.casefold(), text))
+    return ""
 
 
 def _iter_txt_entries(path: Path) -> Iterator[tuple[str, str]]:
@@ -237,9 +269,14 @@ def load_txt_records(input_dir: Path) -> dict[str, RawRecord]:
 def _extract_examples(container: Any) -> list[dict[str, str | None]]:
     examples: list[dict[str, str | None]] = []
     for block in container.select(".egBlock"):
-        example_node = block.select_one(".ex")
+        example_nodes = block.select(".ex")
         translation_node = block.select_one(".tr")
-        example = _clean_text(example_node.get_text(" ", strip=True) if example_node else "")
+        example_parts = [
+            _clean_text(node.get_text(" ", strip=True))
+            for node in example_nodes
+        ]
+        example_parts = [part for part in example_parts if part]
+        example = "；".join(dict.fromkeys(example_parts))
         translation = _clean_text(
             translation_node.get_text(" ", strip=True) if translation_node else ""
         )

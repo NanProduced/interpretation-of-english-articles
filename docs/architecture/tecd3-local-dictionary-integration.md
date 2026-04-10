@@ -1,552 +1,327 @@
-# TECD3 本地词典接入方案
+# TECD3 本地词典接入与查询策略
 
-> 文档定位：用于指导 Claread透读 以 `TECD3`（英汉大词典第三版 MDX 资源）作为 `/dict` 的本地词典真源，并完成离线解析、PostgreSQL 导入、单词卡片建模与查询接线。\
-> 生效范围：覆盖 TECD3 解析、数据库 schema、`/dict` 查询结构、前端单词卡片与底部详情弹层的字段边界。\
-> 关联主文档：[小程序联调与用户体验开发设计文档](./mini-program-integration-and-ux-design.md)
+> 文档定位：定义 Claread 透读当前 TECD3 本地词典的有效设计。  
+> 生效范围：覆盖词典数据真源、离线导入、数据库落地、`/dict` 运行时查询策略，以及后续词量扩充时需要遵守的约束。  
+> 当前结论：词典能力暂不拆独立服务，继续以 PostgreSQL 为运行时真源；同时必须同时维护好“数据库里的词库数据”和“运行时查询策略”，二者缺一不可。
 
-## 1. 背景与决策
+## 1. 当前决策
 
-当前项目已经完成：
+- 词典内容真源仍然是 `TECD3` 的 `.mdx/.mdd` 资源。
+- 运行时不直接读取 `.mdx/.mdd`，而是读取离线解析后导入 `PostgreSQL` 的结构化数据。
+- `/dict` 仍由现有 Python 后端提供，不在本阶段拆分成独立 dict service。
+- 词典优化分为两条并行主线：
+  - 数据质量：把 TECD3 内容正确转换进数据库。
+  - 查询质量：让用户点击时尽量命中“真正需要的词或短语”。
 
-- 统一 `/dict` 后端入口
-- 结果页全文点词查词
-- `WordPopup` 真实接口接线
-- 生词本本地闭环
+这意味着：
 
-旧的 `ECDICT` 方案存在一个已经确认的产品问题：
+- 只补充词量，不优化查询策略，命中率仍然会差。
+- 只优化查询策略，不修导入和结构化质量，结果仍然会脏。
 
-1. `translation` 主字段过于扁平，不适合稳定生成单词卡片
-2. 运行时临时切分释义，容易导致短释义、词性块和详情层级不稳定
-3. 查词在本项目中不是核心功能，不值得为了词典层做复杂的运行时解析和跳转式体验
+## 2. 目标
 
-因此当前词典策略调整为：
+当前词典能力的直接目标不是做完整词典浏览器，而是稳定服务下面三类场景：
 
-- `/dict` 继续只查本地数据库，不接第三方在线词典 API
-- 本地词典真源统一为 `TECD3`
-- `TECD3` 只作为离线导入源，不在运行时直接读取 `.mdx/.mdd`
-- 词典功能优先服务“单词小卡片 + 底部详情弹层”，不扩展成完整词典浏览器
+- 结果页点词查词
+- 结果页点短语查词
+- 生词本词条快照
 
-## 2. 产品目标与边界
+其中最重要的产品要求是：
 
-### 2.1 产品目标
+1. 普通单词点击后，尽量能命中正确词条。
+2. 短语点击后，优先命中完整短语，而不是被错误拆成单生词。
+3. 变形词点击后，尽量能回退到基础词形。
+4. 返回结构稳定，可直接被 `WordPopup`、详情弹层和生词本复用。
 
-本次接入只服务两个交互层：
+## 3. 词典数据真源与运行时边界
 
-1. 第一次点击普通单词时显示 mini 卡片，避免打断阅读
-2. 再次点击 mini 卡片时，打开底部详情弹层，展示稍多一点的基础释义信息
+### 3.1 真源
 
-### 2.2 明确不做
-
-本次方案不追求：
-
-- 独立词典详情页
-- 词条内继续跳转到其他词条
-- 同义词、反义词、词源学级别完整浏览
-- 复杂的词典导航、目录和歧义页交互
-- 为普通未标注单词接入 LLM 临时补释义
-
-### 2.3 与 LLM 标注层的分工
-
-词典层职责：
-
-- 提供一般性释义
-- 提供稳定词头、音标、词性、短释义、少量义项和例句
-- 服务 mini 卡片和 bottom sheet
-
-LLM 层职责：
-
-- `phrase_gloss`、`context_gloss`、`vocab_highlight` 的语境释义
-- 真正有价值的阅读解释
-- 高价值、上下文相关的补充信息
-
-统一原则：
-
-- 普通未标注单词：词典层优先
-- 带 LLM 标注的单词：词典层做基础层，LLM 做增强层
-- `phrase_gloss` 不依赖词典命中作为稳定性前提
-
-## 3. 为什么选择 TECD3
-
-### 3.1 当前已知资源
-
-当前本地资源目录：
+当前本地词典资源：
 
 - [英汉大词典（第三版）.mdx](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/.dict/Mdict/TECD3/英汉大词典（第三版）.mdx)
 - [英汉大词典（第三版）.mdd](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/.dict/Mdict/TECD3/英汉大词典（第三版）.mdd)
 - [tecd3.css](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/.dict/Mdict/TECD3/tecd3.css)
 
-### 3.2 结构优势
+### 3.2 运行时边界
 
-从 `tecd3.css` 可反推出该词典成品中存在较清晰的结构块：
+运行时统一遵守下面的边界：
 
-- 词头容器：`.hg`
-- 词头：`.hwSpan`
-- 音标：`.pr`
-- 词性：`.pos`
-- 义项列表：`.se2g`
-- 释义正文：`.df`
-- 例句块：`.egBlock`
-- 英文例句：`.ex`
-- 例句译文：`.tr`
-- 短语区：`.phrase`
-- 派生词区：`.derivative`
-- 说明区：`.noteDiv`
-- 词源区：`.etym`
+- 不直接在 `/dict` 里读取 `.mdx/.mdd`
+- 不在运行时即时解析 HTML
+- 不把词典 provider 建在前端
+- 不让小程序直接操作词典文件
 
-这意味着：
+运行时唯一真源是：
 
-- `TECD3` 更适合作为“离线结构化词卡源”
-- 解析策略可以围绕 HTML 语义块提取
-- 不需要像旧方案那样依赖扁平文本临时拼卡片
+- `PostgreSQL`
+- `/dict`
 
-## 4. 总体接入方案
+## 4. 离线导入链路
 
 ```mermaid
 flowchart LR
-  A["TECD3.mdx / TECD3.mdd"] --> B["mdict-utils 解包 / 导出"]
-  B --> C["import_tecd3.py 解析脚本"]
-  C --> D["结构化词卡 JSON"]
-  D --> E["PostgreSQL 词典表"]
-  E --> F["DictionaryService"]
-  F --> G["/dict"]
-  G --> H["Mini Card"]
-  G --> I["Bottom Sheet Detail"]
+  A["TECD3.mdx / TECD3.mdd"] --> B["mdict-utils 解包"]
+  B --> C["unpacked_mdx/*.txt"]
+  C --> D["import_tecd3.py"]
+  D --> E["dict_entries / dict_lookup_targets / dict_redirects"]
+  E --> F["/dict runtime lookup"]
 ```
 
-关键原则：
+当前链路约束：
 
-- 运行时只查 PostgreSQL
-- `mdx/mdd` 只参与离线导入
-- `mdict-utils` 作为默认的 MDX/MDD 解包与导出工具
-- 前端消费的不是原始词条 HTML，而是已经为词卡整理好的结构
+- `mdict-utils` 只参与离线解包。
+- [import_tecd3.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/scripts/import_tecd3.py) 负责结构化解析与数据库写入。
+- 数据重建时，以重新导入为准，不手工修库。
 
-## 5. 数据落地方式
+## 5. 数据库职责
 
-### 5.1 设计原则
+当前词典相关表的职责如下：
 
-这次不是做“完整词典数据库”，而是做“词卡数据库”。
+### `dict_entries`
 
-因此 schema 优先满足：
-
-- 单词小卡片
-- 底部详情弹层
-- 生词本快照复用
-- 后续解析规则可迭代
-
-### 5.2 推荐表结构
-
-#### `dict_entries`
-
-```sql
-CREATE TABLE dict_entries (
-  id BIGSERIAL PRIMARY KEY,
-  source TEXT NOT NULL,
-  headword TEXT NOT NULL,
-  normalized_headword TEXT NOT NULL,
-  phonetic TEXT,
-  primary_pos TEXT,
-  short_meaning TEXT,
-  meanings_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-  examples_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-  phrases_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-  raw_html TEXT,
-  parse_version TEXT NOT NULL,
-  display_quality TEXT NOT NULL DEFAULT 'rich',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE UNIQUE INDEX idx_dict_entries_lookup
-  ON dict_entries (source, normalized_headword);
-```
-
-字段说明：
-
-- `source`：固定为 `tecd3`
-- `headword`：原始词头
-- `normalized_headword`：用于查询的归一化词头
-- `phonetic`：音标
-- `primary_pos`：主词性
-- `short_meaning`：mini 卡片短释义
-- `meanings_json`：详情页义项
-- `examples_json`：详情页例句
-- `phrases_json`：详情页常见短语
-- `raw_html`：原始词条 HTML，便于重新解析
-- `parse_version`：解析器版本
-- `display_quality`：`rich / mini_only / raw_fallback`
-
-#### `dict_aliases`
-
-```sql
-CREATE TABLE dict_aliases (
-  alias TEXT PRIMARY KEY,
-  normalized_headword TEXT NOT NULL,
-  source TEXT NOT NULL
-);
-
-CREATE INDEX idx_dict_aliases_lookup
-  ON dict_aliases (source, alias);
-```
-
-作用：
-
-- 缩写映射
-- 连字符/空格变体
-- 大小写和标点归一化后的别名命中
-
-### 5.3 先不做的表
-
-本阶段先不单独建：
-
-- 词源表
-- 派生词表
-- 资源文件表
-- 复杂导航和歧义页索引表
-
-原因：
-
-- 不是核心功能
-- 当前交互只需要 mini card 和 bottom sheet
-- 过早拆分会增加解析和维护成本
-
-## 6. 词卡结构设计
-
-### 6.1 mini 卡片需要的字段
-
-- `word`
-- `phonetic`
-- `primary_pos`
-- `short_meaning`
-
-### 6.2 bottom sheet 需要的字段
-
-- `word`
-- `phonetic`
-- `primary_pos`
-- `short_meaning`
-- `meanings`
-- `examples`
-- `phrases`
-
-### 6.3 推荐 JSON 结构
-
-#### `meanings_json`
-
-```json
-[
-  {
-    "part_of_speech": "n.",
-    "definitions": [
-      {
-        "meaning": "范式；典范"
-      },
-      {
-        "meaning": "样板；模式"
-      }
-    ]
-  }
-]
-```
-
-#### `examples_json`
-
-```json
-[
-  {
-    "example": "a new paradigm for research",
-    "example_translation": "一种新的研究范式"
-  }
-]
-```
-
-#### `phrases_json`
-
-```json
-[
-  {
-    "phrase": "paradigm shift",
-    "meaning": "范式转变"
-  }
-]
-```
-
-### 6.4 展示裁剪规则
-
-为了避免词典层过重，统一限制如下：
-
-- `short_meaning` 最长建议 24 到 32 个字
-- `meanings` 最多展示 3 个词性块
-- 每个词性块最多展示 3 条 definition
-- `examples` 最多展示 2 条
-- `phrases` 最多展示 3 条
-
-## 7. 离线解析方案
-
-### 7.1 解析目标
-
-优先提取：
+保存词条详情真源，至少包含：
 
 - 词头
-- 音标
+- 基础词头
+- 同形词编号
 - 主词性
-- 短释义
-- 基础义项
-- 少量例句
-- 少量短语
+- 音标
+- 义项
+- 例句
+- 短语
+- 原始 HTML
 
-延后提取：
+### `dict_lookup_targets`
 
-- 派生词
-- note
-- etymology
-- 复杂导航
-- 歧义页特殊展示逻辑
+保存“可查形式 -> 词条”的检索索引，供运行时快速命中。
 
-### 7.1.1 默认工具链
+### `dict_redirects`
 
-本方案默认使用以下工具链：
+保存 MDX 跳转、归一化别名等重定向关系。
 
-1. `mdict-utils`
-   - 负责读取 `.mdx/.mdd`
-   - 负责导出词条原始内容
-   - 只用于离线导入阶段，不进入运行时链路
-2. `import_tecd3.py`
-   - 负责解析 `mdict-utils` 导出的词条内容
-   - 负责生成结构化词卡
-   - 负责写入 PostgreSQL
+设计原则：
 
-统一约束：
+- `dict_entries` 负责内容质量。
+- `dict_lookup_targets` 负责召回质量。
+- 两者都要持续维护。
 
-- 不在 `/dict` 运行时直接调用 `mdict-utils`
-- 不在运行时直接读取 `.mdx/.mdd`
-- 不在运行时即时解析 HTML 生成单词卡片
+## 6. 当前已知数据质量问题
 
-### 7.2 解析来源
+截至当前版本，TECD3 导入已经确认过以下问题类型：
 
-解析规则优先依据 `mdict-utils` 导出的词条 HTML：
+### 6.1 词性归一化不稳定
 
-- `.hwSpan`
-- `.pr`
-- `.pos`
-- `.se2g`
-- `.df`
-- `.egBlock .ex`
-- `.egBlock .tr`
-- `.phrase`
+典型问题：
 
-### 7.3 `short_meaning` 生成规则
+- `ABBREVIATION 缩略词` 没有统一转成 `abbr.`
+- `COMBINING FORM 组合语素` 与 `comb.` / `comb. form` 混用
+- `DEMONSTRATIVE PRONOUN 指示代词` 这类低频标签未规范化
+- 导航标签存在 `n. 2`、`suf. 2` 这类带尾号的变体
 
-推荐顺序：
+当前修复要求：
 
-1. 取第一词性块的前 1 到 2 条释义
-2. 去掉编号、噪声标签、括号性补充
-3. 组合为中文短释义
-4. 超长则截断
-5. 如果提取失败，则回退到第一条释义纯文本
+- 导入阶段必须做 POS canonicalization
+- 无论标签来自正文块还是导航块，都走同一套归一化逻辑
 
-### 7.4 `primary_pos` 生成规则
+### 6.2 多例句块被截断
 
-推荐顺序：
+典型问题：
 
-1. 取首个稳定 `.pos`
-2. 若未提取到，则从第一义项块推断
-3. 再不行则置空，不做错误猜测
+- 同一个 `egBlock` 里存在多个 `.ex`
+- 旧逻辑只保留第一个例句，导致示例信息丢失
 
-### 7.5 `display_quality` 规则
+当前修复要求：
 
-- `rich`：已成功提取稳定词头、短释义和义项
-- `mini_only`：只有词头、音标、短释义，详情结构不稳定
-- `raw_fallback`：仅保留原始 HTML 和最基础文本，不建议展示完整详情
+- 导入阶段保留同一例句块中的多个 example
+- 合并为稳定可读的结构化文本
 
-## 8. `/dict` 查询方案
+### 6.3 fragment 与弱结构词条较多
 
-### 8.1 查询流程
+当前 TECD3 中存在大量：
 
-推荐顺序：
+- `fragment`
+- 无稳定词性块的词条
+- 纯跳转或片段化入口
 
-1. 归一化查询词
-2. 查 `dict_aliases.alias`
-3. 查 `dict_entries.normalized_headword`
-4. 若未命中，返回 404
+这类数据不是单纯“脏数据”，而是词典源本身的结构现实。处理原则：
 
-### 8.2 归一化规则
+- 能保留详情就保留
+- 提不出稳定 `primary_pos` 时允许为空
+- 不在导入阶段做高风险猜测
 
-- `trim`
-- `lowercase`
-- 去首尾标点
-- 处理弯引号
-- 处理撇号和缩写
+## 7. 查询策略必须同步优化
 
-### 8.3 返回结构
+仅修数据库里的词条数据还不够。运行时查询策略必须同步增强，否则点词体验仍然会差。
 
-```json
-{
-  "query": "paradigm",
-  "provider": "tecd3",
-  "cached": true,
-  "entry": {
-    "word": "paradigm",
-    "phonetic": "/ˈpærədaɪm/",
-    "primary_pos": "n.",
-    "short_meaning": "范式；典范；样板",
-    "meanings": [
-      {
-        "part_of_speech": "n.",
-        "definitions": [
-          {
-            "meaning": "范式；典范"
-          }
-        ]
-      }
-    ],
-    "examples": [
-      {
-        "example": "a new paradigm for research",
-        "example_translation": "一种新的研究范式"
-      }
-    ],
-    "phrases": [
-      {
-        "phrase": "paradigm shift",
-        "meaning": "范式转变"
-      }
-    ],
-    "display_quality": "rich"
-  }
-}
-```
+当前要解决的两个核心问题：
 
-### 8.4 统一原则
+### 7.1 短语优先
 
-- mini 卡片永远优先可渲染
-- 详情弹层只展示“比 mini 多一点”的内容
-- `/dict` 不提供跳词、导航、更多页能力
+问题：
 
-## 9. 前端渲染方案
+- 用户点击 `take place` 里的 `take`
+- 如果系统只先查单生词，会返回 `take = 拿`
+- 但用户实际需要的是 `take place = 发生`
 
-### 9.1 第一次点击
+结论：
 
-普通未标注单词：
+- 运行时必须优先做短语匹配
+- 查询原则必须是“最长优先”，不能先查单词再考虑短语
 
-- 弹出 mini 卡片
-- 展示 `word / phonetic / primary_pos / short_meaning`
-- 卡片底部提示“再次点击查看详情”
+### 7.2 变形词回退
 
-### 9.2 再次点击
+问题：
 
-打开 bottom sheet：
+- 库里只有 `study`
+- 用户点的是 `studies`
+- 如果系统只按表面词形查，会直接返回空
 
-- 展示词头、音标、短释义
-- 展示少量义项
-- 展示少量例句
-- 可选展示常见短语
+结论：
 
-### 9.3 不再做的交互
+- 运行时必须做形态学还原
+- 短语和单词都未命中后，再对点击词做 Lemmatization，再重试
 
-- 不跳转独立词典页
-- 不从详情里继续查别的词
-- 不引入复杂 tab 或层层 drill-down
+## 8. 推荐查询流程
 
-### 9.4 带 LLM 标注时的规则
+最终查询输入：
 
-- 若当前词有 glossary 或其他 LLM 增强信息，则在详情层优先显示 LLM 区块
-- 词典释义作为基础层补充
-- `phrase_gloss` 继续优先使用 LLM 整体解释
+- `clicked_word`
+- `context_sentence`
 
-## 10. 对现有代码的影响范围
+运行时流程分两阶段。
 
-### 10.1 后端
+### 第一阶段：短语嗅探
 
+目标：
+
+- 不要急着查单词
+- 先利用上下文判断是否存在“更长、更合理”的短语候选
+
+推荐流程：
+
+1. 以 `clicked_word` 为中心，在 `context_sentence` 中生成滑动窗口 N-gram。
+2. 候选按长度倒序排列，执行数据库匹配。
+3. 采用“最长优先”原则，一旦命中更长短语，就优先返回。
+
+例子：
+
+- `take place`
+- `in charge of`
+- `as well as`
+- `look forward to`
+
+优化点：
+
+- 如果 N-gram 中只是在外围拼进了 `a`、`the`、`of` 这类极高频功能词，可跳过明显无效的候选，以减少数据库查询次数。
+
+### 第二阶段：词形降级
+
+触发条件：
+
+- 第一阶段短语未命中
+- 单词表面形式也未命中
+
+推荐流程：
+
+1. 对 `clicked_word` 做 Lemmatization。
+2. 例如：
+   - `took -> take`
+   - `studies -> study`
+   - `happening -> happen`
+3. 用还原后的 lemma 重新执行第一阶段。
+4. 重新寻找：
+   - 包含该 lemma 的短语
+   - 对应 lemma 的单词词条
+
+当前建议实现：
+
+- 使用 `spaCy` 做运行时 Lemmatization。
+- 如果后续实践发现 `spaCy` 对某些边界词不稳定，再补轻量规则和别名表。
+
+## 9. 查询策略设计原则
+
+### 9.1 最长优先
+
+短语一旦存在，优先返回短语，不先拆成单生词。
+
+### 9.2 先上下文，后孤立单词
+
+词典查询不是纯“字符串查表”，而是“结合点击位置和上下文理解用户要查什么”。
+
+### 9.3 先精确，后降级
+
+推荐优先级：
+
+1. 上下文短语精确命中
+2. 单词表面形式命中
+3. lemma 后重试短语
+4. lemma 后命中单词
+5. 未命中
+
+### 9.4 查询增强不能污染词典真源
+
+查询策略可以增强，但不要把运行时猜测结果直接写回 `dict_entries`。
+
+区分清楚：
+
+- `dict_entries`：词典内容真源
+- `query pipeline`：召回与排序逻辑
+
+## 10. 后续数据库扩充原则
+
+你后续会继续找资源扩充词量，这部分需要遵守以下原则：
+
+- 新资源进入库前，先明确来源、版权和格式边界
+- 继续坚持“离线导入 -> PostgreSQL 真源 -> 运行时查询”
+- 新词量进入时，同时补索引，不只补 `dict_entries`
+- 对短语、习语、固定搭配，要优先考虑可检索性，而不是只存为详情字段
+
+## 11. 当前实现要求
+
+接下来与词典相关的开发，默认按以下要求推进：
+
+### 数据层
+
+- 持续修复 `import_tecd3.py` 的结构化质量
+- 重导后检查 `primary_pos`、`examples_json`、`phrases_json`
+- 用数据库抽检验证导入效果，不靠个别样例判断
+
+### 查询层
+
+- 在现有 `/dict` 基础上加入“短语嗅探 + 最长优先”
+- 加入 Lemmatization fallback
+- 将 `clicked_word + context_sentence` 作为查询策略输入，而不是只传孤立单词
+
+### 文档层
+
+- 本文档只保留当前有效设计
+- 旧方案对比、已失效路线和过细 UI 描述不再保留
+
+## 12. 当前不做
+
+本阶段明确不做：
+
+- 独立 dict service
+- 前端直连词典真源
+- 运行时直接读取 MDX/MDD
+- 为了查询策略优化而重构整套业务后端
+
+## 13. 直接相关文件
+
+- [import_tecd3.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/scripts/import_tecd3.py)
 - [dict.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/api/routes/dict.py)
 - [service.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/service.py)
-- [cache.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/cache.py)
-- `server/app/services/dictionary/providers/tecd3.py`
-- `server/app/services/dictionary/repository.py`
-- `server/scripts/import_tecd3.py`
+- [tecd3.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/providers/tecd3.py)
+- [lemma.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/lemma.py)
+- [0001_initial_schema.sql](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/db/migrations/0001_initial_schema.sql)
 
-### 10.2 前端
+## 14. 下一步建议
 
-- [client.ts](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/services/api/client.ts)
-- [dict.adapter.ts](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/services/api/adapters/dict.adapter.ts)
-- [WordPopup](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/components/WordPopup/index.tsx)
-- [render-scene.vm.ts](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/types/view/render-scene.vm.ts)
-- [storage/index.ts](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/services/storage/index.ts)
+推荐按下面顺序推进：
 
-## 11. 迁移步骤建议
-
-### 第一步：PoC 解析
-
-- 使用 `mdict-utils` 导出 TECD3 词条
-- 抽样验证 30 到 50 个常见词
-- 确认 `headword / phonetic / pos / meanings / examples` 是否可稳定提取
-
-### 第二步：schema 落地
-
-- 创建 `dict_entries`
-- 创建 `dict_aliases`
-- 编写 PostgreSQL migration
-
-### 第三步：导入脚本
-
-- 编写 `import_tecd3.py`
-- 读取 `mdict-utils` 导出的词条内容
-- 将词条 HTML 解析为结构化词卡
-- 写入 `dict_entries`
-- 生成必要 alias
-
-### 第四步：provider 切换
-
-- 新增 `Tecd3Provider`
-- `DictionaryService` 默认改查 `TECD3`
-- 保留缓存层
-
-### 第五步：前端适配
-
-- mini 卡片只读基础字段
-- bottom sheet 读取 `meanings/examples/phrases`
-- 去掉复杂跳转和不必要交互
-
-## 12. 验收标准
-
-### 后端
-
-- `/dict` 默认数据源已切换为 `TECD3`
-- 查询继续只查 PostgreSQL
-- 常见单词可稳定返回 `word / phonetic / primary_pos / short_meaning`
-- 大部分高频词条可返回基础义项和少量例句
-
-### 前端
-
-- 普通单词第一次点击显示 mini 卡片
-- 再次点击 mini 卡片打开 bottom sheet
-- 详情层信息比 mini 多，但不过度复杂
-- 不出现词典内跳转页
-- 带 LLM 标注时，详情页可共存展示词典基础层和 LLM 增强层
-
-### 产品体验
-
-- 查词不再明显打断阅读
-- mini 卡片信息足够帮助快速理解
-- 详情弹层足够支撑“想再看一点”的需求
-- 词典层不与 LLM 语境释义抢主角色
-
-## 13. 建议交给执行 agent 的任务边界
-
-### Agent 必做
-
-- TECD3 抽样解析验证
-- `dict_entries / dict_aliases` schema
-- `import_tecd3.py`
-- `Tecd3Provider`
-- `/dict` DTO 调整
-- mini 卡片和 bottom sheet 字段适配
-
-### Agent 不做
-
-- 独立词典页面
-- 词条内继续跳转
-- 复杂词源/辨析系统
-- 三方在线词典 API 集成
-- 大规模结果页 UI 重构
-
-这样可以保证词典层始终是阅读辅助能力，而不是跑偏成第二产品。
+1. 用修复后的导入脚本全量重导 TECD3。
+2. 重导后做数据库抽检，确认 `primary_pos` 和 `examples_json` 的质量。
+3. 在 `/dict` 查询链路中加入“短语嗅探 + 最长优先”。
+4. 在未命中时加入 `spaCy` Lemmatization fallback。
+5. 再评估是否需要把短语索引单独落表或增强到 `dict_lookup_targets`。
