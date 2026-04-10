@@ -4,6 +4,7 @@
 负责创建和配置 FastAPI 应用实例，包括路由注册、生命周期管理等功能。
 """
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from logging import getLogger
@@ -19,7 +20,7 @@ logger = getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     应用生命周期管理上下文管理器。
 
@@ -48,19 +49,30 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # 3. 初始化 LangSmith
     setup_langsmith(settings)
 
-    # 4. 恢复服务重启前残留的活跃任务（标记为 failed，允许用户重试）
-    try:
-        from app.services.analysis.task_executor import recover_stuck_tasks
+    # 4. 恢复服务重启前残留的活跃任务（重新入队）
+    from app.services.analysis.task_executor import (
+        AnalysisTaskWorker,
+        recover_stuck_tasks,
+    )
 
-        recovered = await recover_stuck_tasks()
-        if recovered:
-            logger.info("Recovered %d stuck tasks on startup", recovered)
-    except Exception as e:
-        logger.warning("Failed to recover stuck tasks on startup: %s", e)
+    recovered = await recover_stuck_tasks()
+    if recovered:
+        logger.info("Requeued %d stale tasks on startup", recovered)
+
+    worker = AnalysisTaskWorker()
+    worker.start()
+    await asyncio.sleep(0)
+    if not worker.health_snapshot()["healthy"]:
+        raise RuntimeError("Analysis task worker failed to start")
+    app.state.analysis_task_worker = worker
+    logger.info("Analysis task worker started")
 
     yield
 
     # 关闭时清理
+    if hasattr(app.state, "analysis_task_worker"):
+        worker = app.state.analysis_task_worker
+        await worker.stop()
     await close_redis()
     await close_db()
     logger.info("Application shutdown complete")

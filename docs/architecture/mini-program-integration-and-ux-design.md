@@ -187,13 +187,16 @@ flowchart TD
 当前前端已经具备“先进入结果页，再展示 loading 态”的交互基础。  
 后端正式方案不应继续把 `/analyze` 维持为“同步等待最终 `render_scene` 返回”的语义，而应升级为“提交任务 -> 轮询状态 -> 回填快照”的异步链路。
 
+**状态更新（2026-04-10）**：后端异步任务中心、数据库 worker、`GET /analysis-tasks/current`、`GET /me/quota`、`/health/ready` 已落地；小程序前端已完成切换。
+
 推荐协同方式：
 
-- 输入页提交后，后端立即返回 `task_id + record_id`
-- 结果页根据 `task_id` 轮询任务状态，而不是重发 analyze 请求
+- 输入页提交后，前端应调用 `POST /analysis-tasks`，后端立即返回 `task_id + record_id`
+- 结果页根据 `task_id` 调用 `GET /analysis-tasks/{task_id}` 轮询任务状态，而不是重发 analyze 请求
 - 历史页直接读取 `record_id` 对应的云端记录，处理中也要可见
 - 用户切后台、退出结果页或进入其他页面后，前端恢复时先查 `task_id / record_id` 当前状态
-- 如果同一用户已有活跃 analyze 任务，后端直接返回当前活跃任务，前端跳转回该任务对应结果页
+- 如果同一用户已有活跃 analyze 任务，前端先查 `GET /analysis-tasks/current`，后端返回当前活跃任务，前端跳转回该任务对应结果页
+- 额度展示应改为 `GET /me/quota` 返回的“今日积分 + 奖励积分”，不再继续沿用“固定次数”文案
 
 这条协同约定的核心价值：
 
@@ -283,16 +286,15 @@ flowchart TD
 
 推荐登录触发时机：
 
+- 用户提交分析任务前（强校验以扣减积分）
 - 用户首次点击“收藏全文”
 - 用户首次点击“记入生词本”
-- 用户首次尝试将本地历史同步到云端
 - 用户进入“我的”页并主动选择登录
 
 不推荐的触发时机：
 
 - 打开小程序即强制登录
-- 输入文章前强制登录
-- 查看结果页前强制登录
+- 仅进入首页即要求登录
 
 ### 7.4 内容资产范围
 
@@ -307,7 +309,8 @@ flowchart TD
 
 建议补充字段边界：
 
-- `record_id`: 历史记录主键，由前端本地生成或后端统一生成
+- `record_id`: 历史记录主键，统一使用后端分配的 `client_record_id`
+- `cloud_id`: 后端数据库主键 (UUID)，用于 API 操作
 - `source_text`: 原始输入文本
 - `request_payload`: 发给 `/analyze` 的稳定请求参数
 - `render_scene`: 当前后端返回的渲染结果快照
@@ -534,7 +537,7 @@ flowchart TD
 字段边界说明：
 
 - `short_meaning`：服务 mini 卡片与生词本列表，不要求严格词典级专业度
-- `meanings[]`：服务 full 详情弹层
+- `meanings[]`：服务 full详情弹层
 - `lemma`：如后续需要词形归并可保留，否则允许为空
 - `tags`：非核心字段，可后置
 - `exchange`：非核心字段，可后置
@@ -566,7 +569,7 @@ flowchart TD
 provider 选型建议：
 
 - MVP 默认 provider：`TECD3`
-- 开发期可用本地 MDX 离线解析验证，正式上线目标是迁入 `PostgreSQL`
+- 开发期可用本地 MDX 离线解析验证，正式环境目标是迁入 `PostgreSQL`
 - 中期如需增强，可在 `TECD3` 之上补语境释义增强或第二数据源
 - 当前阶段不建议继续依赖第三方在线词典 API 作为主 provider
 
@@ -769,8 +772,8 @@ provider 选型建议：
 
 建议明确以下恢复规则：
 
-- 输入页：恢复最近一次未提交草稿
-- 结果页：如果上一次分析已成功，优先恢复结果快照；如果分析进行中但没有可靠恢复机制，直接转成可重试状态
+- 输入页：恢复最近一次未提交草稿，并检查是否有活跃解析任务
+- 结果页：如果上一次分析已成功，优先恢复结果快照；如果分析进行中，通过 `recoverActiveTask` 自动恢复轮询
 - 历史页：从本地持久化数据直接渲染
 
 不建议：
@@ -963,23 +966,23 @@ provider 选型建议：
 
 | 任务 | 状态 | 文件位置 |
 |------|------|----------|
-| 统一 API client (`fetchAnalyze`) | ✅ 完成 | `client/src/services/api/client.ts` |
+| 同步 analyze API client (`fetchAnalyze`) | ✅ 完成 | `client/src/services/api/client.ts` |
+| 异步任务 API client（`/analysis-tasks` / `/me/quota`） | ✅ 完成 | `client/src/services/api/client.ts` |
 | `AnalyzeResponseDto` 类型定义 | ✅ 完成 | `client/src/types/api/analyze-response.dto.ts` |
 | `RenderSceneVm` 前端视图模型 | ✅ 完成 | `client/src/types/view/render-scene.vm.ts` |
 | `analyzeResponseDtoToVm` 适配器 | ✅ 完成 | `client/src/services/api/adapters/render-scene.adapter.ts` |
 | 环境配置 (local/dev/prod) | ✅ 完成 | `client/src/config/env.ts` |
 | 前端页面状态机聚合 | ✅ 完成 | `client/src/stores/article.ts` |
-| 后端聚合状态字段 (`user_facing_state`) | 🟡 已部分收敛 | `server/app/workflow/analyze_nodes.py`， informational warnings（LOW_ENGLISH_RATIO / HIGH_NOISE_RATIO / UNSUPPORTED_TEXT_TYPE / DRAFT_VALIDATION）不再触发降级。但任何非 informational 列表内的 warning（如 REPAIR_AGENT_FAILED）仍会触发 degraded_light，规则边界比"仅 agent 失败"更宽 |
+| 后端聚合状态字段 (`user_facing_state`) | 🟡 已部分收敛 | `server/app/workflow/analyze_nodes.py` |
 
 **类型边界已确立：**
 - `types/api/` = 后端 DTO (snake_case)
 - `types/view/` = 前端 VM (camelCase)
-- 转换只在 `render-scene.adapter.ts` 一处
+- `AnalysisRecord` 已补齐 `cloudId` (服务端 UUID) 字段，与本地 `recordId` (client_record_id) 物理隔离
 
-**当前缺口：**
-- 已完成从 mock 设计转向真实接口联调，后端也已开始提供 `user_facing_state`
-- 降级规则已部分收敛：informational warnings（LOW_ENGLISH_RATIO / HIGH_NOISE_RATIO / UNSUPPORTED_TEXT_TYPE / DRAFT_VALIDATION）不再触发降级，但 any non-informational warning（如 REPAIR_AGENT_FAILED，level=warning）仍会触发 degraded_light，规则边界比"仅 agent 失败"更宽
-- 当前缺口是” `/dict` 端到端真机验证”、”前后台恢复策略落地”和”结果页 UI/UX 布局优化”
+**当前结论：**
+- 已完成从同步 `/analyze` 到异步 `/analysis-tasks` 的全面切换。
+- 解决了服务端 UUID 与客户端 ID 的混用问题，统一了收藏、生词本与云端删除的标识符。
 
 ### 主线二：结果页与分析流程体验
 
@@ -988,48 +991,36 @@ provider 选型建议：
 | Store 迁移到 `RenderSceneVm` | ✅ 完成 | `client/src/stores/article.ts` |
 | Input 页调用 `store.analyze()` | ✅ 完成 | `client/src/pages/input/index.tsx` |
 | Result 页连接 Store | ✅ 完成 | `client/src/pages/result/index.tsx` |
-| **独立状态机** (idle/loading/success/empty/error) | ✅ 完成 | `client/src/stores/article.ts` |
+| **独立状态机** (idle/loading/polling/success/empty/error) | ✅ 完成 | `client/src/stores/article.ts` |
 | **”先跳结果页再发请求”** 流程 | ✅ 完成 | `input/index.tsx` |
+| 异步任务提交 + 轮询 + 回填快照 | ✅ 完成 | `stores/article.ts` 已实现轮询与快照回填逻辑 |
 | Loading 状态 UI | ✅ 完成 | `result/index.tsx` |
-| Error 状态 UI | ✅ 完成 | `result/index.tsx` |
+| Error 状态 UI | ✅ 完成 | `result/index.tsx`，已适配 `INSUFFICIENT_CREDITS` 与 `AUTH_REQUIRED` |
 | **Empty 状态 UI** | ✅ 完成 | `result/index.tsx` |
 | 降级状态 banner | ✅ 完成 | `client/src/pages/result/index.tsx` |
 | **source_type 边界注释** | ✅ 完成 | `client.ts`, `render-scene.vm.ts` |
-| 全文点词查词（含普通词 + 标注词） | ✅ 完成 | `ParagraphBlock` + `InlineMark` + `ClickableWord` + `WordPopup`，`onWordClick` 统一 payload |
+| 全文点词查词（含普通词 + 标注词） | ✅ 完成 | `ParagraphBlock` + `InlineMark` + `ClickableWord` + `WordPopup` |
 | 底部详情弹层 | ✅ 完成 | `BottomSheetDetail` |
 | “重新分析” 按钮 | ✅ 完成 | `result/index.tsx` |
-| 页面模式切换 (沉浸/双语/精读) | ✅ 完成 | `result/index.tsx` |
-| 结果页布局针对真实数据优化 | 🟡 进行中 | 已能渲染真实数据，但 UI/UX 仍需重构 |
-| 历史页"去粘贴文章"导航 | ✅ 已修复 | `history/index.tsx` 从 `switchTab` 改为 `navigateTo`（input 非 tabBar 页面） |
-| `/dict` 真接口接入 | ✅ 完成 | `WordPopup` 已接入真实 `/dict` API，失败时降级显示 fallback |
-| 收藏全文 / 生词本真实能力 | ✅ 完成 | 结果页 CTA 已接线到本地存储闭环，云端同步未开始 |
-| 历史页筛选 Tab（全部 / 已收藏） | ✅ 完成 | `history/index.tsx`，`activeTab` 状态 + 筛选逻辑 |
-
-**组件类型已统一：**
-- 所有组件 (`ParagraphBlock`, `InlineMark`, `WordPopup`, `BottomSheetDetail`, `SentenceActionChip`) 从 `@/types/view/render-scene.vm` 导入类型
-- `SpanRef.anchorText` 统一使用 `anchorText` 字段
+| 页面模式切换 (沉浸/精读) | ✅ 完成 | `result/index.tsx` |
+| 历史页“处理中”记录点击恢复 | ✅ 完成 | `loadRecord` 现可自动触发活跃任务恢复流程，通过 `fetchCloudRecord` 纠正 ID 映射 |
 
 **当前联调结论：**
-- 结果页主链路已通，可以稳定渲染真实后端返回
-- 当前问题已从“能不能显示”切换为“如何更好显示”
-- 下一阶段重点应放在布局层级、信息密度和结果完整度表达，而不是继续维护旧的 mock 调试设施
+- 结果页主链路已通，且具备强大的抗断网、切后台恢复能力。
+- 历史记录回看与活跃任务恢复已闭环，解决了 409 冲突时的 ID 漂移问题。
 
 ### 主线三：用户态与内容资产管理
 
 | 任务 | 状态 | 说明 |
 |------|------|------|
 | Onboarding 完成标记本地存储 | ✅ 完成 | `Taro.getStorageSync/setStorageSync('user_configured')` |
-| 历史记录页注册 | ✅ 完成 | 已切换为真实本地数据源，支持删除、下拉刷新、回看 |
-| 个人中心页注册 | 🟡 占位完成 | 页面已存在，但用户信息和统计均为静态文案 |
-| 分析请求参数保存在 store | ✅ 完成 | 当前支持结果页就地重试 |
-| 本地分析结果持久化 | ✅ 完成 | 已建立 storage 服务封装，分析后自动保存并支持 `loadRecord` 回看 |
-| 收藏 / 删除 / 再次查看 | ✅ 完成 | 收藏全文、历史删除、回看已接线，云端同步仍未开始 |
-| 生词本数据模型 | ✅ 完成 | `VocabEntry` 已落地，本地“记入生词本”已接线 |
-| 云端历史记录接口 | 🔲 未开始 | 后端当前无对应路由 |
-| 输入草稿自动保存与离开保护 | ✅ 完成 | 输入页支持 500ms 防抖自动保存和离开提示 |
-| 词典前端接线 | ✅ 完成 | `WordPopup` 已接入真实 `/dict` API（`fetchDict` + `dict.adapter.ts`），失败降级 fallback |
-| 词典后端服务骨架 | ✅ 完成 | `/dict` 已切换到本地 `TECD3` provider，运行时查询 `dict_entries / dict_aliases` |
-| TECD3 迁入正式词典库 | ✅ 完成 | 已补齐 `TECD3` 导入脚本、PostgreSQL schema 与 `/dict` 查询链路 |
+| 历史记录页注册 | ✅ 完成 | 支持展示处理中、失败状态，并支持云端删除同步（使用 UUID） |
+| 个人中心页注册 | ✅ 完成 | 已接入积分查询展示与每日额度说明 |
+| 提交前强制登录校验 | ✅ 完成 | Input 页已补齐 `ensureLoggedIn` 导入与校验 |
+| 分析请求参数保存在 store | ✅ 完成 | 用于轮询期间的上下文保持 |
+| 本地分析结果持久化 | ✅ 完成 | 统一使用 `client_record_id` 作为主键 |
+| 生词本与收藏 UUID 对齐 | ✅ 完成 | 云同步链路已切换为 UUID，解决了类型不匹配导致的同步失败 |
+| 云端历史记录接口 | ✅ 完成 | 后端 `/records` 路由已通，前端已适配 |
 
 ### 主线四：微信小程序平台能力接入
 
@@ -1037,28 +1028,27 @@ provider 选型建议：
 |------|------|------|
 | 页面路由骨架 | ✅ 完成 | onboarding / home / input / result / history / profile 已注册 |
 | 基础本地缓存能力使用 | ✅ 完成 | 已用于 onboarding、输入草稿、历史记录、收藏、生词本 |
-| 登录态请求头注入预留 | 🟡 已预留 | `getAuthHeaders()` 仍为空实现 |
-| 前后台状态恢复 | 🟡 部分完成 | `app.tsx` 已注册 `Taro.onAppShow`，但当前只有 console.log，无实际恢复逻辑。Result 页正在分析中时切后台，回来可能丢失状态 |
-| 分享能力接入 | ✅ 完成 | `result/index.tsx` 已注册 `useShareAppMessage`，配置 `enableShareAppMessage: true` |
-| 埋点与异常上报 | 🟡 console 占位完成 | `services/analytics.ts` 仅 `console.log` stub，无真实 SDK，无上报链路。真实埋点和异常上报需在 Phase C/D 接入 |
+| 登录态请求头注入预留 | ✅ 完成 | 已接通真实会话令牌 |
+| 前后台状态恢复 | ✅ 完成 | `app.tsx` 与各主页面已补齐活跃任务恢复机制 |
+| 分享能力接入 | ✅ 完成 | `result/index.tsx` 已注册 `useShareAppMessage` |
+| 埋点与异常上报 | 🟡 console 占位完成 | `services/analytics.ts` 仅 `console.log` stub |
 | 真机性能与包体检查 | 🔲 未开始 | 仍需专项验收 |
-| Android 兼容性渲染修复 | ✅ 完成 | 结果页已移除 `backdrop-filter`，改为更稳定的阴影方案 |
+| Android 兼容性渲染修复 | ✅ 完成 | 结果页已移除 `backdrop-filter` |
 
 ---
 
-**最后更新：** 2026-04-07（完成 `/dict` 切换到 `TECD3`，移除 `ECDICT` 运行时代码，并保持结果页点词与生词本链路可用）
+**最后更新：** 2026-04-10（前端已彻底解决 ID 混用问题，补齐了鉴权与恢复闭环）
 
 ### Bug 修复记录
 
 | 日期 | Bug | 修复文件 | 说明 |
 |------|-----|---------|------|
-| 2026-04-05 | `user_facing_state` 降级规则过激 | `server/app/workflow/analyze_nodes.py` | informational warnings 不再触发 degraded_light |
-| 2026-04-05 | 历史页导航使用 `switchTab`（input 非 tabBar 页）| `client/src/pages/history/index.tsx` | 改为 `navigateTo` |
-| 2026-04-05 | 源目录残留 .js 编译产物（stale compiled output）| `client/src/` | 删除 32 个过时编译文件，保留所有 `.config.js` |
-| 2026-04-05 | 文档状态失真：analytics 标 ✅ 实为 console stub | `docs/.../mini-program-integration-and-ux-design.md` | 改为 🟡 console 占位完成 |
-| 2026-04-05 | 文档状态失真：user_facing_state 标"规则已收敛" | `docs/.../mini-program-integration-and-ux-design.md` | 改为 🟡 已部分收敛，补充 REPAIR_AGENT_FAILED 等非 informational warning 仍触发降级的说明 |
-| 2026-04-05 | 新增全文点词查词：结果页所有英文词均可点击查词 | `ParagraphBlock` + `ClickableWord` + `InlineMark` | 普通词触发 `/dict` mini 弹层，标注词保留 glossary + examTags + AI 增强，payload 统一为 `{ word, mark, event }` |
-| 2026-04-05 | 全文点词分词正则导致模拟器卡死 | `client/src/components/ParagraphBlock/utils.ts` | `[^a-zA-Z]*` 改为 `[^a-zA-Z]+`，消除零长度匹配导致的 `exec()` 死循环 |
-| 2026-04-05 | 词典后端服务化落地 | `server/app/api/routes/dict.py` + `server/app/services/dictionary/*` | `/dict` 已升级为 route → service → provider → cache 结构，支持缓存命中标记 |
-| 2026-04-07 | `/dict` 默认 provider 切换为 `TECD3` | `server/app/services/dictionary/*` + `server/scripts/import_tecd3.py` | 运行时查询收口到 PostgreSQL `dict_entries / dict_aliases`，并删除 `ECDICT` 旧代码 |
-| 2026-04-06 | 全文点词切分升级为轻量 lexer | `client/src/components/ParagraphBlock/utils.ts` | 不再依赖单条正则分词，改为面向阅读交互的扫描器，支持缩写、连字符词、撇号与特殊 token |
+...
+| 2026-04-10 | record_id 与 client_record_id 混用 | `article.ts` / `records.client.ts` | 统一主键体系，增加 `cloudId` 物理隔离服务端 UUID |
+| 2026-04-10 | 活跃任务恢复 ID 漂移 | `article.ts` | 恢复流程不再“猜” ID，通过 `fetchCloudRecord` 获取真实的 `client_record_id` |
+| 2026-04-10 | 收藏/生词本云同步失败 | `favorites.client.ts` / `vocabulary.client.ts` | 云端操作统一改传 UUID，解决了后端类型检查失败的问题 |
+| 2026-04-10 | InputPage 编译错误 | `input/index.tsx` | 补齐 `ensureLoggedIn` 的 import 缺失 |
+| 2026-04-10 | 历史页处理中任务不可恢复 | `article.ts` | `loadRecord` 增加检测逻辑，自动引导进入轮询/恢复流程 |
+| 2026-04-10 | 异步提交链路缺少登录校验 | `input/index.tsx` | 增加 `ensureLoggedIn()` 前置卫检 |
+| 2026-04-10 | 云端删除记录传错 ID | `history/index.tsx` | 删除操作现改传 `cloudId` (UUID) |
+| 2026-04-10 | 积分与额度显示缺失 | `profile/index.tsx` | 接入 `GET /me/quota` 并展示剩余积分与每日限额 |

@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from asyncpg import Connection
+
 from app.database import connection as db_connection
 
 logger = logging.getLogger(__name__)
@@ -64,6 +66,45 @@ class TaskSubmitResult:
         self.created = created
 
 
+class TaskExecutionPayload:
+    """Claimed task payload needed by the worker to execute analysis."""
+
+    __slots__ = (
+        "task_id",
+        "record_id",
+        "user_id",
+        "text",
+        "reading_goal",
+        "reading_variant",
+        "source_type",
+        "extended",
+        "worker_token",
+    )
+
+    def __init__(
+        self,
+        *,
+        task_id: UUID,
+        record_id: UUID,
+        user_id: UUID,
+        text: str,
+        reading_goal: str,
+        reading_variant: str,
+        source_type: str,
+        extended: bool,
+        worker_token: str,
+    ) -> None:
+        self.task_id = task_id
+        self.record_id = record_id
+        self.user_id = user_id
+        self.text = text
+        self.reading_goal = reading_goal
+        self.reading_variant = reading_variant
+        self.source_type = source_type
+        self.extended = extended
+        self.worker_token = worker_token
+
+
 class ActiveTaskConflict(Exception):
     """Raised when user already has an active task."""
 
@@ -72,6 +113,42 @@ class ActiveTaskConflict(Exception):
         self.record_id = record_id
         self.status = status
         super().__init__(f"Active task exists: {task_id} ({status})")
+
+
+async def get_task_by_idempotency(
+    user_id: UUID,
+    idempotency_key: str,
+    conn: Connection | None = None,
+) -> TaskSubmitResult | None:
+    """Get an existing task for the same user/idempotency key."""
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    async def _fetch(active_conn: Connection) -> TaskSubmitResult | None:
+        existing = await active_conn.fetchrow(
+            """
+            SELECT t.id AS task_id, t.analysis_record_id AS record_id, t.status
+            FROM analysis_tasks t
+            WHERE t.user_id = $1 AND t.idempotency_key = $2
+            """,
+            user_id,
+            idempotency_key,
+        )
+        if existing is None:
+            return None
+        return TaskSubmitResult(
+            task_id=existing["task_id"],
+            record_id=existing["record_id"],
+            status=existing["status"],
+            created=False,
+        )
+
+    if conn is not None:
+        return await _fetch(conn)
+
+    async with pool.acquire() as new_conn:
+        return await _fetch(new_conn)
 
 
 async def submit_task(
@@ -113,22 +190,13 @@ async def submit_task(
     async with pool.acquire() as conn:
         async with conn.transaction():
             # 1. Idempotency check
-            existing = await conn.fetchrow(
-                """
-                SELECT t.id AS task_id, t.analysis_record_id AS record_id, t.status
-                FROM analysis_tasks t
-                WHERE t.user_id = $1 AND t.idempotency_key = $2
-                """,
+            existing = await get_task_by_idempotency(
                 user_id,
                 idempotency_key,
+                conn=conn,
             )
             if existing is not None:
-                return TaskSubmitResult(
-                    task_id=existing["task_id"],
-                    record_id=existing["record_id"],
-                    status=existing["status"],
-                    created=False,
-                )
+                return existing
 
             # 2. Single active task check
             active = await conn.fetchrow(
@@ -339,6 +407,7 @@ async def update_task_status(
     failure_message: str | None = None,
     usage_summary_json: dict[str, Any] | None = None,
     quota_cost_points: int | None = None,
+    worker_token: str | None = None,
 ) -> None:
     """Update task status and optional fields."""
     pool = db_connection.DB_POOL
@@ -356,6 +425,7 @@ async def update_task_status(
         ("failure_message", failure_message),
         ("usage_summary_json", json.dumps(usage_summary_json) if usage_summary_json else None),
         ("quota_cost_points", quota_cost_points),
+        ("worker_token", worker_token),
     ]:
         if value is not None:
             if field_name == "usage_summary_json":
@@ -369,6 +439,27 @@ async def update_task_status(
 
     async with pool.acquire() as conn:
         await conn.execute(sql, *params)
+
+
+async def touch_task_heartbeat(task_id: UUID, worker_token: str) -> None:
+    """Refresh updated_at for a running/finalizing task owned by the worker."""
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE analysis_tasks
+            SET updated_at = $3
+            WHERE id = $1
+              AND worker_token = $2
+              AND status IN ('running', 'finalizing')
+            """,
+            task_id,
+            worker_token,
+            datetime.now(timezone.utc),
+        )
 
 
 async def insert_task_event(
@@ -432,3 +523,146 @@ async def update_record_for_task(
 
     async with pool.acquire() as conn:
         await conn.execute(sql, *params)
+
+
+async def claim_next_queued_task(worker_token: str) -> TaskExecutionPayload | None:
+    """Atomically claim the next queued task for a worker."""
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    now = datetime.now(timezone.utc)
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            next_row = await conn.fetchrow(
+                """
+                SELECT id
+                FROM analysis_tasks
+                WHERE status = 'queued'
+                ORDER BY queued_at ASC
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+                """
+            )
+            if next_row is None:
+                return None
+
+            row = await conn.fetchrow(
+                """
+                UPDATE analysis_tasks t
+                SET status = 'running',
+                    started_at = COALESCE(t.started_at, $3),
+                    worker_token = $1,
+                    updated_at = $3
+                FROM analysis_records r
+                WHERE t.id = $2
+                  AND t.analysis_record_id = r.id
+                  AND t.status = 'queued'
+                RETURNING
+                    t.id AS task_id,
+                    t.analysis_record_id AS record_id,
+                    t.user_id AS user_id,
+                    r.source_text AS text,
+                    r.reading_goal AS reading_goal,
+                    r.reading_variant AS reading_variant,
+                    r.source_type AS source_type,
+                    COALESCE((r.request_payload_json->>'extended')::boolean, false) AS extended
+                """,
+                worker_token,
+                next_row["id"],
+                now,
+            )
+        if row is None:
+            return None
+
+        return TaskExecutionPayload(
+            task_id=row["task_id"],
+            record_id=row["record_id"],
+            user_id=row["user_id"],
+            text=row["text"],
+            reading_goal=row["reading_goal"],
+            reading_variant=row["reading_variant"],
+            source_type=row["source_type"],
+            extended=row["extended"],
+            worker_token=worker_token,
+        )
+
+
+async def requeue_stale_tasks(
+    *,
+    queued_before: datetime,
+    active_before: datetime,
+) -> int:
+    """Requeue stale queued/running/finalizing tasks so the worker can retry them."""
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    now = datetime.now(timezone.utc)
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            rows = await conn.fetch(
+                """
+                SELECT id AS task_id, analysis_record_id AS record_id, status
+                FROM analysis_tasks
+                WHERE (status = 'queued' AND queued_at < $1)
+                   OR (status IN ('running', 'finalizing') AND updated_at < $2)
+                FOR UPDATE
+                """,
+                queued_before,
+                active_before,
+            )
+
+            if not rows:
+                return 0
+
+            task_ids = [row["task_id"] for row in rows]
+            record_ids = [row["record_id"] for row in rows]
+
+            await conn.execute(
+                """
+                UPDATE analysis_tasks
+                SET status = 'queued',
+                    worker_token = NULL,
+                    queued_at = $2,
+                    started_at = NULL,
+                    finished_at = NULL,
+                    failure_code = NULL,
+                    failure_message = NULL,
+                    updated_at = $2
+                WHERE id = ANY($1::uuid[])
+                """,
+                task_ids,
+                now,
+            )
+            await conn.execute(
+                """
+                UPDATE analysis_records
+                SET analysis_status = 'queued',
+                    updated_at = $2
+                WHERE id = ANY($1::uuid[])
+                """,
+                record_ids,
+                now,
+            )
+
+            for row in rows:
+                await conn.execute(
+                    """
+                    INSERT INTO analysis_task_events
+                        (task_id, event_type, event_payload_json, created_at)
+                    VALUES ($1, 'task_requeued', $2, $3)
+                    """,
+                    row["task_id"],
+                    json.dumps(
+                        {
+                            "reason": "server_restart",
+                            "previous_status": row["status"],
+                        }
+                    ),
+                    now,
+                )
+
+            return len(rows)

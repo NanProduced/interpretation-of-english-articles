@@ -163,7 +163,7 @@ COMMENT ON COLUMN analysis_task_events.event_type IS '事件类型，如 task_su
 COMMENT ON COLUMN analysis_task_events.event_payload_json IS '事件载荷 JSON。';
 
 COMMENT ON TABLE user_credit_accounts IS '用户积分账户快照，每用户一行。';
-COMMENT ON COLUMN user_credit_accounts.daily_free_points IS 'Daily free points quota (default 1000, where 1pt = 1000 weighted tokens).';
+COMMENT ON COLUMN user_credit_accounts.daily_free_points IS 'Daily free points quota (default 1000 points, where 1 point = 1000 weighted tokens).';
 COMMENT ON COLUMN user_credit_accounts.daily_used_points IS '今日已使用积分。';
 COMMENT ON COLUMN user_credit_accounts.bonus_points IS '活动赠送/人工补偿/邀请码奖励等长期积分。';
 COMMENT ON COLUMN user_credit_accounts.last_reset_on IS '最近一次每日积分重置日期。';

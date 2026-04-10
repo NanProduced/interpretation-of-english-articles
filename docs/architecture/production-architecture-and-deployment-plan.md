@@ -363,7 +363,7 @@ flowchart LR
 说明：
 
 - 所有额度变化都走 append-only ledger，余额表只是快照
-- 这样既能支持“每天 50 次”，也能支持未来按 token 折算积分
+- 当前正式口径应直接使用“积分 = 加权 token”模型，而不是再额外维护“每天 50 次”的产品壳
 - 失败任务默认不扣减；如果未来引入预占额度，也必须在失败时自动冲正
 
 #### `favorite_records`
@@ -556,7 +556,6 @@ flowchart LR
 - `POST /analysis-tasks`
 - `GET /analysis-tasks/{task_id}`
 - `GET /analysis-tasks/current`
-- `POST /analysis-tasks/{task_id}/retry`
 - `GET /records?include_processing=true`
 - `GET /me/quota`
 
@@ -632,45 +631,35 @@ flowchart LR
 - 历史记录页能看到“处理中 / 失败 / 已完成”
 - 结果页恢复时能通过 `record_id` 找回对应任务状态
 
-### 9.4 额度、次数与积分的推荐方案
+### 9.4 额度与积分的当前方案
 
-你们当前的业务要求其实包含两套约束：
+当前实现已经不再走“固定每天 50 次”的策略，而是直接按加权 token 折算积分。
 
-- 产品层：前期给每个用户每天 50 次免费调用
-- 成本层：不同任务真实 token 消耗差异很大，未来可能要按成本折算
+当前口径：
 
-推荐不要在数据库里只保存“今日已用次数”，而是直接落地成“积分账户 + 账本”，再由策略层决定如何展示成“50 次/天”。
+- 每个用户每天默认 `1000` 积分
+- `1` 积分 = `1000` 加权 token
+- 加权规则：`input_tokens * 1 + output_tokens * 5`
+- 成功任务完成后，按真实 `usage_summary_json` 计算 `cost_points`
+- 失败任务不扣减
+- 奖励额度单独计入 `bonus_points`
 
-建议策略：
+因此，数据库真源应继续保持：
 
-#### 面向用户的展示
+- `daily_free_points / daily_used_points`
+- `bonus_points`
+- append-only `user_credit_ledger`
 
-- 默认文案仍显示“今日免费解析 50 次”
-- 赠送额度单独显示为“额外积分”或“奖励额度”
-- 不把每日免费额度和赠送额度混在一个剩余数字里
+前端展示建议：
 
-#### 面向后端的计费
+- 默认展示“今日剩余积分”
+- 文案层可补充“约等于 100 万加权 token / 天”
+- 奖励额度单独展示，不与每日额度合并成一个模糊总数
 
-- 每次任务成功后，基于 `usage_summary_json.total_tokens` 计算 `cost_points`
-- 扣减顺序建议为：`daily_free_points -> bonus_points`
-- 任务失败不扣减
-- 如果未来要做预占额度，失败时必须自动冲正
+说明：
 
-#### MVP 阶段的保守落地
-
-为了避免一开始就把复杂 token 计费暴露给用户，建议两阶段推进：
-
-1. `Launch 阶段`
-   - 用户视角按“成功一次扣 1 次”运行
-   - 后端同时记录真实 token 和 shadow points，但先不影响用户展示
-2. `Refine 阶段`
-   - 根据真实成本数据，把 `cost_points` 从固定 1 切到按 token 折算
-   - 前端展示从“次数”升级为“积分 + 预计可解析次数”
-
-这样做的好处：
-
-- 现在就能满足“每天 50 次、失败不扣、奖励单独送”的业务要求
-- 未来切到 Manus 类积分模型时，不需要重做表结构和对账逻辑
+- 当前提交前只能做“是否还有剩余积分”的预检查，真实扣费要等任务完成后依据实际 token 结算
+- 如果后续要进一步收紧成本控制，再引入“预计成本 / 预占额度”即可，不需要重做表结构
 
 ### 9.5 配额校验与扣减时机
 
@@ -686,7 +675,7 @@ flowchart LR
 
 原因：
 
-- 你们已经要求“执行失败不能扣减次数”
+- 你们已经要求“执行失败不能扣减额度”
 - 单用户单任务前提下，不需要复杂的多任务额度预占
 - 额度真源必须在服务端，否则很容易被绕过
 
@@ -705,19 +694,20 @@ P1：
 
 - 新增 `POST /analysis-tasks`
 - 新增 `GET /analysis-tasks/{id}`
+- 新增 `GET /analysis-tasks/current`
 - 历史记录接口支持返回处理中记录
 - 前端结果页改为“提交任务 + 轮询”
 
 P2：
 
 - 增加 `GET /me/quota`
-- 接入每日免费额度 + 奖励额度
-- 先按固定 1 次扣减，同时记录 shadow points
+- 接入每日免费积分 + 奖励积分
+- 成功任务按真实 token 结算积分
 
 P3：
 
-- 根据真实成本数据切换到 token -> points 折算
 - 增加人工补偿、活动赠送、邀请码奖励后台入口
+- 如有需要，再补“预计成本 / 预占额度”
 
 ## 10. 部署建议
 
@@ -743,12 +733,14 @@ P3：
 
 ### 10.3 后端上线检查
 
-- 健康检查接口
+- `/health` 健康检查接口
+- `/health/ready` 就绪检查接口
 - 环境变量与模型配置
 - 数据库迁移脚本
 - `TECD3` 导入脚本
 - 日志与错误监控
 - 小程序正式域名联调
+- `analysis task worker` 必须作为启动强依赖通过验活，否则服务直接启动失败
 
 ## 11. 分阶段实施顺序
 
@@ -816,7 +808,7 @@ P3：
 ### 12.4 API Contract 定稿
 
 - `/dict`：切换为 PostgreSQL 词典真源后的返回结构最终确认
-- `/analysis-tasks`：创建、查询、重试、冲突返回结构确认
+- `/analysis-tasks`：创建、查询、当前活跃任务、冲突返回结构确认
 - `/records`：列表、详情、创建、删除、分页字段确认
 - `/favorites`：增删查协议确认
 - `/vocabulary`：增删改查协议确认
@@ -828,7 +820,7 @@ P3：
 - 明确正式运行环境：容器平台、PostgreSQL 服务、可选 Redis
 - 明确 API 域名、HTTPS 证书和小程序合法请求域名配置
 - 明确环境变量命名与注入方式
-- 明确数据库迁移、`TECD3` 导入、回滚和健康检查流程
+- 明确数据库迁移、`TECD3` 导入、回滚、worker 启动验活和 `/health/ready` 检查流程
 
 当前已落地的本地开发基线文件：
 
@@ -865,7 +857,7 @@ P3：
 
 ## 14. 文档维护与收口规则
 
-`docs/architecture/` 当前只保留 4 份主文档：
+`docs/architecture/` 当前只保留 5 份主文档：
 
 - [mini-program-integration-and-ux-design.md](./mini-program-integration-and-ux-design.md)
   - 用户主链路、当前实现状态、Phase A/B/C/D 路线
@@ -875,6 +867,8 @@ P3：
   - 小程序原生能力边界与架构结论
 - [production-architecture-and-deployment-plan.md](./production-architecture-and-deployment-plan.md)
   - 正式上线架构、数据库、认证、部署与 P0 清单
+- [daily-reader-module-design.md](./daily-reader-module-design.md)
+  - 每日精读模块的信息架构、内容链路与独立阅读体验
 
 维护原则：
 

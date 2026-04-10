@@ -7,8 +7,10 @@
 
 export interface VocabEntry {
   id: string
-  /** 来源分析记录 ID */
+  /** 来源分析记录 ID (client_record_id) */
   recordId: string
+  /** 来源分析记录云端 ID (UUID) */
+  cloudRecordId?: string
   /** 单词/短语原文 */
   word: string
   /** 词性 */

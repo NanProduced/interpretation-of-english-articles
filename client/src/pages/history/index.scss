@@ -105,6 +105,20 @@
           text { font-size: 18rpx; font-weight: bold; color: #92400e; }
         }
 
+        .processing-tag {
+          background-color: #e0f2fe;
+          border-radius: 8rpx;
+          padding: 4rpx 12rpx;
+          text { font-size: 18rpx; font-weight: bold; color: #0284c7; }
+        }
+
+        .failed-tag {
+          background-color: #fee2e2;
+          border-radius: 8rpx;
+          padding: 4rpx 12rpx;
+          text { font-size: 18rpx; font-weight: bold; color: #b91c1c; }
+        }
+
         .config-tag {
           font-size: 20rpx;
           background-color: var(--color-bg);

@@ -157,6 +157,78 @@ export async function fetchSessionLogout(sessionToken: string): Promise<void> {
   })
 }
 
+// ============ /analysis-tasks API ============
+
+export type TaskStatus = 'queued' | 'running' | 'finalizing' | 'succeeded' | 'failed' | 'cancelled' | 'expired'
+
+export interface TaskSubmitRequest extends AnalyzeRequest {
+  idempotency_key: string
+}
+
+export interface TaskSubmitResponse {
+  task_id: string
+  record_id: string
+  status: TaskStatus
+  created: boolean
+}
+
+export interface TaskStatusResponse {
+  task_id: string
+  record_id: string
+  status: TaskStatus
+  failure_code?: string | null
+  failure_message?: string | null
+  quota_cost_points: number
+  queued_at: string
+  started_at?: string | null
+  finished_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ActiveTaskResponse {
+  has_active: boolean
+  task?: TaskStatusResponse | null
+}
+
+export async function submitAnalysisTask(dto: TaskSubmitRequest): Promise<TaskSubmitResponse> {
+  return request<TaskSubmitResponse>({
+    url: '/analysis-tasks',
+    method: 'POST',
+    data: dto,
+  })
+}
+
+export async function getTaskStatus(taskId: string): Promise<TaskStatusResponse> {
+  return request<TaskStatusResponse>({
+    url: `/analysis-tasks/${taskId}`,
+    method: 'GET',
+  })
+}
+
+export async function getCurrentTask(): Promise<ActiveTaskResponse> {
+  return request<ActiveTaskResponse>({
+    url: '/analysis-tasks/current',
+    method: 'GET',
+  })
+}
+
+// ============ /me/quota API ============
+
+export interface QuotaResponse {
+  daily_free_points: number
+  daily_used_points: number
+  bonus_points: number
+  remaining_points: number
+}
+
+export async function fetchUserQuota(): Promise<QuotaResponse> {
+  return request<QuotaResponse>({
+    url: '/me/quota',
+    method: 'GET',
+  })
+}
+
 // ============ /analyze API ============
 
 /**

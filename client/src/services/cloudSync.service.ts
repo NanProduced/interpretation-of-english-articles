@@ -67,20 +67,25 @@ export const CloudSyncService = {
 
   /**
    * 同步收藏状态到云端
-   * @param recordId 本地记录 ID
+   * @param cloudId 云端 UUID
+   * @param clientRecordId 本地记录 ID
    * @param action 'add' | 'remove'
    */
-  async syncFavorite(recordId: string, action: 'add' | 'remove'): Promise<void> {
+  async syncFavorite(cloudId: string | undefined, clientRecordId: string, action: 'add' | 'remove'): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
+    if (!cloudId) {
+      console.warn('[cloudSync] syncFavorite skipped: missing cloudId')
+      return
+    }
 
     try {
       if (action === 'add') {
-        await addFavoriteToCloud(recordId)
+        await addFavoriteToCloud(cloudId, clientRecordId)
       } else {
-        await removeFavoriteFromCloud(recordId)
+        await removeFavoriteFromCloud(cloudId)
       }
     } catch (err) {
-      console.warn('[cloudSync] syncFavorite failed', recordId, action, err)
+      console.warn('[cloudSync] syncFavorite failed', clientRecordId, action, err)
     }
   },
 
@@ -89,6 +94,10 @@ export const CloudSyncService = {
    */
   async syncVocab(entry: VocabEntry): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
+    if (!entry.cloudRecordId) {
+       console.warn('[cloudSync] syncVocab skipped: missing cloudRecordId for word', entry.word)
+       return
+    }
 
     try {
       await addVocabToCloud(entry)
@@ -99,13 +108,15 @@ export const CloudSyncService = {
 
   /**
    * 同步所有本地收藏到云端（登录后全量同步）
-   * 遍历本地收藏列表，逐条 upsert 到云端
+   * 注意：这要求本地记录必须带有 cloudId
    */
-  async syncAllFavorites(localFavorites: Array<{ recordId: string }>): Promise<void> {
+  async syncAllFavorites(localRecords: AnalysisRecord[]): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
 
     await Promise.allSettled(
-      localFavorites.map((f) => addFavoriteToCloud(f.recordId))
+      localRecords
+        .filter(r => r.isFavorited && r.cloudId)
+        .map((r) => addFavoriteToCloud(r.cloudId!, r.recordId))
     )
   },
 
@@ -116,7 +127,9 @@ export const CloudSyncService = {
     if (!useAuthStore.getState().isLoggedIn) return
 
     await Promise.allSettled(
-      localVocab.map((entry) => addVocabToCloud(entry))
+      localVocab
+        .filter(e => e.cloudRecordId)
+        .map((entry) => addVocabToCloud(entry))
     )
   },
 }

@@ -11,16 +11,38 @@ Covers:
 
 from __future__ import annotations
 
+import asyncio
 import json
+import sys
+import types
 from datetime import date, datetime, timezone
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import pytest
 
+if "asyncpg" not in sys.modules:
+    asyncpg_stub = types.ModuleType("asyncpg")
+    asyncpg_stub.Pool = object
+    asyncpg_stub.Connection = object
+
+    async def _create_pool(*args, **kwargs):
+        raise RuntimeError("asyncpg stub create_pool should not be called in unit tests")
+
+    asyncpg_stub.create_pool = _create_pool
+    sys.modules["asyncpg"] = asyncpg_stub
+
+from app.api.routes.tasks import submit_analysis_task
+from app.api.routes.health import health_check, readiness_check
 from app.schemas.tasks import TaskSubmitRequest
-from app.services.analysis.task_executor import compute_cost_points
+from app.services.analysis.task_executor import (
+    AnalysisTaskWorker,
+    compute_cost_points,
+    execute_task,
+)
+from app.services.analysis.task_service import TaskExecutionPayload, TaskSubmitResult
 
 
 # ============================================================
@@ -248,40 +270,392 @@ class TestCreditDeductionLogic:
 class TestStartupRecovery:
     """Test recover_stuck_tasks logic."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_no_stuck_tasks(self):
         """When no stuck tasks, recovery should return 0."""
-        mock_conn = AsyncMock()
-        mock_conn.fetch = AsyncMock(return_value=[])
-
-        mock_pool = AsyncMock()
-        mock_pool.acquire = MagicMock(return_value=AsyncContextManager(mock_conn))
-
-        with patch("app.database.connection.DB_POOL", mock_pool):
+        with patch(
+            "app.services.analysis.task_executor.requeue_stale_tasks",
+            AsyncMock(return_value=0),
+        ) as requeue_mock:
             from app.services.analysis.task_executor import recover_stuck_tasks
             count = await recover_stuck_tasks()
             assert count == 0
+            requeue_mock.assert_awaited_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_recovery_with_stuck_tasks(self):
-        """Recovery should mark stuck tasks as failed."""
-        task_id = uuid4()
-        record_id = uuid4()
-        stuck_rows = [{"task_id": task_id, "record_id": record_id, "status": "running"}]
-
-        mock_conn = AsyncMock()
-        mock_conn.fetch = AsyncMock(return_value=stuck_rows)
-        mock_conn.execute = AsyncMock()
-
-        mock_pool = AsyncMock()
-        mock_pool.acquire = MagicMock(return_value=AsyncContextManager(mock_conn))
-
-        with patch("app.database.connection.DB_POOL", mock_pool):
+        """Recovery should requeue stale tasks for retry."""
+        with patch(
+            "app.services.analysis.task_executor.requeue_stale_tasks",
+            AsyncMock(return_value=2),
+        ) as requeue_mock:
             from app.services.analysis.task_executor import recover_stuck_tasks
             count = await recover_stuck_tasks()
-            assert count == 1
-            # Should have 3 execute calls: update task, update record, insert event
-            assert mock_conn.execute.call_count == 3
+            assert count == 2
+            requeue_mock.assert_awaited_once()
+
+
+# ============================================================
+# 5. Route and executor behavior regressions
+# ============================================================
+
+
+class TestTaskSubmitRoute:
+    """Route-level behavior for idempotency and quota gating."""
+
+    @pytest.mark.anyio
+    async def test_idempotent_replay_bypasses_quota_and_creation(self):
+        user_id = uuid4()
+        task_id = uuid4()
+        record_id = uuid4()
+        body = TaskSubmitRequest(
+            text="Hello world",
+            reading_goal="daily_reading",
+            reading_variant="intermediate_reading",
+            idempotency_key="idem-1",
+        )
+        current_user = SimpleNamespace(user_id=str(user_id))
+        existing = TaskSubmitResult(
+            task_id=task_id,
+            record_id=record_id,
+            status="queued",
+            created=False,
+        )
+
+        with (
+            patch(
+                "app.api.routes.tasks.ensure_credit_account",
+                AsyncMock(),
+            ) as ensure_mock,
+            patch(
+                "app.api.routes.tasks.get_active_task",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.api.routes.tasks.get_task_by_idempotency",
+                AsyncMock(return_value=existing),
+            ) as idempotency_mock,
+            patch(
+                "app.api.routes.tasks.check_quota",
+                AsyncMock(),
+            ) as quota_mock,
+            patch(
+                "app.api.routes.tasks.submit_task",
+                AsyncMock(),
+            ) as submit_mock,
+        ):
+            response = await submit_analysis_task(current_user, body)
+
+        assert response.status_code == 202
+        payload = json.loads(response.body)
+        assert payload["task_id"] == str(task_id)
+        assert payload["record_id"] == str(record_id)
+        assert payload["created"] is False
+        ensure_mock.assert_awaited_once()
+        idempotency_mock.assert_awaited_once()
+        quota_mock.assert_not_awaited()
+        submit_mock.assert_not_awaited()
+
+    @pytest.mark.anyio
+    async def test_insufficient_quota_rejects_before_task_creation(self):
+        user_id = uuid4()
+        body = TaskSubmitRequest(
+            text="Hello world",
+            reading_goal="daily_reading",
+            reading_variant="intermediate_reading",
+            idempotency_key="idem-2",
+        )
+        current_user = SimpleNamespace(user_id=str(user_id))
+
+        with (
+            patch(
+                "app.api.routes.tasks.ensure_credit_account",
+                AsyncMock(),
+            ),
+            patch(
+                "app.api.routes.tasks.get_active_task",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.api.routes.tasks.get_task_by_idempotency",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.api.routes.tasks.check_quota",
+                AsyncMock(return_value=0),
+            ) as quota_mock,
+            patch(
+                "app.api.routes.tasks.submit_task",
+                AsyncMock(),
+            ) as submit_mock,
+        ):
+            response = await submit_analysis_task(current_user, body)
+
+        assert response.status_code == 402
+        payload = json.loads(response.body)
+        assert payload["error"] == "INSUFFICIENT_CREDITS"
+        assert payload["remaining_points"] == 0
+        quota_mock.assert_awaited_once()
+        submit_mock.assert_not_awaited()
+
+    @pytest.mark.anyio
+    async def test_new_task_launches_after_quota_check(self):
+        user_id = uuid4()
+        task_id = uuid4()
+        record_id = uuid4()
+        body = TaskSubmitRequest(
+            text="Hello world",
+            reading_goal="daily_reading",
+            reading_variant="intermediate_reading",
+            idempotency_key="idem-3",
+        )
+        current_user = SimpleNamespace(user_id=str(user_id))
+        created = TaskSubmitResult(
+            task_id=task_id,
+            record_id=record_id,
+            status="queued",
+            created=True,
+        )
+
+        with (
+            patch(
+                "app.api.routes.tasks.ensure_credit_account",
+                AsyncMock(),
+            ),
+            patch(
+                "app.api.routes.tasks.get_active_task",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.api.routes.tasks.get_task_by_idempotency",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.api.routes.tasks.check_quota",
+                AsyncMock(return_value=1),
+            ),
+            patch(
+                "app.api.routes.tasks.submit_task",
+                AsyncMock(return_value=created),
+            ) as submit_mock,
+        ):
+            response = await submit_analysis_task(current_user, body)
+
+        assert response.status_code == 202
+        payload = json.loads(response.body)
+        assert payload["created"] is True
+        submit_mock.assert_awaited_once()
+
+    @pytest.mark.anyio
+    async def test_active_task_conflict_preempts_quota_check(self):
+        user_id = uuid4()
+        task_id = uuid4()
+        record_id = uuid4()
+        body = TaskSubmitRequest(
+            text="Hello world",
+            reading_goal="daily_reading",
+            reading_variant="intermediate_reading",
+            idempotency_key="idem-4",
+        )
+        current_user = SimpleNamespace(user_id=str(user_id))
+        active = {
+            "task_id": task_id,
+            "record_id": record_id,
+            "status": "running",
+        }
+
+        with (
+            patch(
+                "app.api.routes.tasks.ensure_credit_account",
+                AsyncMock(),
+            ),
+            patch(
+                "app.api.routes.tasks.get_task_by_idempotency",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "app.api.routes.tasks.get_active_task",
+                AsyncMock(return_value=active),
+            ) as active_mock,
+            patch(
+                "app.api.routes.tasks.check_quota",
+                AsyncMock(),
+            ) as quota_mock,
+            patch(
+                "app.api.routes.tasks.submit_task",
+                AsyncMock(),
+            ) as submit_mock,
+        ):
+            response = await submit_analysis_task(current_user, body)
+
+        assert response.status_code == 409
+        payload = json.loads(response.body)
+        assert payload["error"] == "ACTIVE_TASK_EXISTS"
+        assert payload["task_id"] == str(task_id)
+        active_mock.assert_awaited_once()
+        quota_mock.assert_not_awaited()
+        submit_mock.assert_not_awaited()
+
+
+class TestTaskExecutorCharging:
+    """Executor should charge weighted token points."""
+
+    @pytest.mark.anyio
+    async def test_execute_task_charges_fixed_success_points(self):
+        task_id = uuid4()
+        record_id = uuid4()
+        user_id = uuid4()
+
+        class DummyRenderScene:
+            user_facing_state = "normal"
+
+            def model_dump(self, mode: str = "json") -> dict[str, Any]:
+                return {"userFacingState": self.user_facing_state, "mode": mode}
+
+        workflow_result = {
+            "render_scene": DummyRenderScene(),
+            "usage_summary": {
+                "aggregate": {
+                    "input_tokens": 2000,
+                    "output_tokens": 3000,
+                    "total_tokens": 5000,
+                }
+            },
+        }
+
+        with (
+            patch(
+                "app.services.analysis.task_executor.run_article_analysis_with_state",
+                AsyncMock(return_value=workflow_result),
+            ),
+            patch(
+                "app.services.analysis.task_executor.update_task_status",
+                AsyncMock(),
+            ),
+            patch(
+                "app.services.analysis.task_executor.insert_task_event",
+                AsyncMock(),
+            ),
+            patch(
+                "app.services.analysis.task_executor.update_record_for_task",
+                AsyncMock(),
+            ),
+            patch(
+                "app.services.analysis.task_executor.deduct_credits",
+                AsyncMock(return_value=17),
+            ) as deduct_mock,
+        ):
+            await execute_task(
+                task_id=task_id,
+                record_id=record_id,
+                user_id=user_id,
+                text="Hello world",
+                reading_goal="daily_reading",
+                reading_variant="intermediate_reading",
+                source_type="user_input",
+                extended=False,
+            )
+
+        deduct_mock.assert_awaited_once()
+        assert deduct_mock.await_args.kwargs["cost_points"] == 17
+
+
+class TestWorkerLoop:
+    """Worker should claim queued tasks and dispatch execution."""
+
+    @pytest.mark.anyio
+    async def test_worker_claims_and_launches_tasks(self):
+        payload = TaskExecutionPayload(
+            task_id=uuid4(),
+            record_id=uuid4(),
+            user_id=uuid4(),
+            text="Hello world",
+            reading_goal="daily_reading",
+            reading_variant="intermediate_reading",
+            source_type="user_input",
+            extended=False,
+            worker_token="worker-1",
+        )
+        launched_task: asyncio.Task = asyncio.create_task(asyncio.sleep(0))
+
+        responses = iter([payload, None])
+
+        async def claim_once_then_idle(_: str):
+            try:
+                return next(responses)
+            except StopIteration:
+                return None
+
+        with (
+            patch(
+                "app.services.analysis.task_executor.claim_next_queued_task",
+                AsyncMock(side_effect=claim_once_then_idle),
+            ) as claim_mock,
+            patch(
+                "app.services.analysis.task_executor.launch_task",
+                MagicMock(return_value=launched_task),
+            ) as launch_mock,
+        ):
+            worker = AnalysisTaskWorker(max_concurrency=1, poll_interval_seconds=0.01)
+            worker.start()
+            await asyncio.sleep(0.05)
+            await worker.stop()
+
+        assert claim_mock.await_count >= 1
+        launch_mock.assert_called_once()
+
+
+class TestHealthRoutes:
+    """Health endpoints should reflect DB + worker readiness."""
+
+    @pytest.mark.anyio
+    async def test_health_check_includes_worker_status(self):
+        worker = MagicMock()
+        worker.health_snapshot.return_value = {
+            "healthy": True,
+            "worker_token": "worker-1",
+            "runner_running": True,
+            "stopping": False,
+            "inflight_tasks": 2,
+        }
+        request = SimpleNamespace(
+            app=SimpleNamespace(
+                state=SimpleNamespace(analysis_task_worker=worker)
+            )
+        )
+
+        with (
+            patch("app.api.routes.health.is_db_ready", AsyncMock(return_value=True)),
+            patch("app.api.routes.health.is_redis_ready", AsyncMock(return_value=False)),
+        ):
+            payload = await health_check(request)
+
+        assert payload["status"] == "ok"
+        assert payload["postgres"] is True
+        assert payload["worker"] is True
+        assert payload["worker_inflight_tasks"] == 2
+
+    @pytest.mark.anyio
+    async def test_readiness_fails_when_worker_unhealthy(self):
+        worker = MagicMock()
+        worker.health_snapshot.return_value = {
+            "healthy": False,
+            "worker_token": "worker-1",
+            "runner_running": False,
+            "stopping": False,
+            "inflight_tasks": 0,
+        }
+        request = SimpleNamespace(
+            app=SimpleNamespace(
+                state=SimpleNamespace(analysis_task_worker=worker)
+            )
+        )
+
+        with patch("app.api.routes.health.is_db_ready", AsyncMock(return_value=True)):
+            with pytest.raises(Exception) as exc_info:
+                await readiness_check(request)
+
+        assert getattr(exc_info.value, "status_code", None) == 503
 
 
 # ============================================================
@@ -299,3 +673,9 @@ class AsyncContextManager:
 
     async def __aexit__(self, *args):
         pass
+
+
+@pytest.fixture
+def anyio_backend():
+    """Restrict anyio tests to asyncio because trio is not installed in CI/dev."""
+    return "asyncio"

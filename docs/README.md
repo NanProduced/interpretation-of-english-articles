@@ -4,7 +4,7 @@
 
 当前文档主要服务于 Claread透读 的产品、workflow、架构与运行维护协作。
 
-当前仅维护四类文档：
+当前仅维护四类“有效文档”：
 
 - 产品共识：明确做什么、不做什么、核心用户和主链路
 - Workflow 共识：明确后端解读流程的业务骨架与当前未定项
@@ -27,14 +27,15 @@
 - 以 Notion 为源头长文档，仓库内以提炼版为准
 - 已实现且不再需要路线指导的内容，优先回写到主文档的“当前结论 / 状态跟踪”，不再拆独立新文档
 
-当前文档列表：
+当前目录中的 Markdown 可以分成两层理解：
+
+- 当前有效文档：直接指导当前开发、联调、部署和运维
+- 历史参考文档：保留阶段性 workflow 设计、复盘和归档，不再作为当前实现依据
+
+当前有效文档：
 
 - [产品需求摘要](./product/prd-summary.md)
-- [Workflow V0 架构回顾与问题诊断报告](./workflow/v0/v0-retrospective-report.md)
-- [Workflow V1 设计草案](./workflow/v1/workflow-v1-design.md)
 - [Workflow V3 设计与重构文档（当前重构参考）](./workflow/v3/workflow-v3-design.md)
-- [Workflow V2.1 改造设计稿（上一版主线参考）](./workflow/v2/v2-1-refactor-design.md)
-- [Workflow V2 统一设计文档（归档）](./workflow/v2/archive/v2-unified-design.md)
 - [微信小程序技术边界](./architecture/mini-program-boundaries.md)
 - [小程序联调与用户体验开发设计文档](./architecture/mini-program-integration-and-ux-design.md)
   - 包含当前结果页状态映射、前后端边界和 workflow 之外的小程序开发路线图
@@ -48,3 +49,19 @@
 - [LangSmith 使用规范](./operations/langsmith-usage.md)
 - [回归集使用说明](./operations/regression-suite-usage.md)
 - [模型配置教程](./operations/model-configuration-usage.md)
+
+历史参考文档：
+
+- [Workflow V0 架构回顾与问题诊断报告](./workflow/v0/v0-retrospective-report.md)
+- [Workflow V1 设计草案](./workflow/v1/workflow-v1-design.md)
+- [Workflow V2.1 改造设计稿（上一版主线参考）](./workflow/v2/v2-1-refactor-design.md)
+- [Workflow V2 统一设计文档（归档）](./workflow/v2/archive/v2-unified-design.md)
+- [Workflow V3 差异化输出策略设计](./workflow/v3/differentiated-output-strategy-design.md)
+- [Workflow V3 输入预处理重构设计](./workflow/v3/prepare-input-preprocessing-redesign.md)
+
+当前精简策略：
+
+- 新增文档前，先判断是否能回写到已有主文档
+- 历史 workflow 文档默认不删除，但不再列为“当前有效文档”
+- 如果后续继续精简，优先考虑把 `workflow/v3/` 下的补充设计合并回 `workflow-v3-design.md`
+- 只有在确认“无引用、无继续维护价值”后，才删除归档文档

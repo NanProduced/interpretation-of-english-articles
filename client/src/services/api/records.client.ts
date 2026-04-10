@@ -8,6 +8,8 @@
 import { request } from './client'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
 import type { AnalyzeRequest } from './client'
+import { analyzeResponseDtoToVm } from './adapters/render-scene.adapter'
+import type { AnalyzeResponseDto } from '../../types/api/analyze-response.dto'
 
 // ---------------------------------------------------------------------------
 // 后端 DTO（snake_case）
@@ -59,16 +61,36 @@ interface RecordUpsertDto {
 
 function dtoToVm(dto: RecordResponseDto): AnalysisRecord {
   const payload = dto.request_payload_json || {}
+  
+  let renderSceneVm = null
+  if (dto.render_scene_json) {
+    // 如果是后端 worker 直接写回的 snake_case 格式，则需要经过 adapter 转换
+    if ('schema_version' in dto.render_scene_json) {
+      renderSceneVm = analyzeResponseDtoToVm(dto.render_scene_json as unknown as AnalyzeResponseDto)
+    } else {
+      // 如果是旧的前端直接存入的 camelCase 格式，则直接使用
+      renderSceneVm = dto.render_scene_json as unknown as AnalysisRecord['renderScene']
+    }
+  }
+
+  let pageState = ((dto.page_state_json as unknown as { pageState?: string })?.pageState as AnalysisRecord['pageState']) || 'normal'
+  if (dto.analysis_status === 'failed' || dto.analysis_status === 'cancelled') {
+    pageState = 'failed'
+  } else if (dto.analysis_status === 'queued' || dto.analysis_status === 'running' || dto.analysis_status === 'finalizing') {
+    pageState = 'loading'
+  }
+
   return {
     recordId: dto.client_record_id,
+    cloudId: dto.id,
     sourceText: dto.source_text,
     requestPayload: {
       reading_goal: payload.reading_goal as AnalyzeRequest['reading_goal'],
       reading_variant: payload.reading_variant as AnalyzeRequest['reading_variant'],
       source_type: (payload.source_type as AnalyzeRequest['source_type']) || 'user_input',
     },
-    renderScene: (dto.render_scene_json as unknown as AnalysisRecord['renderScene']) || null,
-    pageState: ((dto.page_state_json as unknown as { pageState?: string })?.pageState as AnalysisRecord['pageState']) || 'normal',
+    renderScene: renderSceneVm,
+    pageState,
     createdAt: new Date(dto.created_at).getTime(),
     updatedAt: new Date(dto.updated_at).getTime(),
     isFavorited: false, // 云端不存这个，前端本地维护

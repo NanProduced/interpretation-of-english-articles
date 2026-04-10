@@ -22,11 +22,10 @@ from app.services.analysis.credit_service import (
     check_quota,
     ensure_credit_account,
 )
-from app.services.analysis.task_executor import launch_task
 from app.services.analysis.task_service import (
     ActiveTaskConflict,
-    cancel_new_task,
     get_active_task,
+    get_task_by_idempotency,
     get_task_status,
     submit_task,
 )
@@ -54,9 +53,38 @@ async def submit_analysis_task(
         # Ensure credit account exists (idempotent, cheap)
         await ensure_credit_account(user_id)
 
-        # Step 1: submit_task handles idempotency + single-active-task check.
-        # If this is a duplicate idempotency_key, it returns the existing task
-        # without any quota check — preserving idempotency semantics.
+        # Step 1: idempotent replay must bypass quota and task creation.
+        existing = await get_task_by_idempotency(user_id, body.idempotency_key)
+        if existing is not None:
+            response = TaskSubmitResponse(
+                task_id=existing.task_id,
+                record_id=existing.record_id,
+                status=existing.status,
+                created=False,
+            )
+            return JSONResponse(
+                status_code=202,
+                content=response.model_dump(mode="json"),
+            )
+
+        # Step 2: another active task should return 409 before quota checks.
+        active = await get_active_task(user_id)
+        if active is not None:
+            raise ActiveTaskConflict(
+                task_id=active["task_id"],
+                record_id=active["record_id"],
+                status=active["status"],
+            )
+
+        # Step 3: new task submission requires at least one remaining point.
+        remaining = await check_quota(user_id)
+        if remaining <= 0:
+            raise InsufficientCredits(
+                remaining=remaining,
+                required=1,
+            )
+
+        # Step 4: create the task/record pair after quota gate passes.
         result = await submit_task(
             user_id=user_id,
             text=body.text,
@@ -66,26 +94,6 @@ async def submit_analysis_task(
             extended=body.extended,
             idempotency_key=body.idempotency_key,
         )
-
-        # Step 2: For NEW tasks only, check quota before launching execution.
-        if result.created:
-            remaining = await check_quota(user_id)
-            if remaining <= 0:
-                # Quota exhausted — cancel the just-created task + record
-                await cancel_new_task(result.task_id, result.record_id)
-                raise InsufficientCredits(remaining=remaining)
-
-            # Step 3: Launch background execution
-            launch_task(
-                task_id=result.task_id,
-                record_id=result.record_id,
-                user_id=user_id,
-                text=body.text,
-                reading_goal=body.reading_goal,
-                reading_variant=body.reading_variant,
-                source_type=body.source_type,
-                extended=body.extended,
-            )
 
         response = TaskSubmitResponse(
             task_id=result.task_id,

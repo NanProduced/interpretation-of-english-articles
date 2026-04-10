@@ -52,7 +52,8 @@ interface VocabularyUpsertDto {
 function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
   return {
     id: dto.id,
-    recordId: dto.analysis_record_id || '',
+    recordId: dto.analysis_record_id || '', // 后端返回的是 UUID，这里可能是 client_record_id 的占位，通常云端只存 UUID
+    cloudRecordId: dto.analysis_record_id || undefined,
     word: dto.display_word,
     lemma: dto.lemma,
     phonetic: dto.phonetic || undefined,
@@ -97,7 +98,7 @@ export async function addVocabToCloud(
     url: '/vocabulary',
     method: 'POST',
     data: {
-      analysis_record_id: entry.recordId || null,
+      analysis_record_id: entry.cloudRecordId || null,
       lemma: entry.lemma || entry.word,
       display_word: entry.word,
       phonetic: entry.phonetic || null,

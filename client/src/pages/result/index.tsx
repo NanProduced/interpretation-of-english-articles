@@ -67,9 +67,13 @@ export default function Result() {
   // 从 store 获取页面状态
   const pageState = useArticleStore((s) => s.pageState)
   const sceneData = useArticleStore((s) => s.sceneData)
+  const errorCode = useArticleStore((s) => s.errorCode)
+  const errorMsg = useArticleStore((s) => s.error)
   const analyze = useArticleStore((s) => s.analyze)
   const loadRecord = useArticleStore((s) => s.loadRecord)
+  const recoverActiveTask = useArticleStore((s) => s.recoverActiveTask)
   const recordId = useArticleStore((s) => s.recordId)
+  const cloudId = useArticleStore((s) => s.cloudId)
   const isReplayMode = useArticleStore((s) => s.isReplayMode)
 
 
@@ -108,6 +112,14 @@ export default function Result() {
       .map((v: { word: string }) => v.word.toLowerCase())
     setVocabList(words)
   }, [recordId])
+
+  Taro.useDidShow(() => {
+    // 页面展示时，如果当前处于加载中或失败状态，且没有场景数据，尝试恢复活跃任务
+    // 主要是为了处理杀后台恢复或意外中断
+    if ((pageState === 'loading' || pageState === 'failed') && !sceneData) {
+      recoverActiveTask()
+    }
+  })
 
 
   // === 分享能力 ===
@@ -172,12 +184,12 @@ export default function Result() {
 
       // 再同步云端（401 → 引导登录 → 重试）
       try {
-        await CloudSyncService.syncFavorite(recordId, 'add')
+        await CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'add')
       } catch (err: any) {
         if (err?.statusCode === 401) {
           const relogin = await ensureLoggedIn()
           if (relogin) {
-            await CloudSyncService.syncFavorite(recordId, 'add')
+            await CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'add')
           }
         }
         // 其他错误静默忽略
@@ -191,7 +203,7 @@ export default function Result() {
       Taro.showToast({ title: '已取消收藏', icon: 'none', duration: 1500 })
 
       try {
-        await CloudSyncService.syncFavorite(recordId, 'remove')
+        await CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'remove')
       } catch {
         // 静默忽略删除失败的场景
       }
@@ -280,13 +292,16 @@ export default function Result() {
   }
 
   if (pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail') {
-    const msg = PAGE_STATE_MESSAGES[pageState]!
+    const defaultMsg = PAGE_STATE_MESSAGES[pageState]!
+    const title = errorCode === 'INSUFFICIENT_CREDITS' ? '今日积分不足' : defaultMsg.title
+    const subtitle = errorCode === 'INSUFFICIENT_CREDITS' ? errorMsg || '您的积分已耗尽，请明天再试' : defaultMsg.subtitle
+
     return pageShell(
       <View className='state-container'>
         <View className='state-vertical'>
           <ErrorIllustration />
-          <Text className='state-title'>{msg.title}</Text>
-          <Text className='state-subtitle'>{msg.subtitle}</Text>
+          <Text className='state-title'>{title}</Text>
+          <Text className='state-subtitle'>{subtitle}</Text>
         </View>
         <View className='state-cta safe-area-bottom'>
           <View className='btn-primary' onClick={handleRetry}>
@@ -414,6 +429,7 @@ export default function Result() {
           const vocabEntry: VocabEntry = {
             id: `${recordId}_${w}_${Date.now()}`,
             recordId,
+            cloudRecordId: cloudId || undefined,
             word: w,
             partOfSpeech: detailMeanings[0]?.partOfSpeech || '',
             meaning: derivedMeaning.slice(0, 200),

@@ -109,7 +109,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     ;(page as any).onPullDownRefresh(handler)
   }, [loadRecords, isSubView])
 
-  const handleDelete = (recordId: string, e: any) => {
+  const handleDelete = (record: AnalysisRecord, e: any) => {
     e.stopPropagation()
     Taro.showModal({
       title: '删除记录',
@@ -119,11 +119,11 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
       success: (res) => {
         if (res.confirm) {
           // 本地一定删
-          deleteRecord(recordId)
+          deleteRecord(record.recordId)
           // 云端也同步删除（失败静默忽略）
           const { isLoggedIn } = useAuthStore.getState()
-          if (isLoggedIn) {
-            deleteCloudRecord(recordId).catch(() => {})
+          if (isLoggedIn && record.cloudId) {
+            deleteCloudRecord(record.cloudId).catch(() => {})
           }
           loadRecords()
         }
@@ -176,14 +176,14 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
             </View>
           ) : (
             filteredRecords.map((record) => (
-              <View
+                <View
                 key={record.recordId}
                 className='history-card'
                 onClick={() => goToResult(record.recordId)}
               >
                 <View className='card-header'>
                   <Text className='item-title'>{getDisplayTitle(record.sourceText)}</Text>
-                  <View className='delete-btn' onClick={(e) => handleDelete(record.recordId, e)}>
+                  <View className='delete-btn' onClick={(e) => handleDelete(record, e)}>
                     <Text className='delete-icon'>×</Text>
                   </View>
                 </View>
@@ -193,6 +193,16 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
                     {record.isFavorited && (
                       <View className='fav-tag'>
                         <Text>★ 已收藏</Text>
+                      </View>
+                    )}
+                    {record.pageState === 'loading' && (
+                      <View className='processing-tag'>
+                        <Text>⌛ 处理中</Text>
+                      </View>
+                    )}
+                    {(record.pageState === 'failed' || record.pageState === 'timeout' || record.pageState === 'network_fail') && (
+                      <View className='failed-tag'>
+                        <Text>❌ 解析失败</Text>
                       </View>
                     )}
                     <Text className='config-tag'>

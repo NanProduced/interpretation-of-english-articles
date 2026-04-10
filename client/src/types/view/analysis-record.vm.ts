@@ -9,8 +9,10 @@ import type { AnalyzeRequest } from '../../services/api'
 import type { RenderSceneVm, ResultPageState } from './render-scene.vm'
 
 export interface AnalysisRecord {
-  /** 本地生成唯一 ID */
+  /** 本地生成唯一 ID (client_record_id) */
   recordId: string
+  /** 云端主键 ID (UUID)，用于 API 操作如删除 */
+  cloudId?: string
   /** 原始输入文本（用于重新分析） */
   sourceText: string
   /** 发给 /analyze 的请求参数 */

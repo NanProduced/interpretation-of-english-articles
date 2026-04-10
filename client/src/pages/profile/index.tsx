@@ -14,6 +14,7 @@ import { ensureLoggedIn } from '../../services/auth'
 import { getAllRecords, getVocabulary } from '../../services/storage'
 import { fetchCloudRecords } from '../../services/api/records.client'
 import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
+import { fetchUserQuota } from '../../services/api/client'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
@@ -31,6 +32,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const { isLoggedIn, userInfo, logout, fetchUserInfo, updateUserInfo } = useAuthStore()
   const [articleCount, setArticleCount] = useState(0)
   const [wordCount, setWordCount] = useState(0)
+  const [quota, setQuota] = useState<{ remaining: number, dailyFree: number } | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
 
   /**
@@ -42,12 +44,16 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     setLoadingStats(true)
     if (isLoggedIn) {
       try {
-        const [recordResult, vocabResult] = await Promise.all([
-          fetchCloudRecords(1, 1),
-          fetchCloudVocabulary(1, 1),
+        const [recordResult, vocabResult, quotaResult] = await Promise.all([
+          fetchCloudRecords(1, 1).catch(() => ({ total: 0 })),
+          fetchCloudVocabulary(1, 1).catch(() => ({ total: 0 })),
+          fetchUserQuota().catch(() => null),
         ])
         setArticleCount(recordResult.total)
         setWordCount(vocabResult.total)
+        if (quotaResult) {
+          setQuota({ remaining: quotaResult.remaining_points, dailyFree: quotaResult.daily_free_points })
+        }
       } catch {
         // 云端读取失败，降级到本地
         const records = getAllRecords()
@@ -60,6 +66,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       setArticleCount(records.length)
       const vocab = getVocabulary()
       setWordCount(vocab.length)
+      setQuota(null)
     }
     setLoadingStats(false)
   }, [isLoggedIn])
@@ -192,12 +199,31 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                 <>
                   <Text className='stats-label'>已读 </Text>
                   <Text className='stats-value'>{articleCount}</Text>
-                  <Text className='stats-label'> 篇文章</Text>
+                  <Text className='stats-label'> 篇</Text>
+                  {quota !== null && (
+                    <>
+                      <Text className='stats-label'> · 积分 </Text>
+                      <Text className='stats-value'>{quota.remaining}</Text>
+                    </>
+                  )}
                 </>
               ) : (
-                <Text className='stats-label'>暂无阅读记录</Text>
+                <>
+                  <Text className='stats-label'>暂无阅读记录</Text>
+                  {quota !== null && (
+                    <>
+                      <Text className='stats-label'> · 积分 </Text>
+                      <Text className='stats-value'>{quota.remaining}</Text>
+                    </>
+                  )}
+                </>
               )}
             </View>
+            {quota !== null && (
+              <View className='quota-hint'>
+                <Text>1 积分 ≈ 1000 Token，每日免费 {quota.dailyFree} 积分</Text>
+              </View>
+            )}
           </View>
 
           {isLoggedIn && (

@@ -5,6 +5,7 @@ import { useConfigStore, UserPurpose } from '../../stores/config'
 import { useArticleStore } from '../../stores/article'
 import { useLayoutStore } from '../../stores/layout'
 import { saveDraft, getDraft, clearDraft } from '../../services/storage'
+import { ensureLoggedIn } from '../../services/auth'
 import { track } from '../../services/analytics'
 import LucideIcon from '../../components/LucideIcon'
 import NavBar from '../../components/NavBar'
@@ -43,6 +44,7 @@ export default function InputPage() {
   }, [purpose, level, content])
 
   const analyze = useArticleStore((s) => s.analyze)
+  const recoverActiveTask = useArticleStore((s) => s.recoverActiveTask)
 
   // 简单的单词计数
   const wordsCount = content.trim().split(/\s+/).filter(Boolean).length
@@ -66,7 +68,16 @@ export default function InputPage() {
     if (draft?.text) setContent(draft.text)
   }, [])
 
-  Taro.useDidShow(() => { checkClipboard() })
+  Taro.useDidShow(() => {
+    checkClipboard()
+    // 尝试恢复是否有未完成的活跃任务
+    recoverActiveTask().then(() => {
+      const phase = useArticleStore.getState().phase
+      if (phase === 'polling' || phase === 'loading') {
+        Taro.navigateTo({ url: '/pages/result/index' })
+      }
+    })
+  })
 
   useEffect(() => {
     if (!content) return
@@ -104,11 +115,16 @@ export default function InputPage() {
     setTempConfig({ purpose: goal, level })
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (wordsCount < 10) {
       Taro.showToast({ title: '最少输入10个单词', icon: 'none' })
       return
     }
+
+    // 提交任务前先确保登录，避免后端 401
+    const loginRes = await ensureLoggedIn()
+    if (!loginRes.success) return
+
     const { reading_goal, reading_variant } = getApiParams(tempConfig.purpose, tempConfig.level)
     track('submit_article', { 
       wordCount: wordsCount, 

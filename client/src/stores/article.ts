@@ -1,220 +1,324 @@
 import { create } from 'zustand'
-import { fetchAnalyze, AnalyzeRequest } from '../services/api'
-import { analyzeResponseDtoToVm } from '../services/api/adapters/render-scene.adapter'
+import {
+  AnalyzeRequest,
+  submitAnalysisTask,
+  getTaskStatus,
+  getCurrentTask,
+  ApiError,
+} from '../services/api/client'
+import { fetchCloudRecord } from '../services/api/records.client'
 import { normalizeServerAnalyzeParams } from '../config/purpose'
 import {
   RenderSceneVm,
   ResultPageState,
 } from '../types/view/render-scene.vm'
-import { saveRecord, generateRecordId, getRecord } from '../services/storage'
-import { CloudSyncService } from '../services/cloudSync.service'
+import { saveRecord, getRecord } from '../services/storage'
 import type { AnalysisRecord } from '../types/view/analysis-record.vm'
 import { track } from '../services/analytics'
 
-/**
- * 页面状态推导（唯一状态入口）
- * 规则：
- * - idle | loading → loading
- * - error + TIMEOUT → timeout
- * - error + NETWORK_ERROR → network_fail
- * - error → failed
- * - empty → empty
- * - success → vm.userFacingState
- */
 function derivePageState(
   phase: ArticlePhase,
   errorCode: string | null,
   vm: RenderSceneVm | null
 ): ResultPageState {
-  if (phase === 'idle' || phase === 'loading') return 'loading'
+  if (phase === 'idle' || phase === 'loading' || phase === 'polling') return 'loading'
   if (phase === 'error') {
     if (errorCode === 'TIMEOUT') return 'timeout'
     if (errorCode === 'NETWORK_ERROR') return 'network_fail'
+    if (errorCode === 'AUTH_REQUIRED') return 'failed' // 引导登录
     return 'failed'
   }
   if (phase === 'empty') return 'empty'
-  // success
   return vm!.userFacingState
 }
 
-/**
- * 页面/分析状态机
- *
- * phase 是唯一的状态判定入口，sceneData/error 辅助判断内容
- * - idle:       初始态，未发起请求（result 页应显示 loading）
- * - loading:    请求中
- * - success:    请求成功，sceneData 有有效内容
- * - empty:      请求成功，但无有效内容（warnings 可能有内容）
- * - error:      请求失败
- */
-export type ArticlePhase = 'idle' | 'loading' | 'success' | 'empty' | 'error'
+export type ArticlePhase = 'idle' | 'loading' | 'polling' | 'success' | 'empty' | 'error'
 
-/** 判断是否为"空结果"（请求成功但无有效内容） */
 function isEmptyResult(vm: RenderSceneVm): boolean {
   const sentences = vm.article?.sentences
   if (!sentences || sentences.length === 0) return true
   return sentences.every((s) => !s.text || s.text.trim() === '')
 }
 
+/** 生成幂等键 */
+function generateIdempotencyKey() {
+  return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
+let currentAbortController: AbortController | null = null
+
 interface ArticleState {
-  // 渲染模型 (VM)
   sceneData: RenderSceneVm | null
-  // 请求参数（用于重新发起）
   requestParams: AnalyzeRequest | null
-  // 当前记录 ID（回看时使用）
-  recordId: string | null
-  // 内部状态机（仅 store 内部使用）
+  recordId: string | null // 对应 client_record_id (task-xxx)
+  cloudId: string | null  // 对应服务端 UUID
   phase: ArticlePhase
   error: string | null
   errorCode: string | null
-  // 页面级状态（唯一对外状态口）
   pageState: ResultPageState
-  // 是否为回看模式（不回写 storage）
   isReplayMode: boolean
-  // Actions
   analyze: (params: AnalyzeRequest) => Promise<void>
+  recoverActiveTask: (targetRecordId?: string) => Promise<void>
   loadRecord: (recordId: string) => void
   reset: () => void
 }
 
-export const useArticleStore = create<ArticleState>((set, get) => ({
-  sceneData: null,
-  requestParams: null,
-  recordId: null,
-  phase: 'idle',
-  error: null,
-  errorCode: null,
-  pageState: 'loading',
-  isReplayMode: false,
+export const useArticleStore = create<ArticleState>((set, get) => {
 
-  analyze: async (params: AnalyzeRequest) => {
-    const normalizedRequest = {
-      ...params,
-      ...normalizeServerAnalyzeParams(params.reading_goal, params.reading_variant),
-    } as AnalyzeRequest
+  const startPolling = async (taskId: string, clientRecordId: string, abortSignal: AbortSignal) => {
+    while (!abortSignal.aborted) {
+      try {
+        const statusRes = await getTaskStatus(taskId)
+        if (['queued', 'running', 'finalizing'].includes(statusRes.status)) {
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          continue
+        }
 
-    set({
-      phase: 'loading',
-      error: null,
-      errorCode: null,
-      requestParams: normalizedRequest,
-      isReplayMode: false,
-    })
+        if (statusRes.status === 'succeeded') {
+          // 成功后使用服务端 UUID 获取完整记录，确保拿到后端真实的 client_record_id
+          const cloudRecord = await fetchCloudRecord(statusRes.record_id)
+          if (!cloudRecord || !cloudRecord.renderScene) {
+            throw new Error('Record not found or empty render scene')
+          }
+          const vm = cloudRecord.renderScene
+          const phase = isEmptyResult(vm) ? 'empty' : 'success'
+          const pageState = derivePageState(phase, null, vm)
 
-    try {
-      const dto = await fetchAnalyze(normalizedRequest)
-      // 调试日志：确认后端返回的原始数据结构
-      console.log('[article] analyze dto received:', {
-        hasData: !!dto,
-        schemaVersion: (dto as any)?.schema_version,
-        hasArticle: !!(dto as any)?.article,
-        articleParagraphs: (dto as any)?.article?.paragraphs?.length,
-        articleSentences: (dto as any)?.article?.sentences?.length,
-        inlineMarksCount: (dto as any)?.inline_marks?.length,
-        userFacingState: (dto as any)?.user_facing_state,
-      })
-      const vm: RenderSceneVm = analyzeResponseDtoToVm(dto)
-      const phase = isEmptyResult(vm) ? 'empty' : 'success'
-      const pageState = derivePageState(phase, null, vm)
+          // 保存到本地时，使用后端返回的真实 client_record_id 作为主键
+          const localRecord: AnalysisRecord = {
+            ...cloudRecord,
+            pageState
+          }
+          saveRecord(localRecord)
+          track('analyze_success', { pageState })
+          
+          if (!abortSignal.aborted) {
+             set({ sceneData: vm, phase, pageState, recordId: cloudRecord.recordId, cloudId: statusRes.record_id })
+          }
+          break
+        }
 
-      // 自动保存到本地历史记录（非回看模式）
-      const recordId = generateRecordId()
-      const record: AnalysisRecord = {
-        recordId,
-        sourceText: normalizedRequest.text,
-        requestPayload: {
-          reading_goal: normalizedRequest.reading_goal,
-          reading_variant: normalizedRequest.reading_variant,
-          source_type: 'user_input',
-        },
-        renderScene: vm,
-        pageState,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        isFavorited: false,
+        // failed, cancelled, expired
+        const errorCode = statusRes.failure_code || 'UNKNOWN'
+        throw new ApiError(statusRes.failure_message || '分析失败', errorCode, 500)
+
+      } catch (err: any) {
+        if (abortSignal.aborted) break
+        console.error('[article] polling/fetch failed:', err)
+        const message = err?.message || '网络或服务异常，请稍后重试'
+        const code = err?.code || 'UNKNOWN'
+        const phase: ArticlePhase = 'error'
+        const pageState = derivePageState(phase, code, null)
+
+        track('analyze_failed', { errorCode: code })
+        set({ error: message, errorCode: code, phase, pageState })
+        break
       }
-      saveRecord(record)
-      // 静默同步到云端（未登录自动跳过，失败不阻塞）
-      CloudSyncService.syncRecord(record)
-      track('analyze_success', { pageState })
-
-      set({ sceneData: vm, phase, pageState, recordId })
-    } catch (err: any) {
-      // 详细日志，便于调试
-      console.error('[article] analyze failed:', {
-        name: err?.name,
-        message: err?.message,
-        code: err?.code,
-        statusCode: err?.statusCode,
-        response: err?.response,
-        stack: err?.stack,
-      })
-      const message = err?.message || '网络或服务异常，请稍后重试'
-      const code = err?.code || 'UNKNOWN'
-      const phase: ArticlePhase = 'error'
-      const pageState = derivePageState(phase, code, null)
-
-      // 分析失败也保存一条记录（renderScene = null），便于回看
-      const recordId = generateRecordId()
-      const record: AnalysisRecord = {
-        recordId,
-        sourceText: normalizedRequest.text,
-        requestPayload: {
-          reading_goal: normalizedRequest.reading_goal,
-          reading_variant: normalizedRequest.reading_variant,
-          source_type: 'user_input',
-        },
-        renderScene: null,
-        pageState,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        isFavorited: false,
-      }
-      saveRecord(record)
-      track('analyze_failed', { errorCode: code })
-
-      set({ error: message, errorCode: code, phase, pageState, recordId })
     }
-  },
+  }
 
-  /** 从历史记录加载（回看模式，不重新请求） */
-  loadRecord: (recordId: string) => {
-    const record = getRecord(recordId)
-    if (!record) {
-      set({ phase: 'error', error: '记录不存在或已删除', errorCode: 'RECORD_NOT_FOUND', pageState: 'failed', recordId: null, isReplayMode: true })
-      return
-    }
-    const pageState = record.pageState
-    const phase = pageState === 'empty' ? 'empty'
-      : pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail' ? 'error'
-      : record.renderScene ? 'success' : 'error'
-    set({
-      sceneData: record.renderScene,
-      requestParams: record.sourceText ? {
-        text: record.sourceText,
-        ...normalizeServerAnalyzeParams(
-          record.requestPayload.reading_goal,
-          record.requestPayload.reading_variant
-        ),
-        source_type: 'user_input',
-      } : null,
-      recordId,
-      phase,
-      error: null,
-      errorCode: null,
-      pageState,
-      isReplayMode: true,
-    })
-  },
-
-  reset: () => set({
+  return {
     sceneData: null,
     requestParams: null,
     recordId: null,
+    cloudId: null,
     phase: 'idle',
     error: null,
     errorCode: null,
     pageState: 'loading',
     isReplayMode: false,
-  }),
-}))
+
+    analyze: async (params: AnalyzeRequest) => {
+      if (currentAbortController) {
+        currentAbortController.abort()
+      }
+      const abortController = new AbortController()
+      currentAbortController = abortController
+
+      const normalizedRequest = {
+        ...params,
+        ...normalizeServerAnalyzeParams(params.reading_goal, params.reading_variant),
+      } as AnalyzeRequest
+
+      set({
+        phase: 'loading',
+        error: null,
+        errorCode: null,
+        requestParams: normalizedRequest,
+        isReplayMode: false,
+      })
+
+      const idempotency_key = generateIdempotencyKey()
+      const clientRecordId = `task-${idempotency_key}`
+      let taskId = ''
+      let serverRecordId = ''
+
+      try {
+        const res = await submitAnalysisTask({
+          ...normalizedRequest,
+          idempotency_key
+        })
+        taskId = res.task_id
+        serverRecordId = res.record_id
+        set({ phase: 'polling', recordId: clientRecordId, cloudId: serverRecordId })
+      } catch (err: any) {
+        if (err instanceof ApiError && err.statusCode === 409) {
+          console.log('[article] 409 ACTIVE_TASK_EXISTS, recovering...')
+          const current = await getCurrentTask()
+          if (current.has_active && current.task) {
+             taskId = current.task.task_id
+             serverRecordId = current.task.record_id
+             
+             // 必须拉取真实记录以获取正确的 client_record_id，严禁前端猜测
+             const cloudRecord = await fetchCloudRecord(serverRecordId)
+             if (!cloudRecord) {
+                const message = '无法恢复当前任务，请稍后重试'
+                set({ error: message, errorCode: 'RECOVERY_FAILED', phase: 'error', pageState: 'failed' })
+                return
+             }
+             
+             const realClientRecordId = cloudRecord.recordId
+             set({ phase: 'polling', recordId: realClientRecordId, cloudId: serverRecordId })
+             await startPolling(taskId, realClientRecordId, abortController.signal)
+             return
+          } else {
+             throw err
+          }
+        } else if (err instanceof ApiError && err.statusCode === 402) {
+          set({
+            error: '今日解析积分已用尽',
+            errorCode: 'INSUFFICIENT_CREDITS',
+            phase: 'error',
+            pageState: 'failed',
+          })
+          return
+        } else if (err instanceof ApiError && err.statusCode === 401) {
+          set({
+            error: '请先登录以开始解析',
+            errorCode: 'AUTH_REQUIRED',
+            phase: 'error',
+            pageState: 'failed',
+          })
+          return
+        } else {
+          // generic error
+          console.error('[article] submit failed:', err)
+          const message = err?.message || '网络或服务异常，请稍后重试'
+          const code = err?.code || 'UNKNOWN'
+          const phase: ArticlePhase = 'error'
+          const pageState = derivePageState(phase, code, null)
+          set({ error: message, errorCode: code, phase, pageState })
+          return
+        }
+      }
+
+      await startPolling(taskId, clientRecordId, abortController.signal)
+    },
+
+    recoverActiveTask: async (targetRecordId?: string) => {
+      // 用于发现或恢复活跃任务
+      if (get().phase === 'polling' || get().phase === 'loading') return
+      
+      try {
+        const current = await getCurrentTask()
+        if (current.has_active && current.task) {
+          const serverRecordId = current.task.record_id
+          
+          // 如果 history 点进来的 recordId 匹配不上当前活跃任务，且当前页面没有在 polling，则不管它（交给 loadRecord 处理普通回看）
+          if (targetRecordId && targetRecordId !== serverRecordId) {
+             const cloudRecord = await fetchCloudRecord(serverRecordId)
+             if (cloudRecord && cloudRecord.recordId !== targetRecordId) {
+                return 
+             }
+          }
+
+          if (currentAbortController) {
+            currentAbortController.abort()
+          }
+          const abortController = new AbortController()
+          currentAbortController = abortController
+
+          // 拉取真实记录以获取正确的 client_record_id，严禁前端猜测
+          const cloudRecord = await fetchCloudRecord(serverRecordId)
+          if (!cloudRecord) {
+             console.warn('[article] recover active task: cloud record not found yet')
+             return
+          }
+          
+          const realClientRecordId = cloudRecord.recordId
+          set({ 
+            recordId: realClientRecordId, 
+            cloudId: serverRecordId, 
+            phase: 'polling', 
+            isReplayMode: false,
+            error: null,
+            errorCode: null
+          })
+          
+          await startPolling(current.task.task_id, realClientRecordId, abortController.signal)
+        }
+      } catch (err) {
+        console.error('[article] recover active task failed', err)
+      }
+    },
+
+    loadRecord: (recordId: string) => {
+      const record = getRecord(recordId)
+      if (!record) {
+        set({ phase: 'error', error: '记录不存在或已删除', errorCode: 'RECORD_NOT_FOUND', pageState: 'failed', recordId: null, cloudId: null, isReplayMode: true })
+        return
+      }
+
+      // 如果记录处于处理中，尝试触发恢复流程
+      if (record.pageState === 'loading' && !record.renderScene) {
+         get().recoverActiveTask(recordId)
+         return
+      }
+
+      const pageState = record.pageState
+      const phase = pageState === 'empty' ? 'empty'
+        : pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail' ? 'error'
+        : record.renderScene ? 'success' : 'error'
+      
+      set({
+        sceneData: record.renderScene,
+        requestParams: record.sourceText ? {
+          text: record.sourceText,
+          ...normalizeServerAnalyzeParams(
+            record.requestPayload.reading_goal,
+            record.requestPayload.reading_variant
+          ),
+          source_type: record.requestPayload.source_type || 'user_input',
+        } : null,
+        recordId,
+        cloudId: record.cloudId || null,
+        phase,
+        error: null,
+        errorCode: null,
+        pageState,
+        isReplayMode: true,
+      })
+    },
+
+    reset: () => {
+      if (currentAbortController) {
+        currentAbortController.abort()
+        currentAbortController = null
+      }
+      set({
+        sceneData: null,
+        requestParams: null,
+        recordId: null,
+        cloudId: null,
+        phase: 'idle',
+        error: null,
+        errorCode: null,
+        pageState: 'loading',
+        isReplayMode: false,
+      })
+    },
+  }
+})
