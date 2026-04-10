@@ -133,10 +133,18 @@ export default function WordPopup({
     Taro.showToast({ title: '暂无发音', icon: 'none' })
   }
 
-  if (!visible) return null
-
   const isEntryResult = dictResult?.resultType === 'entry'
   const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
+
+  const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
+
+  // 当 entry 改变时，如果当前 tab 没数据，切回 meanings
+  useEffect(() => {
+    if (isEntryResult && entry) {
+      if (activeTab === 'phrases' && !entry.phrases?.length) setActiveTab('meanings')
+      if (activeTab === 'examples' && !entry.examples?.length) setActiveTab('meanings')
+    }
+  }, [entry, isEntryResult])
 
   if (mode === 'mini') {
     // 定位逻辑优化：使用 CSS translateY 动态适应高度
@@ -278,9 +286,37 @@ export default function WordPopup({
           )}
 
           <View className='dict-section'>
-            <View className='section-title'>
-              <LucideIcon name='book' size={14} color='var(--text-sub)' />
-              <Text>{isLLMAnnotated ? '词典详细释义' : '通用释义'}</Text>
+            <View className='section-title-row'>
+              <View className='section-title'>
+                <LucideIcon name='book' size={14} color='var(--text-sub)' />
+                <Text>{isLLMAnnotated ? '词典详细释义' : '通用释义'}</Text>
+              </View>
+              {isEntryResult && entry && (entry.phrases?.length > 0 || entry.examples?.length > 0) && (
+                <View className='dict-tabs'>
+                  <View 
+                    className={`dict-tab ${activeTab === 'meanings' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('meanings')}
+                  >
+                    释义
+                  </View>
+                  {entry.phrases?.length > 0 && (
+                    <View 
+                      className={`dict-tab ${activeTab === 'phrases' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('phrases')}
+                    >
+                      短语
+                    </View>
+                  )}
+                  {entry.examples?.length > 0 && (
+                    <View 
+                      className={`dict-tab ${activeTab === 'examples' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('examples')}
+                    >
+                      例句
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
 
             {loading ? (
@@ -308,25 +344,51 @@ export default function WordPopup({
                 ))}
               </View>
             ) : isEntryResult && entry ? (
-              <View className='meanings-list'>
-                {detailMeanings.map((meaning, idx) => (
-                  <View key={idx} className='meaning-item'>
-                    <Text className='pos-tag'>{meaning.partOfSpeech}</Text>
-                    <View className='definitions'>
-                      {meaning.definitions.map((def, defIdx) => (
-                        <View key={defIdx} className='def-row'>
-                          <View className='def-text'>{def.meaning}</View>
-                          {def.example && (
-                            <View className='def-example-block'>
-                              <View className='def-example-en'>{def.example}</View>
-                              {def.exampleTranslation && <View className='def-example-zh'>{def.exampleTranslation}</View>}
+              <View className='dict-content-area'>
+                {activeTab === 'meanings' && (
+                  <View className='meanings-list'>
+                    {detailMeanings.map((meaning, idx) => (
+                      <View key={idx} className='meaning-item'>
+                        {meaning.partOfSpeech && <Text className='pos-tag'>{meaning.partOfSpeech}</Text>}
+                        <View className='definitions'>
+                          {meaning.definitions.map((def, defIdx) => (
+                            <View key={defIdx} className='def-row'>
+                              <View className='def-text'>{def.meaning}</View>
+                              {def.example && (
+                                <View className='def-example-block'>
+                                  <View className='def-example-en'>{def.example}</View>
+                                  {def.exampleTranslation && <View className='def-example-zh'>{def.exampleTranslation}</View>}
+                                </View>
+                              )}
                             </View>
-                          )}
+                          ))}
                         </View>
-                      ))}
-                    </View>
+                      </View>
+                    ))}
                   </View>
-                ))}
+                )}
+
+                {activeTab === 'phrases' && (
+                  <View className='phrases-list'>
+                    {entry.phrases.map((p, idx) => (
+                      <View key={idx} className='phrase-item'>
+                        <View className='phrase-text'>{p.phrase}</View>
+                        {p.meaning && <View className='phrase-meaning'>{p.meaning}</View>}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {activeTab === 'examples' && (
+                  <View className='examples-list'>
+                    {entry.examples.map((ex, idx) => (
+                      <View key={idx} className='example-item'>
+                        <View className='example-en'>{ex.example}</View>
+                        {ex.exampleTranslation && <View className='example-zh'>{ex.exampleTranslation}</View>}
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             ) : !loading && (
               <View className='popup-empty-state'>

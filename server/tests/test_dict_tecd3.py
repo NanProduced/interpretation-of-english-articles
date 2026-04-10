@@ -24,7 +24,6 @@ def _make_entry(entry_id: int, word: str) -> object:
         display_headword=word,
         base_headword=word,
         homograph_no=None,
-        primary_pos="n.",
         phonetic=None,
         meanings_json=[],
         examples_json=[],
@@ -62,7 +61,6 @@ class _EntryMock:
         display_headword: str,
         base_headword: str | None,
         homograph_no: int | None,
-        primary_pos: str | None,
         phonetic: str | None,
         meanings_json: list,
         examples_json: list,
@@ -78,7 +76,6 @@ class _EntryMock:
         self.display_headword = display_headword
         self.base_headword = base_headword
         self.homograph_no = homograph_no
-        self.primary_pos = primary_pos
         self.phonetic = phonetic
         self.meanings_json = meanings_json
         self.examples_json = examples_json

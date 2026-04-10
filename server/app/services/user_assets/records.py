@@ -6,11 +6,28 @@ Handles CRUD operations for analysis_records table.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
 from app.database import connection as db_connection
+
+_JSONB_COLUMNS = {"request_payload_json", "render_scene_json", "page_state_json"}
+
+
+def _ensure_dict(row: dict | None) -> dict | None:
+    """Ensure JSONB columns in a row are dictionaries."""
+    if row is None:
+        return None
+    for col in _JSONB_COLUMNS:
+        if col in row and isinstance(row[col], str):
+            try:
+                row[col] = json.loads(row[col])
+            except (json.JSONDecodeError, TypeError):
+                # Fallback to empty dict if invalid JSON, though DB should prevent this
+                row[col] = {}
+    return row
 
 
 async def upsert_record(
@@ -50,7 +67,7 @@ async def upsert_record(
                 page_state_json, reading_goal, reading_variant, user_facing_state,
                 workflow_version, schema_version, analysis_status, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $16)
             ON CONFLICT (user_id, client_record_id) DO UPDATE SET
                 title            = EXCLUDED.title,
                 source_text      = EXCLUDED.source_text,
@@ -75,9 +92,9 @@ async def upsert_record(
             title,
             source_text,
             source_text_hash,
-            request_payload_json,
-            render_scene_json,
-            page_state_json,
+            json.dumps(request_payload_json, ensure_ascii=False),
+            json.dumps(render_scene_json, ensure_ascii=False),
+            json.dumps(page_state_json, ensure_ascii=False),
             reading_goal,
             reading_variant,
             user_facing_state,
@@ -115,7 +132,35 @@ async def get_record_by_id(
         )
         if row is None:
             return None
-        return dict(row)
+        return _ensure_dict(dict(row))
+
+
+async def get_record_by_client_id(
+    user_id: UUID,
+    client_record_id: str,
+) -> dict | None:
+    """Get a single record by client_record_id, ensuring it belongs to user."""
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT id, user_id, client_record_id, source_type, title, source_text,
+                   source_text_hash, request_payload_json, render_scene_json,
+                   page_state_json, reading_goal, reading_variant, user_facing_state,
+                   workflow_version, schema_version, analysis_status,
+                   last_opened_at, created_at, updated_at
+            FROM analysis_records
+            WHERE client_record_id = $1 AND user_id = $2
+            """,
+            client_record_id,
+            user_id,
+        )
+        if row is None:
+            return None
+        return _ensure_dict(dict(row))
 
 
 async def list_records(
@@ -156,7 +201,7 @@ async def list_records(
             "SELECT COUNT(*) FROM analysis_records WHERE user_id = $1",
             user_id,
         )
-        return [dict(row) for row in rows], int(total)
+        return [_ensure_dict(dict(row)) for row in rows], int(total)  # type: ignore[misc]
 
 
 async def update_record(
@@ -179,8 +224,18 @@ async def update_record(
 
     updates["updated_at"] = datetime.now(timezone.utc)
 
-    set_clause = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates))
-    values = list(updates.values()) + [record_id, user_id]
+    set_parts: list[str] = []
+    values: list[Any] = []
+    for i, (k, v) in enumerate(updates.items()):
+        if k in _JSONB_COLUMNS and isinstance(v, dict):
+            set_parts.append(f"{k} = ${i + 2}::jsonb")
+            values.append(json.dumps(v, ensure_ascii=False))
+        else:
+            set_parts.append(f"{k} = ${i + 2}")
+            values.append(v)
+    values.extend([record_id, user_id])
+
+    set_clause = ", ".join(set_parts)
 
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -198,7 +253,7 @@ async def update_record(
         )
         if row is None:
             return None
-        return dict(row)
+        return _ensure_dict(dict(row))
 
 
 async def delete_record(user_id: UUID, record_id: UUID) -> bool:

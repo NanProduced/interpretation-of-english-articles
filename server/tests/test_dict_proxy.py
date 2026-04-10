@@ -46,7 +46,6 @@ class StubDictionaryService:
                 "base_word": word,
                 "homograph_no": None,
                 "phonetic": "/test/",
-                "primary_pos": "n.",
                 "meanings": [
                     {
                         "part_of_speech": "n.",
@@ -89,7 +88,6 @@ class StubDictionaryService:
                 "base_word": "anti-",
                 "homograph_no": None,
                 "phonetic": None,
-                "primary_pos": "pref.",
                 "meanings": [
                     {
                         "part_of_speech": "pref.",

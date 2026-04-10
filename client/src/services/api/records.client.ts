@@ -8,7 +8,7 @@
 import { request } from './client'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
 import type { AnalyzeRequest } from './client'
-import { analyzeResponseDtoToVm } from './adapters/render-scene.adapter'
+import { analyzeResponseDtoToVm, vmToAnalyzeResponseDto } from './adapters/render-scene.adapter'
 import type { AnalyzeResponseDto } from '../../types/api/analyze-response.dto'
 
 // ---------------------------------------------------------------------------
@@ -64,12 +64,18 @@ function dtoToVm(dto: RecordResponseDto): AnalysisRecord {
   
   let renderSceneVm = null
   if (dto.render_scene_json) {
-    // 如果是后端 worker 直接写回的 snake_case 格式，则需要经过 adapter 转换
-    if ('schema_version' in dto.render_scene_json) {
-      renderSceneVm = analyzeResponseDtoToVm(dto.render_scene_json as unknown as AnalyzeResponseDto)
+    const rawScene = dto.render_scene_json as any
+    // 启发式判断：如果存在 schema_version 或者存在典型的 snake_case 字段且不存在典型的 camelCase 字段
+    const isSnakeCase = 
+      'schema_version' in rawScene || 
+      ('user_facing_state' in rawScene && !('userFacingState' in rawScene)) ||
+      ('inline_marks' in rawScene && !('inlineMarks' in rawScene))
+
+    if (isSnakeCase) {
+      renderSceneVm = analyzeResponseDtoToVm(rawScene as AnalyzeResponseDto)
     } else {
-      // 如果是旧的前端直接存入的 camelCase 格式，则直接使用
-      renderSceneVm = dto.render_scene_json as unknown as AnalysisRecord['renderScene']
+      // 认为是已经转换过的 camelCase 格式
+      renderSceneVm = rawScene as AnalysisRecord['renderScene']
     }
   }
 
@@ -133,7 +139,7 @@ export async function saveRecordToCloud(
       source_text: params.sourceText,
       source_text_hash: params.sourceTextHash,
       request_payload_json: params.requestPayload,
-      render_scene_json: params.renderScene || {},
+      render_scene_json: params.renderScene ? vmToAnalyzeResponseDto(params.renderScene) : {},
       page_state_json: { pageState: params.pageState },
       reading_goal: params.requestPayload.reading_goal,
       reading_variant: params.requestPayload.reading_variant,
@@ -169,6 +175,21 @@ export async function fetchCloudRecord(recordId: string): Promise<AnalysisRecord
   try {
     const res = await request<RecordResponseDto>({
       url: `/records/${recordId}`,
+    })
+    return dtoToVm(res)
+  } catch (err: unknown) {
+    if ((err as any)?.statusCode === 404) return null
+    throw err
+  }
+}
+
+/**
+ * 按 client_record_id 获取云端记录
+ */
+export async function fetchCloudRecordByClientId(clientRecordId: string): Promise<AnalysisRecord | null> {
+  try {
+    const res = await request<RecordResponseDto>({
+      url: `/records/by-client-id/${encodeURIComponent(clientRecordId)}`,
     })
     return dtoToVm(res)
   } catch (err: unknown) {

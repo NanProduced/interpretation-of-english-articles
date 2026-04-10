@@ -77,6 +77,25 @@ POS_LABEL_CASEFOLD_MAP: dict[str, str] = {
     key.casefold(): value for key, value in POS_LABEL_MAP.items()
 }
 
+SECTION_CLASS_POS_MAP: dict[str, str] = {
+    "sgabbr": "abbr.",
+    "sga": "adj.",
+    "sgadv": "adv.",
+    "sgart": "art.",
+    "sgaux": "aux. v.",
+    "sgcombform": "comb. form",
+    "sgconj": "conj.",
+    "sgint": "int.",
+    "sgn": "n.",
+    "sgpref": "pref.",
+    "sgprep": "prep.",
+    "sgpron": "pron.",
+    "sgsuf": "suf.",
+    "sgv": "v.",
+    "sgvi": "vi.",
+    "sgvt": "vt.",
+}
+
 TRANSLATION_MAP = str.maketrans(
     {
         "’": "'",
@@ -125,7 +144,8 @@ class ParsedEntry:
     display_headword: str
     base_headword: str | None
     homograph_no: int | None
-    primary_pos: str | None
+    headword_variants: list[str]
+    redirect_target_entry_key: str | None
     phonetic: str | None
     meanings_json: list[dict[str, Any]]
     examples_json: list[dict[str, Any]]
@@ -162,6 +182,12 @@ def _visible_node_text(node: Any) -> str:
     if node is None:
         return ""
     return _clean_text(node.get_text(" ", strip=True))
+
+
+def _inline_node_text(node: Any) -> str:
+    if node is None:
+        return ""
+    return _clean_text(node.get_text("", strip=True))
 
 
 def _canonicalize_headword(value: str) -> str:
@@ -209,6 +235,8 @@ def _normalize_meaning_text(value: str) -> str:
     text = _clean_text(value.translate(TRANSLATION_MAP))
     text = re.sub(r"\s*=\s*", "=", text)
     text = re.sub(r"\s*;\s*", "; ", text)
+    text = re.sub(r"\(\s+", "(", text)
+    text = re.sub(r"\s+\)", ")", text)
     text = text.replace('""', '" "')
     return text
 
@@ -269,25 +297,41 @@ def load_txt_records(input_dir: Path) -> dict[str, RawRecord]:
 def _extract_examples(container: Any) -> list[dict[str, str | None]]:
     examples: list[dict[str, str | None]] = []
     for block in container.select(".egBlock"):
-        example_nodes = block.select(".ex")
-        translation_node = block.select_one(".tr")
-        example_parts = [
-            _clean_text(node.get_text(" ", strip=True))
-            for node in example_nodes
-        ]
-        example_parts = [part for part in example_parts if part]
-        example = "；".join(dict.fromkeys(example_parts))
-        translation = _clean_text(
-            translation_node.get_text(" ", strip=True) if translation_node else ""
+        items = block.find_all(
+            lambda tag: getattr(tag, "name", None) == "li" and "eg" in (tag.get("class") or []),
+            recursive=False,
         )
-        if example:
-            examples.append(
-                {
-                    "example": example,
-                    "example_translation": translation or None,
-                }
+        if not items:
+            items = [block]
+        for item in items:
+            example_nodes = item.select(".ex")
+            translation_node = item.select_one(".tr")
+            example_parts = [
+                _clean_text(node.get_text(" ", strip=True))
+                for node in example_nodes
+            ]
+            example_parts = [part for part in example_parts if part]
+            example = "；".join(dict.fromkeys(example_parts))
+            translation = _clean_text(
+                translation_node.get_text(" ", strip=True) if translation_node else ""
             )
+            if example:
+                examples.append(
+                    {
+                        "example": example,
+                        "example_translation": translation or None,
+                    }
+                )
     return examples
+
+
+def _iter_definition_nodes(section: Any) -> list[Any]:
+    nodes = section.select(".se2g .se2")
+    if not nodes and section.name == "li" and "se2" in (section.get("class") or []):
+        nodes = [section]
+    if not nodes and section.select_one(".corrSe2FirstLine"):
+        nodes = [section]
+    return nodes
 
 
 def _iter_meaning_sections(soup: BeautifulSoup) -> list[Any]:
@@ -314,6 +358,42 @@ def _build_nav_pos_map(soup: BeautifulSoup) -> dict[str, str]:
     return nav_map
 
 
+def _infer_pos_from_section(section: Any) -> str | None:
+    for node in [section, *section.find_all(True)]:
+        for class_name in node.get("class") or []:
+            normalized = str(class_name).strip().casefold()
+            if normalized in SECTION_CLASS_POS_MAP:
+                return SECTION_CLASS_POS_MAP[normalized]
+    return None
+
+
+def _infer_entry_level_pos(
+    soup: BeautifulSoup,
+    headword_variants: list[str],
+    meanings_json: list[dict[str, Any]],
+) -> str | None:
+    if soup.select_one(".infgPrLab") is not None or soup.select_one(".nlp pl") is not None:
+        return "n."
+
+    variants = [variant.strip() for variant in headword_variants if variant and variant.strip()]
+    if not variants:
+        return None
+
+    looks_like_letter_or_code = all(
+        re.fullmatch(r"[A-Za-z](?:[A-Za-z.]*)", variant) is not None for variant in variants
+    )
+    if not looks_like_letter_or_code:
+        return None
+
+    noun_markers = ("字母", "读音", "书面形式", "符号", "代号")
+    for group in meanings_json:
+        for definition in group.get("definitions", []):
+            meaning = str(definition.get("meaning") or "")
+            if any(marker in meaning for marker in noun_markers):
+                return "n."
+    return None
+
+
 def _find_section_anchor_id(section: Any) -> str | None:
     current = section
     while current is not None:
@@ -328,35 +408,35 @@ def _find_section_anchor_id(section: Any) -> str | None:
 
 
 def _extract_definition_texts(section: Any) -> list[str]:
-    definition_nodes = section.select(".se2g .df")
-    if not definition_nodes:
-        definition_nodes = section.select(".df")
-    if definition_nodes:
-        return [
-            meaning
-            for node in definition_nodes
-            if (meaning := _normalize_meaning_text(node.get_text(" ", strip=True)))
-        ]
-
-    fallback_nodes = section.select(".se2g .se2")
-    if not fallback_nodes and section.name == "li" and "se2" in (section.get("class") or []):
-        fallback_nodes = [section]
-    if not fallback_nodes and section.select_one(".corrSe2FirstLine"):
-        fallback_nodes = [section]
-
     meanings: list[str] = []
-    for node in fallback_nodes:
+    for node in _iter_definition_nodes(section):
         first_line = node.select_one(".corrSe2FirstLine") or node
-        meaning = _normalize_meaning_text(first_line.get_text(" ", strip=True))
+        label_parts = [
+            _normalize_meaning_text(_inline_node_text(part))
+            for part in first_line.select(".l")
+        ]
+        label_parts = [part for part in label_parts if part]
+        definition_parts = [
+            _normalize_meaning_text(_inline_node_text(part))
+            for part in first_line.select(".df")
+        ]
+        definition_parts = [part for part in definition_parts if part]
+        if definition_parts:
+            meaning = " ".join([*label_parts, *definition_parts]).strip()
+        else:
+            xrg_node = first_line.select_one("xrg")
+            if xrg_node is not None:
+                meaning = _normalize_meaning_text(_inline_node_text(xrg_node))
+            else:
+                meaning = _normalize_meaning_text(_inline_node_text(first_line))
         if meaning:
             meanings.append(meaning)
     return meanings
 
 
-def _parse_meaning_groups(soup: BeautifulSoup) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+def _parse_meaning_groups(soup: BeautifulSoup) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     groups: list[dict[str, Any]] = []
     examples: list[dict[str, Any]] = []
-    primary_pos: str | None = None
     nav_pos_map = _build_nav_pos_map(soup)
 
     for section in _iter_meaning_sections(soup):
@@ -367,34 +447,48 @@ def _parse_meaning_groups(soup: BeautifulSoup) -> tuple[list[dict[str, Any]], li
             pos_node.get_text(" ", strip=True) if pos_node else "",
             nav_label=nav_label,
         )
-        if pos and primary_pos is None:
-            primary_pos = pos
+        if not pos:
+            pos = _infer_pos_from_section(section)
 
-        group_examples = _extract_examples(section)
         definitions: list[dict[str, str | None]] = []
-        for idx, meaning in enumerate(_extract_definition_texts(section)):
-            example_payload = group_examples[idx] if idx < len(group_examples) else None
+        for node, meaning in zip(_iter_definition_nodes(section), _extract_definition_texts(section)):
+            node_examples = _extract_examples(node)
+            example_texts = [
+                str(example.get("example") or "").strip()
+                for example in node_examples
+                if str(example.get("example") or "").strip()
+            ]
+            translation_texts = [
+                str(example.get("example_translation") or "").strip()
+                for example in node_examples
+                if str(example.get("example_translation") or "").strip()
+            ]
             definitions.append(
                 {
                     "meaning": meaning,
-                    "example": example_payload["example"] if example_payload else None,
-                    "example_translation": (
-                        example_payload["example_translation"] if example_payload else None
-                    ),
+                    "example": "；".join(example_texts) or None,
+                    "example_translation": "；".join(translation_texts) or None,
                 }
             )
+            examples.extend(node_examples)
 
         if definitions:
             groups.append(
                 {
-                    "part_of_speech": pos or primary_pos or "",
+                    "part_of_speech": pos or None,
                     "definitions": definitions,
                 }
             )
 
-        examples.extend(group_examples)
+    return groups, examples
 
-    return groups, examples, primary_pos
+
+def _get_first_meaning_pos(meanings_json: list[dict[str, Any]]) -> str | None:
+    for group in meanings_json:
+        part_of_speech = str(group.get("part_of_speech") or "").strip()
+        if part_of_speech:
+            return part_of_speech
+    return None
 
 
 def _parse_phrases(soup: BeautifulSoup) -> list[dict[str, str | None]]:
@@ -442,14 +536,17 @@ def _extract_nlp_forms(soup: BeautifulSoup) -> list[str]:
     return forms
 
 
-def _extract_headword_parts(soup: BeautifulSoup, fallback: str) -> tuple[str, str | None, int | None]:
+def _extract_headword_parts(
+    soup: BeautifulSoup, fallback: str
+) -> tuple[str, str | None, int | None, list[str]]:
     spans = soup.select(".hwgDiv > .hwSpan")
     if spans:
         texts = [_canonicalize_display_headword(_visible_node_text(span)) for span in spans]
         texts = [text for text in texts if text]
         if len(texts) > 1:
-            display = ", ".join(dict.fromkeys(texts))
-            return display, display, None
+            variants = list(dict.fromkeys(texts))
+            display = variants[0]
+            return display, display, None, variants
 
         hw_span = spans[0]
         display = texts[0] if texts else _canonicalize_display_headword(fallback)
@@ -473,7 +570,7 @@ def _extract_headword_parts(soup: BeautifulSoup, fallback: str) -> tuple[str, st
         else:
             base = display
         display_label = _format_homograph_display(base or display, homograph_no)
-        return display_label, base or display_label, homograph_no
+        return display_label, base or display_label, homograph_no, [display_label]
 
     for selector in (".mdict-fragment-title", ".mdict-disamb-title"):
         node = soup.select_one(selector)
@@ -481,9 +578,39 @@ def _extract_headword_parts(soup: BeautifulSoup, fallback: str) -> tuple[str, st
             continue
         text = _canonicalize_display_headword(node.get_text(" ", strip=True))
         if text:
-            return text, text, None
+            return text, text, None, [text]
     display = _canonicalize_display_headword(fallback)
-    return display, display or None, None
+    return display, display or None, None, [display] if display else []
+
+
+def _extract_redirect_target_entry_key(soup: BeautifulSoup) -> str | None:
+    xr_links = soup.select(".corrSe2FirstLine xrg a.xr[href^='entry://']")
+    if len(xr_links) != 1:
+        return None
+    href = str(xr_links[0].get("href") or "").strip()
+    if not href.startswith("entry://"):
+        return None
+    target = href.removeprefix("entry://").strip() or None
+    if not target:
+        return None
+
+    if soup.select_one(".sgPosDiv .pos") is not None:
+        return None
+
+    definitions = [
+        _normalize_meaning_text(_inline_node_text(node))
+        for node in soup.select(".corrSe2FirstLine .df")
+    ]
+    definitions = [item for item in definitions if item]
+    if not definitions:
+        return target
+
+    inflection_pattern = re.compile(
+        rf"^{re.escape(target)}的(复数|过去式|过去分词|现在分词|第三人称单数)$"
+    )
+    if len(definitions) == 1 and inflection_pattern.match(definitions[0]):
+        return target
+    return None
 
 
 def _child_nodes_with_class(parent: Any, class_name: str) -> list[Any]:
@@ -548,15 +675,24 @@ def parse_entry_html(source_entry_key: str, html: str) -> ParsedEntry | None:
         return None
 
     entry_kind = "fragment" if soup.select_one(".mdict-fragment-header") else "entry"
-    display_headword, base_headword, homograph_no = _extract_headword_parts(soup, source_entry_key)
+    display_headword, base_headword, homograph_no, headword_variants = _extract_headword_parts(
+        soup, source_entry_key
+    )
     phonetic_node = soup.select_one(".hg .prLine pr") or soup.select_one(".hg pr") or soup.select_one(".pr")
-    phonetic = _clean_text(phonetic_node.get_text(" ", strip=True) if phonetic_node else "") or None
-    meanings_json, examples_json, primary_pos = _parse_meaning_groups(soup)
+    phonetic = _clean_text(_inline_node_text(phonetic_node)) or None
+    meanings_json, examples_json = _parse_meaning_groups(soup)
     phrases_json = _parse_phrases(soup)
     if not examples_json:
         examples_json = _extract_examples(soup)
+    if not _get_first_meaning_pos(meanings_json):
+        inferred_pos = _infer_entry_level_pos(soup, headword_variants, meanings_json)
+        if inferred_pos:
+            for group in meanings_json:
+                if not group.get("part_of_speech"):
+                    group["part_of_speech"] = inferred_pos
     sections_json = _build_sections_summary(soup, entry_kind)
     nlp_forms = _extract_nlp_forms(soup)
+    redirect_target_entry_key = _extract_redirect_target_entry_key(soup)
 
     return ParsedEntry(
         source_entry_key=source_entry_key,
@@ -564,7 +700,8 @@ def parse_entry_html(source_entry_key: str, html: str) -> ParsedEntry | None:
         display_headword=display_headword,
         base_headword=base_headword,
         homograph_no=homograph_no,
-        primary_pos=primary_pos,
+        headword_variants=headword_variants,
+        redirect_target_entry_key=redirect_target_entry_key,
         phonetic=phonetic,
         meanings_json=meanings_json,
         examples_json=examples_json,
@@ -580,7 +717,7 @@ def parse_disambiguation_html(lookup_key: str, html: str) -> ParsedDisambiguatio
     if not soup.select_one(".mdict-disamb"):
         return None
 
-    lookup_label, _, _ = _extract_headword_parts(soup, lookup_key)
+    lookup_label, _, _, _ = _extract_headword_parts(soup, lookup_key)
     candidates: list[ParsedCandidate] = []
     for rank, item in enumerate(soup.select(".mdict-disamb-item")):
         link_node = item.select_one(".mdict-target-link")
@@ -688,7 +825,6 @@ async def _upsert_entries(conn: asyncpg.Connection, entries: list[ParsedEntry]) 
       base_headword,
       homograph_no,
       phonetic,
-      primary_pos,
       meanings_json,
       examples_json,
       phrases_json,
@@ -696,7 +832,7 @@ async def _upsert_entries(conn: asyncpg.Connection, entries: list[ParsedEntry]) 
       raw_html,
       parse_version
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb, $13, $14
+      $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13
     )
     ON CONFLICT (source, source_entry_key) DO UPDATE SET
       entry_kind = EXCLUDED.entry_kind,
@@ -704,7 +840,6 @@ async def _upsert_entries(conn: asyncpg.Connection, entries: list[ParsedEntry]) 
       base_headword = EXCLUDED.base_headword,
       homograph_no = EXCLUDED.homograph_no,
       phonetic = EXCLUDED.phonetic,
-      primary_pos = EXCLUDED.primary_pos,
       meanings_json = EXCLUDED.meanings_json,
       examples_json = EXCLUDED.examples_json,
       phrases_json = EXCLUDED.phrases_json,
@@ -722,7 +857,6 @@ async def _upsert_entries(conn: asyncpg.Connection, entries: list[ParsedEntry]) 
             item.base_headword,
             item.homograph_no,
             item.phonetic,
-            item.primary_pos,
             json.dumps(item.meanings_json, ensure_ascii=False),
             json.dumps(item.examples_json, ensure_ascii=False),
             json.dumps(item.phrases_json, ensure_ascii=False),
@@ -810,7 +944,16 @@ async def import_tecd3(input_dir: Path, database_url: str) -> dict[str, int]:
             else:
                 entry = parse_entry_html(key, record.value)
                 if entry is not None:
-                    entry_records[key] = entry
+                    if entry.redirect_target_entry_key:
+                        redirect_forms = build_lookup_forms(
+                            entry.display_headword,
+                            entry.base_headword,
+                            *entry.headword_variants,
+                        )
+                        for redirect_form in redirect_forms:
+                            redirect_records[redirect_form] = entry.redirect_target_entry_key
+                    else:
+                        entry_records[key] = entry
         if index % PROGRESS_EVERY == 0 or index == total_records:
             _log_progress(
                 "classified records: "
@@ -850,7 +993,13 @@ async def import_tecd3(input_dir: Path, database_url: str) -> dict[str, int]:
                     if entry_id is None:
                         continue
                     preview = _build_preview(entry)
-                    for rank, form in enumerate(build_lookup_forms(entry.display_headword, entry.base_headword, key)):
+                    target_pos = _get_first_meaning_pos(entry.meanings_json)
+                    headword_forms = build_lookup_forms(
+                        entry.display_headword,
+                        entry.base_headword,
+                        *entry.headword_variants,
+                    )
+                    for rank, form in enumerate(headword_forms):
                         lookup_key = (form, entry_id, "headword")
                         if lookup_key in seen_lookup:
                             continue
@@ -862,13 +1011,13 @@ async def import_tecd3(input_dir: Path, database_url: str) -> dict[str, int]:
                                 entry.display_headword,
                                 entry_id,
                                 entry.display_headword,
-                                entry.primary_pos,
+                                target_pos,
                                 preview,
                                 rank,
                                 "headword",
                             )
                         )
-                    for form in build_lookup_forms(entry.display_headword, entry.base_headword, key):
+                    for form in headword_forms:
                         redirect_key = (form, key, "normalized_alias")
                         if redirect_key in seen_redirects:
                             continue
@@ -886,7 +1035,7 @@ async def import_tecd3(input_dir: Path, database_url: str) -> dict[str, int]:
                                 entry.display_headword,
                                 entry_id,
                                 entry.display_headword,
-                                entry.primary_pos,
+                                target_pos,
                                 preview,
                                 50 + rank,
                                 "nlp",
@@ -915,7 +1064,7 @@ async def import_tecd3(input_dir: Path, database_url: str) -> dict[str, int]:
                                     disambiguation.lookup_label,
                                     entry_id,
                                     item.label or entry.display_headword,
-                                    item.target_pos or entry.primary_pos,
+                                    item.target_pos or _get_first_meaning_pos(entry.meanings_json),
                                     item.preview_text or _build_preview(entry),
                                     item.rank + extra_rank,
                                     "disamb",
@@ -932,6 +1081,7 @@ async def import_tecd3(input_dir: Path, database_url: str) -> dict[str, int]:
                         entry_id = entry_id_by_key.get(resolved_target)
                         if entry_id is None:
                             continue
+                        target_pos = _get_first_meaning_pos(entry.meanings_json)
                         for rank, form in enumerate(build_lookup_forms(redirect_key)):
                             lookup_key = (form, entry_id, "redirect")
                             if lookup_key in seen_lookup:
@@ -944,7 +1094,7 @@ async def import_tecd3(input_dir: Path, database_url: str) -> dict[str, int]:
                                     redirect_key,
                                     entry_id,
                                     entry.display_headword,
-                                    entry.primary_pos,
+                                    target_pos,
                                     _build_preview(entry),
                                     100 + rank,
                                     "redirect",
@@ -979,7 +1129,7 @@ async def import_tecd3(input_dir: Path, database_url: str) -> dict[str, int]:
                                         redirect_key,
                                         entry_id,
                                         item.label or entry.display_headword,
-                                        item.target_pos or entry.primary_pos,
+                                        item.target_pos or _get_first_meaning_pos(entry.meanings_json),
                                         item.preview_text or _build_preview(entry),
                                         100 + item.rank + extra_rank,
                                         "redirect",

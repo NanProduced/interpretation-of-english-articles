@@ -214,7 +214,6 @@ CREATE TABLE dict_entries (
   base_headword TEXT,
   homograph_no INTEGER,
   phonetic TEXT,
-  primary_pos TEXT,
   meanings_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   examples_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   phrases_json JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -404,7 +403,6 @@ COMMENT ON COLUMN dict_entries.display_headword IS '展示给用户的词头，�
 COMMENT ON COLUMN dict_entries.base_headword IS '去掉同形编号后的基础词头。';
 COMMENT ON COLUMN dict_entries.homograph_no IS '同形词编号，例如 1、2。';
 COMMENT ON COLUMN dict_entries.phonetic IS '主音标。';
-COMMENT ON COLUMN dict_entries.primary_pos IS '主词性。';
 COMMENT ON COLUMN dict_entries.meanings_json IS '完整义项结构 JSON。';
 COMMENT ON COLUMN dict_entries.examples_json IS '例句结构 JSON。';
 COMMENT ON COLUMN dict_entries.phrases_json IS '短语结构 JSON。';

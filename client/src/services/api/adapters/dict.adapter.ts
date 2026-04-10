@@ -21,7 +21,6 @@ function mapEntryResult(dto: DictEntryResultDto): DictionaryEntryResult {
       baseWord: dto.entry.base_word ?? undefined,
       homographNo: dto.entry.homograph_no ?? undefined,
       phonetic: dto.entry.phonetic ?? undefined,
-      primaryPos: dto.entry.primary_pos ?? undefined,
       meanings: dto.entry.meanings.map((m) => ({
         partOfSpeech: m.part_of_speech,
         definitions: m.definitions.map((d) => ({

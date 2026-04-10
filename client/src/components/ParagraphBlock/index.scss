@@ -22,7 +22,33 @@
 
   // --- Intensive Mode (精雕细琢解析) ---
   &.intensive {
-    margin-bottom: 80rpx; // 与段落间距保持一致
+    margin-bottom: 120rpx; // 增加段落间距，强化分隔感
+
+    .paragraph-header {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+      margin-bottom: 32rpx;
+      opacity: 0.8;
+
+      .paragraph-anchor {
+        font-family: var(--font-english-serif), serif;
+        font-size: 28rpx;
+        color: var(--text-muted);
+        font-weight: var(--weight-medium);
+        letter-spacing: 0.05em;
+      }
+
+      .paragraph-divider {
+        flex: 1;
+        height: 1rpx;
+        background: linear-gradient(to right, 
+          rgba(var(--color-ink-rgb), 0.1) 0%, 
+          rgba(var(--color-ink-rgb), 0.05) 50%, 
+          transparent 100%
+        );
+      }
+    }
 
     .sentence-block {
       margin-bottom: 40rpx; // 缩减原先庞大的间距

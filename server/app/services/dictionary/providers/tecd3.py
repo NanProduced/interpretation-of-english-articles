@@ -110,7 +110,6 @@ class Tecd3Provider:
             base_word=entry.base_headword,
             homograph_no=entry.homograph_no,
             phonetic=entry.phonetic,
-            primary_pos=entry.primary_pos,
             meanings=self._parse_meanings(entry),
             examples=self._parse_examples(entry),
             phrases=self._parse_phrases(entry),

@@ -32,7 +32,6 @@ class DictionaryEntryPayload(BaseModel):
     base_word: str | None = Field(default=None, description="去掉同形编号的基础词头")
     homograph_no: int | None = Field(default=None, description="同形编号")
     phonetic: str | None = Field(default=None, description="音标")
-    primary_pos: str | None = Field(default=None, description="主词性")
     meanings: list[DictionaryMeaning] = Field(default_factory=list, description="词性及释义列表")
     examples: list[DictionaryExample] = Field(default_factory=list, description="例句列表")
     phrases: list[DictionaryPhrase] = Field(default_factory=list, description="短语列表")

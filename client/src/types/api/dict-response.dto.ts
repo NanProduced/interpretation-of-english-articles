@@ -25,7 +25,6 @@ export interface DictEntryPayloadDto {
   base_word: string | null
   homograph_no: number | null
   phonetic: string | null
-  primary_pos: string | null
   meanings: DictMeaningDto[]
   examples: DictExampleDto[]
   phrases: DictPhraseDto[]

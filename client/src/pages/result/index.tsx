@@ -345,7 +345,7 @@ export default function Result() {
 
   const renderParagraphs = () => {
     if (!sceneData?.article?.paragraphs?.length) return null
-    return sceneData!.article.paragraphs.map((paragraph) => {
+    return sceneData!.article.paragraphs.map((paragraph, idx) => {
       const sentences = paragraph.sentenceIds
         .map((id) => sceneData!.article.sentences.find((s) => s.sentenceId === id))
         .filter((s): s is NonNullable<typeof s> => !!s)
@@ -353,6 +353,7 @@ export default function Result() {
       return (
         <ParagraphBlock
           key={paragraph.paragraphId}
+          order={idx + 1}
           sentences={sentences}
           translations={sceneData!.translations}
           inlineMarks={sceneData!.inlineMarks}

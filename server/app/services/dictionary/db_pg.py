@@ -24,7 +24,6 @@ class EntryRow:
     display_headword: str
     base_headword: str | None
     homograph_no: int | None
-    primary_pos: str | None
     phonetic: str | None
     meanings_json: list[dict[str, Any]]
     examples_json: list[dict[str, Any]]
@@ -58,7 +57,6 @@ def _row_to_entry(row: Any) -> EntryRow | None:
         display_headword=row["display_headword"],
         base_headword=row["base_headword"],
         homograph_no=row["homograph_no"],
-        primary_pos=row["primary_pos"],
         phonetic=row["phonetic"],
         meanings_json=_coerce_json_list(row["meanings_json"]),
         examples_json=_coerce_json_list(row["examples_json"]),

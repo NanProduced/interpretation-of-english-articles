@@ -147,7 +147,7 @@ flowchart LR
 这类数据不是单纯“脏数据”，而是词典源本身的结构现实。处理原则：
 
 - 能保留详情就保留
-- 提不出稳定 `primary_pos` 时允许为空
+- 提不出稳定词性时，允许只在 `meanings_json[].part_of_speech` 中保留可识别信息
 - 不在导入阶段做高风险猜测
 
 ## 7. 查询策略必须同步优化
@@ -284,7 +284,7 @@ flowchart LR
 ### 数据层
 
 - 持续修复 `import_tecd3.py` 的结构化质量
-- 重导后检查 `primary_pos`、`examples_json`、`phrases_json`
+- 重导后检查 `examples_json`、`phrases_json`
 - 用数据库抽检验证导入效果，不靠个别样例判断
 
 ### 查询层
@@ -321,7 +321,7 @@ flowchart LR
 推荐按下面顺序推进：
 
 1. 用修复后的导入脚本全量重导 TECD3。
-2. 重导后做数据库抽检，确认 `primary_pos` 和 `examples_json` 的质量。
+2. 重导后做数据库抽检，确认 `examples_json` 的质量。
 3. 在 `/dict` 查询链路中加入“短语嗅探 + 最长优先”。
 4. 在未命中时加入 `spaCy` Lemmatization fallback。
 5. 再评估是否需要把短语索引单独落表或增强到 `dict_lookup_targets`。

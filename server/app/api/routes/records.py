@@ -80,6 +80,26 @@ async def list_records(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.get("/by-client-id/{client_record_id}", response_model=RecordResponse)
+async def get_record_by_client_id(
+    current_user: AuthUserDep,
+    client_record_id: str,
+) -> RecordResponse:
+    """Get a single analysis record by client_record_id."""
+    try:
+        record = await records_svc.get_record_by_client_id(
+            user_id=UUID(current_user.user_id),
+            client_record_id=client_record_id,
+        )
+        if record is None:
+            raise HTTPException(status_code=404, detail="Record not found")
+        return RecordResponse(**record)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.get("/{record_id}", response_model=RecordResponse)
 async def get_record(
     current_user: AuthUserDep,

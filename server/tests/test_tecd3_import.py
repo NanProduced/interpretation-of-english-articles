@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import sys
 import textwrap
+import types
 from pathlib import Path
 
 import pytest
+
+try:
+    import asyncpg  # noqa: F401
+except ModuleNotFoundError:
+    sys.modules["asyncpg"] = types.SimpleNamespace(Connection=object)
 
 from app.services.dictionary.service import DictionaryService
 from scripts.import_tecd3 import (
@@ -299,6 +306,187 @@ NUMBERED_NAV_POS_HTML = """
 </body></html>
 """
 
+A1_MULTI_HEADWORD_HTML = """
+<html><body>
+  <div class="eDiv" id="a1-entry">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan"><hw>A1</hw><span class="hwFollowSepa"></span><wbr/></span>
+          <span class="hwSpan"><hw>A-1</hw></span>
+        </div>
+      </div>
+      <div class="mdict-entry-nav">
+        <ul class="mdict-entry-nav-list">
+          <li class="mdict-entry-nav-item"><a class="mdict-entry-nav-link" href="#mdict-pos-1">adj.</a></li>
+          <li class="mdict-entry-nav-item"><a class="mdict-entry-nav-link" href="#mdict-pos-2">n.</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="sg">
+      <a class="mdict-pos-anchor" id="mdict-pos-1" name="mdict-pos-1"></a>
+      <div class="se1">
+        <div class="sgPosDiv"><span class="posg"><span class="pos">ADJECTIVE 形容词</span></span></div>
+        <ol class="se2g">
+          <li class="se2">
+            <span class="corrSe2FirstLine"><span class="df">(船)船体及设备均属第一等的</span><br/></span>
+            <ul class="egBlock"></ul>
+          </li>
+          <li class="se2">
+            <span class="corrSe2FirstLine"><span class="df">第一流的,极好的</span><br/></span>
+            <ul class="egBlock">
+              <li class="eg"><span class="ex">A1 tea</span><span class="tr">上品茶叶</span></li>
+              <li class="eg"><span class="ex">an A1 physicist</span><span class="tr">物理学大牛</span></li>
+              <li class="eg"><span class="ex">The meals there are A1.</span><span class="tr">那里的伙食顶呱呱。</span></li>
+              <li class="eg"><span class="ex">feel A1</span><span class="tr">自我感觉极好</span></li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+      <a class="mdict-pos-anchor" id="mdict-pos-2" name="mdict-pos-2"></a>
+      <div class="se1">
+        <div class="sgPosDiv"><span class="posg"><span class="pos">NOUN 名词</span></span></div>
+        <ol class="se2g se2gOne">
+          <li class="se2">
+            <span class="corrSe2FirstLine"><span class="df">(英国《劳氏船名录》上的)一级船</span><br/></span>
+            <ul class="egBlock"></ul>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
+ABBREVIATION_LABEL_HTML = """
+<html><body>
+  <div class="eDiv" id="aar-label-entry">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan"><hw>AAR</hw></span>
+        </div>
+      </div>
+    </div>
+    <div class="sg">
+      <div class="se1">
+        <div class="sgPosDiv"><span class="posg"><span class="pos">ABBREVIATION 缩略词</span></span></div>
+        <ol class="se2g">
+          <li class="se2">
+            <span class="corrSe2FirstLine"><span class="l">against all risks</span><span class="spaceSepa"></span><span class="df">综合险,一切(保)险</span><br/></span>
+          </li>
+          <li class="se2">
+            <span class="corrSe2FirstLine"><span class="l">Association of American Railroads</span><span class="spaceSepa"></span><span class="df">美国铁路协会</span><br/></span>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
+REDIRECT_ONLY_HTML = """
+<html><body>
+  <div class="eDiv" id="aar-redirect-entry">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan"><hw>Aar</hw></span>
+        </div>
+      </div>
+    </div>
+    <div class="sg">
+      <div class="se1">
+        <div class="se1TopOffset"></div>
+        <ol class="se2g se2gOne">
+          <li class="se2">
+            <span class="corrSe2FirstLine"><xrg>=<a class="xr" href="entry://Aare"><span class="spaceSepa"></span>Aare</a><span class="spaceSepa"></span></xrg><br/></span>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
+AARON_INLINE_FORMATTING_HTML = """
+<html><body>
+  <div class="eDiv" id="aaron-entry">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan">Aar·on</span>
+          <span class="hwFollowSpan"><span class="prLine"><pr>ˈeər<i>ə</i>n, ˈɑːrən</pr></span></span>
+        </div>
+      </div>
+    </div>
+    <div class="sg">
+      <div class="se1">
+        <a class="sgN"></a>
+        <div class="sgPosDiv"><span class="posg"><span class="pos">NOUN 名词</span></span></div>
+        <ol class="se2g">
+          <li class="se2">
+            <span class="corrSe2FirstLine"><span class="df">艾伦(<i>m.</i>)</span><br/></span>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
+LETTER_ENTRY_WITH_IMPLICIT_NOUN_HTML = """
+<html><body>
+  <div class="eDiv" id="letter-a-entry">
+    <div class="hg">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan"><hw>A</hw><span class="hwFollowSepa"></span><wbr/></span>
+          <span class="hwSpan"><hw>a</hw></span>
+          <span class="hwFollowSpan"><span class="prLine"><pr>eɪ</pr></span></span>
+        </div>
+      </div>
+    </div>
+    <div class="sg">
+      <div class="se1">
+        <a class="sgN"></a>
+        <div class="sgPosDiv"></div>
+        <ol class="se2g">
+          <li class="se2">
+            <span class="corrSe2FirstLine"><span class="df">英语的第一个字母</span><br/></span>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
+INFLECTION_REDIRECT_HTML = """
+<html><body>
+  <div class="eDiv" id="abaci-entry">
+    <div class="hg nopos">
+      <div class="hgContent">
+        <div class="hwgDiv">
+          <span class="hwSpan">ab·a·ci</span>
+          <span class="hwFollowSpan"><span class="prLine"><pr>ˈæbəsaɪ</pr></span></span>
+        </div>
+      </div>
+    </div>
+    <div class="sg">
+      <div class="se1">
+        <div class="sgPosDiv"></div>
+        <ol class="se2g se2gOne">
+          <li class="se2">
+            <span class="corrSe2FirstLine"><span class="df"><xrg><a class="xr" href="entry://abacus">abacus</a></xrg>的复数</span><br/></span>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</body></html>
+"""
+
 DYNAMO_MULTI_EXAMPLE_HTML = """
 <html><body>
   <div class="eDiv" id="dynamo-multi">
@@ -414,7 +602,6 @@ def test_parse_entry_html_extracts_entry_payload() -> None:
     assert parsed.base_headword == "actualize"
     assert parsed.homograph_no is None
     assert parsed.phonetic == "ˈæktʃʊəlaɪz"
-    assert parsed.primary_pos == "vt."
     assert parsed.meanings_json[0]["part_of_speech"] == "vt."
     assert parsed.meanings_json[1]["part_of_speech"] == "vi."
     assert parsed.phrases_json[0]["phrase"] == "actualize a plan"
@@ -429,7 +616,6 @@ def test_parse_entry_html_handles_homograph_labels_and_xrg_meanings() -> None:
     assert parsed.base_headword == "anth-"
     assert parsed.homograph_no == 2
     assert parsed.phonetic == "ænθ"
-    assert parsed.primary_pos == "pref."
     assert parsed.meanings_json[0]["definitions"][0]["meaning"] == "=anti-"
 
 
@@ -471,15 +657,14 @@ def test_parse_entry_html_extracts_hidden_nlp_lookup_forms() -> None:
     parsed = parse_entry_html("crew · n.", NLP_ENTRY_HTML)
 
     assert parsed is not None
-    assert parsed.primary_pos == "n."
     assert parsed.nlp_forms == ["crews", "crewing", "crewed", "crew up"]
+    assert parsed.meanings_json[0]["part_of_speech"] == "n."
 
 
 def test_parse_entry_html_normalizes_abbreviation_and_nav_pos_labels() -> None:
     parsed = parse_entry_html("AAR · abbr.", ABBREVIATION_ENTRY_HTML)
 
     assert parsed is not None
-    assert parsed.primary_pos == "abbr."
     assert parsed.meanings_json[0]["part_of_speech"] == "abbr."
 
 
@@ -487,7 +672,6 @@ def test_parse_entry_html_normalizes_demonstrative_pronoun_to_pron() -> None:
     parsed = parse_entry_html("that", DEMONSTRATIVE_PRONOUN_HTML)
 
     assert parsed is not None
-    assert parsed.primary_pos == "pron."
     assert parsed.meanings_json[0]["part_of_speech"] == "pron."
 
 
@@ -495,7 +679,6 @@ def test_parse_entry_html_normalizes_combining_form_nav_alias() -> None:
     parsed = parse_entry_html("dynamo- · comb. form", COMBINING_FORM_NAV_HTML)
 
     assert parsed is not None
-    assert parsed.primary_pos == "comb. form"
     assert parsed.meanings_json[0]["part_of_speech"] == "comb. form"
 
 
@@ -503,7 +686,6 @@ def test_parse_entry_html_strips_numeric_suffix_from_nav_pos_label() -> None:
     parsed = parse_entry_html("-wise · suf.", NUMBERED_NAV_POS_HTML)
 
     assert parsed is not None
-    assert parsed.primary_pos == "suf."
     assert parsed.meanings_json[0]["part_of_speech"] == "suf."
 
 
@@ -511,10 +693,113 @@ def test_parse_entry_html_preserves_multi_example_blocks() -> None:
     parsed = parse_entry_html("dynamo- · comb. form", DYNAMO_MULTI_EXAMPLE_HTML)
 
     assert parsed is not None
-    assert parsed.primary_pos == "comb. form"
+    assert parsed.meanings_json[0]["part_of_speech"] == "comb. form"
     assert parsed.meanings_json[0]["definitions"][0]["meaning"] == '表示"力" "动力"'
     assert parsed.meanings_json[0]["definitions"][0]["example"] == "dynamo electric；dynamo meter"
     assert parsed.examples_json[0]["example"] == "dynamo electric；dynamo meter"
+
+
+def test_parse_entry_html_keeps_headword_variants_and_pairs_examples_per_li() -> None:
+    parsed = parse_entry_html("A1, A-1", A1_MULTI_HEADWORD_HTML)
+
+    assert parsed is not None
+    assert parsed.display_headword == "A1"
+    assert parsed.base_headword == "A1"
+    assert parsed.headword_variants == ["A1", "A-1"]
+    assert parsed.meanings_json[0]["definitions"][0]["example"] is None
+    assert parsed.meanings_json[0]["definitions"][1]["example"] == (
+        "A1 tea；an A1 physicist；The meals there are A1.；feel A1"
+    )
+    assert parsed.meanings_json[0]["definitions"][1]["example_translation"] == (
+        "上品茶叶；物理学大牛；那里的伙食顶呱呱。；自我感觉极好"
+    )
+    assert [example["example"] for example in parsed.examples_json] == [
+        "A1 tea",
+        "an A1 physicist",
+        "The meals there are A1.",
+        "feel A1",
+    ]
+
+
+def test_parse_entry_html_keeps_abbreviation_expansion_labels() -> None:
+    parsed = parse_entry_html("AAR · abbr.", ABBREVIATION_LABEL_HTML)
+
+    assert parsed is not None
+    assert parsed.meanings_json[0]["part_of_speech"] == "abbr."
+    assert parsed.meanings_json[0]["definitions"][0]["meaning"] == (
+        "against all risks 综合险,一切(保)险"
+    )
+    assert parsed.meanings_json[0]["definitions"][1]["meaning"] == (
+        "Association of American Railroads 美国铁路协会"
+    )
+
+
+def test_parse_entry_html_marks_xrg_only_entry_as_redirect() -> None:
+    parsed = parse_entry_html("Aar · =Aare", REDIRECT_ONLY_HTML)
+
+    assert parsed is not None
+    assert parsed.display_headword == "Aar"
+    assert parsed.redirect_target_entry_key == "Aare"
+
+
+def test_parse_entry_html_removes_inline_spacing_noise() -> None:
+    parsed = parse_entry_html("Aaron · n.", AARON_INLINE_FORMATTING_HTML)
+
+    assert parsed is not None
+    assert parsed.phonetic == "ˈeərən, ˈɑːrən"
+    assert parsed.meanings_json[0]["definitions"][0]["meaning"] == "艾伦(m.)"
+
+
+def test_parse_entry_html_infers_pos_from_section_marker() -> None:
+    parsed = parse_entry_html("A, a", LETTER_ENTRY_WITH_IMPLICIT_NOUN_HTML)
+
+    assert parsed is not None
+    assert parsed.headword_variants == ["A", "a"]
+    assert parsed.meanings_json[0]["part_of_speech"] == "n."
+
+
+def test_parse_entry_html_marks_inflection_xrg_entry_as_redirect() -> None:
+    parsed = parse_entry_html("abaci · abacus的复数", INFLECTION_REDIRECT_HTML)
+
+    assert parsed is not None
+    assert parsed.display_headword == "abaci"
+    assert parsed.redirect_target_entry_key == "abacus"
+
+
+def test_parse_entry_html_infers_noun_for_letter_entries_without_pos_marker() -> None:
+    parsed = parse_entry_html("A, a · 1. 英语的第一个字母 2. 字母…", LETTER_ENTRY_WITH_IMPLICIT_NOUN_HTML)
+
+    assert parsed is not None
+    assert parsed.meanings_json[0]["part_of_speech"] == "n."
+
+
+def test_parse_entry_html_infers_noun_for_symbol_code_entries() -> None:
+    parsed = parse_entry_html("A.A. · 表示“(电影)只供14岁以上观众观…", """
+    <html><body>
+      <div class="eDiv">
+        <div class="hg nopos">
+          <div class="hgContent">
+            <div class="hwgDiv">
+              <span class="hwSpan"><hw>A.A.</hw></span>
+            </div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="se1">
+            <div class="sgPosDiv"></div>
+            <ol class="se2g se2gOne">
+              <li class="se2">
+                <span class="corrSe2FirstLine"><span class="lg">〈<ge>英</ge>〉</span><span class="df">表示“(电影)只供14岁以上观众观看”的级别代号</span><br/></span>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </body></html>
+    """)
+
+    assert parsed is not None
+    assert parsed.meanings_json[0]["part_of_speech"] == "n."
 
 
 def test_parse_disambiguation_html_extracts_candidates() -> None:

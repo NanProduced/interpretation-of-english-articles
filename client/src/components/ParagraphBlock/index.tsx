@@ -21,6 +21,7 @@ export interface WordClickPayload {
 }
 
 interface ParagraphBlockProps {
+  order: number
   sentences: SentenceModel[]
   translations: TranslationModel[]
   inlineMarks: InlineMarkModel[]
@@ -228,6 +229,7 @@ function renderTextWithMarks(
 }
 
 const ParagraphBlock = memo(function ParagraphBlock({
+  order,
   sentences,
   translations,
   inlineMarks,
@@ -335,6 +337,10 @@ const ParagraphBlock = memo(function ParagraphBlock({
 
   return (
     <View className='paragraph-block intensive'>
+      <View className='paragraph-header'>
+        <Text className='paragraph-anchor'>§ {order}</Text>
+        <View className='paragraph-divider' />
+      </View>
       {chunks.map((chunk) => {
         if (chunk.hasCards) {
           const item = chunk.items[0]

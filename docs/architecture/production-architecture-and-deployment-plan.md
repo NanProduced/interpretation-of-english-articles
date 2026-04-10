@@ -433,7 +433,6 @@ flowchart LR
 - `headword` `TEXT`
 - `normalized_headword` `TEXT`
 - `phonetic` `TEXT`
-- `primary_pos` `TEXT`
 - `short_meaning` `TEXT`
 - `meanings_json` `JSONB`
 - `examples_json` `JSONB`

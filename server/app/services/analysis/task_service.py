@@ -225,7 +225,7 @@ async def submit_task(
                     request_payload_json, reading_goal, reading_variant,
                     analysis_status, created_at, updated_at
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'queued', $9, $9)
+                VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, 'queued', $9, $9)
                 RETURNING id
                 """,
                 user_id,
@@ -233,14 +233,12 @@ async def submit_task(
                 source_type,
                 text,
                 source_text_hash,
-                json.dumps(
-                    {
-                        "reading_goal": reading_goal,
-                        "reading_variant": reading_variant,
-                        "source_type": source_type,
-                        "extended": extended,
-                    }
-                ),
+                json.dumps({
+                    "reading_goal": reading_goal,
+                    "reading_variant": reading_variant,
+                    "source_type": source_type,
+                    "extended": extended,
+                }),
                 reading_goal,
                 reading_variant,
                 now,
@@ -418,21 +416,24 @@ async def update_task_status(
     params: list[Any] = [task_id, status, datetime.now(timezone.utc)]
     idx = 4
 
+    _JSONB_FIELDS = {"usage_summary_json"}
+
     for field_name, value in [
         ("started_at", started_at),
         ("finished_at", finished_at),
         ("failure_code", failure_code),
         ("failure_message", failure_message),
-        ("usage_summary_json", json.dumps(usage_summary_json) if usage_summary_json else None),
+        ("usage_summary_json", usage_summary_json),
         ("quota_cost_points", quota_cost_points),
         ("worker_token", worker_token),
     ]:
         if value is not None:
-            if field_name == "usage_summary_json":
+            if field_name in _JSONB_FIELDS and isinstance(value, dict):
                 sets.append(f"{field_name} = ${idx}::jsonb")
+                params.append(json.dumps(value, ensure_ascii=False))
             else:
                 sets.append(f"{field_name} = ${idx}")
-            params.append(value)
+                params.append(value)
             idx += 1
 
     sql = f"UPDATE analysis_tasks SET {', '.join(sets)} WHERE id = $1"
@@ -476,7 +477,7 @@ async def insert_task_event(
         await conn.execute(
             """
             INSERT INTO analysis_task_events (task_id, event_type, event_payload_json, created_at)
-            VALUES ($1, $2, $3, $4)
+            VALUES ($1, $2, $3::jsonb, $4)
             """,
             task_id,
             event_type,
@@ -504,19 +505,22 @@ async def update_record_for_task(
     params: list[Any] = [record_id, analysis_status, datetime.now(timezone.utc)]
     idx = 4
 
+    _JSONB_FIELDS = {"render_scene_json", "page_state_json"}
+
     for field_name, value in [
-        ("render_scene_json", json.dumps(render_scene_json) if render_scene_json else None),
-        ("page_state_json", json.dumps(page_state_json) if page_state_json else None),
+        ("render_scene_json", render_scene_json),
+        ("page_state_json", page_state_json),
         ("user_facing_state", user_facing_state),
         ("workflow_version", workflow_version),
         ("schema_version", schema_version),
     ]:
         if value is not None:
-            if field_name in ("render_scene_json", "page_state_json"):
+            if field_name in _JSONB_FIELDS and isinstance(value, dict):
                 sets.append(f"{field_name} = ${idx}::jsonb")
+                params.append(json.dumps(value, ensure_ascii=False))
             else:
                 sets.append(f"{field_name} = ${idx}")
-            params.append(value)
+                params.append(value)
             idx += 1
 
     sql = f"UPDATE analysis_records SET {', '.join(sets)} WHERE id = $1"

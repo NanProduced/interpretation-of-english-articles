@@ -169,7 +169,6 @@ export interface DictionaryEntryPayload {
   baseWord?: string
   homographNo?: number
   phonetic?: string
-  primaryPos?: string
   meanings: DictionaryMeaning[]
   examples: DictionaryExample[]
   phrases: DictionaryPhrase[]

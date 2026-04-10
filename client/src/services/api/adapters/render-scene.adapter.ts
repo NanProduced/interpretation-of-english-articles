@@ -187,3 +187,151 @@ export function analyzeResponseDtoToVm(dto: AnalyzeResponseDto): RenderSceneVmBa
     warnings: (dto.warnings ?? []).map(transformWarning),
   }
 }
+
+/**
+ * 反向转换 InlineMarkAnchor (vm -> dto)
+ */
+function reverseAnchor(vmAnchor: VmTextAnchor | VmMultiTextAnchor): DtoTextAnchor | DtoMultiTextAnchor {
+  if (vmAnchor.kind === 'text') {
+    const a = vmAnchor as VmTextAnchor
+    return {
+      kind: 'text',
+      sentence_id: a.sentenceId,
+      anchor_text: a.anchorText,
+      occurrence: a.occurrence,
+    }
+  } else {
+    const a = vmAnchor as VmMultiTextAnchor
+    return {
+      kind: 'multi_text',
+      sentence_id: a.sentenceId,
+      parts: a.parts.map((p: SpanRef) => ({
+        anchor_text: p.anchorText,
+        occurrence: p.occurrence,
+        role: p.role,
+      })),
+    }
+  }
+}
+
+/**
+ * 反向转换 InlineMark (vm -> dto)
+ */
+function reverseInlineMark(mark: InlineMarkModel): DtoInlineMark {
+  return {
+    id: mark.id,
+    annotation_type: mark.annotationType,
+    anchor: reverseAnchor(mark.anchor),
+    render_type: mark.renderType,
+    visual_tone: mark.visualTone,
+    clickable: mark.clickable,
+    lookup_text: mark.lookupText,
+    lookup_kind: mark.lookupKind as 'word' | 'phrase' | undefined,
+    glossary: mark.glossary
+      ? {
+          zh: mark.glossary.zh,
+          gloss: mark.glossary.gloss,
+          reason: mark.glossary.reason,
+          phrase_type: mark.glossary.phraseType,
+        }
+      : undefined,
+  }
+}
+
+/**
+ * 反向转换 SentenceEntry (vm -> dto)
+ */
+function reverseSentenceEntry(entry: SentenceEntryModel): SentenceEntry {
+  return {
+    id: entry.id,
+    sentence_id: entry.sentenceId,
+    entry_type: entry.entryType,
+    label: entry.label,
+    title: entry.title,
+    content: entry.content,
+  }
+}
+
+/**
+ * 反向转换 Warning (vm -> dto)
+ */
+function reverseWarning(warning: WarningModel): Warning {
+  return {
+    code: warning.code,
+    level: warning.level,
+    message: warning.message,
+    sentence_id: warning.sentenceId,
+    annotation_id: warning.annotationId,
+  }
+}
+
+/**
+ * 反向转换 TranslationItem (vm -> dto)
+ */
+function reverseTranslation(item: TranslationModel): TranslationItem {
+  return {
+    sentence_id: item.sentenceId,
+    translation_zh: item.translationZh,
+  }
+}
+
+/**
+ * 反向转换 ArticleSentence (vm -> dto)
+ */
+function reverseSentence(sentence: SentenceModel): ArticleSentence {
+  return {
+    sentence_id: sentence.sentenceId,
+    paragraph_id: sentence.paragraphId,
+    text: sentence.text,
+    sentence_span: { start: 0, end: 0 },
+  }
+}
+
+/**
+ * 反向转换 ArticleParagraph (vm -> dto)
+ */
+function reverseParagraph(paragraph: ParagraphModel): ArticleParagraph {
+  return {
+    paragraph_id: paragraph.paragraphId,
+    text: '',
+    render_span: { start: 0, end: 0 },
+    sentence_ids: paragraph.sentenceIds,
+  }
+}
+
+/**
+ * 反向转换 RequestMeta (vm -> dto)
+ */
+function reverseRequestMeta(meta: RequestMeta): AnalyzeRequestMeta {
+  return {
+    request_id: meta.requestId,
+    source_type: meta.sourceType,
+    reading_goal: meta.readingGoal as AnalyzeRequestMeta['reading_goal'],
+    reading_variant: meta.readingVariant as AnalyzeRequestMeta['reading_variant'],
+    profile_id: meta.profileId,
+  }
+}
+
+/**
+ * 反向转换完整响应
+ * camelCase VM -> snake_case DTO
+ * 用于前端保存记录到云端时，确保 render_scene_json 与后端输出格式一致
+ */
+export function vmToAnalyzeResponseDto(vm: RenderSceneVmBase): AnalyzeResponseDto {
+  return {
+    schema_version: vm.schemaVersion,
+    request: reverseRequestMeta(vm.request),
+    article: {
+      source_type: vm.request.sourceType,
+      source_text: '',
+      render_text: '',
+      paragraphs: (vm.article.paragraphs ?? []).map(reverseParagraph),
+      sentences: (vm.article.sentences ?? []).map(reverseSentence),
+    },
+    user_facing_state: vm.userFacingState,
+    translations: (vm.translations ?? []).map(reverseTranslation),
+    inline_marks: (vm.inlineMarks ?? []).map(reverseInlineMark),
+    sentence_entries: (vm.sentenceEntries ?? []).map(reverseSentenceEntry),
+    warnings: (vm.warnings ?? []).map(reverseWarning),
+  }
+}
