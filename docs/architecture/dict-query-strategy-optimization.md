@@ -1,6 +1,6 @@
-# `/dict` 查询策略优化设计（phrase-first + placeholder-aware）
+# `/dict` 查询策略优化设计（phrase-first + spaCy pattern matching）
 
-> 文档定位：为当前 `/dict` 查询链路提供一份可直接实施的后端设计，重点覆盖短语优先、批量召回、`sb./sth.` 模板短语命中、缓存与验收标准。  
+> 文档定位：为当前 `/dict` 查询链路提供一份可直接实施的后端设计，重点覆盖短语优先、批量召回、`spaCy` 驱动的模板短语命中、缓存与验收标准。  
 > 依赖文档：[TECD3 本地词典接入与查询策略](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/docs/architecture/tecd3-local-dictionary-integration.md)。  
 > 当前结论：继续沿用“Python 后端 + PostgreSQL 词典真源”的架构，不拆独立 dict service；本次优化只调整 `/dict` 运行时查询策略与 phrase 索引补齐方式，不改词典内容真源。
 
@@ -12,7 +12,7 @@
 
 1. 让 `type=phrase` 真正生效。
 2. 让“短语嗅探 + 最长优先”成为正式运行时规则。
-3. 让库里带 `sb.` / `sth.` 的模板短语可以命中真实句子里的 `you / him / it / something` 等变体。
+3. 让库里带 `sb.` / `sth.` 的模板短语可以通过 `spaCy` 的 lemma / POS / DEP 能力命中真实句子里的实例化变体。
 4. 保持现有返回结构兼容 `WordPopup`。
 5. 修正缓存 key，使不同查询意图不再串缓存。
 
@@ -56,6 +56,25 @@
 - 这个命名统一本身不是本次查询策略的核心内容
 - 但后端如果顺手调整相关 schema 或枚举，应以 `gre_tem` 为目标值，不再使用旧的 `gre`
 
+### 2.3 公开资料可见的产品信号
+
+没有查到有道词典或 Google Dictionary 对 `sb./sth.` 模板命中的公开工程实现说明，因此下面的结论应视为“基于公开资料与产品行为的工程推断”，不是官方实现披露。
+
+当前能确认的公开信号有三类：
+
+1. 搜索引擎里的 dictionary box 通常来自结构化词典数据  
+   Oxford Languages 明确对外提供“给 search engines 用的 dictionary data”，并说明这些数据是“machine-readable dictionaries”的标准化数据模型，面向搜索引擎以 XML / JSON 形式接入。[来源](https://languages.oup.com/products/dictionary-data-for-search-engines/)
+2. 主流词典数据本身就是结构化 lexical dataset  
+   Oxford Languages 对外说明词典数据集不仅有 headword、sense、example，还包括 phrasal verbs、idioms 等结构化内容，并以 machine-readable format 交付。[来源 1](https://languages.oup.com/about-us/what-is-a-dictionary-dataset/) [来源 2](https://languages.oup.com/products/language-datasets/new-oxford-american-dictionary/)
+3. 有道公开页面能直接检索 canonical template 表达  
+   例如有道公开页面可直接出现 `induce sb to do sth`、`remind sb. of sth`、`offer sb. sth` 这类模板表达。[来源 1](https://dict.youdao.com/w/%E5%8A%9D%E8%AF%B1%E6%9F%90%E4%BA%BA%E5%81%9A%E6%9F%90%E4%BA%8B/) [来源 2](https://dict.youdao.com/w/%E4%BD%BF%E6%9F%90%E4%BA%BA%E6%83%B3%E8%B5%B7%E4%BA%8B/) [来源 3](https://dict.youdao.com/w/%E5%90%91%E6%9F%90%E4%BA%BA%E5%81%9A%E6%9F%90%E4%BA%8B/)
+
+这三点共同说明：
+
+- 词典产品并不是把自然句子当作纯字符串去 regex 查词
+- 词典侧本来就有 canonical template 和结构化短语数据
+- 更合理的实现方向是“结构化词典索引 + 句内语法匹配”，而不是继续堆全局字符串替换规则
+
 ## 3. 当前实现审计
 
 ### 3.1 路由层
@@ -84,6 +103,7 @@
 - 查询类型是 `word` 还是 `phrase`
 - 当前句子上下文
 - 点击词在句中的第几次出现
+- `spaCy` 的 lemma / POS / dependency 信息
 
 ### 3.3 Provider 层
 
@@ -100,7 +120,7 @@
 - `type` 感知
 - `context_sentence` 感知
 - phrase 的专门召回和排序
-- 模板短语的 placeholder 归一化
+- 基于 `spaCy` 的模板短语匹配
 
 ### 3.4 DB 查询层
 
@@ -113,7 +133,7 @@
 这意味着：
 
 - 无法高效支持“最长优先”的短语召回
-- 无法把 literal phrase 和 placeholder-normalized phrase 一起送入同一次查询
+- 无法把 literal phrase 和 canonical template phrase 一起送入同一次查询
 
 ### 3.5 数据层缺口
 
@@ -123,6 +143,60 @@
 
 1. phrase-first 只停留在设计层，没有数据基础
 2. 带 `sb.` / `sth.` 的模板短语即使在详情里存在，运行时也无从命中
+
+### 3.6 当前 `spaCy` 实际没有用在词典查询
+
+仓库里虽然已经引入了 `spaCy`，但当前只在 [input_preparation.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/analysis/input_preparation.py) 里做断句，而且加载模型时明确禁掉了：
+
+- `tagger`
+- `lemmatizer`
+- `ner`
+
+这意味着当前项目里的 `spaCy` 并没有为 `/dict` 提供：
+
+- `Token.lemma_`
+- `Token.pos_`
+- `Token.dep_`
+- noun chunk / dependency tree 级别的模式判断
+
+因此，词典查询链路现在实际上还停留在“字符串查表 + lemminflect fallback”阶段。
+
+### 3.7 当前本地启动现状：`uvicorn` 启动不等于 `spaCy` 可用
+
+截至 **2026-04-12**，当前本地调试方式 `uv run uvicorn app.main:app --reload` 的实际状态如下：
+
+1. 服务启动时不会主动预热 `spaCy`  
+   [main.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/main.py) 的 `lifespan()` 只初始化：
+   - PostgreSQL
+   - Redis
+   - LangSmith
+   - Analysis task worker
+
+   启动阶段没有任何 `spaCy` model preload。
+
+2. `spaCy` 只会在运行到 `prepare_input()` 时被懒检查  
+   触发点在 [input_preparation.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/analysis/input_preparation.py:579) 和 [input_preparation.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/analysis/input_preparation.py:898)。
+
+3. 当前本地 `uv` 环境里只有 `spaCy` 包，没有 `en_core_web_sm` 模型  
+   已验证到：
+   - `spacy_version=3.8.14`
+   - `model_spec=missing`
+   - `spacy.load("en_core_web_sm")` 报 `OSError: [E050] Can't find model 'en_core_web_sm'`
+
+4. 因此当前本地运行实际上会退回 regex 路径  
+   一旦走到 `prepare_input`，`_check_spacy_model()` 会把 `_spacy_available` 标记为 `False`，后续走：
+   - `regex_sentence_split_no_spacy`
+   - `fallback_reason="spacy_unavailable"`
+
+这个现状对 `/dict` 方案的约束是：
+
+- 不能假设“项目已经装了 `spaCy`，所以 `/dict` 直接可用句法匹配”
+- `/dict` 新方案必须自带：
+  - 模型可用性检查
+  - 清晰的降级路径
+  - 可观测日志
+
+也就是说，“在 `/dict` 里真正用上 `spaCy`”不仅是代码问题，还包括运行时环境就绪问题。
 
 ## 4. 推荐接口契约
 
@@ -214,7 +288,7 @@ CHECK (lookup_type IN ('word', 'phrase'));
 
 ### 5.3 模板短语回填要求
 
-对于包含 placeholder 的词典短语，导入阶段还要额外补一条 template row。
+对于包含 `sb.` / `sth.` 槽位的词典短语，导入阶段还要额外补一条 template row。
 
 典型例子：
 
@@ -225,11 +299,11 @@ CHECK (lookup_type IN ('word', 'phrase'));
 推荐规则：
 
 1. phrase 原文先保留 literal row
-2. 再生成一条 template-normalized row
+2. 再生成一条 canonical template row
 3. template row 仍写进 `dict_lookup_targets`
 4. template row 仍指向原 `entry_id`
 
-推荐 placeholder 规范化：
+canonical template 只做最小词典规范化：
 
 - `sb.` / `somebody` / `someone` -> `sb`
 - `sb.'s` / `somebody's` / `someone's` -> `sb's`
@@ -244,89 +318,303 @@ CHECK (lookup_type IN ('word', 'phrase'));
 说明：
 
 - 对这个例子，literal 和 template 可能归一化后相同，这没问题
-- 关键在于导入与运行时必须共用同一套 placeholder canonicalization
+- 关键在于词典侧必须有 canonical template 可查，运行时再用 `spaCy` 把自然句子映射到这个 template
 
-## 6. Placeholder 归一化设计
+## 6. `spaCy` 驱动的模板短语命中设计
 
-### 6.1 为什么要单独设计
+### 6.1 为什么不能继续走“硬规则替换”
 
-词典里的短语经常写成“词典模板语法”，而用户句子里出现的是自然语言实例。
+如果继续用“`you -> sb`、`it -> sth`、`my -> sb's`”这类字符串替换去做模板匹配，会有三个问题：
 
-例如：
+1. 命中率差  
+   `you / him / her / them / your / his / her / it` 只是最小集合，真实句子里还会出现 noun chunk、专有名词、并列结构、所有格结构。
+2. 误伤高  
+   仅靠 token 字符串很难区分 `sb` 和 `sth`，尤其碰到 `it`、名词短语、专有名词时容易错。
+3. 效率差  
+   如果靠字符串替换去枚举所有窗口和变体，候选 form 会指数膨胀。
 
-- 词典：`be there for sb.`
+更合理的方式是：
+
+- 词典侧只存 canonical template
+- 运行时先用 `spaCy` 解析句子
+- 再基于 lemma / POS / DEP / noun chunk 把真实句子投影成少量“语法上合理”的 template candidate
+
+### 6.2 `spaCy` 应该怎么在 `/dict` 里用
+
+根据 `spaCy` 官方文档：
+
+- `PhraseMatcher` 适合大规模 terminology list 或 gazetteer 的精确短语匹配
+- `Matcher` 适合基于 `LEMMA`、`POS`、`DEP` 等属性写抽象 token pattern
+- `DependencyMatcher` 适合在 dependency tree 上做关系模式匹配  
+  [来源 1](https://spacy.io/usage/rule-based-matching/) [来源 2](https://spacy.io/api/dependencymatcher/) [来源 3](https://spacy.io/api/lemmatizer/)
+
+因此推荐把 `spaCy` 用在两个点上：
+
+1. 句子解析  
+   把 `context_sentence` 变成带 `lemma / POS / DEP / noun chunk` 的 `Doc`
+2. 模板候选生成  
+   不再做全局字符串替换，而是从 parse tree 中生成少量 template candidate
+
+### 6.3 词典查询专用 `spaCy` pipeline
+
+不要复用当前只负责断句的 pipeline。建议单独新增词典查询专用 `nlp_dict`：
+
+- 基础模型：`en_core_web_sm`
+- 必须保留：
+  - `tagger` 或 `morphologizer`
+  - `lemmatizer`
+  - `parser`
+- 可选保留：
+  - `ner`
+
+推荐原则：
+
+- 断句链路可以继续轻量
+- `/dict` 链路单独持有一个 lazy singleton
+- 只在有 `context_sentence` 时调用
+- 每次只处理一条句子，性能成本可控
+
+同时必须定义清楚“模型不可用时怎么办”：
+
+- 如果 `en_core_web_sm` 缺失，不阻塞 `/dict`
+- 直接退回 exact + lemma + 有限 n-gram 兜底
+- 记录结构化日志，例如：
+  - `dict_spacy_unavailable`
+  - `dict_spacy_runtime_error`
+
+### 6.4 模板槽位不再靠词面硬编码，而靠句法抽象
+
+推荐把 `sb / sth / sb's` 看成“槽位类型”，不是字面替换结果。
+
+第一版建议支持三种槽位：
+
+1. `sb`
+   - 代词宾格或主格的人称代词 span
+   - 或者被 `spaCy` 识别为 PERSON 的实体
+   - 或者 noun chunk，其 head 在句法上是典型参与者位置，例如 `nsubj / dobj / iobj / pobj / dative`
+
+2. `sth`
+   - 非 PERSON 的 noun chunk
+   - 或中性代词 / 物类代词
+   - 或句法上充当 object / complement 的非人称成分
+
+3. `sb's`
+   - possessive pronoun
+   - 或 dependency 上的 `poss` 结构，且 possessor 为 person-like span
+
+注意：
+
+- 这里的判断核心是 `lemma + POS + DEP + noun chunk / entity`
+- 不是先维护一大坨 `you, him, her...` 的替换表再拼字符串
+
+### 6.5 推荐实现形态：生成 candidate，而不是全量跑模板库
+
+不建议在每次点击时把整个模板短语库全部编译成 `Matcher` / `DependencyMatcher` 规则去跑整句。
+
+更推荐的实现是：
+
+1. 词典侧把 phrase 存成 literal row + canonical template row
+2. 运行时只对“点击词所在句子”做一次 `spaCy` 解析
+3. 围绕点击锚点，从 parse tree 生成少量候选：
+   - literal candidate
+   - lemma candidate
+   - template candidate
+4. 用这些 candidate 去做一次批量 DB lookup
+
+这样效率更高，因为：
+
+- 句子只 parse 一次
+- 候选数量通常是个位数到十几条
+- 不需要把整库模板规则灌进 matcher
+
+### 6.6 候选生成规则
+
+围绕点击锚点，优先生成“语法上合理”的 phrase span，而不是盲目滑动窗口。
+
+推荐顺序：
+
+1. 锚点所在的最小连续短语 span
+   - 例如 `be there for you`
+2. 该 span 的 lemma form
+   - 例如 `be there for you`
+3. 该 span 的 template form
+   - 例如 `be there for sb`
+4. 必要时再退化到有限长度的 anchored n-gram
+   - 只作为 parse-based span 生成失败时的兜底
+
+例子：
+
 - 句子：`I will always be there for you.`
+- parse 后生成：
+  - literal: `be there for you`
+  - template: `be there for sb`
 
-如果运行时只做 literal n-gram 匹配：
+- 句子：`He gave it to Mary.`
+- parse 后生成：
+  - literal: `give it to mary`
+  - lemma: `give it to mary`
+  - template: `give sth to sb`
 
-- 查询 form 会是 `be there for you`
-- 词典索引是 `be there for sb`
-- 两者不会命中
+### 6.7 共享实现要求
 
-因此，运行时必须支持“自然句子 -> 词典模板”的 placeholder 归一化。
+必须保证下面两端共用同一套 canonicalization helper：
 
-### 6.2 运行时 placeholder 归一化范围
+1. 导入阶段生成 canonical template row
+2. 运行时从 `Doc` 生成 template candidate
 
-第一版建议只做低风险映射，不做复杂 NER 或语义判断。
+否则会出现“库里 template 长这样，运行时生成的 template 又是另一种”的错配。
 
-建议映射集合：
+建议新增独立 helper，例如：
 
-- 人称宾格或泛指人：
-  - `me`
-  - `you`
-  - `him`
-  - `her`
-  - `us`
-  - `them`
-  - `someone`
-  - `somebody`
-  - `anyone`
-  - `anybody`
-  -> `sb`
+- `server/app/services/dictionary/phrase_templates.py`
 
-- 所有格：
-  - `my`
-  - `your`
-  - `his`
-  - `her`
-  - `our`
-  - `their`
-  - `someone's`
-  - `somebody's`
-  -> `sb's`
+该 helper 至少负责：
 
-- 泛指物：
-  - `it`
-  - `something`
-  - `anything`
-  - `everything`
-  -> `sth`
+- dictionary phrase -> canonical template
+- parsed sentence span -> canonical template
+- slot type 判断
 
-本阶段明确不做：
+## 7. `/dict` 专用 `spaCy` pipeline` 的可实施技术拆分
 
-- 把任意普通名词自动归一成 `sth`
-- 把任意专有名词自动归一成 `sb`
-- 复杂 NER
+这一节不是新的产品方案，而是把上面的查询策略拆成后端 agent 可以直接落地的技术任务。
 
-也就是说，第一版优先解决最常见的英文代词场景。
+### 7.1 新增模块拆分
 
-### 6.3 共享实现要求
+推荐按下面的文件职责拆：
 
-必须保证下面两端共用同一套规则：
+1. `server/app/services/dictionary/nlp.py`
+   - 负责词典查询专用 `spaCy` singleton
+   - 提供：
+     - `check_dict_spacy_model()`
+     - `get_dict_nlp()`
+     - `parse_context_sentence(text: str) -> ParsedContext`
 
-1. 导入阶段生成 template row
-2. 运行时生成 template query form
+2. `server/app/services/dictionary/phrase_templates.py`
+   - 负责 canonical template 规则
+   - 提供：
+     - `canonicalize_dictionary_phrase(text: str) -> str`
+     - `canonicalize_sentence_span(doc, span) -> str`
+     - `classify_slot(token_or_span) -> Literal["sb", "sth", "sb's", None]`
 
-否则会出现“导入写的是一种模板，查询时算的是另一种模板”的错配。
+3. `server/app/services/dictionary/phrase_candidates.py`
+   - 负责围绕点击锚点生成候选 form
+   - 输入：
+     - `query`
+     - `context_sentence`
+     - `occurrence`
+     - `ParsedContext`
+   - 输出：
+     - `literal forms`
+     - `lemma forms`
+     - `canonical template forms`
 
-建议做法：
+4. `server/app/services/dictionary/db_pg.py`
+   - 新增 `lookup_candidates_batch()`
+   - 承接多个候选 form 的一次性查询
 
-- 在词典模块内新增独立 helper，例如 `phrase_template.py`
-- 同时供 [import_tecd3.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/scripts/import_tecd3.py) 和运行时 service/provider 复用
+5. `server/app/services/dictionary/service.py`
+   - 从“裸字符串 normalize”升级成“请求建模 + 调度”
+   - 决定：
+     - 是否尝试 `spaCy`
+     - 是否退化到 regex / n-gram
+     - 是否进入 lemma fallback
 
-## 7. 查询管线设计
+6. `server/app/services/dictionary/providers/tecd3.py`
+   - 不再自己拼查询流程
+   - 只负责：
+     - 批量候选召回
+     - 排序
+     - `entry` / `disambiguation` 组装
 
-### 7.1 总体原则
+### 7.2 推荐调用顺序
+
+新的 `/dict` 调用链应收敛成：
+
+1. `dict.py`
+   - 收集 `q / type / context_sentence / occurrence`
+
+2. `service.py`
+   - 归一化输入
+   - 构造 `DictionaryLookupRequest`
+   - 判断是否可以尝试 `spaCy`
+
+3. `nlp.py`
+   - 检查模型可用性
+   - 若可用，则 parse `context_sentence`
+
+4. `phrase_candidates.py`
+   - 基于 parse tree 生成少量高质量 candidate forms
+
+5. `db_pg.py`
+   - 用 `lookup_candidates_batch()` 一次性查回候选
+
+6. `tecd3.py`
+   - 统一排序
+   - 返回 `entry` 或 `disambiguation`
+
+7. fallback
+   - 任一步失败都必须回退到：
+     - exact query
+     - canonical template query
+     - lemma fallback
+
+### 7.3 运行时前置检查
+
+既然当前本地环境里 `en_core_web_sm` 实际缺失，那么 `/dict` 专用 `spaCy` pipeline` 必须包含显式前置检查，而不是等报错后再猜。
+
+建议在 `nlp.py` 里实现：
+
+```python
+def check_dict_spacy_model() -> bool:
+    ...
+```
+
+要求：
+
+- 结果缓存
+- 首次检查失败时只打一次 warning
+- warning 里给出明确安装指引
+
+例如日志语义：
+
+- `dict: spaCy model en_core_web_sm unavailable`
+- `dict: falling back to exact/n-gram lookup`
+
+### 7.4 本地调试要求
+
+为了避免“代码写好了，但本地一直没真正跑到 `spaCy` 分支”，文档里应明确：
+
+1. 仅执行 `uv run uvicorn app.main:app --reload` 不能证明 `spaCy` 可用
+2. 只有同时满足下面两点，`/dict` 的 `spaCy` 分支才可能真正生效：
+   - `en_core_web_sm` 已安装
+   - 请求里带可用的 `context_sentence`
+3. 本地调试需要至少覆盖两组场景：
+   - 模型存在：验证 `spaCy` 分支
+   - 模型缺失：验证 fallback 分支
+
+### 7.5 测试拆分
+
+推荐增加三组测试，而不是只写集成 case：
+
+1. `nlp.py` 单测
+   - 模型缺失时返回 `False`
+   - 模型可用时能 parse 出 lemma / POS / DEP
+
+2. `phrase_templates.py` 单测
+   - dictionary phrase -> canonical template
+   - parsed span -> canonical template
+   - `sb / sth / sb's` 槽位分类
+
+3. `phrase_candidates.py` 单测
+   - 围绕锚点生成的 candidate 数量受控
+   - `be there for you -> be there for sb`
+   - `give it to him -> give sth to sb`
+
+这样能把“环境问题”“模板 canonicalization 问题”“候选生成问题”拆开定位。
+
+## 8. 查询管线设计
+
+### 8.1 总体原则
 
 新的 `/dict` 查询不再是“单次查询 + 单个排序”，而是四段式管线：
 
@@ -335,7 +623,7 @@ CHECK (lookup_type IN ('word', 'phrase'));
 3. 批量数据库召回
 4. 规则化排序与返回
 
-### 7.2 候选 form 生成
+### 8.2 候选 form 生成
 
 #### A. 直接查询 form
 
@@ -346,7 +634,7 @@ CHECK (lookup_type IN ('word', 'phrase'));
 如果 `type=phrase`：
 
 - 直接把 `q` 当成 phrase exact 查询
-- 同时生成一份 placeholder-normalized phrase form
+- 同时生成一份 canonical template form（如果 phrase 本身包含 slot）
 
 #### B. 上下文短语 form
 
@@ -358,10 +646,13 @@ CHECK (lookup_type IN ('word', 'phrase'));
 
 生成规则：
 
-1. 以点击词为锚点，只生成“包含该锚点”的窗口
-2. 推荐窗口长度 `2..5`
-3. 候选按 token 数倒序排列
-4. 每个 literal n-gram 再派生一份 template-normalized form
+1. 先用 `spaCy` 定位点击锚点对应的 token / span
+2. 优先沿 dependency 关系生成最小合理 phrase span
+3. 再为每个 span 生成：
+   - literal form
+   - lemma form
+   - canonical template form
+4. 只有 parse-based span 不可靠时，才退化为有限长度 anchored n-gram
 5. 去重后送入批量召回
 
 例子：
@@ -371,14 +662,12 @@ CHECK (lookup_type IN ('word', 'phrase'));
 - 候选顺序应接近：
   - `be there for you`
   - `be there for sb`
-  - `there for you`
-  - `there for sb`
   - `there`
 
 说明：
 
 - literal phrase 和 template phrase 要一起进批量召回
-- 排序时 literal 不应无条件压过 template，因为 `sb.` 类短语本来就依赖模板命中
+- `spaCy` 的作用不是替代 DB，而是把自然句子压缩成少量高质量 candidate
 
 #### C. lemma form
 
@@ -399,7 +688,7 @@ lemma 阶段规则：
 - 先上下文
 - 后孤立单词
 
-### 7.3 锚点无法可靠定位时的降级
+### 8.3 锚点无法可靠定位时的降级
 
 如果发生下面任一情况：
 
@@ -409,15 +698,16 @@ lemma 阶段规则：
 则不做上下文短语嗅探，直接退化为：
 
 1. exact query
-2. placeholder-normalized query
+2. canonical template query
 3. lemma fallback
 
 要求：
 
 - 不要猜测
 - 不要在定位不可靠时做高风险 phrase 合成
+- 只有在 `spaCy` 不可用或 parse 异常时，才退回简单 n-gram
 
-## 8. 批量召回接口
+## 9. 批量召回接口
 
 [db_pg.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/db_pg.py) 推荐新增：
 
@@ -462,9 +752,9 @@ ORDER BY array_position($2::text[], t.normalized_form), t.rank ASC, t.id ASC;
 - `array_position()` 用来保留输入 form 顺序，便于“最长优先”
 - 召回后仍需在 Python 层去重和重排，不把复杂规则塞进 SQL
 
-## 9. 排序规则设计
+## 10. 排序规则设计
 
-### 9.1 排序必须在 Python 层完成
+### 10.1 排序必须在 Python 层完成
 
 原因：
 
@@ -472,7 +762,7 @@ ORDER BY array_position($2::text[], t.normalized_form), t.rank ASC, t.id ASC;
 - 这些因素塞进 SQL 会让实现脆弱且难调试
 - 批量召回后的候选数量通常不大，Python 排序成本可接受
 
-### 9.2 推荐排序桶
+### 10.2 推荐排序桶
 
 推荐采用“显式分桶 + 稳定 tie-breaker”，而不是简单加权分数。
 
@@ -507,7 +797,7 @@ ORDER BY array_position($2::text[], t.normalized_form), t.rank ASC, t.id ASC;
 7. `entry_id`
    - 保证排序稳定
 
-### 9.3 伪代码
+### 10.3 伪代码
 
 ```python
 sort_key = (
@@ -521,7 +811,7 @@ sort_key = (
 )
 ```
 
-### 9.4 返回策略
+### 10.4 返回策略
 
 本次不改变结果类型语义：
 
@@ -533,9 +823,9 @@ sort_key = (
 - 本次只优化召回和候选顺序
 - 不改变前端对单候选 / 多候选的处理方式
 
-## 10. 缓存设计
+## 11. 缓存设计
 
-### 10.1 当前问题
+### 11.1 当前问题
 
 [tecd3.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/providers/tecd3.py) 当前缓存 key 只包含 `query`，这在新策略下会造成串缓存：
 
@@ -546,7 +836,7 @@ sort_key = (
 
 都可能错误复用一份结果。
 
-### 10.2 新缓存 key
+### 11.2 新缓存 key
 
 推荐按“请求意图”生成缓存 key：
 
@@ -565,7 +855,7 @@ strategy=v1
 - `/dict/entry` 的 entry cache 可以保持现状
 - 本次缓存 key 不要带 `reading_goal` 或 `reading_variant`，因为查询逻辑不读取它们
 
-## 11. 分阶段实施建议
+## 12. 分阶段实施建议
 
 ### Phase 0：请求建模与缓存修正
 
@@ -574,6 +864,7 @@ strategy=v1
 - 让 `type` 真正生效
 - 接口允许接收 `context_sentence` 和 `occurrence`
 - provider 缓存 key 正确分桶
+- 明确记录当前环境下 `spaCy` 不可用时的降级日志
 
 改动范围：
 
@@ -594,18 +885,26 @@ strategy=v1
 - 相关 migration
 - 必要时补一个 backfill script
 
-### Phase 2：placeholder-aware 命中
+### Phase 2：`spaCy` 驱动的 template 命中
 
 目标：
 
 - 让 `be there for sb.` 这类模板短语可以命中 `be there for you`
-- 让 literal phrase 和 template phrase 共享同一套归一化规则
+- 让 literal phrase 和 template phrase 共享同一套 canonicalization 规则
+- 让 `/dict` 真正用上 `spaCy` 的 lemma / POS / DEP 能力
 
 改动范围：
 
+- 新增词典查询专用 `spaCy` singleton
 - 新增 phrase template helper
 - 导入链路和运行时查询共用该 helper
+- 新增 candidate builder
 - [db_pg.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/db_pg.py) 增加批量召回接口
+
+前置条件：
+
+- 本地 / CI / 部署环境至少有一处真正安装 `en_core_web_sm`
+- 测试中要覆盖“模型存在”和“模型缺失”两条路径
 
 ### Phase 3：前端透传上下文
 
@@ -619,9 +918,9 @@ strategy=v1
 - [dict.adapter.ts](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/client/src/services/api/adapters/dict.adapter.ts)
 - [projection.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/analysis/projection.py)
 
-## 12. 测试与验收标准
+## 13. 测试与验收标准
 
-### 12.1 查询正确性
+### 13.1 查询正确性
 
 至少覆盖下面的 case：
 
@@ -661,16 +960,24 @@ strategy=v1
 9. backward compatibility
    - 旧调用方只传 `q` 和 `type` 时，接口仍应正常返回
 
-### 12.2 数据正确性
+10. `spaCy` 异常兜底
+   - `spaCy` 不可用或运行时报错
+   - 预期：退回 exact + 有限 n-gram，不影响 `/dict` 可用性
+
+11. 当前本地环境验证
+   - 在未安装 `en_core_web_sm` 的本地 `uv` 环境下启动 `uv run uvicorn app.main:app --reload`
+   - 预期：服务可启动，`/dict` 不崩溃，但会记录 `spaCy unavailable` 并走 fallback
+
+### 13.2 数据正确性
 
 需要抽检：
 
 - `dict_lookup_targets.lookup_type='phrase'` 的数量是否合理
-- 带 placeholder 的 phrase 是否都能生成稳定的 template row
+- 带 `sb.` / `sth.` 槽位的 phrase 是否都能生成稳定的 canonical template row
 - template row 是否都能回到正确的 `entry_id`
 - `preview_text` 是否足够支撑 disambiguation
 
-### 12.3 可观测性
+### 13.3 可观测性
 
 推荐新增最少量结构化日志字段：
 
@@ -686,34 +993,36 @@ strategy=v1
 这样后续可以快速回答：
 
 - phrase sniff 到底有没有命中
-- placeholder 归一化有没有发生
+- `spaCy` template candidate 有没有生成
 - 哪一阶段最常 miss
 
-## 13. 最终建议
+## 14. 最终建议
 
 后端 agent 实施时，建议按下面顺序推进：
 
 1. 先把 `/dict` 的输入升级成显式请求模型，并让 `type` 真正参与 provider 策略。
 2. 新增 `lookup_candidates_batch()`，把排序主逻辑移到 Python 层。
 3. 补 migration 和导入逻辑，把 phrase 正式写进 `dict_lookup_targets`。
-4. 增加 placeholder-aware 归一化，让 `sb.` / `sth.` 模板短语可命中真实句子。
+4. 增加 `spaCy` 驱动的 template candidate 生成，让 `sb.` / `sth.` 模板短语可命中真实句子。
 5. 最后再接前端上下文透传，让“短语嗅探 + 最长优先”真正工作。
 
 如果只做其中一部分，优先级应该是：
 
 1. 请求建模 + cache 修正
 2. phrase 索引补齐
-3. placeholder-aware 命中
+3. `spaCy` template 命中
 4. 前端上下文透传
 
-## 14. 直接相关文件
+## 15. 直接相关文件
 
 - [TECD3 本地词典接入与查询策略](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/docs/architecture/tecd3-local-dictionary-integration.md)
+- [main.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/main.py)
 - [dict.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/api/routes/dict.py)
 - [service.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/service.py)
 - [tecd3.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/providers/tecd3.py)
 - [db_pg.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/db_pg.py)
 - [lemma.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/dictionary/lemma.py)
+- [input_preparation.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/services/analysis/input_preparation.py)
 - [analysis.py](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/app/schemas/internal/analysis.py)
 - [0001_initial_schema.sql](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/db/migrations/0001_initial_schema.sql)
 - [0002_add_exam_tag.sql](C:/Users/nanpr/miniprogram/interpretation-of-english-articles/server/db/migrations/0002_add_exam_tag.sql)
