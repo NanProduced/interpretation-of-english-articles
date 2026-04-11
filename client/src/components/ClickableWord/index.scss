@@ -22,9 +22,14 @@
   // grammar_note 等非点击热区 mark 内的单词，保留 tone 视觉提示 (对应后端的 span 锚点)
   &.tone-grammar {
     color: var(--color-ink);
-    border-bottom: 2rpx dashed var(--grammar-accent); // 明确的下划线批注感
-    background: linear-gradient(to top, var(--grammar-surface) 30%, transparent 30%); // 荧光笔半遮盖效果
+    border-bottom: 2.5rpx solid var(--grammar-accent); // 连续实体线，更有设计感
+    background: linear-gradient(to top, var(--grammar-surface) 40%, transparent 40%); // 增强荧光笔覆盖感
     font-weight: var(--weight-medium);
+    transition: all 0.3s ease;
+
+    &.is-highlighted {
+      background: transparent !important; // 当整句高亮时，放弃局部底纹，避免产生视觉断层
+    }
   }
 
   &.tone-vocab {

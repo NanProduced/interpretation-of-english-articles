@@ -62,6 +62,7 @@ export default function Result() {
     y: number
   }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null)
+  const [activeSentenceId, setActiveSentenceId] = useState<string | null>(null)
   const [selectedWord, setSelectedWord] = useState<string | null>(null)
 
   // 从 store 获取页面状态
@@ -165,10 +166,15 @@ export default function Result() {
     setWordPopup({ visible: true, mode: initialMode, mark: mark ?? null, word, x: clientX, y: clientY })
   }
 
+  const handleSentenceClick = (sentenceId: string) => {
+    setActiveSentenceId(prev => prev === sentenceId ? null : sentenceId)
+  }
+
   const handleClosePopup = () => {
     setWordPopup((prev) => ({ ...prev, visible: false }))
     setActiveMarkId(null)
     setSelectedWord(null)
+    setActiveSentenceId(null)
   }
 
   const handleScroll = () => {
@@ -371,7 +377,9 @@ export default function Result() {
           vocabList={vocabList}
           tailEntries={sceneData!.sentenceEntries}
           pageMode={pageMode}
+          activeSentenceId={activeSentenceId}
           onWordClick={handleWordClick}
+          onSentenceClick={handleSentenceClick}
         />
       )
     })

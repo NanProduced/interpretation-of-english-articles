@@ -97,13 +97,64 @@
   }
 
   // --- Common Elements ---
-  .sentence-span {
+  .sentence-span, .english-flow {
     display: inline;
+    transition: background-color 0.3s var(--ease-out-expo);
+    border-radius: 4rpx;
+
+    &.is-highlighted-source {
+      background-color: rgba(255, 231, 105, 0.45); // 稍微加深一点透明度
+      box-shadow: 0 0 10rpx rgba(255, 231, 105, 0.2);
+    }
   }
 
-  .space-char {
+  .sentence-text {
+    &.is-highlighted {
+      background-color: rgba(255, 231, 105, 0.45);
+      border-radius: 4rpx;
+      padding: 0 4rpx;
+      margin: 0 -2rpx;
+    }
+  }
+
+  .sentence-translation {
+    &.is-highlighted {
+      background-color: rgba(255, 231, 105, 0.35);
+      border-radius: 8rpx;
+      padding-left: 8rpx;
+      padding-right: 8rpx;
+      margin-left: -8rpx;
+      margin-right: -8rpx;
+      transition: all 0.35s var(--ease-out-expo);
+    }
+
+    .translation-text.segment {
+      display: inline;
+      padding: 2rpx 8rpx;
+      border-radius: 4rpx;
+      transition: all 0.3s var(--ease-out-expo);
+
+      &.is-highlighted {
+        background-color: rgba(255, 231, 105, 0.45);
+        color: var(--color-ink); // 高亮时文字颜色加深，保证可读性
+        box-shadow: 0 0 10rpx rgba(255, 231, 105, 0.25);
+      }
+    }
+  }
+
+  .space-char, .tone-grammar {
     display: inline;
     white-space: pre;
+    
+    &.tone-grammar {
+      border-bottom: 2.5rpx solid var(--grammar-accent);
+      background: linear-gradient(to top, var(--grammar-surface) 40%, transparent 40%);
+      font-weight: var(--weight-medium);
+
+      &.is-highlighted {
+        background: transparent !important; // 同样处理空格的高亮冲突
+      }
+    }
   }
 }
 

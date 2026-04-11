@@ -134,7 +134,11 @@ export default function AnalysisCard({
       <View className='card-summary-row' onClick={handleToggle}>
         <View className='summary-main'>
           <LucideIcon name={config.icon} size={16} color={config.accentColor} />
-          <Text className='card-category-label'>{label || config.defaultLabel}</Text>
+          {type === 'grammar' ? (
+            <Text className='card-title-header' numberOfLines={1}>{title}</Text>
+          ) : (
+            <Text className='card-category-label'>{label || config.defaultLabel}</Text>
+          )}
         </View>
         <View className='summary-icon'>
           <LucideIcon 
@@ -148,12 +152,17 @@ export default function AnalysisCard({
       <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
         <View className='card-body' onClick={(e) => e.stopPropagation()}>
           {/* 这里是如 Figma 稿中的紫色标签区域 */}
-          <View className='card-title-badges'>
-            {badgeIndex !== undefined && (
-              <View className='badge-index-circle'>{badgeIndex}</View>
-            )}
-            <View className='title-tag-badge'>{title}</View>
-          </View>
+          {/* 如果是语法类型，标题已在头部展示，此处仅保留序号（如果有） */}
+          {(badgeIndex !== undefined || type !== 'grammar') && (
+            <View className='card-title-badges'>
+              {badgeIndex !== undefined && (
+                <View className='badge-index-circle'>{badgeIndex}</View>
+              )}
+              {type !== 'grammar' && (
+                <View className='title-tag-badge'>{title}</View>
+              )}
+            </View>
+          )}
           {/* Phonetic and tags moved inside the expandable body if they exist */}
           {(phonetic || (tags && tags.length > 0)) && (
             <View className='card-meta-row'>
@@ -192,6 +201,14 @@ export default function AnalysisCard({
             ) : (
               <Text className='card-content'>{renderMarkdownContent(content)}</Text>
             )}
+          </View>
+          
+          {/* 语法要点标识移至右下角 */}
+          <View className='card-footer'>
+            <View className='type-indicator-badge'>
+              <LucideIcon name={config.icon} size={12} color={config.accentColor} />
+              <Text className='indicator-text'>{label || config.defaultLabel}</Text>
+            </View>
           </View>
         </View>
       </View>

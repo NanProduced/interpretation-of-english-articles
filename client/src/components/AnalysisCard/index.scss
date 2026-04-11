@@ -91,20 +91,18 @@
         font-weight: var(--weight-bold);
         min-width: 0;
       }
-    }
 
-    .card-title {
-      font-size: 28rpx;
-      font-weight: var(--weight-medium);
-      color: var(--color-ink);
-      font-family: var(--font-english-serif), serif;
-      letter-spacing: 0;
-      line-height: 1.4;
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      transition: color 0.3s ease;
+      .card-title-header {
+        font-size: 28rpx;
+        font-weight: var(--weight-medium);
+        color: var(--color-ink);
+        font-family: var(--font-english-serif), serif;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        opacity: 0.9;
+      }
     }
     
     .summary-icon {
@@ -112,12 +110,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0.6;
+      opacity: 0.4;
     }
   }
 
   .card-body {
-    padding: 0 32rpx 32rpx;
+    padding: 0 32rpx 28rpx;
+    position: relative;
 
     .card-title-badges {
       display: flex;
@@ -143,6 +142,28 @@
         border-radius: 12rpx;
         font-size: var(--text-sm);
         font-weight: var(--weight-bold);
+      }
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16rpx;
+      
+      .type-indicator-badge {
+        display: flex;
+        align-items: center;
+        gap: 8rpx;
+        padding: 6rpx 16rpx;
+        background: rgba(0, 0, 0, 0.03);
+        border-radius: 20rpx;
+        opacity: 0.6;
+        
+        .indicator-text {
+          font-size: 20rpx;
+          font-weight: var(--weight-medium);
+          color: var(--text-sub);
+        }
       }
     }
 
