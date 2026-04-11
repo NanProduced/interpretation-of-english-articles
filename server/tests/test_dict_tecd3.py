@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.services.dictionary.providers.tecd3 import Tecd3Provider
+from app.services.dictionary.schemas import DictionaryLookupRequest
 
 
 def _make_candidate(entry_id: int, target_label: str) -> object:
@@ -104,14 +105,14 @@ class TestTecd3ProviderLemmaFallback:
     ) -> None:
         """Exact match takes priority over lemma fallback."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup, patch(
             "app.services.dictionary.providers.tecd3.fetch_entry",
             new_callable=AsyncMock,
         ) as mock_fetch:
-            async def fake_lookup(form: str, source: str = "tecd3"):
-                if form == "human":
+            async def fake_lookup(forms: list[str], source: str = "tecd3"):
+                if "human" in forms:
                     return [_make_candidate(entry_id=1, target_label="human")]
                 return []
 
@@ -121,7 +122,7 @@ class TestTecd3ProviderLemmaFallback:
             mock_lookup.side_effect = fake_lookup
             mock_fetch.side_effect = fake_fetch
 
-            result = await provider.fetch("human")
+            result = await provider.fetch(DictionaryLookupRequest(query="human", query_type="word"))
             assert result["result_type"] == "entry"
             assert result["entry"]["word"] == "human"
             assert mock_lookup.call_count == 1
@@ -132,14 +133,14 @@ class TestTecd3ProviderLemmaFallback:
     ) -> None:
         """When exact fails, lemma fallback fires for single words."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup, patch(
             "app.services.dictionary.providers.tecd3.fetch_entry",
             new_callable=AsyncMock,
         ) as mock_fetch:
-            async def fake_lookup(form: str, source: str = "tecd3"):
-                if form == "human":
+            async def fake_lookup(forms: list[str], source: str = "tecd3"):
+                if "human" in forms:
                     return [_make_candidate(entry_id=5, target_label="human")]
                 return []
 
@@ -149,38 +150,38 @@ class TestTecd3ProviderLemmaFallback:
             mock_lookup.side_effect = fake_lookup
             mock_fetch.side_effect = fake_fetch
 
-            result = await provider.fetch("humans")
+            result = await provider.fetch(DictionaryLookupRequest(query="humans", query_type="word"))
             assert result["result_type"] == "entry"
             assert result["entry"]["word"] == "human"
             assert mock_lookup.call_count == 2
-            assert mock_lookup.call_args_list[0][0][0] == "humans"
-            assert mock_lookup.call_args_list[1][0][0] == "human"
+            assert mock_lookup.call_args_list[0][0][0] == ["humans"]
+            assert mock_lookup.call_args_list[1][0][0] == ["human"]
 
     @pytest.mark.asyncio
     async def test_phrase_raises_not_found(self, provider: Tecd3Provider) -> None:
         """Phrases without results raise ValueError (no lemma fallback)."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup:
             mock_lookup.return_value = []
 
             with pytest.raises(ValueError, match="Word not found"):
-                await provider.fetch("hello world")
+                await provider.fetch(DictionaryLookupRequest(query="hello world", query_type="word"))
             assert mock_lookup.call_count == 1
 
     @pytest.mark.asyncio
     async def test_hopes_falls_back_to_hope(self, provider: Tecd3Provider) -> None:
         """'hopes' lemma fallback to 'hope'."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup, patch(
             "app.services.dictionary.providers.tecd3.fetch_entry",
             new_callable=AsyncMock,
         ) as mock_fetch:
-            async def fake_lookup(form: str, source: str = "tecd3"):
-                if form == "hope":
+            async def fake_lookup(forms: list[str], source: str = "tecd3"):
+                if "hope" in forms:
                     return [_make_candidate(entry_id=7, target_label="hope")]
                 return []
 
@@ -190,7 +191,7 @@ class TestTecd3ProviderLemmaFallback:
             mock_lookup.side_effect = fake_lookup
             mock_fetch.side_effect = fake_fetch
 
-            result = await provider.fetch("hopes")
+            result = await provider.fetch(DictionaryLookupRequest(query="hopes", query_type="word"))
             assert result["result_type"] == "entry"
             assert result["entry"]["word"] == "hope"
             assert mock_lookup.call_count == 2
@@ -201,14 +202,14 @@ class TestTecd3ProviderLemmaFallback:
     ) -> None:
         """'landings' lemma fallback to 'landing'."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup, patch(
             "app.services.dictionary.providers.tecd3.fetch_entry",
             new_callable=AsyncMock,
         ) as mock_fetch:
-            async def fake_lookup(form: str, source: str = "tecd3"):
-                if form == "landing":
+            async def fake_lookup(forms: list[str], source: str = "tecd3"):
+                if "landing" in forms:
                     return [_make_candidate(entry_id=9, target_label="landing")]
                 return []
 
@@ -218,7 +219,7 @@ class TestTecd3ProviderLemmaFallback:
             mock_lookup.side_effect = fake_lookup
             mock_fetch.side_effect = fake_fetch
 
-            result = await provider.fetch("landings")
+            result = await provider.fetch(DictionaryLookupRequest(query="landings", query_type="word"))
             assert result["result_type"] == "entry"
             assert result["entry"]["word"] == "landing"
 
@@ -226,14 +227,14 @@ class TestTecd3ProviderLemmaFallback:
     async def test_crewed_falls_back_to_crew(self, provider: Tecd3Provider) -> None:
         """'crewed' lemma fallback to 'crew'."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup, patch(
             "app.services.dictionary.providers.tecd3.fetch_entry",
             new_callable=AsyncMock,
         ) as mock_fetch:
-            async def fake_lookup(form: str, source: str = "tecd3"):
-                if form == "crew":
+            async def fake_lookup(forms: list[str], source: str = "tecd3"):
+                if "crew" in forms:
                     return [_make_candidate(entry_id=3, target_label="crew")]
                 return []
 
@@ -243,7 +244,7 @@ class TestTecd3ProviderLemmaFallback:
             mock_lookup.side_effect = fake_lookup
             mock_fetch.side_effect = fake_fetch
 
-            result = await provider.fetch("crewed")
+            result = await provider.fetch(DictionaryLookupRequest(query="crewed", query_type="word"))
             assert result["result_type"] == "entry"
             assert result["entry"]["word"] == "crew"
 
@@ -253,14 +254,14 @@ class TestTecd3ProviderLemmaFallback:
     ) -> None:
         """Exact disambiguation (multiple candidates) still works normally."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup:
             mock_lookup.return_value = [
                 _make_candidate(entry_id=10, target_label="anti"),
                 _make_candidate(entry_id=11, target_label="anti-"),
             ]
-            result = await provider.fetch("anti")
+            result = await provider.fetch(DictionaryLookupRequest(query="anti", query_type="word"))
             assert result["result_type"] == "disambiguation"
             assert len(result["candidates"]) == 2
             assert mock_lookup.call_count == 1
@@ -271,14 +272,14 @@ class TestTecd3ProviderLemmaFallback:
     ) -> None:
         """Single lemma hit → returns entry result (no disambiguation)."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup, patch(
             "app.services.dictionary.providers.tecd3.fetch_entry",
             new_callable=AsyncMock,
         ) as mock_fetch:
-            async def fake_lookup(form: str, source: str = "tecd3"):
-                if form == "crew":
+            async def fake_lookup(forms: list[str], source: str = "tecd3"):
+                if "crew" in forms:
                     return [_make_candidate(entry_id=3, target_label="crew")]
                 return []
 
@@ -288,7 +289,7 @@ class TestTecd3ProviderLemmaFallback:
             mock_lookup.side_effect = fake_lookup
             mock_fetch.side_effect = fake_fetch
 
-            result = await provider.fetch("crewed")
+            result = await provider.fetch(DictionaryLookupRequest(query="crewed", query_type="word"))
             assert result["result_type"] == "entry"
             assert result["entry"]["word"] == "crew"
 
@@ -298,24 +299,21 @@ class TestTecd3ProviderLemmaFallback:
     ) -> None:
         """Multiple lemma hits → triggers disambiguation (e.g. axes → axis + axe)."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup:
             # "axes" → noun lemmas: ["axis", "axe"]; both exist in DB
-            async def fake_lookup(form: str, source: str = "tecd3"):
-                if form == "axis":
-                    return [
-                        _make_candidate(entry_id=1, target_label="axis"),
-                    ]
-                if form == "axe":
-                    return [
-                        _make_candidate(entry_id=2, target_label="axe"),
-                    ]
-                return []
+            async def fake_lookup(forms: list[str], source: str = "tecd3"):
+                res = []
+                if "axis" in forms:
+                    res.append(_make_candidate(entry_id=1, target_label="axis"))
+                if "axe" in forms:
+                    res.append(_make_candidate(entry_id=2, target_label="axe"))
+                return res
 
             mock_lookup.side_effect = fake_lookup
 
-            result = await provider.fetch("axes")
+            result = await provider.fetch(DictionaryLookupRequest(query="axes", query_type="word"))
             assert result["result_type"] == "disambiguation"
             assert len(result["candidates"]) == 2
             labels = {c["label"] for c in result["candidates"]}
@@ -327,7 +325,7 @@ class TestTecd3ProviderLemmaFallback:
     ) -> None:
         """All lemma hits are collected and deduplicated before returning."""
         with patch(
-            "app.services.dictionary.providers.tecd3.lookup_candidates",
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
             new_callable=AsyncMock,
         ) as mock_lookup, patch(
             "app.services.dictionary.providers.tecd3.fetch_entry",
@@ -335,12 +333,13 @@ class TestTecd3ProviderLemmaFallback:
         ) as mock_fetch:
             # Simulate: "axes" exact fails, lemma "axis" hits (entry_id=1),
             # lemma "axe" also hits (entry_id=2) → disambiguation
-            async def fake_lookup(form: str, source: str = "tecd3"):
-                if form == "axis":
-                    return [_make_candidate(entry_id=1, target_label="axis")]
-                if form == "axe":
-                    return [_make_candidate(entry_id=2, target_label="axe")]
-                return []
+            async def fake_lookup(forms: list[str], source: str = "tecd3"):
+                res = []
+                if "axis" in forms:
+                    res.append(_make_candidate(entry_id=1, target_label="axis"))
+                if "axe" in forms:
+                    res.append(_make_candidate(entry_id=2, target_label="axe"))
+                return res
 
             async def fake_fetch(entry_id: int, source: str = "tecd3"):
                 word = "axis" if entry_id == 1 else "axe"
@@ -349,7 +348,7 @@ class TestTecd3ProviderLemmaFallback:
             mock_lookup.side_effect = fake_lookup
             mock_fetch.side_effect = fake_fetch
 
-            result = await provider.fetch("axes")
+            result = await provider.fetch(DictionaryLookupRequest(query="axes", query_type="word"))
             # Both lemmas hit → disambiguation, not entry
             assert result["result_type"] == "disambiguation"
             assert len(result["candidates"]) == 2

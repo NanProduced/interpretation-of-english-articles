@@ -11,6 +11,15 @@ class DictionaryMeaningDefinition(BaseModel):
     example_translation: str | None = Field(default=None, description="例句中文翻译")
 
 
+class DictionaryLookupRequest(BaseModel):
+    query: str
+    query_type: Literal["word", "phrase"]
+    context_sentence: str | None = None
+    occurrence: int | None = None
+    reading_goal: str | None = None
+    reading_variant: str | None = None
+
+
 class DictionaryMeaning(BaseModel):
     part_of_speech: str = Field(description="词性，如 'n.', 'v.', 'adj.'")
     definitions: list[DictionaryMeaningDefinition] = Field(description="释义列表")

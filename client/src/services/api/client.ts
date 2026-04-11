@@ -275,9 +275,18 @@ export async function fetchAnalyze(dto: AnalyzeRequest): Promise<AnalyzeResponse
 /**
  * 调用 /dict 接口查询单词或短语释义
  */
-export async function fetchDict(word: string, type: 'word' | 'phrase' = 'word'): Promise<DictResponseDto> {
+export async function fetchDict(
+  word: string, 
+  type: 'word' | 'phrase' = 'word',
+  contextSentence?: string,
+  occurrence?: number,
+): Promise<DictResponseDto> {
+  let url = `/dict?q=${encodeURIComponent(word)}&type=${type}`
+  if (contextSentence) url += `&context_sentence=${encodeURIComponent(contextSentence)}`
+  if (occurrence) url += `&occurrence=${occurrence}`
+
   return request<DictResponseDto>({
-    url: `/dict?q=${encodeURIComponent(word)}&type=${type}`,
+    url,
   })
 }
 

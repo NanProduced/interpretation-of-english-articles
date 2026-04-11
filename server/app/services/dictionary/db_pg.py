@@ -44,6 +44,7 @@ class CandidateRow:
     rank: int
     match_kind: str
     entry_kind: str
+    lookup_type: str
 
 
 def _row_to_entry(row: Any) -> EntryRow | None:
@@ -92,6 +93,7 @@ def _row_to_candidate(row: Any) -> CandidateRow:
         rank=row["rank"],
         match_kind=row["match_kind"],
         entry_kind=row["entry_kind"],
+        lookup_type=row.get("lookup_type", "word"),
     )
 
 
@@ -126,7 +128,8 @@ async def lookup_candidates(normalized_form: str, source: str = "tecd3") -> list
               t.preview_text,
               t.rank,
               t.match_kind,
-              e.entry_kind
+              e.entry_kind,
+              t.lookup_type
             FROM dict_lookup_targets t
             JOIN dict_entries e
               ON e.id = t.entry_id
@@ -146,5 +149,45 @@ async def lookup_candidates(normalized_form: str, source: str = "tecd3") -> list
         if candidate.entry_id in seen_entry_ids:
             continue
         seen_entry_ids.add(candidate.entry_id)
+        candidates.append(candidate)
+    return candidates
+
+async def lookup_candidates_batch(normalized_forms: list[str], source: str = "tecd3") -> list[CandidateRow]:
+    if db_connection.DB_POOL is None or not normalized_forms:
+        return []
+    async with db_connection.DB_POOL.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT
+              t.normalized_form,
+              t.lookup_label,
+              t.entry_id,
+              t.target_label,
+              t.target_pos,
+              t.preview_text,
+              t.rank,
+              t.match_kind,
+              e.entry_kind,
+              t.lookup_type
+            FROM dict_lookup_targets t
+            JOIN dict_entries e
+              ON e.id = t.entry_id
+             AND e.source = t.source
+            WHERE t.source = $1
+              AND t.normalized_form = ANY($2::text[])
+            ORDER BY array_position($2::text[], t.normalized_form), t.rank ASC, t.id ASC
+            """,
+            source,
+            normalized_forms,
+        )
+
+    candidates: list[CandidateRow] = []
+    seen_combinations = set()
+    for row in rows:
+        candidate = _row_to_candidate(row)
+        key = (candidate.entry_id, candidate.normalized_form)
+        if key in seen_combinations:
+            continue
+        seen_combinations.add(key)
         candidates.append(candidate)
     return candidates

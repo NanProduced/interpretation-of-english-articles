@@ -19,6 +19,8 @@ export interface WordClickPayload {
   word: string
   mark: InlineMarkModel | null
   event?: any
+  contextSentence?: string
+  occurrence?: number
 }
 
 interface ParagraphBlockProps {
@@ -111,6 +113,25 @@ function renderTextWithMarks(
   isImmersive?: boolean,
   isHighlighted?: boolean,
 ) {
+  // 用于追踪单词在整句中的出现次数
+  const wordOccurrenceMap: Record<string, number> = {}
+
+  const handleWordClick = (payload: WordClickPayload) => {
+    // 在整句中计算点击词的 occurrence
+    // 由于前端分词和后端 spaCy 分词可能略有差异，这里我们采取一种简单的“第几次出现”策略
+    const word = payload.word.toLowerCase()
+    // 我们需要重新扫描一遍 text 来确定这个 payload.word 在整个句子中的位置
+    // 但更简单的方法是在渲染时就给每个 ClickableWord 分配一个 occurrence
+    onWordClick?.({ ...payload, contextSentence: text })
+  }
+
+  // 改进：为了精确计算 occurrence，我们需要在渲染过程中动态计数
+  const getNextOccurrence = (word: string) => {
+    const w = word.toLowerCase()
+    wordOccurrenceMap[w] = (wordOccurrenceMap[w] || 0) + 1
+    return wordOccurrenceMap[w]
+  }
+
   // 沉浸模式下只保留词汇相关的标记（vocab, phrase, context）
   const visibleMarks = isImmersive 
     ? marks.filter(m => ['vocab', 'phrase', 'context'].includes(m.visualTone))
@@ -119,10 +140,16 @@ function renderTextWithMarks(
   if (visibleMarks.length === 0) {
     return (
       <Text className='sentence-text'>
-        {renderPlainSegmentAsClickableWords(text, selectedWord, vocabList, onWordClick)}
+        {renderPlainSegmentAsClickableWords(text, selectedWord, vocabList, (p) => {
+          const occ = getNextOccurrence(p.word)
+          onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
+        })}
       </Text>
     )
   }
+
+  // ... 后续逻辑中也要应用 getNextOccurrence ...
+
 
   const flatParts: Array<{ mark: InlineMarkModel; start: number; end: number; text: string }> = []
 
@@ -167,7 +194,10 @@ function renderTextWithMarks(
 
     if (item.start > lastEnd) {
       const plainSegment = text.slice(lastEnd, item.start)
-      resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, onWordClick))
+      resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, (p) => {
+        const occ = getNextOccurrence(p.word)
+        onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
+      }))
     }
 
     if (!item.mark.clickable) {
@@ -179,13 +209,14 @@ function renderTextWithMarks(
           const isSaved = vocabList?.includes(token.text.toLowerCase())
           const isSelected = selectedWord === token.text
           
+          const occ = getNextOccurrence(token.text)
           return (
             <ClickableWord
               key={`gw-${item.mark.id}-${idx}`}
               word={token.text}
               isSaved={isSaved}
               className={[toneClass, isSelected ? 'active' : ''].filter(Boolean).join(' ')}
-              onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e })}
+              onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e, contextSentence: text, occurrence: occ })}
             />
           )
         }
@@ -201,6 +232,10 @@ function renderTextWithMarks(
     const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
     const isSaved = vocabList?.includes(item.text.toLowerCase())
     
+    // 词汇类标记整体点击时，由于它们通常是一个词或短语，我们也尝试计算它的 occurrence
+    // 但标记类（InlineMark）通常本身就带有 anchor 信息，这里传 occurrence 是作为双重保险
+    const markOcc = getNextOccurrence(item.text)
+
     // 词汇类强制使用 background (marker) 渲染
     const effectiveMark = isVocabulary 
       ? { ...item.mark, renderType: 'background' as const } 
@@ -213,7 +248,7 @@ function renderTextWithMarks(
         text={item.text}
         isActive={isActive}
         isSaved={isSaved}
-        onWordClick={onWordClick}
+        onWordClick={(p) => onWordClick?.({ ...p, contextSentence: text, occurrence: markOcc })}
       />
     )
 
@@ -222,7 +257,10 @@ function renderTextWithMarks(
 
   if (lastEnd < text.length) {
     const plainSegment = text.slice(lastEnd)
-    resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, onWordClick))
+    resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, (p) => {
+      const occ = getNextOccurrence(p.word)
+      onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
+    }))
   }
 
   return <Text className={`sentence-text ${isHighlighted ? 'is-highlighted' : ''}`}>{resultElements}</Text>

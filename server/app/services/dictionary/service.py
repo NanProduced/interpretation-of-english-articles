@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from app.services.dictionary.providers import Tecd3Provider
+from app.services.dictionary.schemas import DictionaryLookupRequest
 
 
 class LookupError(Exception):
@@ -48,12 +49,12 @@ class DictionaryService:
     def __init__(self) -> None:
         self._provider = Tecd3Provider()
 
-    async def lookup(self, word: str) -> dict[str, Any]:
-        normalized = self._normalize(word)
+    async def lookup(self, request: DictionaryLookupRequest) -> dict[str, Any]:
+        request.query = self._normalize(request.query)
         try:
-            return await self._provider.fetch(normalized)
+            return await self._provider.fetch(request)
         except ValueError:
-            raise LookupError(f"Word not found: {word}") from None
+            raise LookupError(f"Word not found: {request.query}") from None
 
     async def lookup_entry(self, entry_id: int) -> dict[str, Any]:
         try:

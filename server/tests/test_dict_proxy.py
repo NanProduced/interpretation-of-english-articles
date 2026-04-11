@@ -9,7 +9,8 @@ from app.services.dictionary.service import LookupError
 
 
 class StubDictionaryService:
-    async def lookup(self, word: str) -> dict[str, object]:
+    async def lookup(self, request) -> dict[str, object]:
+        word = request.query
         if word == "unknown":
             raise LookupError("Word not found: unknown")
         if word == "anti":

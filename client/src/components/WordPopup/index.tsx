@@ -12,6 +12,8 @@ interface WordPopupProps {
   mode?: 'mini' | 'full'
   mark: InlineMarkModel | null
   word: string
+  contextSentence?: string
+  occurrence?: number
   x?: number
   y?: number
   onClose: () => void
@@ -60,7 +62,7 @@ const MINI_LABEL_MAP: Record<string, string> = {
 }
 
 export default function WordPopup({
-  visible, mode = 'mini', mark, word, x = 0, y = 0,
+  visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0,
   onClose, onExpand, onAddVocab, onFavorite,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
@@ -92,7 +94,7 @@ export default function WordPopup({
   useEffect(() => {
     if (!visible || !lookupText) return
     void fetchDictionary(lookupText)
-  }, [visible, lookupText])
+  }, [visible, lookupText, contextSentence, occurrence])
 
   useEffect(() => {
     Taro.getSystemInfo({}).then((info) => setScreenWidth(info.windowWidth || 375))
@@ -111,7 +113,7 @@ export default function WordPopup({
     setDictResult(null)
     try {
       const type = text.trim().includes(' ') ? 'phrase' : 'word'
-      const dto = await fetchDict(text, type)
+      const dto = await fetchDict(text, type, contextSentence, occurrence)
       setDictResult(dictResponseDtoToVm(dto))
     } catch (err) {
       console.error('[dict] fetch error', err)

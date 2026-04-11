@@ -19,10 +19,23 @@ _service = get_service()
 async def lookup_word(
     q: str = Query(..., description="要查询的单词或短语", min_length=1, max_length=100),
     type: Literal["word", "phrase"] = Query(default="word", description="查询类型"),
+    context_sentence: str | None = Query(default=None, description="点击词所在的句子"),
+    occurrence: int | None = Query(default=None, description="在句子中的第几次出现"),
+    reading_goal: str | None = Query(default=None, description="阅读目标"),
+    reading_variant: str | None = Query(default=None, description="阅读变体"),
 ) -> DictionaryLookupResult:
     word = q.strip()
+    from app.services.dictionary.schemas import DictionaryLookupRequest
+    request = DictionaryLookupRequest(
+        query=word,
+        query_type=type,
+        context_sentence=context_sentence,
+        occurrence=occurrence,
+        reading_goal=reading_goal,
+        reading_variant=reading_variant,
+    )
     try:
-        return await _service.lookup(word)
+        return await _service.lookup(request)
     except LookupError:
         raise HTTPException(status_code=404, detail=f"Word not found: {word}") from None
     except Exception as exc:

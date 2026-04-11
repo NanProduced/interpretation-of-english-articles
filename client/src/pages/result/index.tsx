@@ -71,6 +71,7 @@ export default function Result() {
     mode: 'mini' | 'full'
     mark: InlineMarkModel | null
     word: string
+    contextSentence?: string
     x: number
     y: number
   }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
@@ -153,7 +154,7 @@ export default function Result() {
 
   // === 事件处理 ===
 
-  const handleWordClick = ({ word, mark, event }: WordClickPayload) => {
+  const handleWordClick = ({ word, mark, event, contextSentence, occurrence }: WordClickPayload) => {
     console.log('[result] word clicked:', word, mark?.id)
     const initialMode = 'mini'
     setActiveMarkId(mark?.id ?? null)
@@ -170,14 +171,23 @@ export default function Result() {
       const touch = event.changedTouches?.[0] || (event.touches ? event.touches[0] : null)
       if (touch) {
         clientX = touch.clientX || touch.pageX
-        clientY = touch.clientY || touch.pageY
+        clientY = touch.pageY || touch.pageY
       } else if (event.detail && (event.detail.x !== undefined || event.detail.clientX !== undefined)) {
         clientX = event.detail.x ?? event.detail.clientX
         clientY = event.detail.y ?? event.detail.clientY
       }
     }
     
-    setWordPopup({ visible: true, mode: initialMode, mark: mark ?? null, word, x: clientX, y: clientY })
+    setWordPopup({ 
+      visible: true, 
+      mode: initialMode, 
+      mark: mark ?? null, 
+      word, 
+      contextSentence, 
+      occurrence,
+      x: clientX, 
+      y: clientY 
+    })
   }
 
   const handleSentenceClick = (sentenceId: string) => {
@@ -494,6 +504,8 @@ export default function Result() {
         mode={wordPopup.mode}
         mark={wordPopup.mark}
         word={wordPopup.word}
+        contextSentence={wordPopup.contextSentence}
+        occurrence={wordPopup.occurrence}
         x={wordPopup.x}
         y={wordPopup.y}
         onClose={handleClosePopup}
