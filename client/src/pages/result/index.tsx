@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useArticleStore } from '../../stores/article'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
-import { InlineMarkModel, PageMode, ResultPageState } from '../../types/view/render-scene.vm'
+import { InlineMarkModel, PageMode, RenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
 import NavBar from '../../components/NavBar'
 import ParagraphBlock, { type WordClickPayload } from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
@@ -49,6 +49,19 @@ const PAGE_STATE_MESSAGES: Record<ResultPageState, { title: string; subtitle: st
   },
 }
 
+function hasRenderableScene(scene: RenderSceneVm | null): boolean {
+  if (!scene) return false
+  if (scene.article?.paragraphs?.length) return true
+  return (scene.article?.sentences ?? []).some((sentence) => !!sentence.text?.trim())
+}
+
+function splitSourceParagraphs(text: string): string[] {
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+}
+
 export default function Result() {
   const { navBarHeight } = useLayoutStore()
   const [pageMode, setPageMode] = useState<PageMode>('intensive')
@@ -68,6 +81,7 @@ export default function Result() {
   // 从 store 获取页面状态
   const pageState = useArticleStore((s) => s.pageState)
   const sceneData = useArticleStore((s) => s.sceneData)
+  const requestParams = useArticleStore((s) => s.requestParams)
   const errorCode = useArticleStore((s) => s.errorCode)
   const errorMsg = useArticleStore((s) => s.error)
   const analyze = useArticleStore((s) => s.analyze)
@@ -276,6 +290,48 @@ export default function Result() {
     )
   }
 
+  const renderSourceFallback = () => {
+    const sourceParagraphs = splitSourceParagraphs(requestParams?.text || '')
+    const isDegraded = pageState === 'degraded_light' || pageState === 'degraded_heavy'
+    const title = isDegraded ? '本次解析未完成' : '未生成可渲染内容'
+    const subtitle = isDegraded
+      ? '部分分析节点执行失败，结构化结果未能生成。已为您回退展示原文，建议稍后重新解析。'
+      : '当前记录没有生成可展示的结构化结果，建议调整原文后重试。'
+
+    return pageShell(
+      <>
+        {renderDegradedBanner(pageState)}
+        <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false}>
+          <View className='article-container fallback-article-container'>
+            <View className='fallback-panel'>
+              <Text className='fallback-title'>{title}</Text>
+              <Text className='fallback-subtitle'>{subtitle}</Text>
+            </View>
+
+            {sourceParagraphs.length > 0 && (
+              <View className='fallback-source-card'>
+                <Text className='fallback-source-label'>原文回退</Text>
+                {sourceParagraphs.map((paragraph, idx) => (
+                  <Text key={`fallback-${idx}`} className='fallback-source-paragraph'>
+                    {paragraph}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            <View className='article-end-actions'>
+              <View className='end-btn-primary' onClick={handleRetry}>
+                <LucideIcon name='plus' size={18} color='#fff' />
+                <Text>{isReplayMode ? '重新解析这篇' : '再分析一篇'}</Text>
+              </View>
+            </View>
+            <View className='bottom-spacer' />
+          </View>
+        </ScrollView>
+      </>
+    )
+  }
+
   // === 状态分支 ===
 
   // 全屏 Loading：仅在完全没有数据且状态为加载中时展示
@@ -341,6 +397,10 @@ export default function Result() {
   }
 
   // === 渲染核心交互层 (只要有 sceneData 就会执行到这里) ===
+
+  if (!hasRenderableScene(sceneData)) {
+    return renderSourceFallback()
+  }
 
   const renderArticleHeader = () => {
     const { request } = sceneData!

@@ -612,6 +612,96 @@ class TestTaskExecutorCharging:
         deduct_mock.assert_awaited_once()
         assert deduct_mock.await_args.kwargs["cost_points"] == 17
 
+    @pytest.mark.anyio
+    async def test_execute_task_does_not_charge_unrenderable_heavy_result(self):
+        task_id = uuid4()
+        record_id = uuid4()
+        user_id = uuid4()
+
+        render_scene = RenderSceneModel.model_validate(
+            {
+                "schema_version": "3.0.0",
+                "request": {
+                    "request_id": "req-test",
+                    "source_type": "user_input",
+                    "reading_goal": "daily_reading",
+                    "reading_variant": "intermediate_reading",
+                    "profile_id": "daily_intermediate",
+                },
+                "article": {
+                    "source_type": "user_input",
+                    "source_text": "Hello world.",
+                    "render_text": "",
+                    "paragraphs": [],
+                    "sentences": [],
+                },
+                "user_facing_state": "degraded_heavy",
+                "translations": [],
+                "inline_marks": [],
+                "sentence_entries": [],
+                "warnings": [
+                    {
+                        "code": "NORMALIZE_AND_GROUND_FAILED",
+                        "level": "error",
+                        "message": "normalize failed",
+                    }
+                ],
+            }
+        )
+        workflow_result = {
+            "render_scene": render_scene,
+            "usage_summary": {
+                "aggregate": {
+                    "input_tokens": 1200,
+                    "output_tokens": 600,
+                    "total_tokens": 1800,
+                }
+            },
+        }
+
+        with (
+            patch(
+                "app.services.analysis.task_executor.run_article_analysis_with_state",
+                AsyncMock(return_value=workflow_result),
+            ),
+            patch(
+                "app.services.analysis.task_executor.update_task_status",
+                AsyncMock(),
+            ) as status_mock,
+            patch(
+                "app.services.analysis.task_executor.insert_task_event",
+                AsyncMock(),
+            ) as event_mock,
+            patch(
+                "app.services.analysis.task_executor.records_svc.update_record",
+                AsyncMock(),
+            ) as update_record_mock,
+            patch(
+                "app.services.analysis.task_executor.records_svc.insert_audit_log",
+                AsyncMock(),
+            ) as audit_mock,
+            patch(
+                "app.services.analysis.task_executor.deduct_credits",
+                AsyncMock(return_value=4),
+            ) as deduct_mock,
+        ):
+            await execute_task(
+                task_id=task_id,
+                record_id=record_id,
+                user_id=user_id,
+                text="Hello world",
+                reading_goal="daily_reading",
+                reading_variant="intermediate_reading",
+                source_type="user_input",
+                extended=False,
+            )
+
+        deduct_mock.assert_not_awaited()
+        audit_mock.assert_not_awaited()
+        assert status_mock.await_args_list[-1].kwargs["status"] == "failed"
+        assert update_record_mock.await_args_list[-1].kwargs["analysis_status"] == "failed"
+        assert event_mock.await_args_list[-1].args[1] == "task_failed"
+
 
 class TestWorkerLoop:
     """Worker should claim queued tasks and dispatch execution."""

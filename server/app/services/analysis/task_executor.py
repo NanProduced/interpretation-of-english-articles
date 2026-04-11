@@ -49,6 +49,17 @@ CLAIM_POLL_INTERVAL_SECONDS = 1.0
 SHUTDOWN_WAIT_SECONDS = 5.0
 TASK_HEARTBEAT_INTERVAL_SECONDS = 30.0
 
+HEAVY_FAILURE_CODES = {
+    "VOCABULARY_AGENT_FAILED",
+    "GRAMMAR_AGENT_FAILED",
+    "TRANSLATION_AGENT_FAILED",
+    "NORMALIZE_AND_GROUND_FAILED",
+}
+
+
+class UnrenderableAnalysisError(RuntimeError):
+    """Raised when workflow output cannot produce a user-visible result."""
+
 
 def compute_cost_points(usage_summary: dict[str, Any] | None) -> int:
     """
@@ -85,6 +96,73 @@ def _build_deduction_metadata(usage_summary: dict[str, Any] | None) -> dict[str,
         "multiplier_output": MULTIPLIER_OUTPUT,
         "tokens_per_point": TOKENS_PER_POINT,
     }
+
+
+def _extract_list(payload: dict[str, Any], *keys: str) -> list[Any]:
+    """Read a list field from either snake_case or camelCase keys."""
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, list):
+            return value
+    return []
+
+
+def _has_renderable_content(render_scene_dict: dict[str, Any]) -> bool:
+    """Check whether a render scene contains user-visible body content."""
+    article = render_scene_dict.get("article")
+    if not isinstance(article, dict):
+        return False
+
+    render_text = article.get("render_text") or article.get("renderText") or ""
+    if isinstance(render_text, str) and render_text.strip():
+        return True
+
+    paragraphs = _extract_list(article, "paragraphs")
+    if any(
+        isinstance(paragraph, dict)
+        and (
+            str(paragraph.get("text") or "").strip()
+            or _extract_list(paragraph, "sentence_ids", "sentenceIds")
+        )
+        for paragraph in paragraphs
+    ):
+        return True
+
+    sentences = _extract_list(article, "sentences")
+    return any(
+        isinstance(sentence, dict) and str(sentence.get("text") or "").strip()
+        for sentence in sentences
+    )
+
+
+def _is_unrenderable_failure(
+    render_scene_dict: dict[str, Any],
+    user_facing_state: str | None,
+) -> bool:
+    """
+    Treat heavy-degraded empty scenes as failures.
+
+    This avoids charging users for runs where some agents spent tokens but
+    the workflow still could not produce a renderable result page.
+    """
+    warning_codes = {
+        str(warning.get("code"))
+        for warning in _extract_list(render_scene_dict, "warnings")
+        if isinstance(warning, dict) and warning.get("code")
+    }
+    has_heavy_failure = user_facing_state == "degraded_heavy" or bool(
+        warning_codes & HEAVY_FAILURE_CODES
+    )
+    has_annotations = bool(_extract_list(render_scene_dict, "inline_marks", "inlineMarks")) or bool(
+        _extract_list(render_scene_dict, "sentence_entries", "sentenceEntries")
+    )
+    has_translations = bool(_extract_list(render_scene_dict, "translations"))
+
+    return has_heavy_failure and not (
+        _has_renderable_content(render_scene_dict)
+        or has_annotations
+        or has_translations
+    )
 
 
 async def execute_task(
@@ -169,6 +247,13 @@ async def execute_task(
             else render_scene
         )
         user_facing_state = getattr(render_scene, "user_facing_state", "normal")
+        if (
+            isinstance(render_scene_dict, dict)
+            and _is_unrenderable_failure(render_scene_dict, user_facing_state)
+        ):
+            raise UnrenderableAnalysisError(
+                "Workflow produced no renderable content after heavy degradation"
+            )
         cost_points = compute_cost_points(usage_summary)
 
         await update_task_status(task_id, status="finalizing")
