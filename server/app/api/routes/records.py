@@ -30,6 +30,11 @@ async def create_record(
 ) -> RecordUpsertResponse:
     """Save an analysis record (upsert by client_record_id)."""
     try:
+        # 兼容性处理：优先从根字段取，其次从 request_payload_json 提取
+        reading_goal = body.reading_goal or body.request_payload_json.get("reading_goal")
+        reading_variant = body.reading_variant or body.request_payload_json.get("reading_variant")
+        extended = body.extended or body.request_payload_json.get("extended", False)
+
         record_id, created, updated_at = await records_svc.upsert_record(
             user_id=UUID(current_user.user_id),
             client_record_id=body.client_record_id,
@@ -37,15 +42,15 @@ async def create_record(
             title=body.title,
             source_text=body.source_text,
             source_text_hash=body.source_text_hash,
-            request_payload_json=body.request_payload_json,
+            reading_goal=reading_goal,
+            reading_variant=reading_variant,
+            extended=extended,
+            user_facing_state=body.user_facing_state,
+            analysis_status=body.analysis_status,
             render_scene_json=body.render_scene_json,
             page_state_json=body.page_state_json,
-            reading_goal=body.reading_goal,
-            reading_variant=body.reading_variant,
-            user_facing_state=body.user_facing_state,
             workflow_version=body.workflow_version,
             schema_version=body.schema_version,
-            analysis_status=body.analysis_status,
         )
         return RecordUpsertResponse(
             id=record_id,
@@ -70,7 +75,7 @@ async def list_records(
             user_id=UUID(current_user.user_id),
             page=page,
             limit=limit,
-            include_render_scene=include_render_scene,
+            include_content=include_render_scene,
         )
         return RecordListResponse(
             items=[RecordResponse(**row) for row in items],

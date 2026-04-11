@@ -70,8 +70,13 @@ def _parse_render_scene(record: dict | None) -> RenderSceneModel | None:
     if not isinstance(raw_scene, dict) or not raw_scene:
         return None
     try:
+        # 兼容性处理：如果后端返回的是旧版本或结构略有差异，尝试容错处理
+        if "schema_version" not in raw_scene:
+            raw_scene["schema_version"] = "3.0.0"
         return RenderSceneModel.model_validate(raw_scene)
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"RenderScene validation failed: {e}")
         return None
 
 

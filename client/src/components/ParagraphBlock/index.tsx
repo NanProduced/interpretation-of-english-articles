@@ -338,14 +338,14 @@ const ParagraphBlock = memo(function ParagraphBlock({
   return (
     <View className='paragraph-block intensive'>
       <View className='paragraph-header'>
-        <Text className='paragraph-anchor'>§ {order}</Text>
+        <Text className='paragraph-anchor'>{order < 10 ? `0${order}` : order} /</Text>
         <View className='paragraph-divider' />
       </View>
-      {chunks.map((chunk) => {
+      {chunks.map((chunk, cIdx) => {
         if (chunk.hasCards) {
           const item = chunk.items[0]
           return (
-            <View key={chunk.id} className='sentence-block'>
+            <View key={`chunk-${chunk.id}-${cIdx}`} className='sentence-block'>
               <View className='sentence-main'>
                 <Text className='english-flow'>
                   {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, item.grammarDigestMap)}
@@ -360,9 +360,9 @@ const ParagraphBlock = memo(function ParagraphBlock({
 
               {item.analysisCards.length > 0 && (
                 <View className='analysis-cards-list'>
-                  {item.analysisCards.map((card, idx) => (
+                  {item.analysisCards.map((card, cardIdx) => (
                     <AnalysisCard
-                      key={(card as any).id ?? idx}
+                      key={`${card.id}-${cardIdx}`}
                       type={card.type}
                       title={card.title}
                       label={card.label}
@@ -384,11 +384,11 @@ const ParagraphBlock = memo(function ParagraphBlock({
             .join(' ')
 
           return (
-            <View key={chunk.id} className='sentence-block chunk-merged'>
+            <View key={`m-chunk-${chunk.id}-${cIdx}`} className='sentence-block chunk-merged'>
               <View className='sentence-main'>
                 <Text className='english-flow'>
                   {chunk.items.map((item, idx) => (
-                    <Text key={item.sentence.sentenceId} className='sentence-span'>
+                    <Text key={`s-${item.sentence.sentenceId}-${idx}`} className='sentence-span'>
                       {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, item.grammarDigestMap)}
                       {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
                     </Text>

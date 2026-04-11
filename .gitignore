@@ -42,6 +42,7 @@ project.private.config.json
 .dict/
 
 .screenshot/
+.temp/
 
 .gemini/
 .serena/

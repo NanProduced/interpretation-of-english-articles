@@ -124,9 +124,14 @@ export default function AnalysisCard({
   // 如果是句式解析，进行结构化解析
   const structuredData = type === 'sentence' ? parseSentenceAnalysis(content) : null
 
+  const handleToggle = (e: any) => {
+    e?.stopPropagation?.()
+    setIsExpanded(!isExpanded)
+  }
+
   return (
     <View className={`analysis-card ${config.colorClass} ${isExpanded ? 'expanded' : 'collapsed'}`}>
-      <View className='card-summary-row' onClick={() => setIsExpanded(!isExpanded)}>
+      <View className='card-summary-row' onClick={handleToggle}>
         <View className='summary-main'>
           <LucideIcon name={config.icon} size={16} color={config.accentColor} />
           <Text className='card-category-label'>{label || config.defaultLabel}</Text>
@@ -141,7 +146,7 @@ export default function AnalysisCard({
       </View>
 
       <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
-        <View className='card-body'>
+        <View className='card-body' onClick={(e) => e.stopPropagation()}>
           {/* 这里是如 Figma 稿中的紫色标签区域 */}
           <View className='card-title-badges'>
             {badgeIndex !== undefined && (

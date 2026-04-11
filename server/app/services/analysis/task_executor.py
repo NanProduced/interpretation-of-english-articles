@@ -2,7 +2,7 @@
 Analysis Task Executor.
 
 Runs queued analysis tasks from the database in a background worker loop,
-writes results back to analysis_records + analysis_tasks,
+writes results back to analysis_records + analysis_results,
 and deducts credits on success only.
 """
 
@@ -23,9 +23,9 @@ from app.services.analysis.task_service import (
     insert_task_event,
     requeue_stale_tasks,
     touch_task_heartbeat,
-    update_record_for_task,
     update_task_status,
 )
+from app.services.user_assets import records as records_svc
 from app.workflow.analyze import (
     ANALYZE_SCHEMA_VERSION,
     WORKFLOW_VERSION,
@@ -102,11 +102,9 @@ async def execute_task(
 ) -> None:
     """
     Execute analysis task.
-
-    When already_claimed=True, the caller has already moved the task to running
-    and assigned worker_token in the database.
     """
     heartbeat_task: asyncio.Task | None = None
+    start_time = datetime.now(timezone.utc)
 
     try:
         active_worker_token = worker_token or f"worker-{uuid4()}"
@@ -118,11 +116,10 @@ async def execute_task(
                 {"worker_token": active_worker_token},
             )
         else:
-            now = datetime.now(timezone.utc)
             await update_task_status(
                 task_id,
                 status="running",
-                started_at=now,
+                started_at=start_time,
                 worker_token=active_worker_token,
             )
             await insert_task_event(
@@ -181,8 +178,10 @@ async def execute_task(
             {"cost_points": cost_points},
         )
 
-        await update_record_for_task(
-            record_id,
+        # 1. Update Record and Split Result Content
+        await records_svc.update_record(
+            user_id=user_id,
+            record_id=record_id,
             analysis_status="ready",
             title=record_title,
             render_scene_json=render_scene_dict,
@@ -192,6 +191,19 @@ async def execute_task(
             schema_version=ANALYZE_SCHEMA_VERSION,
         )
 
+        # 2. Insert Audit Log
+        processing_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+        await records_svc.insert_audit_log(
+            record_id=record_id,
+            user_id=user_id,
+            task_id=task_id,
+            request_payload_json=payload.model_dump(mode="json"),
+            usage_summary_json=usage_summary or {},
+            cost_points=cost_points,
+            processing_ms=processing_ms,
+        )
+
+        # 3. Deduct Credits
         actual_deducted = 0
         if cost_points > 0:
             actual_deducted = await deduct_credits(
@@ -239,7 +251,11 @@ async def execute_task(
                 failure_code=failure_code,
                 failure_message=failure_message,
             )
-            await update_record_for_task(record_id, analysis_status="failed")
+            await records_svc.update_record(
+                user_id=user_id,
+                record_id=record_id,
+                analysis_status="failed"
+            )
             await insert_task_event(
                 task_id,
                 "task_failed",

@@ -27,11 +27,14 @@ function derivePageState(
   if (phase === 'error') {
     if (errorCode === 'TIMEOUT') return 'timeout'
     if (errorCode === 'NETWORK_ERROR') return 'network_fail'
-    if (errorCode === 'AUTH_REQUIRED') return 'failed' // 引导登录
+    if (errorCode === 'AUTH_REQUIRED') return 'failed'
     return 'failed'
   }
   if (phase === 'empty') return 'empty'
-  return vm!.userFacingState
+  
+  const state = vm?.userFacingState
+  if (!state || (state as any) === 'loading') return 'normal'
+  return state
 }
 
 export type ArticlePhase = 'idle' | 'loading' | 'polling' | 'success' | 'empty' | 'error'
@@ -48,7 +51,6 @@ function deriveFallbackTitle(text: string): string | null {
   return firstLine.length > 50 ? `${firstLine.slice(0, 50)}...` : firstLine
 }
 
-/** 生成本地临时记录 ID，用于轮询期间占位。 */
 function generateLocalRecordId(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0
@@ -62,8 +64,8 @@ let currentAbortFlag = false
 interface ArticleState {
   sceneData: RenderSceneVm | null
   requestParams: AnalyzeRequest | null
-  recordId: string | null // 对应 client_record_id (task-xxx)
-  cloudId: string | null  // 对应服务端 UUID
+  recordId: string | null
+  cloudId: string | null
   phase: ArticlePhase
   error: string | null
   errorCode: string | null
@@ -86,7 +88,11 @@ export const useArticleStore = create<ArticleState>((set, get) => {
     }
     const vm = cloudRecord.renderScene
     const phase = isEmptyResult(vm) ? 'empty' : 'success'
-    const pageState = derivePageState(phase, null, vm)
+    let pageState = derivePageState(phase, null, vm)
+    
+    if (pageState === 'loading' && phase === 'success') {
+      pageState = 'normal'
+    }
 
     const localRecord: AnalysisRecord = {
       ...cloudRecord,
@@ -107,9 +113,13 @@ export const useArticleStore = create<ArticleState>((set, get) => {
   }
 
   const startPolling = async (taskId: string) => {
+    if (get().phase === 'success' || get().phase === 'empty') return
+
     while (!currentAbortFlag) {
       try {
         const statusRes = await getTaskStatus(taskId)
+        if (get().phase === 'success' || get().phase === 'empty') break
+
         if (['queued', 'running', 'finalizing'].includes(statusRes.status)) {
           await new Promise(resolve => setTimeout(resolve, 2000))
           continue
@@ -124,13 +134,13 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           break
         }
 
-        // failed, cancelled, expired
         const errorCode = statusRes.failure_code || 'UNKNOWN'
         throw new ApiError(statusRes.failure_message || '分析失败', errorCode, 500)
 
       } catch (err: any) {
         if (currentAbortFlag) break
-        console.error('[article] polling/fetch failed:', err)
+        if (get().phase === 'success' || get().phase === 'empty') break
+
         const message = err?.message || '网络或服务异常，请稍后重试'
         const code = err?.code || 'UNKNOWN'
         const phase: ArticlePhase = 'error'
@@ -166,6 +176,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         phase: 'loading',
         error: null,
         errorCode: null,
+        sceneData: null,
         requestParams: normalizedRequest,
         isReplayMode: false,
       })
@@ -184,15 +195,13 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         serverRecordId = res.record_id
 
         if (res.render_scene) {
-          const cloudRecord = await fetchCloudRecord(serverRecordId)
-          if (cloudRecord) {
-            applySuccessRecord(cloudRecord, serverRecordId)
-            return
-          }
-
           const vm = analyzeResponseDtoToVm(res.render_scene)
           const phase = isEmptyResult(vm) ? 'empty' : 'success'
-          const pageState = derivePageState(phase, null, vm)
+          let pageState = derivePageState(phase, null, vm)
+          if (pageState === 'loading' && phase === 'success') {
+            pageState = 'normal'
+          }
+          
           const localRecord: AnalysisRecord = {
             recordId: clientRecordId,
             cloudId: serverRecordId,
@@ -221,16 +230,15 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           return
         }
 
-        set({ phase: 'polling', recordId: clientRecordId, cloudId: serverRecordId })
+        const pageState = derivePageState('polling', null, null)
+        set({ phase: 'polling', pageState, recordId: clientRecordId, cloudId: serverRecordId })
       } catch (err: any) {
         if (err instanceof ApiError && err.statusCode === 409) {
-          console.log('[article] 409 ACTIVE_TASK_EXISTS, recovering...')
           const current = await getCurrentTask()
           if (current.has_active && current.task) {
              taskId = current.task.task_id
              serverRecordId = current.task.record_id
              
-             // 必须拉取真实记录以获取正确的 client_record_id，严禁前端猜测
              const cloudRecord = await fetchCloudRecord(serverRecordId)
              if (!cloudRecord) {
                 const message = '无法恢复当前任务，请稍后重试'
@@ -239,7 +247,8 @@ export const useArticleStore = create<ArticleState>((set, get) => {
              }
              
              const realClientRecordId = cloudRecord.recordId
-             set({ phase: 'polling', recordId: realClientRecordId, cloudId: serverRecordId })
+             const recoveryPageState = derivePageState('polling', null, null)
+             set({ phase: 'polling', pageState: recoveryPageState, recordId: realClientRecordId, cloudId: serverRecordId })
              await startPolling(taskId)
              return
           } else {
@@ -262,8 +271,6 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           })
           return
         } else {
-          // generic error
-          console.error('[article] submit failed:', err)
           const message = err?.message || '网络或服务异常，请稍后重试'
           const code = err?.code || 'UNKNOWN'
           const phase: ArticlePhase = 'error'
@@ -277,7 +284,6 @@ export const useArticleStore = create<ArticleState>((set, get) => {
     },
 
     recoverActiveTask: async (targetRecordId?: string) => {
-      // 用于发现或恢复活跃任务
       if (get().phase === 'polling' || get().phase === 'loading') return
       
       try {
@@ -285,7 +291,6 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         if (current.has_active && current.task) {
           const serverRecordId = current.task.record_id
           
-          // 如果 history 点进来的 recordId 匹配不上当前活跃任务，且当前页面没有在 polling，则不管它（交给 loadRecord 处理普通回看）
           if (targetRecordId && targetRecordId !== serverRecordId) {
              const cloudRecord = await fetchCloudRecord(serverRecordId)
              if (cloudRecord && cloudRecord.recordId !== targetRecordId) {
@@ -295,10 +300,8 @@ export const useArticleStore = create<ArticleState>((set, get) => {
 
           currentAbortFlag = false
 
-          // 拉取真实记录以获取正确的 client_record_id，严禁前端猜测
           const cloudRecord = await fetchCloudRecord(serverRecordId)
           if (!cloudRecord) {
-             console.warn('[article] recover active task: cloud record not found yet')
              return
           }
 
@@ -309,13 +312,14 @@ export const useArticleStore = create<ArticleState>((set, get) => {
             phase: 'polling',
             isReplayMode: false,
             error: null,
-            errorCode: null
+            errorCode: null,
+            pageState: 'loading'
           })
 
           await startPolling(current.task.task_id)
         }
       } catch (err) {
-        console.error('[article] recover active task failed', err)
+        // Silently ignore recovery failure
       }
     },
 
@@ -353,7 +357,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
               return
             }
           } catch (err) {
-            console.error('[article] loadRecord cloud fallback failed', err)
+            // Silently ignore
           }
         }
         set({ phase: 'error', error: '记录不存在或已删除', errorCode: 'RECORD_NOT_FOUND', pageState: 'failed', recordId: null, cloudId: null, isReplayMode: true })

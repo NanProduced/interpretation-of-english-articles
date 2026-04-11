@@ -102,18 +102,6 @@ async def submit_task(
 ) -> TaskSubmitResult:
     """
     Submit an analysis task with single-active-task control.
-
-    Steps (in one transaction):
-    1. Check if user has active task (queued/running/finalizing) — if so, raise ActiveTaskConflict
-    2. Create analysis_record (status=queued)
-    3. Create analysis_task (status=queued)
-    4. Insert task_submitted event
-
-    Returns:
-        TaskSubmitResult with task_id, record_id, status, created
-
-    Raises:
-        ActiveTaskConflict if user already has a running task
     """
     pool = db_connection.DB_POOL
     if pool is None:
@@ -141,17 +129,17 @@ async def submit_task(
                     status=active["status"],
                 )
 
-            # 2. Create analysis_record
+            # 2. Create analysis_record (minimal metadata)
             client_record_id = f"task-{uuid4()}"
             record_row = await conn.fetchrow(
                 """
                 INSERT INTO analysis_records (
                     user_id, client_record_id, source_type,
                     source_text, source_text_hash,
-                    request_payload_json, reading_goal, reading_variant,
+                    reading_goal, reading_variant, extended,
                     analysis_status, created_at, updated_at
                 )
-                VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, 'queued', $9, $9)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'queued', $9, $9)
                 RETURNING id
                 """,
                 user_id,
@@ -159,14 +147,9 @@ async def submit_task(
                 source_type,
                 text,
                 source_text_hash,
-                json.dumps({
-                    "reading_goal": reading_goal,
-                    "reading_variant": reading_variant,
-                    "source_type": source_type,
-                    "extended": extended,
-                }),
                 reading_goal,
                 reading_variant,
+                extended,
                 now,
             )
             record_id = record_row["id"]
@@ -208,10 +191,7 @@ async def submit_task(
 
 async def cancel_new_task(task_id: UUID, record_id: UUID) -> None:
     """
-    Cancel a just-created task (e.g. when quota check fails after submission).
-
-    Marks both the task and the associated record as cancelled.
-    This is safe to call only on tasks in 'queued' state.
+    Cancel a just-created task.
     """
     pool = db_connection.DB_POOL
     if pool is None:
@@ -257,7 +237,7 @@ async def get_task_status(
     user_id: UUID,
     task_id: UUID,
 ) -> dict[str, Any] | None:
-    """Get task status, ensuring it belongs to the user."""
+    """Get task status."""
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
@@ -287,7 +267,7 @@ async def get_task_status(
 
 
 async def get_active_task(user_id: UUID) -> dict[str, Any] | None:
-    """Get the currently active task for the user (queued/running/finalizing)."""
+    """Get the currently active task for the user."""
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
@@ -366,7 +346,7 @@ async def update_task_status(
 
 
 async def touch_task_heartbeat(task_id: UUID, worker_token: str) -> None:
-    """Refresh updated_at for a running/finalizing task owned by the worker."""
+    """Refresh updated_at for a running task."""
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
@@ -391,7 +371,7 @@ async def insert_task_event(
     event_type: str,
     payload: dict[str, Any] | None = None,
 ) -> None:
-    """Insert a task event for audit trail."""
+    """Insert a task event."""
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
@@ -409,53 +389,8 @@ async def insert_task_event(
         )
 
 
-async def update_record_for_task(
-    record_id: UUID,
-    *,
-    analysis_status: str,
-    title: str | None = None,
-    render_scene_json: dict[str, Any] | None = None,
-    page_state_json: dict[str, Any] | None = None,
-    user_facing_state: str | None = None,
-    workflow_version: str | None = None,
-    schema_version: str | None = None,
-) -> None:
-    """Update the analysis_record associated with a completed task."""
-    pool = db_connection.DB_POOL
-    if pool is None:
-        raise RuntimeError("Database pool not initialized")
-
-    sets = ["analysis_status = $2", "updated_at = $3"]
-    params: list[Any] = [record_id, analysis_status, datetime.now(timezone.utc)]
-    idx = 4
-
-    _JSONB_FIELDS = {"render_scene_json", "page_state_json"}
-
-    for field_name, value in [
-        ("title", title),
-        ("render_scene_json", render_scene_json),
-        ("page_state_json", page_state_json),
-        ("user_facing_state", user_facing_state),
-        ("workflow_version", workflow_version),
-        ("schema_version", schema_version),
-    ]:
-        if value is not None:
-            if field_name in _JSONB_FIELDS and isinstance(value, dict):
-                sets.append(f"{field_name} = ${idx}::jsonb")
-                params.append(json.dumps(value, ensure_ascii=False))
-            else:
-                sets.append(f"{field_name} = ${idx}")
-                params.append(value)
-            idx += 1
-
-    sql = f"UPDATE analysis_records SET {', '.join(sets)} WHERE id = $1"
-
-    async with pool.acquire() as conn:
-        await conn.execute(sql, *params)
-
-
 async def claim_next_queued_task(worker_token: str) -> TaskExecutionPayload | None:
-    """Atomically claim the next queued task for a worker."""
+    """Atomically claim the next queued task."""
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
@@ -496,7 +431,7 @@ async def claim_next_queued_task(worker_token: str) -> TaskExecutionPayload | No
                     r.reading_goal AS reading_goal,
                     r.reading_variant AS reading_variant,
                     r.source_type AS source_type,
-                    COALESCE((r.request_payload_json->>'extended')::boolean, false) AS extended
+                    r.extended AS extended
                 """,
                 worker_token,
                 next_row["id"],
@@ -523,7 +458,7 @@ async def requeue_stale_tasks(
     queued_before: datetime,
     active_before: datetime,
 ) -> int:
-    """Requeue stale queued/running/finalizing tasks so the worker can retry them."""
+    """Requeue stale tasks."""
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")

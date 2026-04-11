@@ -32,6 +32,7 @@ interface RecordResponseDto {
   page_state_json: Record<string, unknown> | null
   reading_goal: string | null
   reading_variant: string | null
+  extended: boolean
   user_facing_state: string | null
   workflow_version: string | null
   schema_version: string | null

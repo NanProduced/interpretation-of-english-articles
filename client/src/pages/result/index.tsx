@@ -139,22 +139,29 @@ export default function Result() {
   // === 事件处理 ===
 
   const handleWordClick = ({ word, mark, event }: WordClickPayload) => {
-    const isAIAnnotated = !!(mark?.glossary)
-    const initialMode = 'mini' // 始终先弹出小卡片
+    console.log('[result] word clicked:', word, mark?.id)
+    const initialMode = 'mini'
     setActiveMarkId(mark?.id ?? null)
     setSelectedWord(word)
 
-    let clientX = 0
-    let clientY = 0
+    const sysInfo = Taro.getSystemInfoSync()
+    const windowWidth = sysInfo.windowWidth || 375
+    
+    let clientX = windowWidth / 2 // 默认中线
+    let clientY = 300 // 默认中部
+
+    // 适配多端事件坐标获取
     if (event) {
-      if (event.changedTouches && event.changedTouches[0]) {
-        clientX = event.changedTouches[0].clientX
-        clientY = event.changedTouches[0].clientY
+      const touch = event.changedTouches?.[0] || (event.touches ? event.touches[0] : null)
+      if (touch) {
+        clientX = touch.clientX || touch.pageX
+        clientY = touch.clientY || touch.pageY
       } else if (event.detail && (event.detail.x !== undefined || event.detail.clientX !== undefined)) {
         clientX = event.detail.x ?? event.detail.clientX
         clientY = event.detail.y ?? event.detail.clientY
       }
     }
+    
     setWordPopup({ visible: true, mode: initialMode, mark: mark ?? null, word, x: clientX, y: clientY })
   }
 
@@ -265,7 +272,8 @@ export default function Result() {
 
   // === 状态分支 ===
 
-  if (pageState === 'loading') {
+  // 全屏 Loading：仅在完全没有数据且状态为加载中时展示
+  if (pageState === 'loading' && !sceneData) {
     return pageShell(
       <View className='state-container'>
         <ActiveLoading />
@@ -273,62 +281,63 @@ export default function Result() {
     )
   }
 
-  if (pageState === 'empty') {
-    const msg = PAGE_STATE_MESSAGES.empty!
-    return pageShell(
-      <View className='state-container'>
-        <View className='state-vertical'>
-          <EmptyIllustration />
-          <Text className='state-title'>{msg.title}</Text>
-          <Text className='state-subtitle'>{msg.subtitle}</Text>
-        </View>
-        <View className='state-cta safe-area-bottom'>
-          <View className='btn-primary' onClick={handleRetry}>
-            <Text className='btn-primary-text'>修改重试</Text>
-          </View>
-        </View>
-      </View>
-    )
-  }
-
-  if (pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail') {
-    const defaultMsg = PAGE_STATE_MESSAGES[pageState]!
-    const title = errorCode === 'INSUFFICIENT_CREDITS' ? '今日积分不足' : defaultMsg.title
-    const subtitle = errorCode === 'INSUFFICIENT_CREDITS' ? errorMsg || '您的积分已耗尽，请明天再试' : defaultMsg.subtitle
-
-    return pageShell(
-      <View className='state-container'>
-        <View className='state-vertical'>
-          <ErrorIllustration />
-          <Text className='state-title'>{title}</Text>
-          <Text className='state-subtitle'>{subtitle}</Text>
-        </View>
-        <View className='state-cta safe-area-bottom'>
-          <View className='btn-primary' onClick={handleRetry}>
-            <Text className='btn-primary-text'>重新分析</Text>
-          </View>
-        </View>
-      </View>
-    )
-  }
-
-  // === Success 状态 ===
-
-  // 防御：pageState 非 loading 但 sceneData 缺失 → 透明渲染（不 crash）
+  // 错误/空状态展示：仅在没有数据时展示
   if (!sceneData) {
+    if (pageState === 'empty') {
+      const msg = PAGE_STATE_MESSAGES.empty!
+      return pageShell(
+        <View className='state-container'>
+          <View className='state-vertical'>
+            <EmptyIllustration />
+            <Text className='state-title'>{msg.title}</Text>
+            <Text className='state-subtitle'>{msg.subtitle}</Text>
+          </View>
+          <View className='state-cta safe-area-bottom'>
+            <View className='btn-primary' onClick={handleRetry}>
+              <Text className='btn-primary-text'>修改重试</Text>
+            </View>
+          </View>
+        </View>
+      )
+    }
+
+    if (pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail') {
+      const defaultMsg = PAGE_STATE_MESSAGES[pageState]!
+      const title = errorCode === 'INSUFFICIENT_CREDITS' ? '今日积分不足' : defaultMsg.title
+      const subtitle = errorCode === 'INSUFFICIENT_CREDITS' ? errorMsg || '您的积分已耗尽，请明天再试' : defaultMsg.subtitle
+
+      return pageShell(
+        <View className='state-container'>
+          <View className='state-vertical'>
+            <ErrorIllustration />
+            <Text className='state-title'>{title}</Text>
+            <Text className='state-subtitle'>{subtitle}</Text>
+          </View>
+          <View className='state-cta safe-area-bottom'>
+            <View className='btn-primary' onClick={handleRetry}>
+              <Text className='btn-primary-text'>重新分析</Text>
+            </View>
+          </View>
+        </View>
+      )
+    }
+
+    // 默认保底 Loading
     return pageShell(
       <View className='state-container'>
         <View className='state-vertical'>
           <LoadingIllustration />
-          <Text className='state-title'>正在加载...</Text>
+          <Text className='state-title'>正在解析文章...</Text>
+          <Text className='state-subtitle-secondary'>首次解析可能需要 20-40 秒，请耐心等待</Text>
         </View>
       </View>
     )
   }
 
+  // === 渲染核心交互层 (只要有 sceneData 就会执行到这里) ===
+
   const renderArticleHeader = () => {
-    if (!sceneData) return null
-    const { request } = sceneData
+    const { request } = sceneData!
     return (
       <View className='article-header'>
         <View className='article-meta-row'>
@@ -352,7 +361,7 @@ export default function Result() {
 
       return (
         <ParagraphBlock
-          key={paragraph.paragraphId}
+          key={`${paragraph.paragraphId}-${idx}`}
           order={idx + 1}
           sentences={sentences}
           translations={sceneData!.translations}
@@ -370,44 +379,47 @@ export default function Result() {
 
   return pageShell(
     <>
-      <View className='mode-tabs-container' role='tablist' aria-label='阅读模式切换'>
-        <View className='mode-tabs'>
-          {PAGE_MODE_OPTIONS.map((mode) => (
-            <View
-              key={mode.value}
-              className={`mode-tab ${pageMode === mode.value ? 'active' : ''}`}
-              onClick={() => setPageMode(mode.value as PageMode)}
-              role='tab'
-              aria-selected={pageMode === mode.value}
-              aria-label={mode.label}
-            >
-              <Text className='mode-tab-label'>{mode.label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* 降级提示条：位于 mode-tabs 下方 */}
-      {renderDegradedBanner(pageState)}
-
-      <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={handleScroll}>
-        <View className='article-container'>
-          {renderParagraphs()}
-          
-          {/* Article End Actions */}
-          <View className='article-end-actions'>
-            <View className={`end-btn-secondary ${favorited ? 'favorited' : ''}`} onClick={handleToggleFavorite}>
-              <LucideIcon name='bookmark' size={18} color={favorited ? 'var(--color-warn)' : 'var(--text-main)'} />
-              <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏'}</Text>
-            </View>
-            <View className='end-btn-primary' onClick={handleRetry}>
-              <LucideIcon name='plus' size={18} color='#fff' />
-              <Text>再分析一篇</Text>
-            </View>
+      <View className='result-content-root'>
+        <View className='mode-tabs-container' role='tablist' aria-label='阅读模式切换'>
+          <View className='mode-tabs'>
+            {PAGE_MODE_OPTIONS.map((mode) => (
+              <View
+                key={mode.value}
+                className={`mode-tab ${pageMode === mode.value ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setPageMode(mode.value as PageMode)
+                }}
+                role='tab'                aria-selected={pageMode === mode.value}
+                aria-label={mode.label}
+              >
+                <Text className='mode-tab-label'>{mode.label}</Text>
+              </View>
+            ))}
           </View>
-          <View className='bottom-spacer' />
         </View>
-      </ScrollView>
+
+        {/* 降级提示条 */}
+        {renderDegradedBanner(pageState)}
+
+        <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={handleScroll}>
+          <View className='article-container'>
+            {renderParagraphs()}
+            
+            <View className='article-end-actions'>
+              <View className={`end-btn-secondary ${favorited ? 'favorited' : ''}`} onClick={handleToggleFavorite}>
+                <LucideIcon name='bookmark' size={18} color={favorited ? 'var(--color-warn)' : 'var(--text-main)'} />
+                <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏'}</Text>
+              </View>
+              <View className='end-btn-primary' onClick={handleRetry}>
+                <LucideIcon name='plus' size={18} color='#fff' />
+                <Text>再分析一篇</Text>
+              </View>
+            </View>
+            <View className='bottom-spacer' />
+          </View>
+        </ScrollView>
+      </View>
 
       <WordPopup
         visible={wordPopup.visible}
@@ -422,7 +434,6 @@ export default function Result() {
           if (!recordId || !dictResult || dictResult.resultType !== 'entry') return
           const detailEntry = dictResult.entry
           const detailMeanings = detailEntry.meanings
-          // 从首个 meaning 的 definitions 拼接派生，并在快照层截断
           const derivedMeaning = detailMeanings[0]?.definitions
             ?.map((d) => d.meaning)
             .filter(Boolean)
@@ -436,7 +447,6 @@ export default function Result() {
             meaning: derivedMeaning.slice(0, 200),
             addedAt: Date.now(),
             mastered: false,
-            // 优先取 entry.baseWord ?? entry.word
             lemma: detailEntry.baseWord ?? detailEntry.word,
             phonetic: detailEntry.phonetic,
             provider: dictResult.provider || 'tecd3',
@@ -444,7 +454,6 @@ export default function Result() {
           saveVocabEntry(vocabEntry)
           track('add_vocab', { word: w })
 
-          // 静默同步云端（401 → 引导登录 → 重试）
           try {
             await CloudSyncService.syncVocab(vocabEntry)
           } catch (err: any) {

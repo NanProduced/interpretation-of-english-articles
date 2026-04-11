@@ -70,14 +70,10 @@ CREATE TABLE analysis_records (
   title TEXT,
   source_text TEXT NOT NULL,
   source_text_hash TEXT NOT NULL,
-  request_payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  render_scene_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  page_state_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   reading_goal TEXT,
   reading_variant TEXT,
+  extended BOOLEAN NOT NULL DEFAULT FALSE,
   user_facing_state TEXT,
-  workflow_version TEXT,
-  schema_version TEXT,
   analysis_status TEXT NOT NULL DEFAULT 'ready' CHECK (analysis_status IN (
     'queued', 'running', 'finalizing',
     'ready', 'partial', 'failed',
@@ -98,7 +94,18 @@ CREATE INDEX idx_analysis_records_user_updated_at
   ON analysis_records(user_id, updated_at DESC)
   WHERE deleted_at IS NULL;
 CREATE INDEX idx_analysis_records_source_hash ON analysis_records(source_text_hash);
-CREATE INDEX idx_analysis_records_render_scene_gin ON analysis_records USING GIN (render_scene_json);
+
+-- Heavy results storage
+CREATE TABLE analysis_results (
+  record_id UUID PRIMARY KEY REFERENCES analysis_records(id) ON DELETE CASCADE,
+  render_scene_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  page_state_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  workflow_version TEXT,
+  schema_version TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_analysis_results_created ON analysis_results(created_at);
 
 CREATE TABLE analysis_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -136,6 +143,22 @@ CREATE TABLE analysis_task_events (
 );
 
 CREATE INDEX idx_task_events_task_created ON analysis_task_events(task_id, created_at);
+
+-- Audit logs
+CREATE TABLE analysis_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  record_id UUID NOT NULL REFERENCES analysis_records(id) ON DELETE CASCADE,
+  task_id UUID REFERENCES analysis_tasks(id) ON DELETE SET NULL,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  request_payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  usage_summary_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  cost_points INTEGER NOT NULL DEFAULT 0,
+  processing_ms INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_analysis_audit_logs_record ON analysis_audit_logs(record_id);
+CREATE INDEX idx_analysis_audit_logs_user ON analysis_audit_logs(user_id, created_at DESC);
 
 CREATE TABLE user_credit_accounts (
   user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -312,7 +335,7 @@ COMMENT ON COLUMN user_sessions.metadata_json IS '会话附加元数据 JSON。'
 COMMENT ON COLUMN user_sessions.created_at IS '记录创建时间。';
 COMMENT ON COLUMN user_sessions.updated_at IS '记录最后更新时间。';
 
-COMMENT ON TABLE analysis_records IS '文章分析记录表，保存用户输入文本、分析请求参数与渲染结果快照。';
+COMMENT ON TABLE analysis_records IS '文章分析记录表，保存用户输入文本、分析核心元数据。结果快照保存在 analysis_results。';
 COMMENT ON COLUMN analysis_records.id IS '分析记录主键，使用 UUID。';
 COMMENT ON COLUMN analysis_records.user_id IS '所属用户 ID。';
 COMMENT ON COLUMN analysis_records.client_record_id IS '客户端侧生成的记录 ID，用于回放或去重。';
@@ -320,18 +343,21 @@ COMMENT ON COLUMN analysis_records.source_type IS '文本来源类型，例如 u
 COMMENT ON COLUMN analysis_records.title IS '文章标题。';
 COMMENT ON COLUMN analysis_records.source_text IS '原始输入文本。';
 COMMENT ON COLUMN analysis_records.source_text_hash IS '原始文本的哈希值，用于去重与检索。';
-COMMENT ON COLUMN analysis_records.request_payload_json IS '分析请求参数 JSON。';
-COMMENT ON COLUMN analysis_records.render_scene_json IS '前端渲染场景 JSON 快照。';
-COMMENT ON COLUMN analysis_records.page_state_json IS '页面状态与过程信息 JSON。';
 COMMENT ON COLUMN analysis_records.reading_goal IS '阅读目标，例如 exam、daily_reading、academic。';
 COMMENT ON COLUMN analysis_records.reading_variant IS '阅读变体，例如 cet、ielts_toefl。';
+COMMENT ON COLUMN analysis_records.extended IS '是否开启深度篇章分析。';
 COMMENT ON COLUMN analysis_records.user_facing_state IS '面向用户的结果状态，例如 normal、degraded_light。';
-COMMENT ON COLUMN analysis_records.workflow_version IS '分析工作流版本号。';
-COMMENT ON COLUMN analysis_records.schema_version IS '渲染结果 schema 版本号。';
 COMMENT ON COLUMN analysis_records.analysis_status IS '分析记录状态，支持 queued、running、finalizing、ready、partial、failed、deleted、cancelled、expired。';
 COMMENT ON COLUMN analysis_records.last_opened_at IS '最近一次打开该记录的时间。';
 COMMENT ON COLUMN analysis_records.created_at IS '记录创建时间。';
 COMMENT ON COLUMN analysis_records.updated_at IS '记录最后更新时间。';
+
+COMMENT ON TABLE analysis_results IS '文章分析结果详情表，保存渲染场景 JSON 快照。';
+COMMENT ON COLUMN analysis_results.record_id IS '关联的分析记录 ID。';
+COMMENT ON COLUMN analysis_results.render_scene_json IS '前端渲染场景 JSON 快照。';
+COMMENT ON COLUMN analysis_results.page_state_json IS '页面状态与过程信息 JSON。';
+COMMENT ON COLUMN analysis_results.workflow_version IS '分析工作流版本号。';
+COMMENT ON COLUMN analysis_results.schema_version IS '渲染结果 schema 版本号。';
 
 COMMENT ON TABLE analysis_tasks IS '分析任务执行控制表，负责排队、并发控制、失败重试与额度结算。';
 COMMENT ON COLUMN analysis_tasks.id IS '任务主键，UUID。';
@@ -353,6 +379,15 @@ COMMENT ON TABLE analysis_task_events IS '分析任务过程审计日志，appen
 COMMENT ON COLUMN analysis_task_events.task_id IS '关联的任务 ID。';
 COMMENT ON COLUMN analysis_task_events.event_type IS '事件类型，如 task_submitted, task_started, task_succeeded 等。';
 COMMENT ON COLUMN analysis_task_events.event_payload_json IS '事件载荷 JSON。';
+
+COMMENT ON TABLE analysis_audit_logs IS '分析任务审计日志表，保存 Token 消耗、原始请求载荷与性能指标。';
+COMMENT ON COLUMN analysis_audit_logs.record_id IS '关联的分析记录 ID。';
+COMMENT ON COLUMN analysis_audit_logs.task_id IS '关联的任务 ID。';
+COMMENT ON COLUMN analysis_audit_logs.user_id IS '所属用户 ID。';
+COMMENT ON COLUMN analysis_audit_logs.request_payload_json IS '原始分析请求参数 JSON。';
+COMMENT ON COLUMN analysis_audit_logs.usage_summary_json IS 'Token 使用详情快照。';
+COMMENT ON COLUMN analysis_audit_logs.cost_points IS '消耗积分。';
+COMMENT ON COLUMN analysis_audit_logs.processing_ms IS '后端处理耗时（毫秒）。';
 
 COMMENT ON TABLE user_credit_accounts IS '用户积分账户快照，每用户一行。';
 COMMENT ON COLUMN user_credit_accounts.daily_free_points IS 'Daily free points quota (default 1000 points, where 1 point = 1000 weighted tokens).';

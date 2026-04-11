@@ -66,20 +66,17 @@ export default function WordPopup({
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [screenWidth, setScreenWidth] = useState(375)
+  const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
 
   const lookupText = mark?.lookupText || word
   const glossary = mark?.glossary
   const toneMeta = mark ? TONE_META[mark.visualTone] : null
   
-  // 核心逻辑：获取当前标注的专业文案
-  // 优先取具体的短语子类型（glossary.phraseType），其次取 mark.lookupKind，最后取基础 visualTone
   const effectivePhraseKind = glossary?.phraseType || mark?.lookupKind
-
   const professionalLabel = (effectivePhraseKind && PHRASE_KIND_LABELS[effectivePhraseKind])
     ? PHRASE_KIND_LABELS[effectivePhraseKind]
     : (toneMeta?.label || 'AI 解析')
 
-  // Mini 模式标签映射
   const miniLabel = (effectivePhraseKind && MINI_LABEL_MAP[effectivePhraseKind])
     ? MINI_LABEL_MAP[effectivePhraseKind]
     : (mark ? MINI_LABEL_MAP[mark.visualTone] : 'AI')
@@ -87,18 +84,27 @@ export default function WordPopup({
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
   const detailMeanings = entry?.meanings || []
   const miniMeaning = glossary?.zh || glossary?.gloss || getEntrySummary(entry)
-
   const isLLMAnnotated = !!glossary
+
+  // Hooks must ALWAYS be called in the same order. 
+  // Conditional return must happen AFTER all hook declarations.
 
   useEffect(() => {
     if (!visible || !lookupText) return
-    // 如果是短语且已有 AI 释义，仍建议拉取词典以备展开查看更多例句
     void fetchDictionary(lookupText)
   }, [visible, lookupText])
 
   useEffect(() => {
     Taro.getSystemInfo({}).then((info) => setScreenWidth(info.windowWidth || 375))
   }, [])
+
+  useEffect(() => {
+    const isEntryResult = dictResult?.resultType === 'entry'
+    if (isEntryResult && entry) {
+      if (activeTab === 'phrases' && !entry.phrases?.length) setActiveTab('meanings')
+      if (activeTab === 'examples' && !entry.examples?.length) setActiveTab('meanings')
+    }
+  }, [dictResult, activeTab]) // Fixed dependency
 
   const fetchDictionary = async (text: string) => {
     setLoading(true)
@@ -129,38 +135,20 @@ export default function WordPopup({
     }
   }
 
-  const handlePlayAudio = () => {
-    Taro.showToast({ title: '暂无发音', icon: 'none' })
-  }
+  if (!visible) return null
 
   const isEntryResult = dictResult?.resultType === 'entry'
   const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
 
-  const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
-
-  // 当 entry 改变时，如果当前 tab 没数据，切回 meanings
-  useEffect(() => {
-    if (isEntryResult && entry) {
-      if (activeTab === 'phrases' && !entry.phrases?.length) setActiveTab('meanings')
-      if (activeTab === 'examples' && !entry.examples?.length) setActiveTab('meanings')
-    }
-  }, [entry, isEntryResult])
-
   if (mode === 'mini') {
-    // 定位逻辑优化：使用 CSS translateY 动态适应高度
-    // 480rpx 在屏幕上的实际像素宽度
     const popupWidth = (screenWidth * 480) / 750
     const offset = 12
-
     let left = x - popupWidth / 2
     let top = y - offset
     let isFlipped = false
 
-    // 边缘处理
     if (left < 10) left = 10
     if (left + popupWidth > screenWidth - 10) left = screenWidth - popupWidth - 10
-    
-    // 如果上方悬空距离不足（预估卡片高度140px左右），翻转到下方
     if (y < 150) {
       top = y + offset
       isFlipped = true
@@ -189,15 +177,10 @@ export default function WordPopup({
             <View className='mini-word-info'>
               <Text className='mini-word'>{entry?.word || lookupText}</Text>
               {entry?.phonetic && <Text className='mini-phonetic'>/{entry.phonetic}/</Text>}
-              {isLLMAnnotated && toneMeta && (
-                <View className='ai-tag'>
-                  {miniLabel}
-                </View>
-              )}
+              {isLLMAnnotated && toneMeta && <View className='ai-tag'>{miniLabel}</View>}
             </View>
             <LucideIcon name='chevron-right' size={14} color='var(--text-muted)' />
           </View>
-
           <View className='mini-content'>
             {loading && !miniMeaning ? (
               <Text className='mini-loading'>查询中...</Text>
@@ -220,13 +203,7 @@ export default function WordPopup({
               <Text className='mini-loading'>未找到释义</Text>
             )}
           </View>
-          
-          <View 
-            className='mini-arrow' 
-            style={{ 
-              left: `${Math.max(20, Math.min(popupWidth - 20, x - left))}px`
-            }} 
-          />
+          <View className='mini-arrow' style={{ left: `${Math.max(20, Math.min(popupWidth - 20, x - left))}px` }} />
         </View>
       </View>
     )
@@ -241,11 +218,7 @@ export default function WordPopup({
             <View className='word-text-row'>
               <Text className='word-text'>{entry?.word || lookupText}</Text>
               <View className='header-tags'>
-                {isLLMAnnotated && toneMeta && (
-                  <View className='ai-badge'>
-                    {professionalLabel}
-                  </View>
-                )}
+                {isLLMAnnotated && toneMeta && <View className='ai-badge'>{professionalLabel}</View>}
               </View>
             </View>
             <View className='word-sub-info'>
@@ -293,28 +266,9 @@ export default function WordPopup({
               </View>
               {isEntryResult && entry && (entry.phrases?.length > 0 || entry.examples?.length > 0) && (
                 <View className='dict-tabs'>
-                  <View 
-                    className={`dict-tab ${activeTab === 'meanings' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('meanings')}
-                  >
-                    释义
-                  </View>
-                  {entry.phrases?.length > 0 && (
-                    <View 
-                      className={`dict-tab ${activeTab === 'phrases' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('phrases')}
-                    >
-                      短语
-                    </View>
-                  )}
-                  {entry.examples?.length > 0 && (
-                    <View 
-                      className={`dict-tab ${activeTab === 'examples' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('examples')}
-                    >
-                      例句
-                    </View>
-                  )}
+                  <View className={`dict-tab ${activeTab === 'meanings' ? 'active' : ''}`} onClick={() => setActiveTab('meanings')}>释义</View>
+                  {entry.phrases?.length > 0 && <View className={`dict-tab ${activeTab === 'phrases' ? 'active' : ''}`} onClick={() => setActiveTab('phrases')}>短语</View>}
+                  {entry.examples?.length > 0 && <View className={`dict-tab ${activeTab === 'examples' ? 'active' : ''}`} onClick={() => setActiveTab('examples')}>例句</View>}
                 </View>
               )}
             </View>
@@ -327,11 +281,7 @@ export default function WordPopup({
             ) : isDisambiguationResult ? (
               <View className='disambiguation-list'>
                 {dictResult.candidates.map((candidate) => (
-                  <View
-                    key={candidate.entryId}
-                    className='candidate-item'
-                    onClick={() => void fetchEntryDetail(candidate.entryId)}
-                  >
+                  <View key={candidate.entryId} className='candidate-item' onClick={() => void fetchEntryDetail(candidate.entryId)}>
                     <View className='candidate-main'>
                       <View className='candidate-title-row'>
                         <Text className='candidate-label'>{candidate.label}</Text>
@@ -367,7 +317,6 @@ export default function WordPopup({
                     ))}
                   </View>
                 )}
-
                 {activeTab === 'phrases' && (
                   <View className='phrases-list'>
                     {entry.phrases.map((p, idx) => (
@@ -378,7 +327,6 @@ export default function WordPopup({
                     ))}
                   </View>
                 )}
-
                 {activeTab === 'examples' && (
                   <View className='examples-list'>
                     {entry.examples.map((ex, idx) => (
@@ -399,27 +347,16 @@ export default function WordPopup({
         </ScrollView>
 
         <View className='popup-footer-actions safe-area-bottom'>
-          <View
-            className='footer-action-btn secondary'
-            onClick={() => {
-              onFavorite?.(entry?.word || lookupText)
-              Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 })
-            }}
-          >
+          <View className='footer-action-btn secondary' onClick={() => { onFavorite?.(entry?.word || lookupText); Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 }); }}>
             <LucideIcon name='star' size={18} color='var(--text-sub)' />
             <Text>收藏</Text>
           </View>
-          {isEntryResult && entry && entry.id > 0 ? (
-            <View
-              className='footer-action-btn primary'
-              onClick={() => {
-                onAddVocab?.(entry.word, dictResult)
-              }}
-            >
+          {isEntryResult && entry && entry.id > 0 && (
+            <View className='footer-action-btn primary' onClick={() => onAddVocab?.(entry.word, dictResult)}>
               <LucideIcon name='plus' size={18} color='var(--color-white)' />
               <Text>记入生词本</Text>
             </View>
-          ) : null}
+          )}
         </View>
       </View>
     </View>

@@ -31,6 +31,7 @@ class RecordCreateRequest(BaseModel):
     page_state_json: dict[str, Any] = Field(default_factory=dict)
     reading_goal: str | None = Field(default=None)
     reading_variant: str | None = Field(default=None)
+    extended: bool = Field(default=False)
     user_facing_state: str | None = Field(default=None)
     workflow_version: str | None = Field(default=None)
     schema_version: str | None = Field(default=None)
@@ -44,6 +45,7 @@ class RecordUpdateRequest(BaseModel):
     render_scene_json: dict[str, Any] | None = None
     page_state_json: dict[str, Any] | None = None
     user_facing_state: str | None = None
+    extended: bool | None = None
     analysis_status: str | None = None
     is_favorited: bool | None = None
     last_opened_at: datetime | None = None
@@ -64,16 +66,17 @@ class RecordResponse(BaseModel):
     title: str | None
     source_text: str
     source_text_hash: str
-    request_payload_json: dict[str, Any]
-    render_scene_json: dict[str, Any]
-    page_state_json: dict[str, Any]
-    reading_goal: str | None
-    reading_variant: str | None
-    user_facing_state: str | None
-    workflow_version: str | None
-    schema_version: str | None
+    request_payload_json: dict[str, Any] = Field(default_factory=dict)
+    render_scene_json: dict[str, Any] = Field(default_factory=dict)
+    page_state_json: dict[str, Any] = Field(default_factory=dict)
+    reading_goal: str | None = Field(default=None)
+    reading_variant: str | None = Field(default=None)
+    extended: bool = Field(default=False)
+    user_facing_state: str | None = Field(default=None)
+    workflow_version: str | None = Field(default=None)
+    schema_version: str | None = Field(default=None)
     analysis_status: str
-    last_opened_at: datetime | None
+    last_opened_at: datetime | None = Field(default=None)
     created_at: datetime
     updated_at: datetime
 

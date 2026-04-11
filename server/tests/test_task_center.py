@@ -586,7 +586,11 @@ class TestTaskExecutorCharging:
                 AsyncMock(),
             ),
             patch(
-                "app.services.analysis.task_executor.update_record_for_task",
+                "app.services.analysis.task_executor.records_svc.update_record",
+                AsyncMock(),
+            ),
+            patch(
+                "app.services.analysis.task_executor.records_svc.insert_audit_log",
                 AsyncMock(),
             ),
             patch(
