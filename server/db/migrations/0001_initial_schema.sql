@@ -252,6 +252,7 @@ CREATE TABLE dict_entries (
   sections_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   raw_html TEXT,
   parse_version TEXT NOT NULL DEFAULT 'tecd3_v2',
+  exam_tags TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -451,6 +452,7 @@ COMMENT ON COLUMN dict_entries.phrases_json IS '短语结构 JSON。';
 COMMENT ON COLUMN dict_entries.sections_json IS '词条分段摘要 JSON，用于调试或扩展展示。';
 COMMENT ON COLUMN dict_entries.raw_html IS '词条原始 HTML 内容。';
 COMMENT ON COLUMN dict_entries.parse_version IS '导入解析器版本号。';
+COMMENT ON COLUMN dict_entries.exam_tags IS '词汇所属考试标签数组：gaokao, cet4, cet6, tem4, tem8, gre, ielts, toefl';
 COMMENT ON COLUMN dict_entries.created_at IS '记录创建时间。';
 COMMENT ON COLUMN dict_entries.updated_at IS '记录最后更新时间。';
 
