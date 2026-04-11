@@ -156,8 +156,27 @@
       }
     }
   }
+
+  .sentence-text {
+    &.is-analyzing {
+      display: inline;
+      
+      .analysis-atom {
+        display: inline;
+        
+        &.is-chunk {
+          // 只保留纯净的下划线和微弱的背景色
+          border-bottom: 3rpx solid var(--chunk-color);
+          background-color: rgba(var(--chunk-color-rgb), 0.08); // 极淡的背景色辅助切割
+          
+          // 专业 5 色系统，增加 rgb 变量以供 rgba 纯色辅助使用
+          &.color-type-0 { --chunk-color: #08979c; --chunk-color-rgb: 8, 151, 156; }
+          &.color-type-1 { --chunk-color: #389e0d; --chunk-color-rgb: 56, 158, 13; }
+          &.color-type-2 { --chunk-color: #d46b08; --chunk-color-rgb: 212, 107, 8; }
+          &.color-type-3 { --chunk-color: #722ed1; --chunk-color-rgb: 114, 46, 209; }
+          &.color-type-4 { --chunk-color: #cf1322; --chunk-color-rgb: 207, 19, 34; }
+        }
+      }
+    }
+  }
 }
-
-// 移除这些冗余的 override，由 InlineMark 自身处理视觉呈现
-// 这样可以确保标记的视觉统一性，不再产生多余的下划线叠加
-

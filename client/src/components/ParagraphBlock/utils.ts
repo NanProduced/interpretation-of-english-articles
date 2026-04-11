@@ -141,3 +141,146 @@ export function tokenizeText(text: string): TextToken[] {
 
   return merged
 }
+
+export interface AnalysisChunk {
+  order: string
+  label: string
+  text: string
+}
+
+/**
+ * 解析 sentence_analysis 的 content
+ * 格式：
+ * 前半段为整句说明
+ * 后半段为：- **1. 主语**：`The article`
+ */
+export function parseSentenceAnalysis(content: string): { summary: string; chunks: AnalysisChunk[] } {
+  const lines = content.split('\n')
+  const summaryLines: string[] = []
+  const chunks: AnalysisChunk[] = []
+
+  // 匹配正则：- **1. 主语**：`...` 或 - **主语**：`...`
+  // 支持有数字和没数字的情况
+  const chunkRegex = /^-\s*\*\*(?:(\d+)\.\s*)?([^*]+)\*\*[：:]\s*[`'"](.+)[`'"]$/
+
+  lines.forEach(line => {
+    const trimmed = line.trim()
+    if (!trimmed) return
+
+    const match = trimmed.match(chunkRegex)
+    if (match) {
+      chunks.push({
+        order: match[1] || '',
+        label: match[2].trim(),
+        text: match[3].trim(),
+      })
+    } else {
+      // 只有在还没开始匹配到 chunks 时，才把行加入 summary
+      if (chunks.length === 0) {
+        summaryLines.push(trimmed)
+      }
+    }
+  })
+
+  return {
+    summary: summaryLines.join('\n'),
+    chunks: chunks.sort((a, b) => {
+      if (!a.order || !b.order || a.order === b.order) return 0
+      return parseInt(a.order) - parseInt(b.order)
+    }),
+  }
+}
+
+/**
+ * 鲁棒的模糊匹配逻辑
+ * 在 fullText 中寻找 subText 的物理起止坐标，忽略标点、大小写及空白差异。
+ */
+export function findFuzzyMatch(fullText: string, subText: string, fromIndex: number = 0): { start: number; length: number } | null {
+  // 标准化词序列：只保留英文字符和数字
+  const toWords = (s: string) => s.toLowerCase().match(/[a-z0-9]+/g) || []
+  const subWords = toWords(subText)
+  if (subWords.length === 0) return null
+
+  // 在 fullText 中按顺序寻找单词序列
+  let currentPos = fromIndex
+  let matchStart = -1
+  let matchEnd = -1
+
+  for (let i = 0; i < subWords.length; i++) {
+    const word = subWords[i]
+    // 寻找下一个单词的起始位置
+    // 正则：忽略大小写，且要求是完整边界单词或部分字符（视分词结果）
+    const regex = new RegExp(word, 'i')
+    const textToSearch = fullText.slice(currentPos)
+    const match = textToSearch.match(regex)
+
+    if (!match || match.index === undefined) {
+      return null // 序列中断，匹配失败
+    }
+
+    const absolutePos = currentPos + match.index
+    if (i === 0) matchStart = absolutePos
+    matchEnd = absolutePos + match[0].length
+    currentPos = matchEnd
+  }
+
+  return {
+    start: matchStart,
+    length: matchEnd - matchStart
+  }
+}
+
+export interface TextAtom {
+  text: string
+  chunkId?: string
+  chunkLabel?: string
+  isFirstInChunk?: boolean
+}
+
+/**
+ * 将句子拆解为原子化片段，分配成分归属信息
+ */
+export function tokenizeSentenceWithAnalysis(text: string, chunks: { text: string; label: string }[]): TextAtom[] {
+  const resultRanges: { start: number; end: number; label: string; id: string }[] = []
+  let lastIndex = 0
+
+  // 1. 寻找所有匹配区间
+  chunks.forEach((chunk, idx) => {
+    const match = findFuzzyMatch(text, chunk.text, lastIndex)
+    if (match) {
+      resultRanges.push({
+        start: match.start,
+        end: match.start + match.length,
+        label: chunk.label,
+        id: `chunk-${idx}`
+      })
+      lastIndex = match.start + match.length
+    }
+  })
+
+  // 2. 按照区间边界切割原始文本
+  const boundaries = new Set([0, text.length])
+  resultRanges.forEach(r => {
+    boundaries.add(r.start)
+    boundaries.add(r.end)
+  })
+  const sortedBoundaries = Array.from(boundaries).sort((a, b) => a - b)
+
+  const atoms: TextAtom[] = []
+  for (let i = 0; i < sortedBoundaries.length - 1; i++) {
+    const start = sortedBoundaries[i]
+    const end = sortedBoundaries[i + 1]
+    const content = text.slice(start, end)
+    if (!content) continue
+
+    const range = resultRanges.find(r => start >= r.start && end <= r.end)
+    atoms.push({
+      text: content,
+      chunkId: range?.id,
+      chunkLabel: range?.label,
+      isFirstInChunk: range && start === range.start
+    })
+  }
+
+  return atoms
+}

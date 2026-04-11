@@ -6,11 +6,7 @@ import './index.scss'
 
 export type AnalysisCardType = 'vocab' | 'grammar' | 'sentence'
 
-export interface AnalysisChunk {
-  order: string
-  label: string
-  text: string
-}
+import { parseSentenceAnalysis, type AnalysisChunk } from '../ParagraphBlock/utils'
 
 export interface AnalysisCardProps {
   type: AnalysisCardType
@@ -21,6 +17,9 @@ export interface AnalysisCardProps {
   tags?: string[]
   initiallyExpanded?: boolean
   badgeIndex?: number
+  isExpanded?: boolean
+  onToggle?: (expanded: boolean) => void
+  structuredData?: any
 }
 
 const TYPE_CONFIG = {
@@ -44,48 +43,7 @@ const TYPE_CONFIG = {
   },
 }
 
-/**
- * 解析 sentence_analysis 的 content
- * 格式：
- * 前半段为整句说明
- * 后半段为：- **1. 主语**：`The article`
- */
-function parseSentenceAnalysis(content: string): { summary: string; chunks: AnalysisChunk[] } {
-  const lines = content.split('\n')
-  const summaryLines: string[] = []
-  const chunks: AnalysisChunk[] = []
 
-  // 匹配正则：- **1. 主语**：`...` 或 - **主语**：`...`
-  // 支持有数字和没数字的情况
-  const chunkRegex = /^-\s*\*\*(?:(\d+)\.\s*)?([^*]+)\*\*[：:]\s*[`'"](.+)[`'"]$/
-
-  lines.forEach(line => {
-    const trimmed = line.trim()
-    if (!trimmed) return
-
-    const match = trimmed.match(chunkRegex)
-    if (match) {
-      chunks.push({
-        order: match[1] || '',
-        label: match[2].trim(),
-        text: match[3].trim(),
-      })
-    } else {
-      // 只有在还没开始匹配到 chunks 时，才把行加入 summary
-      if (chunks.length === 0) {
-        summaryLines.push(trimmed)
-      }
-    }
-  })
-
-  return {
-    summary: summaryLines.join('\n'),
-    chunks: chunks.sort((a, b) => {
-      if (!a.order || !b.order) return 0
-      return parseInt(a.order) - parseInt(b.order)
-    }),
-  }
-}
 
 function renderMarkdownContent(content: string) {
   if (!content) return null
@@ -108,25 +66,33 @@ export default function AnalysisCard({
   tags,
   initiallyExpanded,
   badgeIndex,
+  isExpanded: controlledIsExpanded,
+  onToggle,
+  structuredData: externalStructuredData,
 }: AnalysisCardProps) {
   const globalDefaultExpanded = useConfigStore((s) => s.defaultCardExpanded)
-  const [isExpanded, setIsExpanded] = useState(initiallyExpanded ?? globalDefaultExpanded)
+  const [internalIsExpanded, setInternalIsExpanded] = useState(initiallyExpanded ?? globalDefaultExpanded)
+  const isExpanded = controlledIsExpanded !== undefined ? controlledIsExpanded : internalIsExpanded
 
   // 同步全局配置
   useEffect(() => {
     if (initiallyExpanded === undefined) {
-      setIsExpanded(globalDefaultExpanded)
+      setInternalIsExpanded(globalDefaultExpanded)
     }
   }, [globalDefaultExpanded, initiallyExpanded])
 
   const config = TYPE_CONFIG[type]
 
-  // 如果是句式解析，进行结构化解析
-  const structuredData = type === 'sentence' ? parseSentenceAnalysis(content) : null
+  // 如果是句式解析，进行结构化解析（优先使用外部传入的数据）
+  const structuredData = externalStructuredData || (type === 'sentence' ? parseSentenceAnalysis(content) : null)
 
   const handleToggle = (e: any) => {
     e?.stopPropagation?.()
-    setIsExpanded(!isExpanded)
+    const nextState = !isExpanded
+    if (controlledIsExpanded === undefined) {
+      setInternalIsExpanded(nextState)
+    }
+    onToggle?.(nextState)
   }
 
   return (
@@ -134,7 +100,8 @@ export default function AnalysisCard({
       <View className='card-summary-row' onClick={handleToggle}>
         <View className='summary-main'>
           <LucideIcon name={config.icon} size={16} color={config.accentColor} />
-          {type === 'grammar' ? (
+          {/* 语法点和句式解析现在都在头部显示具体标题 */}
+          {type === 'grammar' || type === 'sentence' ? (
             <Text className='card-title-header' numberOfLines={1}>{title}</Text>
           ) : (
             <Text className='card-category-label'>{label || config.defaultLabel}</Text>
@@ -152,13 +119,13 @@ export default function AnalysisCard({
       <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
         <View className='card-body' onClick={(e) => e.stopPropagation()}>
           {/* 这里是如 Figma 稿中的紫色标签区域 */}
-          {/* 如果是语法类型，标题已在头部展示，此处仅保留序号（如果有） */}
-          {(badgeIndex !== undefined || type !== 'grammar') && (
+          {/* 如果是语法类型或句式解析，标题已在头部展示，此处仅保留序号（如果有） */}
+          {(badgeIndex !== undefined || (type !== 'grammar' && type !== 'sentence')) && (
             <View className='card-title-badges'>
               {badgeIndex !== undefined && (
                 <View className='badge-index-circle'>{badgeIndex}</View>
               )}
-              {type !== 'grammar' && (
+              {type !== 'grammar' && type !== 'sentence' && (
                 <View className='title-tag-badge'>{title}</View>
               )}
             </View>
@@ -178,25 +145,27 @@ export default function AnalysisCard({
           )}
 
           <View className='card-content-wrapper'>
-            {type === 'sentence' && structuredData && structuredData.chunks.length > 0 ? (
-              <View className='structured-analysis'>
-                {structuredData.summary && (
+            {type === 'sentence' ? (
+              <View className='sentence-analysis-details'>
+                {structuredData?.summary && (
                   <Text className='analysis-summary'>{structuredData.summary}</Text>
                 )}
-                <View className='analysis-steps'>
-                  {structuredData.chunks.map((chunk, idx) => (
-                    <View key={idx} className='step-item'>
-                      <View className='step-dot-line'>
-                        <View className='step-dot'>{chunk.order || idx + 1}</View>
-                        {idx < structuredData.chunks.length - 1 && <View className='step-line' />}
-                      </View>
-                      <View className='step-content'>
-                        <Text className='step-label'>{chunk.label}</Text>
-                        <Text className='step-text'>{chunk.text}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
+                {structuredData?.chunks && structuredData.chunks.length > 0 && (
+                  <View className='analysis-chunks-list'>
+                    {structuredData.chunks.map((chunk: AnalysisChunk, idx: number) => {
+                      const colorIndex = idx % 5;
+                      return (
+                        <View key={idx} className={`chunk-detail-item color-type-${colorIndex}`}>
+                          <View className='chunk-detail-label'>
+                            <View className='label-dot' />
+                            <Text className='label-text'>{chunk.label}</Text>
+                          </View>
+                          <Text className='chunk-detail-text'>{chunk.text}</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                )}
               </View>
             ) : (
               <Text className='card-content'>{renderMarkdownContent(content)}</Text>

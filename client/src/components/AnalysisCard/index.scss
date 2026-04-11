@@ -215,88 +215,67 @@
   }
 
   // --- Structured Analysis (Sentence Breakdown) ---
-  .structured-analysis {
+  .sentence-analysis-details {
+    margin-top: 10rpx;
+
     .analysis-summary {
-      font-size: 28rpx;
+      font-size: 26rpx; // 调小字号，显得更精致 (Quieter)
       color: var(--text-sub);
       line-height: 1.6;
       display: block;
-      margin-bottom: 32rpx;
-      padding: 16rpx 24rpx;
-      background: rgba(0, 0, 0, 0.02); // 替换原来的白底为极其微弱的灰底
-      border-radius: var(--radius-sm);
-      font-family: var(--font-sans);
-    }
-  }
-
-  .analysis-steps {
-    display: flex;
-    flex-direction: column;
-
-    .step-item {
-      display: flex;
-      gap: 20rpx;
+      margin-bottom: 24rpx;
+      padding: 0 0 0 16rpx;
+      border-left: 2rpx solid rgba(var(--sentence-accent-rgb), 0.3); // 更细、更透明的边线
+      background: transparent;
     }
 
-    .step-dot-line {
+    .analysis-chunks-list {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      width: 40rpx;
-      flex-shrink: 0;
-    }
+      gap: 16rpx; // 给不同的块之间留出呼吸空间
 
-    .step-dot {
-      width: 36rpx;
-      height: 36rpx;
-      border-radius: 10rpx;
-      background: color-mix(in srgb, var(--sentence-accent), transparent 20%);
-      color: var(--color-white);
-      font-size: 20rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: var(--weight-bold);
-      font-family: var(--font-mono);
-      z-index: 1;
-    }
+      .chunk-detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6rpx;
+        padding-left: 16rpx;
+        border-left: 2rpx solid var(--chunk-list-color, transparent);
 
-    .step-line {
-      flex: 1;
-      width: 3rpx;
-      background: color-mix(in srgb, var(--sentence-accent), transparent 85%);
-      margin: 8rpx 0;
-      border-radius: 2rpx;
-    }
+        // 使用相同的5色盘，但是在这里我们通过边框线展示对应关系，非常素雅
+        &.color-type-0 { --chunk-list-color: #08979c; }
+        &.color-type-1 { --chunk-list-color: #389e0d; }
+        &.color-type-2 { --chunk-list-color: #d46b08; }
+        &.color-type-3 { --chunk-list-color: #722ed1; }
+        &.color-type-4 { --chunk-list-color: #cf1322; }
 
-    .step-content {
-      flex: 1;
-      padding-bottom: 32rpx;
-    }
+        .chunk-detail-label {
+          display: flex;
+          align-items: center;
+          gap: 8rpx;
 
-    .step-label {
-      display: inline-block;
-      font-size: 20rpx;
-      font-weight: var(--weight-bold);
-      color: var(--text-sub);
-      background: transparent; // 移除背景色
-      padding: 0;
-      margin-bottom: 8rpx;
-      font-family: var(--font-sans);
-      opacity: 0.8;
-    }
+          .label-dot {
+            width: 8rpx;
+            height: 8rpx;
+            border-radius: 50%;
+            background-color: var(--chunk-list-color);
+            opacity: 0.8;
+          }
 
-    .step-text {
-      display: block;
-      font-size: 30rpx;
-      color: var(--color-ink);
-      line-height: 1.5;
-      font-family: var(--font-english-serif), serif;
-      font-variant-numeric: oldstyle-nums;
-      background: transparent; // 移除卡片化背景
-      padding: 0;
-      border: none; // 移除边框
-      box-shadow: none; // 移除阴影
+          .label-text {
+            font-size: 22rpx; // 微小的结构标签
+            color: var(--text-muted);
+            font-weight: var(--weight-medium);
+            letter-spacing: 0.02em;
+          }
+        }
+
+        .chunk-detail-text {
+          font-family: var(--font-english-serif), serif;
+          font-size: 28rpx;
+          line-height: 1.5;
+          color: var(--color-ink);
+        }
+      }
     }
   }
 

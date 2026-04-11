@@ -1,10 +1,11 @@
-import { useMemo, memo } from 'react'
+import { useMemo, memo, useState, useEffect } from 'react'
+import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import { InlineMarkModel, SentenceEntryModel, VisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
 import InlineMark from '../InlineMark'
 import ClickableWord from '../ClickableWord'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
-import { tokenizeText } from './utils'
+import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis } from './utils'
 import './index.scss'
 
 const TONE_PRIORITY: Record<VisualTone, number> = {
@@ -73,6 +74,31 @@ function renderPlainSegmentAsClickableWords(
     }
     return <Text key={`p-${idx}`}>{token.text}</Text>
   })
+}
+
+function renderTextWithAnalysis(
+  text: string,
+  chunks: { label: string; text: string }[],
+) {
+  const atoms = tokenizeSentenceWithAnalysis(text, chunks)
+
+  return (
+    <Text className='english-flow sentence-text is-analyzing'>
+      {atoms.map((atom, idx) => {
+        // 根据 chunkId 提取索引，循环分配 5 种预设色值
+        const colorIndex = atom.chunkId ? parseInt(atom.chunkId.split('-')[1]) % 5 : 0
+        
+        return (
+          <Text 
+            key={idx} 
+            className={`analysis-atom ${atom.chunkId ? `is-chunk color-type-${colorIndex}` : 'is-gap'}`}
+          >
+            {atom.text}
+          </Text>
+        )
+      })}
+    </Text>
+  )
 }
 
 function renderTextWithMarks(
@@ -216,6 +242,34 @@ const ParagraphBlock = memo(function ParagraphBlock({
   onWordClick,
   onSentenceClick,
 }: ParagraphBlockProps) {
+  const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null)
+  const containerClass = `paragraph-block ${pageMode} ${activeAnalysisId ? 'has-active-analysis' : ''}`
+
+  // 监听分析卡片激活状态，自动定位锚点
+  useEffect(() => {
+    if (activeAnalysisId) {
+      // 延迟确保渲染完成
+      setTimeout(() => {
+        const query = Taro.createSelectorQuery()
+        query.select(`.sentence-text.is-analyzing`).boundingClientRect()
+        query.selectViewport().scrollOffset()
+        query.exec((res) => {
+          if (res[0] && res[1]) {
+            const top = res[0].top + res[1].scrollTop - 200 // 偏移 200px 居中
+            Taro.pageScrollTo({
+              scrollTop: top,
+              duration: 300
+            })
+          }
+        })
+      }, 100)
+    }
+  }, [activeAnalysisId])
+
+  const handleAnalysisToggle = (entryId: string, expanded: boolean) => {
+    setActiveAnalysisId(expanded ? entryId : null)
+  }
+
   const marksBySentenceId = useMemo(() => {
     const map = new Map<string, InlineMarkModel[]>()
     inlineMarks.forEach((m) => {
@@ -237,7 +291,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
 
   if (pageMode === 'immersive') {
     return (
-      <View className='paragraph-block immersive'>
+      <View className={containerClass}>
         <View className='english-paragraph'>
           <Text className='english-flow'>
             {sentences.map((sentence, idx) => {
@@ -275,15 +329,21 @@ const ParagraphBlock = memo(function ParagraphBlock({
           label: '语法要点',
           content: e.content,
         })),
-      ...sentenceEntries
-        .filter(e => e.entryType === 'sentence_analysis')
-        .map(e => ({
-          id: e.id,
-          type: 'sentence' as const,
-          title: e.label,
-          label: '句式解析',
-          content: e.content,
-        })),
+        ...sentenceEntries
+          .filter(e => e.entryType === 'sentence_analysis')
+          .map(e => {
+            const parsed = parseSentenceAnalysis(e.content)
+            return {
+              id: e.id,
+              type: 'sentence' as const,
+              title: e.label,
+              label: '句式解析',
+              content: e.content,
+              structuredData: parsed,
+              isExpanded: activeAnalysisId === e.id,
+              onToggle: (expanded: boolean) => handleAnalysisToggle(e.id, expanded)
+            }
+          }),
     ]
 
     return { sentence, sentenceMarks, sentenceTranslation, analysisCards }
@@ -309,7 +369,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   })
 
   return (
-    <View className='paragraph-block intensive'>
+    <View className={containerClass}>
       <View className='paragraph-header'>
         <Text className='paragraph-anchor'>{order < 10 ? `0${order}` : order} /</Text>
         <View className='paragraph-divider' />
@@ -320,12 +380,18 @@ const ParagraphBlock = memo(function ParagraphBlock({
           return (
             <View key={`chunk-${chunk.id}-${cIdx}`} className='sentence-block'>
               <View className='sentence-main'>
-                <Text 
-                  className={`english-flow ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted-source' : ''}`}
-                  onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
-                >
-                  {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, activeSentenceId === item.sentence.sentenceId)}
-                </Text>
+                {activeAnalysisId && item.analysisCards.some(c => c.id === activeAnalysisId && c.type === 'sentence') ? (
+                  // 正在进行句式分析：使用 Ruby 标注模式
+                  renderTextWithAnalysis(
+                    item.sentence.text, 
+                    item.analysisCards.find(c => c.id === activeAnalysisId)?.structuredData?.chunks || []
+                  )
+                ) : (
+                  // 普通精读模式：使用马克笔涂抹模式
+                  <Text className='english-flow'>
+                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, activeSentenceId === item.sentence.sentenceId)}
+                  </Text>
+                )}
               </View>
 
               {item.sentenceTranslation && (
@@ -349,6 +415,9 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       phonetic={card.phonetic}
                       tags={card.tags}
                       badgeIndex={card.badgeIndex}
+                      structuredData={card.structuredData}
+                      isExpanded={card.isExpanded}
+                      onToggle={card.onToggle}
                     />
                   ))}
                 </View>
