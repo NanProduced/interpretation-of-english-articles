@@ -9,7 +9,9 @@
 import Taro from '@tarojs/taro'
 import { useAuthStore } from '../stores/auth'
 import type { AnalysisRecord } from '../types/view/analysis-record.vm'
+import type { FavoriteRecord } from '../types/view/favorites.vm'
 import type { VocabEntry } from '../types/view/vocabulary.vm'
+import { getRecord } from './storage'
 import {
   saveRecordToCloud,
   deleteCloudRecord,
@@ -53,6 +55,7 @@ export const CloudSyncService = {
     try {
       await saveRecordToCloud({
         clientRecordId: record.recordId,
+        title: record.title ?? null,
         sourceText: record.sourceText,
         sourceTextHash: hashString(record.sourceText),
         requestPayload: record.requestPayload,
@@ -110,11 +113,15 @@ export const CloudSyncService = {
    * 同步所有本地收藏到云端（登录后全量同步）
    * 注意：这要求本地记录必须带有 cloudId
    */
-  async syncAllFavorites(localRecords: AnalysisRecord[]): Promise<void> {
+  async syncAllFavorites(localFavorites: FavoriteRecord[]): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
 
+    const records = localFavorites
+      .map((favorite) => getRecord(favorite.recordId))
+      .filter((record): record is AnalysisRecord => !!record)
+
     await Promise.allSettled(
-      localRecords
+      records
         .filter(r => r.isFavorited && r.cloudId)
         .map((r) => addFavoriteToCloud(r.cloudId!, r.recordId))
     )

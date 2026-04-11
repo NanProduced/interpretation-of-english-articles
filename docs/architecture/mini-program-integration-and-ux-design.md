@@ -185,14 +185,15 @@ flowchart TD
 ### 6.3.1 前后端异步 analyze 协同约定
 
 当前前端已经具备“先进入结果页，再展示 loading 态”的交互基础。  
-后端正式方案不应继续把 `/analyze` 维持为“同步等待最终 `render_scene` 返回”的语义，而应升级为“提交任务 -> 轮询状态 -> 回填快照”的异步链路。
+正式链路应采用**混合协同语义**：默认“提交任务并在单次请求内等待结果（有超时）”，超时后再回退到“轮询状态 -> 回填快照”。
 
 **状态更新（2026-04-10）**：后端异步任务中心、数据库 worker、`GET /analysis-tasks/current`、`GET /me/quota`、`/health/ready` 已落地；小程序前端已完成切换。
 
 推荐协同方式：
 
-- 输入页提交后，前端应调用 `POST /analysis-tasks`，后端立即返回 `task_id + record_id`
-- 结果页根据 `task_id` 调用 `GET /analysis-tasks/{task_id}` 轮询任务状态，而不是重发 analyze 请求
+- 输入页提交后，前端调用 `POST /analysis-tasks`，并开启 `wait_for_result=true`（例如 40s）
+- 若任务在等待窗口内完成，后端直接返回 `render_scene`，结果页立即渲染
+- 若超过等待窗口，后端返回 `task_id + record_id + 当前状态`，结果页再调用 `GET /analysis-tasks/{task_id}` 轮询
 - 历史页直接读取 `record_id` 对应的云端记录，处理中也要可见
 - 用户切后台、退出结果页或进入其他页面后，前端恢复时先查 `task_id / record_id` 当前状态
 - 如果同一用户已有活跃 analyze 任务，前端先查 `GET /analysis-tasks/current`，后端返回当前活跃任务，前端跳转回该任务对应结果页
@@ -200,7 +201,7 @@ flowchart TD
 
 这条协同约定的核心价值：
 
-- 防止多次点击导致重复解析
+- 防止多次点击导致重复解析，同时保持“主路径一次提交尽量直接拿到结果”
 - 让 loading 过程可追溯、可恢复、可回看
 - 让“记录 tab 可找到处理中任务”变成后端真能力，而不只是前端临时态
 

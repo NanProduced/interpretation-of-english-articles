@@ -13,6 +13,8 @@ export interface AnalysisRecord {
   recordId: string
   /** 云端主键 ID (UUID)，用于 API 操作如删除 */
   cloudId?: string
+  /** 摘要标题（由 translation agent 生成） */
+  title?: string | null
   /** 原始输入文本（用于重新分析） */
   sourceText: string
   /** 发给 /analyze 的请求参数 */

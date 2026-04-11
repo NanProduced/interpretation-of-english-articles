@@ -33,7 +33,11 @@ function formatDate(timestamp: number): string {
 }
 
 /** 读取显示用的前 50 字 */
-function getDisplayTitle(sourceText: string): string {
+function getDisplayTitle(record: AnalysisRecord): string {
+  if (record.title && record.title.trim()) {
+    return record.title.trim()
+  }
+  const sourceText = record.sourceText || ''
   const firstLine = sourceText.split('\n')[0]
   return firstLine.length > 50 ? `${firstLine.slice(0, 50)}...` : firstLine
 }
@@ -182,7 +186,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
                 onClick={() => goToResult(record.recordId)}
               >
                 <View className='card-header'>
-                  <Text className='item-title'>{getDisplayTitle(record.sourceText)}</Text>
+                  <Text className='item-title'>{getDisplayTitle(record)}</Text>
                   <View className='delete-btn' onClick={(e) => handleDelete(record, e)}>
                     <Text className='delete-icon'>×</Text>
                   </View>

@@ -162,7 +162,8 @@ export async function fetchSessionLogout(sessionToken: string): Promise<void> {
 export type TaskStatus = 'queued' | 'running' | 'finalizing' | 'succeeded' | 'failed' | 'cancelled' | 'expired'
 
 export interface TaskSubmitRequest extends AnalyzeRequest {
-  idempotency_key: string
+  wait_for_result?: boolean
+  wait_timeout_seconds?: number
 }
 
 export interface TaskSubmitResponse {
@@ -170,6 +171,7 @@ export interface TaskSubmitResponse {
   record_id: string
   status: TaskStatus
   created: boolean
+  render_scene?: AnalyzeResponseDto | null
 }
 
 export interface TaskStatusResponse {

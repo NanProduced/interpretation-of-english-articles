@@ -38,6 +38,7 @@ def test_normalize_drops_spaced_vocab_highlight() -> None:
         ),
         grammar_draft=GrammarDraft(grammar_notes=[], sentence_analyses=[]),
         translation_draft=TranslationDraft(
+            title="测试标题",
             sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="翻译")]
         ),
         sentences=[_sentence("s1", "Shopkeepers are going to extreme lengths.")],
@@ -64,6 +65,7 @@ def test_normalize_drops_invalid_single_word_phrase_gloss() -> None:
         ),
         grammar_draft=GrammarDraft(grammar_notes=[], sentence_analyses=[]),
         translation_draft=TranslationDraft(
+            title="测试标题",
             sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="翻译")]
         ),
         sentences=[_sentence("s1", "This concept became a buzzword.")],
@@ -101,6 +103,7 @@ def test_density_control_uses_profile_limit() -> None:
             sentence_analyses=[],
         ),
         translation_draft=TranslationDraft(
+            title="测试标题",
             sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="翻译")]
         ),
         sentences=[_sentence("s1", "The constitutional monarchy, which many say matters, is something that people debate.")],
@@ -124,6 +127,7 @@ def test_sentence_analysis_with_result_in_being_done_survives_normalize() -> Non
         vocabulary_draft=VocabularyDraft(vocab_highlights=[], phrase_glosses=[], context_glosses=[]),
         grammar_draft=GrammarDraft(grammar_notes=[], sentence_analyses=[analysis]),
         translation_draft=TranslationDraft(
+            title="测试标题",
             sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="翻译")]
         ),
         sentences=[_sentence("s1", "Higher gas prices result in farmers being forced to pay more for fertilizer.")],

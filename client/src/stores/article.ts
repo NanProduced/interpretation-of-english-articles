@@ -7,6 +7,7 @@ import {
   ApiError,
 } from '../services/api/client'
 import { fetchCloudRecord, fetchCloudRecordByClientId } from '../services/api/records.client'
+import { analyzeResponseDtoToVm } from '../services/api/adapters/render-scene.adapter'
 import { normalizeServerAnalyzeParams } from '../config/purpose'
 import { useAuthStore } from './auth'
 import {
@@ -41,8 +42,14 @@ function isEmptyResult(vm: RenderSceneVm): boolean {
   return sentences.every((s) => !s.text || s.text.trim() === '')
 }
 
-/** 生成随机幂等键（后端通过单活跃任务机制控制并发，前端只需保证同一请求不重复提交） */
-function generateIdempotencyKey(): string {
+function deriveFallbackTitle(text: string): string | null {
+  const firstLine = text.split('\n')[0]?.trim() || ''
+  if (!firstLine) return null
+  return firstLine.length > 50 ? `${firstLine.slice(0, 50)}...` : firstLine
+}
+
+/** 生成本地临时记录 ID，用于轮询期间占位。 */
+function generateLocalRecordId(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0
     const v = c === 'x' ? r : (r & 0x3) | 0x8
@@ -70,7 +77,36 @@ interface ArticleState {
 
 export const useArticleStore = create<ArticleState>((set, get) => {
 
-  const startPolling = async (taskId: string, clientRecordId: string) => {
+  const applySuccessRecord = (
+    cloudRecord: AnalysisRecord,
+    fallbackCloudId: string
+  ) => {
+    if (!cloudRecord.renderScene) {
+      throw new Error('Record not found or empty render scene')
+    }
+    const vm = cloudRecord.renderScene
+    const phase = isEmptyResult(vm) ? 'empty' : 'success'
+    const pageState = derivePageState(phase, null, vm)
+
+    const localRecord: AnalysisRecord = {
+      ...cloudRecord,
+      pageState,
+    }
+    saveRecord(localRecord)
+    track('analyze_success', { pageState })
+
+    if (!currentAbortFlag) {
+      set({
+        sceneData: vm,
+        phase,
+        pageState,
+        recordId: cloudRecord.recordId,
+        cloudId: fallbackCloudId,
+      })
+    }
+  }
+
+  const startPolling = async (taskId: string) => {
     while (!currentAbortFlag) {
       try {
         const statusRes = await getTaskStatus(taskId)
@@ -80,26 +116,11 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         }
 
         if (statusRes.status === 'succeeded') {
-          // 成功后使用服务端 UUID 获取完整记录，确保拿到后端真实的 client_record_id
           const cloudRecord = await fetchCloudRecord(statusRes.record_id)
-          if (!cloudRecord || !cloudRecord.renderScene) {
-            throw new Error('Record not found or empty render scene')
+          if (!cloudRecord) {
+            throw new Error('Record not found')
           }
-          const vm = cloudRecord.renderScene
-          const phase = isEmptyResult(vm) ? 'empty' : 'success'
-          const pageState = derivePageState(phase, null, vm)
-
-          // 保存到本地时，使用后端返回的真实 client_record_id 作为主键
-          const localRecord: AnalysisRecord = {
-            ...cloudRecord,
-            pageState
-          }
-          saveRecord(localRecord)
-          track('analyze_success', { pageState })
-          
-          if (!currentAbortFlag) {
-             set({ sceneData: vm, phase, pageState, recordId: cloudRecord.recordId, cloudId: statusRes.record_id })
-          }
+          applySuccessRecord(cloudRecord, statusRes.record_id)
           break
         }
 
@@ -149,18 +170,57 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         isReplayMode: false,
       })
 
-      const idempotency_key = generateIdempotencyKey()
-      const clientRecordId = `task-${idempotency_key}`
+      const clientRecordId = `task-${generateLocalRecordId()}`
       let taskId = ''
       let serverRecordId = ''
 
       try {
         const res = await submitAnalysisTask({
           ...normalizedRequest,
-          idempotency_key
+          wait_for_result: true,
+          wait_timeout_seconds: 40,
         })
         taskId = res.task_id
         serverRecordId = res.record_id
+
+        if (res.render_scene) {
+          const cloudRecord = await fetchCloudRecord(serverRecordId)
+          if (cloudRecord) {
+            applySuccessRecord(cloudRecord, serverRecordId)
+            return
+          }
+
+          const vm = analyzeResponseDtoToVm(res.render_scene)
+          const phase = isEmptyResult(vm) ? 'empty' : 'success'
+          const pageState = derivePageState(phase, null, vm)
+          const localRecord: AnalysisRecord = {
+            recordId: clientRecordId,
+            cloudId: serverRecordId,
+            title: deriveFallbackTitle(normalizedRequest.text),
+            sourceText: normalizedRequest.text,
+            requestPayload: {
+              reading_goal: normalizedRequest.reading_goal,
+              reading_variant: normalizedRequest.reading_variant,
+              source_type: normalizedRequest.source_type,
+            },
+            renderScene: vm,
+            pageState,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            isFavorited: false,
+          }
+          saveRecord(localRecord)
+          track('analyze_success', { pageState })
+          set({
+            sceneData: vm,
+            phase,
+            pageState,
+            recordId: clientRecordId,
+            cloudId: serverRecordId,
+          })
+          return
+        }
+
         set({ phase: 'polling', recordId: clientRecordId, cloudId: serverRecordId })
       } catch (err: any) {
         if (err instanceof ApiError && err.statusCode === 409) {
@@ -180,7 +240,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
              
              const realClientRecordId = cloudRecord.recordId
              set({ phase: 'polling', recordId: realClientRecordId, cloudId: serverRecordId })
-             await startPolling(taskId, realClientRecordId)
+             await startPolling(taskId)
              return
           } else {
              throw err
@@ -213,7 +273,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         }
       }
 
-      await startPolling(taskId, clientRecordId)
+      await startPolling(taskId)
     },
 
     recoverActiveTask: async (targetRecordId?: string) => {
@@ -252,7 +312,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
             errorCode: null
           })
 
-          await startPolling(current.task.task_id, realClientRecordId)
+          await startPolling(current.task.task_id)
         }
       } catch (err) {
         console.error('[article] recover active task failed', err)

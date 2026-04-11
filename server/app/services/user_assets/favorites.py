@@ -22,7 +22,9 @@ async def add_favorite(
     note: str | None,
 ) -> UUID:
     """
-    Add a favorite (or no-op if already exists — uses ON CONFLICT DO NOTHING).
+    Add a favorite.
+
+    If the same target was removed before, this call revives it by clearing deleted_at/deleted_by.
 
     Returns:
         id of the favorite record
@@ -36,9 +38,15 @@ async def add_favorite(
             """
             INSERT INTO favorite_records
                 (user_id, target_type, target_key, analysis_record_id,
-                 payload_json, note, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
-            ON CONFLICT (user_id, target_type, target_key) DO NOTHING
+                 payload_json, note, deleted_at, deleted_by, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL, $7, $7)
+            ON CONFLICT (user_id, target_type, target_key) DO UPDATE SET
+                analysis_record_id = EXCLUDED.analysis_record_id,
+                payload_json = EXCLUDED.payload_json,
+                note = EXCLUDED.note,
+                deleted_at = NULL,
+                deleted_by = NULL,
+                updated_at = EXCLUDED.updated_at
             RETURNING id
             """,
             user_id,
@@ -49,21 +57,8 @@ async def add_favorite(
             note,
             datetime.now(timezone.utc),
         )
-        if row is not None:
-            return UUID(str(row["id"]))
-
-        # Already exists — fetch existing id
-        existing = await conn.fetchrow(
-            """
-            SELECT id FROM favorite_records
-            WHERE user_id = $1 AND target_type = $2 AND target_key = $3
-            """,
-            user_id,
-            target_type,
-            target_key,
-        )
-        assert existing is not None
-        return UUID(str(existing["id"]))
+        assert row is not None
+        return UUID(str(row["id"]))
 
 
 async def list_favorites(
@@ -80,7 +75,7 @@ async def list_favorites(
             SELECT id, user_id, target_type, target_key, analysis_record_id,
                    payload_json, note, created_at, updated_at
             FROM favorite_records
-            WHERE user_id = $1
+            WHERE user_id = $1 AND deleted_at IS NULL
             ORDER BY created_at DESC
             """,
             user_id,
@@ -93,42 +88,57 @@ async def remove_favorite(
     target_type: str,
     target_key: str,
 ) -> bool:
-    """Remove a favorite by target. Returns True if deleted."""
+    """Soft-delete a favorite by target. Returns True if affected."""
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
 
     async with pool.acquire() as conn:
+        now = datetime.now(timezone.utc)
         result = await conn.execute(
             """
-            DELETE FROM favorite_records
-            WHERE user_id = $1 AND target_type = $2 AND target_key = $3
+            UPDATE favorite_records
+            SET deleted_at = $4,
+                deleted_by = $1,
+                updated_at = $4
+            WHERE user_id = $1
+              AND target_type = $2
+              AND target_key = $3
+              AND deleted_at IS NULL
             """,
             user_id,
             target_type,
             target_key,
+            now,
         )
-    return "DELETE 1" in result
+    return "UPDATE 1" in result
 
 
 async def remove_favorite_by_analysis_record(
     user_id: UUID,
     analysis_record_id: UUID,
 ) -> int:
-    """Remove favorites by analysis_record_id. Returns count deleted."""
+    """Soft-delete favorites by analysis_record_id. Returns affected count."""
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
 
     async with pool.acquire() as conn:
+        now = datetime.now(timezone.utc)
         result = await conn.execute(
             """
-            DELETE FROM favorite_records
-            WHERE user_id = $1 AND analysis_record_id = $2
+            UPDATE favorite_records
+            SET deleted_at = $3,
+                deleted_by = $1,
+                updated_at = $3
+            WHERE user_id = $1
+              AND analysis_record_id = $2
+              AND deleted_at IS NULL
             """,
             user_id,
             analysis_record_id,
+            now,
         )
-        if "DELETE " in result:
+        if "UPDATE " in result:
             return int(result.split()[-1])
         return 0

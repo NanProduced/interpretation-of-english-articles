@@ -29,7 +29,7 @@ function App({ children }: PropsWithChildren<any>) {
     // 切后台：保存分析中断状态
     const hideHandler = () => {
       const { phase, recordId } = useArticleStore.getState()
-      if (phase === 'loading' && recordId) {
+      if ((phase === 'loading' || phase === 'polling') && recordId) {
         try {
           Taro.setStorageSync(INTERRUPTED_STATE_KEY, {
             interruptedAt: Date.now(),
@@ -68,15 +68,9 @@ function App({ children }: PropsWithChildren<any>) {
 
       const { phase, sceneData, recordId } = useArticleStore.getState()
 
-      // 只有分析进行中（loading）且没有拿到结果时才触发中断提示
-      if (phase === 'loading' && !sceneData && interrupted.recordId === recordId) {
-        // 转为可重试错误态，让用户在结果页选择重试
-        useArticleStore.setState({
-          phase: 'error',
-          error: '分析已中断，请重试',
-          errorCode: 'ANALYSIS_INTERRUPTED',
-          pageState: 'failed',
-        })
+      // 分析中断后优先尝试恢复活跃任务，而不是直接判失败
+      if ((phase === 'loading' || phase === 'polling') && !sceneData && interrupted.recordId === recordId) {
+        await useArticleStore.getState().recoverActiveTask(recordId || undefined)
       }
     }
 

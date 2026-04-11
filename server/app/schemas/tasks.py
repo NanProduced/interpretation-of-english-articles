@@ -12,6 +12,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.analysis import RenderSceneModel
 from app.schemas.analysis import GOAL_VARIANT_MAP
 from app.schemas.internal.analysis import ReadingGoal, ReadingVariant
 
@@ -32,10 +33,15 @@ class TaskSubmitRequest(BaseModel):
     reading_variant: ReadingVariant = Field(default="intermediate_reading")
     source_type: Literal["user_input", "daily_article", "ocr"] = Field(default="user_input")
     extended: bool = Field(default=False)
-    idempotency_key: str = Field(
-        min_length=1,
-        max_length=64,
-        description="客户端生成的幂等键，同一用户内唯一。",
+    wait_for_result: bool = Field(
+        default=False,
+        description="是否在本次请求内等待任务结果（超时后仍返回任务状态）。",
+    )
+    wait_timeout_seconds: float = Field(
+        default=45.0,
+        ge=1.0,
+        le=120.0,
+        description="当 wait_for_result=true 时，最长等待秒数。",
     )
 
     def model_post_init(self, __context__: Any) -> None:
@@ -58,7 +64,11 @@ class TaskSubmitResponse(BaseModel):
     task_id: UUID
     record_id: UUID
     status: TaskStatus
-    created: bool = Field(description="True if new task was created, False if deduplicated.")
+    created: bool = Field(description="当前实现恒为 True，保留该字段用于响应兼容。")
+    render_scene: RenderSceneModel | None = Field(
+        default=None,
+        description="当 wait_for_result=true 且任务在超时前成功完成时返回。",
+    )
 
 
 class TaskStatusResponse(BaseModel):

@@ -61,21 +61,31 @@ interface RecordUpsertDto {
 
 function dtoToVm(dto: RecordResponseDto): AnalysisRecord {
   const payload = dto.request_payload_json || {}
-  
+
   let renderSceneVm = null
   if (dto.render_scene_json) {
     const rawScene = dto.render_scene_json as any
-    // 启发式判断：如果存在 schema_version 或者存在典型的 snake_case 字段且不存在典型的 camelCase 字段
-    const isSnakeCase = 
-      'schema_version' in rawScene || 
-      ('user_facing_state' in rawScene && !('userFacingState' in rawScene)) ||
-      ('inline_marks' in rawScene && !('inlineMarks' in rawScene))
+    const isObject = typeof rawScene === 'object' && rawScene !== null && !Array.isArray(rawScene)
+    const isEmptyObject = isObject && Object.keys(rawScene).length === 0
 
-    if (isSnakeCase) {
-      renderSceneVm = analyzeResponseDtoToVm(rawScene as AnalyzeResponseDto)
-    } else {
-      // 认为是已经转换过的 camelCase 格式
-      renderSceneVm = rawScene as AnalysisRecord['renderScene']
+    if (!isEmptyObject) {
+      // 启发式判断：如果存在 schema_version 或者存在典型的 snake_case 字段且不存在典型的 camelCase 字段
+      const isSnakeCase =
+        'schema_version' in rawScene ||
+        ('user_facing_state' in rawScene && !('userFacingState' in rawScene)) ||
+        ('inline_marks' in rawScene && !('inlineMarks' in rawScene))
+      const looksLikeVm = isObject && 'article' in rawScene && 'request' in rawScene
+
+      try {
+        if (isSnakeCase) {
+          renderSceneVm = analyzeResponseDtoToVm(rawScene as AnalyzeResponseDto)
+        } else if (looksLikeVm) {
+          // 认为是已经转换过的 camelCase 格式
+          renderSceneVm = rawScene as AnalysisRecord['renderScene']
+        }
+      } catch {
+        renderSceneVm = null
+      }
     }
   }
 
@@ -89,6 +99,7 @@ function dtoToVm(dto: RecordResponseDto): AnalysisRecord {
   return {
     recordId: dto.client_record_id,
     cloudId: dto.id,
+    title: dto.title,
     sourceText: dto.source_text,
     requestPayload: {
       reading_goal: payload.reading_goal as AnalyzeRequest['reading_goal'],
@@ -109,6 +120,7 @@ function dtoToVm(dto: RecordResponseDto): AnalysisRecord {
 
 export interface SaveRecordParams {
   clientRecordId: string
+  title?: string | null
   sourceText: string
   sourceTextHash: string
   requestPayload: {
@@ -135,7 +147,7 @@ export async function saveRecordToCloud(
     data: {
       client_record_id: params.clientRecordId,
       source_type: 'user_input',
-      title: null,
+      title: params.title ?? null,
       source_text: params.sourceText,
       source_text_hash: params.sourceTextHash,
       request_payload_json: params.requestPayload,

@@ -4,7 +4,7 @@ Tests for analysis task center and credit system.
 Covers:
 - compute_cost_points formula
 - credit deduction logic (consistency, clamping, daily/bonus ordering)
-- idempotency and single-active-task constraints
+- single-active-task constraints
 - goal/variant validation
 - startup recovery
 """
@@ -36,6 +36,7 @@ if "asyncpg" not in sys.modules:
 
 from app.api.routes.tasks import submit_analysis_task
 from app.api.routes.health import health_check, readiness_check
+from app.schemas.analysis import RenderSceneModel
 from app.schemas.tasks import TaskSubmitRequest
 from app.services.analysis.task_executor import (
     AnalysisTaskWorker,
@@ -43,6 +44,33 @@ from app.services.analysis.task_executor import (
     execute_task,
 )
 from app.services.analysis.task_service import TaskExecutionPayload, TaskSubmitResult
+
+
+def _build_render_scene() -> RenderSceneModel:
+    return RenderSceneModel.model_validate(
+        {
+            "schema_version": "3.0.0",
+            "request": {
+                "request_id": "req-test",
+                "source_type": "user_input",
+                "reading_goal": "daily_reading",
+                "reading_variant": "intermediate_reading",
+                "profile_id": "daily_reading:intermediate_reading",
+            },
+            "article": {
+                "source_type": "user_input",
+                "source_text": "Hello world.",
+                "render_text": "Hello world.",
+                "paragraphs": [],
+                "sentences": [],
+            },
+            "user_facing_state": "normal",
+            "translations": [],
+            "inline_marks": [],
+            "sentence_entries": [],
+            "warnings": [],
+        }
+    )
 
 
 # ============================================================
@@ -111,7 +139,6 @@ class TestTaskSubmitRequestValidation:
             text="Hello world",
             reading_goal="daily_reading",
             reading_variant="intermediate_reading",
-            idempotency_key="test-key-1",
         )
         assert req.reading_goal == "daily_reading"
 
@@ -120,7 +147,6 @@ class TestTaskSubmitRequestValidation:
             text="Hello world",
             reading_goal="exam",
             reading_variant="gaokao",
-            idempotency_key="test-key-2",
         )
         assert req.reading_variant == "gaokao"
 
@@ -130,7 +156,6 @@ class TestTaskSubmitRequestValidation:
                 text="Hello world",
                 reading_goal="exam",
                 reading_variant="intermediate_reading",  # wrong for exam
-                idempotency_key="test-key-3",
             )
 
     def test_invalid_combination_daily_reading(self):
@@ -139,7 +164,6 @@ class TestTaskSubmitRequestValidation:
                 text="Hello world",
                 reading_goal="daily_reading",
                 reading_variant="gaokao",  # wrong for daily_reading
-                idempotency_key="test-key-4",
             )
 
 
@@ -301,60 +325,7 @@ class TestStartupRecovery:
 
 
 class TestTaskSubmitRoute:
-    """Route-level behavior for idempotency and quota gating."""
-
-    @pytest.mark.anyio
-    async def test_idempotent_replay_bypasses_quota_and_creation(self):
-        user_id = uuid4()
-        task_id = uuid4()
-        record_id = uuid4()
-        body = TaskSubmitRequest(
-            text="Hello world",
-            reading_goal="daily_reading",
-            reading_variant="intermediate_reading",
-            idempotency_key="idem-1",
-        )
-        current_user = SimpleNamespace(user_id=str(user_id))
-        existing = TaskSubmitResult(
-            task_id=task_id,
-            record_id=record_id,
-            status="queued",
-            created=False,
-        )
-
-        with (
-            patch(
-                "app.api.routes.tasks.ensure_credit_account",
-                AsyncMock(),
-            ) as ensure_mock,
-            patch(
-                "app.api.routes.tasks.get_active_task",
-                AsyncMock(return_value=None),
-            ),
-            patch(
-                "app.api.routes.tasks.get_task_by_idempotency",
-                AsyncMock(return_value=existing),
-            ) as idempotency_mock,
-            patch(
-                "app.api.routes.tasks.check_quota",
-                AsyncMock(),
-            ) as quota_mock,
-            patch(
-                "app.api.routes.tasks.submit_task",
-                AsyncMock(),
-            ) as submit_mock,
-        ):
-            response = await submit_analysis_task(current_user, body)
-
-        assert response.status_code == 202
-        payload = json.loads(response.body)
-        assert payload["task_id"] == str(task_id)
-        assert payload["record_id"] == str(record_id)
-        assert payload["created"] is False
-        ensure_mock.assert_awaited_once()
-        idempotency_mock.assert_awaited_once()
-        quota_mock.assert_not_awaited()
-        submit_mock.assert_not_awaited()
+    """Route-level behavior for task creation and quota gating."""
 
     @pytest.mark.anyio
     async def test_insufficient_quota_rejects_before_task_creation(self):
@@ -363,7 +334,6 @@ class TestTaskSubmitRoute:
             text="Hello world",
             reading_goal="daily_reading",
             reading_variant="intermediate_reading",
-            idempotency_key="idem-2",
         )
         current_user = SimpleNamespace(user_id=str(user_id))
 
@@ -374,10 +344,6 @@ class TestTaskSubmitRoute:
             ),
             patch(
                 "app.api.routes.tasks.get_active_task",
-                AsyncMock(return_value=None),
-            ),
-            patch(
-                "app.api.routes.tasks.get_task_by_idempotency",
                 AsyncMock(return_value=None),
             ),
             patch(
@@ -407,7 +373,6 @@ class TestTaskSubmitRoute:
             text="Hello world",
             reading_goal="daily_reading",
             reading_variant="intermediate_reading",
-            idempotency_key="idem-3",
         )
         current_user = SimpleNamespace(user_id=str(user_id))
         created = TaskSubmitResult(
@@ -427,10 +392,6 @@ class TestTaskSubmitRoute:
                 AsyncMock(return_value=None),
             ),
             patch(
-                "app.api.routes.tasks.get_task_by_idempotency",
-                AsyncMock(return_value=None),
-            ),
-            patch(
                 "app.api.routes.tasks.check_quota",
                 AsyncMock(return_value=1),
             ),
@@ -447,6 +408,99 @@ class TestTaskSubmitRoute:
         submit_mock.assert_awaited_once()
 
     @pytest.mark.anyio
+    async def test_wait_for_result_returns_render_scene_when_task_succeeds(self):
+        user_id = uuid4()
+        task_id = uuid4()
+        record_id = uuid4()
+        body = TaskSubmitRequest(
+            text="Hello world",
+            reading_goal="daily_reading",
+            reading_variant="intermediate_reading",
+            wait_for_result=True,
+            wait_timeout_seconds=30,
+        )
+        current_user = SimpleNamespace(user_id=str(user_id))
+        created = TaskSubmitResult(
+            task_id=task_id,
+            record_id=record_id,
+            status="queued",
+            created=True,
+        )
+        render_scene = _build_render_scene()
+
+        with (
+            patch("app.api.routes.tasks.ensure_credit_account", AsyncMock()),
+            patch("app.api.routes.tasks.get_active_task", AsyncMock(return_value=None)),
+            patch("app.api.routes.tasks.check_quota", AsyncMock(return_value=1)),
+            patch("app.api.routes.tasks.submit_task", AsyncMock(return_value=created)),
+            patch(
+                "app.api.routes.tasks._wait_task_until_terminal",
+                AsyncMock(
+                    return_value={
+                        "task_id": task_id,
+                        "record_id": record_id,
+                        "status": "succeeded",
+                    }
+                ),
+            ),
+            patch(
+                "app.api.routes.tasks.records_svc.get_record_by_id",
+                AsyncMock(return_value={"render_scene_json": render_scene.model_dump(mode="json")}),
+            ),
+        ):
+            response = await submit_analysis_task(current_user, body)
+
+        assert response.status_code == 200
+        payload = json.loads(response.body)
+        assert payload["status"] == "succeeded"
+        assert payload["task_id"] == str(task_id)
+        assert payload["record_id"] == str(record_id)
+        assert payload["render_scene"]["schema_version"] == "3.0.0"
+
+    @pytest.mark.anyio
+    async def test_wait_for_result_timeout_returns_accepted_without_render_scene(self):
+        user_id = uuid4()
+        task_id = uuid4()
+        record_id = uuid4()
+        body = TaskSubmitRequest(
+            text="Hello world",
+            reading_goal="daily_reading",
+            reading_variant="intermediate_reading",
+            wait_for_result=True,
+            wait_timeout_seconds=5,
+        )
+        current_user = SimpleNamespace(user_id=str(user_id))
+        created = TaskSubmitResult(
+            task_id=task_id,
+            record_id=record_id,
+            status="queued",
+            created=True,
+        )
+
+        with (
+            patch("app.api.routes.tasks.ensure_credit_account", AsyncMock()),
+            patch("app.api.routes.tasks.get_active_task", AsyncMock(return_value=None)),
+            patch("app.api.routes.tasks.check_quota", AsyncMock(return_value=1)),
+            patch("app.api.routes.tasks.submit_task", AsyncMock(return_value=created)),
+            patch(
+                "app.api.routes.tasks._wait_task_until_terminal",
+                AsyncMock(
+                    return_value={
+                        "task_id": task_id,
+                        "record_id": record_id,
+                        "status": "running",
+                    }
+                ),
+            ),
+        ):
+            response = await submit_analysis_task(current_user, body)
+
+        assert response.status_code == 202
+        payload = json.loads(response.body)
+        assert payload["status"] == "running"
+        assert "render_scene" not in payload
+
+    @pytest.mark.anyio
     async def test_active_task_conflict_preempts_quota_check(self):
         user_id = uuid4()
         task_id = uuid4()
@@ -455,7 +509,6 @@ class TestTaskSubmitRoute:
             text="Hello world",
             reading_goal="daily_reading",
             reading_variant="intermediate_reading",
-            idempotency_key="idem-4",
         )
         current_user = SimpleNamespace(user_id=str(user_id))
         active = {
@@ -468,10 +521,6 @@ class TestTaskSubmitRoute:
             patch(
                 "app.api.routes.tasks.ensure_credit_account",
                 AsyncMock(),
-            ),
-            patch(
-                "app.api.routes.tasks.get_task_by_idempotency",
-                AsyncMock(return_value=None),
             ),
             patch(
                 "app.api.routes.tasks.get_active_task",

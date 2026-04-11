@@ -244,6 +244,7 @@ async def _run_translation_llm_span(
             metadata={
                 **metadata,
                 "translation_count": len(output.sentence_translations),
+                "translation_title": output.title,
             },
             usage_metadata=usage,
             outputs={"translation_draft": output.model_dump(mode="json")},

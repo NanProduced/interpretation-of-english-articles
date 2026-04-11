@@ -148,6 +148,20 @@ async def execute_task(
 
         render_scene = result.get("render_scene")
         usage_summary = result.get("usage_summary")
+        translation_draft = result.get("translation_draft")
+
+        record_title: str | None = None
+        if isinstance(translation_draft, dict):
+            maybe_title = translation_draft.get("title")
+            if isinstance(maybe_title, str):
+                record_title = maybe_title.strip() or None
+        elif translation_draft is not None:
+            maybe_title = getattr(translation_draft, "title", None)
+            if isinstance(maybe_title, str):
+                record_title = maybe_title.strip() or None
+
+        if record_title and len(record_title) > 256:
+            record_title = record_title[:256]
 
         if render_scene is None:
             raise RuntimeError("Workflow returned no render_scene")
@@ -170,6 +184,7 @@ async def execute_task(
         await update_record_for_task(
             record_id,
             analysis_status="ready",
+            title=record_title,
             render_scene_json=render_scene_dict,
             page_state_json={"pageState": user_facing_state},
             user_facing_state=user_facing_state,

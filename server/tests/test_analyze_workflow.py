@@ -36,6 +36,7 @@ async def _fake_run_grammar_span(*args, **kwargs):
 async def _fake_run_translation_span(*args, **kwargs):
     return {
         "output": TranslationDraft(
+            title="店铺防盗与店员安全挑战",
             sentence_translations=[
                 SentenceTranslation(sentence_id="s1", translation_zh="店主不得不采取极端措施阻止商店扒手。"),
                 SentenceTranslation(sentence_id="s2", translation_zh="令人不安的是，每天都有针对店员的暴力事件。"),
@@ -83,7 +84,7 @@ async def _usage_grammar_span(*args, **kwargs):
 
 async def _usage_translation_span(*args, **kwargs):
     return {
-        "output": TranslationDraft(sentence_translations=[]),
+        "output": TranslationDraft(title="句子示例", sentence_translations=[]),
         "usage": {"input_tokens": 17, "output_tokens": 11, "total_tokens": 28},
     }
 

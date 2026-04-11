@@ -71,6 +71,11 @@ class TranslationDraft(BaseModel):
 
     model_config = BASE_MODEL_CONFIG
 
+    title: str = Field(
+        min_length=1,
+        max_length=80,
+        description="基于全文内容生成的中文标题，用于历史记录展示。",
+    )
     sentence_translations: list[SentenceTranslation] = Field(
         default_factory=list,
         description="全量逐句翻译",

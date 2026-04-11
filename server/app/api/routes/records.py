@@ -62,6 +62,7 @@ async def list_records(
     current_user: AuthUserDep,
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
+    include_render_scene: bool = Query(default=False),
 ) -> RecordListResponse:
     """List analysis records for the current user."""
     try:
@@ -69,6 +70,7 @@ async def list_records(
             user_id=UUID(current_user.user_id),
             page=page,
             limit=limit,
+            include_render_scene=include_render_scene,
         )
         return RecordListResponse(
             items=[RecordResponse(**row) for row in items],

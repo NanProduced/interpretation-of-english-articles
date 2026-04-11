@@ -83,14 +83,20 @@ CREATE TABLE analysis_records (
     'ready', 'partial', 'failed',
     'deleted', 'cancelled', 'expired'
   )),
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
   last_opened_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT uq_analysis_records_client_record UNIQUE (user_id, client_record_id)
 );
 
-CREATE INDEX idx_analysis_records_user_created_at ON analysis_records(user_id, created_at DESC);
-CREATE INDEX idx_analysis_records_user_updated_at ON analysis_records(user_id, updated_at DESC);
+CREATE INDEX idx_analysis_records_user_created_at
+  ON analysis_records(user_id, created_at DESC)
+  WHERE deleted_at IS NULL;
+CREATE INDEX idx_analysis_records_user_updated_at
+  ON analysis_records(user_id, updated_at DESC)
+  WHERE deleted_at IS NULL;
 CREATE INDEX idx_analysis_records_source_hash ON analysis_records(source_text_hash);
 CREATE INDEX idx_analysis_records_render_scene_gin ON analysis_records USING GIN (render_scene_json);
 
@@ -98,8 +104,6 @@ CREATE TABLE analysis_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   analysis_record_id UUID NOT NULL REFERENCES analysis_records(id) ON DELETE CASCADE,
-  idempotency_key TEXT NOT NULL,
-  request_fingerprint TEXT,
   status TEXT NOT NULL DEFAULT 'queued'
     CHECK (status IN ('queued', 'running', 'finalizing', 'succeeded', 'failed', 'cancelled', 'expired')),
   worker_token TEXT,
@@ -116,7 +120,6 @@ CREATE TABLE analysis_tasks (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX uq_analysis_tasks_idempotency ON analysis_tasks(user_id, idempotency_key);
 CREATE UNIQUE INDEX uq_analysis_tasks_user_active
   ON analysis_tasks(user_id)
   WHERE status IN ('queued', 'running', 'finalizing');
@@ -170,13 +173,19 @@ CREATE TABLE favorite_records (
   analysis_record_id UUID REFERENCES analysis_records(id) ON DELETE CASCADE,
   payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   note TEXT,
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT uq_favorite_records_target UNIQUE (user_id, target_type, target_key)
 );
 
-CREATE INDEX idx_favorite_records_user_created_at ON favorite_records(user_id, created_at DESC);
-CREATE INDEX idx_favorite_records_analysis_record_id ON favorite_records(analysis_record_id) WHERE analysis_record_id IS NOT NULL;
+CREATE INDEX idx_favorite_records_user_created_at
+  ON favorite_records(user_id, created_at DESC)
+  WHERE deleted_at IS NULL;
+CREATE INDEX idx_favorite_records_analysis_record_id
+  ON favorite_records(analysis_record_id)
+  WHERE analysis_record_id IS NOT NULL AND deleted_at IS NULL;
 
 CREATE TABLE vocabulary_book (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -324,12 +333,10 @@ COMMENT ON COLUMN analysis_records.last_opened_at IS '最近一次打开该记�
 COMMENT ON COLUMN analysis_records.created_at IS '记录创建时间。';
 COMMENT ON COLUMN analysis_records.updated_at IS '记录最后更新时间。';
 
-COMMENT ON TABLE analysis_tasks IS '分析任务执行控制表，负责排队、幂等、并发控制、失败重试与额度结算。';
+COMMENT ON TABLE analysis_tasks IS '分析任务执行控制表，负责排队、并发控制、失败重试与额度结算。';
 COMMENT ON COLUMN analysis_tasks.id IS '任务主键，UUID。';
 COMMENT ON COLUMN analysis_tasks.user_id IS '所属用户 ID。';
 COMMENT ON COLUMN analysis_tasks.analysis_record_id IS '关联的分析记录 ID，1:1 关系。';
-COMMENT ON COLUMN analysis_tasks.idempotency_key IS '幂等键，由前端生成，同一用户内唯一。';
-COMMENT ON COLUMN analysis_tasks.request_fingerprint IS '请求内容指纹，用于二次校验与风控分析。';
 COMMENT ON COLUMN analysis_tasks.status IS '任务状态：queued, running, finalizing, succeeded, failed, cancelled, expired。';
 COMMENT ON COLUMN analysis_tasks.worker_token IS '执行器标识，用于多实例场景下的任务认领。';
 COMMENT ON COLUMN analysis_tasks.queue_name IS '队列名称，默认 default。';

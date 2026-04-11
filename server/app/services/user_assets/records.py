@@ -81,6 +81,8 @@ async def upsert_record(
                 workflow_version    = EXCLUDED.workflow_version,
                 schema_version      = EXCLUDED.schema_version,
                 analysis_status     = EXCLUDED.analysis_status,
+                deleted_at          = NULL,
+                deleted_by          = NULL,
                 updated_at          = $16
             WHERE analysis_records.user_id = $1
             RETURNING id, updated_at,
@@ -125,7 +127,7 @@ async def get_record_by_id(
                    workflow_version, schema_version, analysis_status,
                    last_opened_at, created_at, updated_at
             FROM analysis_records
-            WHERE id = $1 AND user_id = $2
+            WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
             """,
             record_id,
             user_id,
@@ -153,7 +155,7 @@ async def get_record_by_client_id(
                    workflow_version, schema_version, analysis_status,
                    last_opened_at, created_at, updated_at
             FROM analysis_records
-            WHERE client_record_id = $1 AND user_id = $2
+            WHERE client_record_id = $1 AND user_id = $2 AND deleted_at IS NULL
             """,
             client_record_id,
             user_id,
@@ -167,6 +169,7 @@ async def list_records(
     user_id: UUID,
     page: int = 1,
     limit: int = 20,
+    include_render_scene: bool = False,
 ) -> tuple[list[dict], int]:
     """
     List records for a user with pagination.
@@ -180,16 +183,22 @@ async def list_records(
 
     offset = (page - 1) * limit
 
+    render_scene_projection = (
+        "render_scene_json"
+        if include_render_scene
+        else "'{}'::jsonb AS render_scene_json"
+    )
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            """
+            f"""
             SELECT id, user_id, client_record_id, source_type, title, source_text,
-                   source_text_hash, request_payload_json, render_scene_json,
+                   source_text_hash, request_payload_json, {render_scene_projection},
                    page_state_json, reading_goal, reading_variant, user_facing_state,
                    workflow_version, schema_version, analysis_status,
                    last_opened_at, created_at, updated_at
             FROM analysis_records
-            WHERE user_id = $1
+            WHERE user_id = $1 AND deleted_at IS NULL
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
             """,
@@ -198,7 +207,7 @@ async def list_records(
             offset,
         )
         total = await conn.fetchval(
-            "SELECT COUNT(*) FROM analysis_records WHERE user_id = $1",
+            "SELECT COUNT(*) FROM analysis_records WHERE user_id = $1 AND deleted_at IS NULL",
             user_id,
         )
         return [_ensure_dict(dict(row)) for row in rows], int(total)  # type: ignore[misc]
@@ -242,7 +251,7 @@ async def update_record(
             f"""
             UPDATE analysis_records
             SET {set_clause}
-            WHERE id = ${len(values)} AND user_id = ${len(values) + 1}
+            WHERE id = ${len(values)} AND user_id = ${len(values) + 1} AND deleted_at IS NULL
             RETURNING id, user_id, client_record_id, source_type, title, source_text,
                       source_text_hash, request_payload_json, render_scene_json,
                       page_state_json, reading_goal, reading_variant, user_facing_state,
@@ -257,18 +266,40 @@ async def update_record(
 
 
 async def delete_record(user_id: UUID, record_id: UUID) -> bool:
-    """Delete a record. Returns True if deleted."""
+    """Soft-delete a record. Returns True if affected."""
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
 
     async with pool.acquire() as conn:
-        result = await conn.execute(
-            """
-            DELETE FROM analysis_records
-            WHERE id = $1 AND user_id = $2
-            """,
-            record_id,
-            user_id,
-        )
-    return "DELETE 1" in result
+        async with conn.transaction():
+            now = datetime.now(timezone.utc)
+            result = await conn.execute(
+                """
+                UPDATE analysis_records
+                SET deleted_at = $3,
+                    deleted_by = $2,
+                    analysis_status = 'deleted',
+                    updated_at = $3
+                WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+                """,
+                record_id,
+                user_id,
+                now,
+            )
+            if "UPDATE 1" in result:
+                await conn.execute(
+                    """
+                    UPDATE favorite_records
+                    SET deleted_at = $3,
+                        deleted_by = $2,
+                        updated_at = $3
+                    WHERE analysis_record_id = $1
+                      AND user_id = $2
+                      AND deleted_at IS NULL
+                    """,
+                    record_id,
+                    user_id,
+                    now,
+                )
+    return "UPDATE 1" in result

@@ -1,7 +1,7 @@
 """
 Analysis Task Service.
 
-Handles task creation (with idempotency + single-active-task control),
+Handles task creation (with single-active-task control),
 status queries, and record+task lifecycle management.
 """
 
@@ -12,35 +12,11 @@ import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID
-
-from asyncpg import Connection
+from uuid import UUID, uuid4
 
 from app.database import connection as db_connection
 
 logger = logging.getLogger(__name__)
-
-
-def compute_request_fingerprint(
-    text: str,
-    reading_goal: str,
-    reading_variant: str,
-    source_type: str,
-    extended: bool,
-) -> str:
-    """Deterministic fingerprint for request content dedup / analytics."""
-    payload = json.dumps(
-        {
-            "text": text.strip(),
-            "reading_goal": reading_goal,
-            "reading_variant": reading_variant,
-            "source_type": source_type,
-            "extended": extended,
-        },
-        sort_keys=True,
-        ensure_ascii=False,
-    )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
 def compute_source_text_hash(text: str) -> str:
@@ -49,7 +25,7 @@ def compute_source_text_hash(text: str) -> str:
 
 
 class TaskSubmitResult:
-    """Result of submit_task — holds IDs and whether the task was newly created."""
+    """Result of submit_task."""
 
     __slots__ = ("task_id", "record_id", "status", "created")
 
@@ -115,42 +91,6 @@ class ActiveTaskConflict(Exception):
         super().__init__(f"Active task exists: {task_id} ({status})")
 
 
-async def get_task_by_idempotency(
-    user_id: UUID,
-    idempotency_key: str,
-    conn: Connection | None = None,
-) -> TaskSubmitResult | None:
-    """Get an existing task for the same user/idempotency key."""
-    pool = db_connection.DB_POOL
-    if pool is None:
-        raise RuntimeError("Database pool not initialized")
-
-    async def _fetch(active_conn: Connection) -> TaskSubmitResult | None:
-        existing = await active_conn.fetchrow(
-            """
-            SELECT t.id AS task_id, t.analysis_record_id AS record_id, t.status
-            FROM analysis_tasks t
-            WHERE t.user_id = $1 AND t.idempotency_key = $2
-            """,
-            user_id,
-            idempotency_key,
-        )
-        if existing is None:
-            return None
-        return TaskSubmitResult(
-            task_id=existing["task_id"],
-            record_id=existing["record_id"],
-            status=existing["status"],
-            created=False,
-        )
-
-    if conn is not None:
-        return await _fetch(conn)
-
-    async with pool.acquire() as new_conn:
-        return await _fetch(new_conn)
-
-
 async def submit_task(
     *,
     user_id: UUID,
@@ -159,17 +99,15 @@ async def submit_task(
     reading_variant: str,
     source_type: str,
     extended: bool,
-    idempotency_key: str,
 ) -> TaskSubmitResult:
     """
-    Submit an analysis task with idempotency + single-active-task control.
+    Submit an analysis task with single-active-task control.
 
     Steps (in one transaction):
-    1. Check (user_id, idempotency_key) — if exists, return existing task (dedup)
-    2. Check if user has active task (queued/running/finalizing) — if so, raise ActiveTaskConflict
-    3. Create analysis_record (status=queued)
-    4. Create analysis_task (status=queued)
-    5. Insert task_submitted event
+    1. Check if user has active task (queued/running/finalizing) — if so, raise ActiveTaskConflict
+    2. Create analysis_record (status=queued)
+    3. Create analysis_task (status=queued)
+    4. Insert task_submitted event
 
     Returns:
         TaskSubmitResult with task_id, record_id, status, created
@@ -181,24 +119,12 @@ async def submit_task(
     if pool is None:
         raise RuntimeError("Database pool not initialized")
 
-    request_fingerprint = compute_request_fingerprint(
-        text, reading_goal, reading_variant, source_type, extended
-    )
     source_text_hash = compute_source_text_hash(text)
     now = datetime.now(timezone.utc)
 
     async with pool.acquire() as conn:
         async with conn.transaction():
-            # 1. Idempotency check
-            existing = await get_task_by_idempotency(
-                user_id,
-                idempotency_key,
-                conn=conn,
-            )
-            if existing is not None:
-                return existing
-
-            # 2. Single active task check
+            # 1. Single active task check
             active = await conn.fetchrow(
                 """
                 SELECT t.id AS task_id, t.analysis_record_id AS record_id, t.status
@@ -215,8 +141,8 @@ async def submit_task(
                     status=active["status"],
                 )
 
-            # 3. Create analysis_record
-            client_record_id = f"task-{idempotency_key}"
+            # 2. Create analysis_record
+            client_record_id = f"task-{uuid4()}"
             record_row = await conn.fetchrow(
                 """
                 INSERT INTO analysis_records (
@@ -245,33 +171,30 @@ async def submit_task(
             )
             record_id = record_row["id"]
 
-            # 4. Create analysis_task
+            # 3. Create analysis_task
             task_row = await conn.fetchrow(
                 """
                 INSERT INTO analysis_tasks (
-                    user_id, analysis_record_id, idempotency_key,
-                    request_fingerprint, status, queued_at,
+                    user_id, analysis_record_id, status, queued_at,
                     created_at, updated_at
                 )
-                VALUES ($1, $2, $3, $4, 'queued', $5, $5, $5)
+                VALUES ($1, $2, 'queued', $3, $3, $3)
                 RETURNING id
                 """,
                 user_id,
                 record_id,
-                idempotency_key,
-                request_fingerprint,
                 now,
             )
             task_id = task_row["id"]
 
-            # 5. Insert task_submitted event
+            # 4. Insert task_submitted event
             await conn.execute(
                 """
                 INSERT INTO analysis_task_events (task_id, event_type, event_payload_json, created_at)
                 VALUES ($1, 'task_submitted', $2, $3)
                 """,
                 task_id,
-                json.dumps({"idempotency_key": idempotency_key}),
+                json.dumps({}),
                 now,
             )
 
@@ -490,6 +413,7 @@ async def update_record_for_task(
     record_id: UUID,
     *,
     analysis_status: str,
+    title: str | None = None,
     render_scene_json: dict[str, Any] | None = None,
     page_state_json: dict[str, Any] | None = None,
     user_facing_state: str | None = None,
@@ -508,6 +432,7 @@ async def update_record_for_task(
     _JSONB_FIELDS = {"render_scene_json", "page_state_json"}
 
     for field_name, value in [
+        ("title", title),
         ("render_scene_json", render_scene_json),
         ("page_state_json", page_state_json),
         ("user_facing_state", user_facing_state),
