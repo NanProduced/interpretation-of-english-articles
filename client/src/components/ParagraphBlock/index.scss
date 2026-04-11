@@ -82,7 +82,7 @@
       .translation-text {
         font-size: 28rpx; // 字号层级明确区分中英
         line-height: var(--leading-relaxed);
-        color: var(--text-sub); // 使用稍微更深的灰，确保长文可读性
+        color: var(--text-main); // 加深翻译文字的对比度
         font-weight: var(--weight-normal);
         font-family: var(--font-sans);
         letter-spacing: var(--tracking-normal);

@@ -562,9 +562,10 @@
     }
 
     &.secondary {
-      background: var(--color-bg);
+      background: #f1f5f9; // 更实体的浅色背景
       color: var(--text-main);
-      border: 1rpx solid var(--border-color);
+      border: 2rpx solid var(--border-color); // 稍深的加粗边框
+      box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.02);
     }
   }
 }

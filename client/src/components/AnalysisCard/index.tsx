@@ -174,8 +174,7 @@ export default function AnalysisCard({
           
           {/* 语法要点标识移至右下角 */}
           <View className='card-footer'>
-            <View className='type-indicator-badge'>
-              <LucideIcon name={config.icon} size={12} color={config.accentColor} />
+            <View className={`type-indicator-badge type-${type}`}>
               <Text className='indicator-text'>{label || config.defaultLabel}</Text>
             </View>
           </View>
