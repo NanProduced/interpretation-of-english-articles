@@ -10,20 +10,9 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from scripts.import_tecd3 import normalize_query
 
-def canonicalize_template(phrase: str) -> str:
-    """
-    Minimal canonicalization for phrase templates.
-    """
-    text = phrase
-    # Replace sb./somebody/someone -> sb
-    text = re.sub(r'\b(sb\.|somebody|someone)\b', 'sb', text, flags=re.IGNORECASE)
-    # Replace sth./something -> sth
-    text = re.sub(r'\b(sth\.|something)\b', 'sth', text, flags=re.IGNORECASE)
-    # Replace sb.'s/somebody's/someone's/one's/ones -> sb's
-    text = re.sub(r"\b(sb\.'s|somebody's|someone's|one's|ones)\b", "sb's", text, flags=re.IGNORECASE)
-    
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+# 使用 phrase_templates.py 作为 canonicalization 的唯一来源，
+# 避免维护两套规则导致分叉。
+from app.services.dictionary.phrase_templates import canonicalize_dictionary_phrase as canonicalize_template
 
 async def main():
     load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))

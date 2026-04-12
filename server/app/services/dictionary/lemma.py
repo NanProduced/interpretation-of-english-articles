@@ -30,16 +30,17 @@ def _get_getAllLemmas():
         return None
 
 
-# 查询优先级：名词优先（处理复数），动词其次（处理时态）
-_POS_TAGS = ["NOUN", "VERB"]
+# 查询优先级：名词优先（处理复数），动词其次（处理时态），
+# 形容词和副词最后（处理比较级/最高级，如 smaller→small, better→good/well）
+_POS_TAGS = ["NOUN", "VERB", "ADJ", "ADV"]
 
 
 def get_lemma_candidates(word: str) -> list[str]:
     """
     返回 word 所有可能的 lemma 候选列表。
 
-    策略：对名词和动词分别调用 getAllLemmas，
-    合并结果并去重，保持名词优先的稳定顺序。
+    策略：对名词、动词、形容词和副词分别调用 getAllLemmas，
+    合并结果并去重，保持稳定优先顺序。
     """
     getAllLemmas = _get_getAllLemmas()
     if getAllLemmas is None:

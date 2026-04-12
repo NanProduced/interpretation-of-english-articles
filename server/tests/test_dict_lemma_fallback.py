@@ -46,3 +46,19 @@ class TestLemmaFallback:
         # 'crewed' only has verb lemma 'crew'
         result = get_lemma_candidates("crewed")
         assert result == ["crew"]
+
+    def test_smaller_returns_small(self) -> None:
+        """ADJ comparative 'smaller' should fallback to 'small'."""
+        result = get_lemma_candidates("smaller")
+        assert "small" in result
+
+    def test_larger_returns_large(self) -> None:
+        """ADJ comparative 'larger' should fallback to 'large'."""
+        result = get_lemma_candidates("larger")
+        assert "large" in result
+
+    def test_better_returns_good_or_well(self) -> None:
+        """ADJ/ADV irregular comparative 'better' should return 'good' and/or 'well'."""
+        result = get_lemma_candidates("better")
+        assert any(w in result for w in ("good", "well"))
+

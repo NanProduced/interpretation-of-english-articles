@@ -12,7 +12,12 @@ from logging import getLogger
 from fastapi import FastAPI
 
 from app.api.router import api_router
+from app.config.logging_config import setup_logging
 from app.config.settings import Settings, get_settings
+from app.services.dictionary.nlp import preload_dict_nlp
+
+# 尽可能早地配置日志（在任何 logger 使用之前）
+setup_logging()
 from app.database.connection import close_db, close_redis, init_db, init_redis
 from app.observability.langsmith import setup_langsmith
 
@@ -48,6 +53,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # 3. 初始化 LangSmith
     setup_langsmith(settings)
+
+    # 3.1 预热词典专用 spaCy pipeline，避免 /dict 首次带上下文请求承担冷启动开销
+    try:
+        if await asyncio.to_thread(preload_dict_nlp):
+            logger.info("Dictionary spaCy pipeline preloaded")
+        else:
+            logger.warning("Dictionary spaCy pipeline unavailable, /dict will fall back when needed")
+    except Exception as e:
+        logger.warning("Failed to preload dictionary spaCy pipeline: %s", e)
 
     # 4. 恢复服务重启前残留的活跃任务（重新入队）
     from app.services.analysis.task_executor import (

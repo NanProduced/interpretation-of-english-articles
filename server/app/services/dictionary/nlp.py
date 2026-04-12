@@ -37,3 +37,17 @@ def get_dict_nlp():
         # 不禁用 parser 和 tagger，因为需要基于 DEP 和 POS 来判断 noun chunk 和 sb/sth 槽位
         _dict_nlp = spacy.load("en_core_web_sm", disable=["ner"])
     return _dict_nlp
+
+
+def preload_dict_nlp() -> bool:
+    """
+    在应用启动阶段预热词典专用 spaCy pipeline。
+
+    Returns:
+        bool: 模型可用且已成功加载时返回 True，否则返回 False。
+    """
+    if not check_dict_spacy_model():
+        return False
+    get_dict_nlp()
+    logger.info("dict: spaCy pipeline preloaded")
+    return True

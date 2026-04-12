@@ -41,7 +41,7 @@ class Tecd3Provider:
         import hashlib
         ctx_hash = hashlib.md5(request.context_sentence.encode()).hexdigest()[:8] if request.context_sentence else "none"
         occ = request.occurrence or 0
-        cache_key = f"{self.source}:{self.cache_version}:lookup:q={request.query}:type={request.query_type}:ctx={ctx_hash}:occ={occ}:strategy=v1"
+        cache_key = f"{self.source}:{self.cache_version}:lookup:q={request.query}:type={request.query_type}:ctx={ctx_hash}:occ={occ}:strategy=v2"
         cached = cache_get(cache_key)
         if cached is not None:
             result = validate_lookup_result(cached)
@@ -65,6 +65,27 @@ class Tecd3Provider:
             if template_form and template_form != request.query:
                 direct_forms.append(template_form)
             
+            # 对自然短语用 spaCy 生成 template 候选,
+            # 例如 "be there for you" → "be there for sb"
+            try:
+                from app.services.dictionary.nlp import check_dict_spacy_model, get_dict_nlp
+                from app.services.dictionary.phrase_templates import canonicalize_sentence_span
+                if check_dict_spacy_model():
+                    nlp = get_dict_nlp()
+                    doc = nlp(request.query)
+                    if len(doc) > 1:
+                        span = doc[:]
+                        # 不指定锚点 — phrase 查询中所有词都可以被替换为槽位
+                        spacy_template = canonicalize_sentence_span(span, set())
+                        if spacy_template and spacy_template not in direct_forms:
+                            direct_forms.append(spacy_template)
+            except Exception:
+                pass  # spaCy 不可用时静默降级
+            
+        # 保存原始 forms 集合用于 phase 排序
+        orig_context_forms = set(context_forms)
+        orig_direct_forms = set(direct_forms)
+            
         all_forms = []
         for f in context_forms + direct_forms:
             if f not in all_forms:
@@ -73,27 +94,27 @@ class Tecd3Provider:
         candidates = await lookup_candidates_batch(all_forms, source=self.source)
         
         # 4. Lemma fallback
+        is_lemma_fallback = False
+        lemma_context_forms_set: set[str] = set()
+        lemma_direct_forms_set: set[str] = set()
+        
         if not candidates and request.query_type == "word" and " " not in request.query:
+            is_lemma_fallback = True
             lemma_candidates_forms = get_lemma_candidates(request.query)
             lemma_all_forms = []
-            lemma_ctx_forms = []
             
             for lemma in lemma_candidates_forms:
                 if request.context_sentence:
                     ctx_f = generate_candidates(lemma, request.context_sentence, request.occurrence)
-                    lemma_ctx_forms.extend(ctx_f)
-                lemma_all_forms.append(lemma)
-                
-            unique_lemma_forms = []
-            for f in lemma_ctx_forms + lemma_all_forms:
-                if f not in unique_lemma_forms:
-                    unique_lemma_forms.append(f)
+                    for f in ctx_f:
+                        lemma_context_forms_set.add(f)
+                        if f not in lemma_all_forms:
+                            lemma_all_forms.append(f)
+                if lemma not in lemma_all_forms:
+                    lemma_all_forms.append(lemma)
+                lemma_direct_forms_set.add(lemma)
                     
-            candidates = await lookup_candidates_batch(unique_lemma_forms, source=self.source)
-            
-            # Update lists to reflect phase priority 2 and 3
-            context_forms = lemma_ctx_forms
-            direct_forms = lemma_all_forms
+            candidates = await lookup_candidates_batch(lemma_all_forms, source=self.source)
 
         if not candidates:
             raise ValueError(f"Word not found: {request.query}")
@@ -101,27 +122,22 @@ class Tecd3Provider:
         # 5. 重排规则
         def get_sort_key(c: CandidateRow):
             # phase_priority:
-            # 0: context phrase exact/template match
-            # 1: direct phrase/query exact match
+            # 0: 原始 context phrase exact/template match
+            # 1: 原始 direct phrase/query exact match
             # 2: lemma context phrase match
-            # 3: lemma exact match
+            # 3: lemma direct match
             
-            phase = 3
-            if c.normalized_form in context_forms:
-                # 区分是不是通过 lemma 生成的 context_forms (如果走到 fallback 那么 context_forms 会被覆盖为 lemma_ctx_forms)
-                phase = 2 if getattr(c, '_is_lemma', False) else 0
-            elif c.normalized_form in direct_forms:
-                phase = 3 if getattr(c, '_is_lemma', False) else 1
-                
-            # If we didn't track _is_lemma directly, we just infer from checking the direct_forms lists before fallback
-            # Since we overwrite context_forms and direct_forms in fallback, the phase number will naturally be 0 or 1 for lemma fallback as well if we don't adjust.
-            # To fix this, let's just use the current forms lists. If it hit fallback, all matches are phase 2 or 3 anyway.
-            # Let's simplify: if not hit early, it's lemma fallback
-            phase = 0
-            if c.normalized_form in context_forms:
+            nf = c.normalized_form
+            if nf in orig_context_forms:
                 phase = 0
-            else:
+            elif nf in orig_direct_forms:
                 phase = 1
+            elif is_lemma_fallback and nf in lemma_context_forms_set:
+                phase = 2
+            elif is_lemma_fallback and nf in lemma_direct_forms_set:
+                phase = 3
+            else:
+                phase = 3  # 未知来源排在最后
                 
             query_type_priority = 0 if request.query_type == "phrase" and c.lookup_type == "phrase" else 1
             token_count = len(c.normalized_form.split())

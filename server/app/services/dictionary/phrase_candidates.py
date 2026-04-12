@@ -91,11 +91,36 @@ def generate_candidates(query: str, context_sentence: str, occurrence: int | Non
                         strict_tokens.extend([c for c in child.children if c.dep_ in ("pobj", "pcomp")])
             
             strict_tokens.sort(key=lambda t: t.i)
-            # Find contiguous span if possible, or just generate tokens manually
-            # But add_span_forms takes a span. So we just slice the doc from min i to max i
             if len(strict_tokens) > 1:
                 span2 = doc[strict_tokens[0].i : strict_tokens[-1].i + 1]
                 add_span_forms(span2)
+
+        # 3. Comparative Structure Extractor (ADJ/ADV + than)
+        if target.pos_ in ("ADJ", "ADV"):
+            # 寻找 "than" 作为比较结构的标记
+            than_token = None
+            for child in target.children:
+                if child.text.lower() == "than":
+                    than_token = child
+                    break
+            # 也检查 target 的 head 的 children（有时 than 挂在更高层）
+            if than_token is None and target.head:
+                for child in target.head.children:
+                    if child.text.lower() == "than" and abs(child.i - target.i) <= 3:
+                        than_token = child
+                        break
+            
+            if than_token:
+                comp_start = min(target.i, than_token.i)
+                comp_end = max(target.i, than_token.i)
+                comp_span = doc[comp_start : comp_end + 1]
+                add_span_forms(comp_span)
+
+        # 4. Anchored N-gram Fallback
+        # 当上面所有 parse-based 提取都没产生候选时，
+        # 以 target 为锚点生成有限窗口的 n-gram
+        if not forms:
+            _generate_ngram_fallback(doc, target, query, forms, max_candidates=8)
 
     except Exception as e:
         logger.warning(f"dict: spaCy candidate generation failed: {e}")
@@ -106,3 +131,31 @@ def generate_candidates(query: str, context_sentence: str, occurrence: int | Non
             unique_forms.append(f)
             
     return unique_forms
+
+
+def _generate_ngram_fallback(doc, target, query: str, forms: list[str], max_candidates: int = 8):
+    """
+    在 parse-based 提取没有 form 时，以 target 为锚点生成窗口 2-4 的 anchored n-gram。
+    只取 lemma 小写形式。
+    """
+    count = 0
+    for window in range(2, 5):  # 2, 3, 4
+        # target 在 n-gram 中的不同位置
+        for start_offset in range(window):
+            start = target.i - start_offset
+            end = start + window
+            if start < 0 or end > len(doc):
+                continue
+            
+            tokens = [doc[i] for i in range(start, end)]
+            # 跳过跨标点的 n-gram
+            if any(t.is_punct for t in tokens):
+                continue
+                
+            lemma_form = " ".join(t.lemma_.lower() for t in tokens)
+            if lemma_form != query.lower() and lemma_form not in forms:
+                forms.append(lemma_form)
+                count += 1
+                if count >= max_candidates:
+                    return
+

@@ -1,0 +1,31 @@
+2026-04-12 23:03:40 | INFO     | app.database.connection:56 | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:03:40 | INFO     | app.main:45 | PostgreSQL pool initialized
+2026-04-12 23:03:41 | INFO     | app.database.connection:123 | Redis connection established
+2026-04-12 23:03:41 | INFO     | app.observability.langsmith:53 | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:03:41 | INFO     | app.main:72 | Analysis task worker started
+2026-04-12 23:04:24 | INFO     | app.database.connection:137 | Redis connection closed
+2026-04-12 23:04:24 | INFO     | app.database.connection:66 | PostgreSQL connection pool closed
+2026-04-12 23:04:24 | INFO     | app.main:82 | Application shutdown complete
+2026-04-12 23:04:27 | INFO     | app.database.connection:56 | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:04:27 | INFO     | app.main:45 | PostgreSQL pool initialized
+2026-04-12 23:04:27 | INFO     | app.database.connection:123 | Redis connection established
+2026-04-12 23:04:27 | INFO     | app.observability.langsmith:53 | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:04:27 | INFO     | app.main:72 | Analysis task worker started
+2026-04-12 23:18:45 | INFO     | app.database.connection:137 | Redis connection closed
+2026-04-12 23:18:45 | INFO     | app.database.connection:66 | PostgreSQL connection pool closed
+2026-04-12 23:18:45 | INFO     | app.main:82 | Application shutdown complete
+2026-04-12 23:18:48 | INFO     | app.database.connection:56 | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:18:48 | INFO     | app.main:45 | PostgreSQL pool initialized
+2026-04-12 23:18:48 | INFO     | app.database.connection:123 | Redis connection established
+2026-04-12 23:18:48 | INFO     | app.observability.langsmith:53 | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:18:48 | INFO     | app.main:72 | Analysis task worker started
+2026-04-12 23:18:53 | INFO     | app.database.connection:137 | Redis connection closed
+2026-04-12 23:18:53 | INFO     | app.database.connection:66 | PostgreSQL connection pool closed
+2026-04-12 23:18:53 | INFO     | app.main:82 | Application shutdown complete
+2026-04-12 23:18:55 | INFO     | app.database.connection:56 | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:18:55 | INFO     | app.main:46 | PostgreSQL pool initialized
+2026-04-12 23:18:56 | INFO     | app.database.connection:123 | Redis connection established
+2026-04-12 23:18:56 | INFO     | app.observability.langsmith:53 | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:18:56 | INFO     | app.services.dictionary.nlp:52 | dict: spaCy pipeline preloaded
+2026-04-12 23:18:56 | INFO     | app.main:60 | Dictionary spaCy pipeline preloaded
+2026-04-12 23:18:56 | INFO     | app.main:82 | Analysis task worker started
