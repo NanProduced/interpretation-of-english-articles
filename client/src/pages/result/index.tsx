@@ -170,8 +170,8 @@ export default function Result() {
     if (event) {
       const touch = event.changedTouches?.[0] || (event.touches ? event.touches[0] : null)
       if (touch) {
-        clientX = touch.clientX || touch.pageX
-        clientY = touch.pageY || touch.pageY
+        clientX = touch.clientX ?? touch.pageX
+        clientY = touch.clientY ?? touch.pageY
       } else if (event.detail && (event.detail.x !== undefined || event.detail.clientX !== undefined)) {
         clientX = event.detail.x ?? event.detail.clientX
         clientY = event.detail.y ?? event.detail.clientY
