@@ -1,16 +1,18 @@
 """
 围绕点击锚点生成候选形式：字面形式、词元形式和模板形式。
 """
-from app.services.dictionary.nlp import check_dict_spacy_model, get_dict_nlp
+from app.services.dictionary.nlp import check_dict_spacy_model, get_dict_nlp, get_dict_matcher
 from app.services.dictionary.phrase_templates import canonicalize_sentence_span
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-def generate_candidates(query: str, context_sentence: str, occurrence: int | None) -> list[str]:
+def generate_candidates(query: str, context_sentence: str, occurrence: int | None, doc: Optional["spacy.tokens.Doc"] = None) -> list[str]:
     """
-    基于 spaCy 的解析树，生成候选的短语 form 列表。
+    基于 spaCy 的解析树或 Matcher 模式，生成候选的短语 form 列表。
     """
+    import spacy
     forms = []
     
     if not context_sentence:
@@ -20,9 +22,34 @@ def generate_candidates(query: str, context_sentence: str, occurrence: int | Non
         if not check_dict_spacy_model():
             return forms
 
-        nlp = get_dict_nlp()
-        doc = nlp(context_sentence)
+        if doc is None:
+            nlp = get_dict_nlp()
+            doc = nlp(context_sentence)
         
+        # 0. Lightweight Matcher Layer
+        # 专门覆盖高频或有界模式（如比较级、be there for sb 等）
+        matcher = get_dict_matcher()
+        if matcher:
+            matches = matcher(doc)
+            for match_id, start, end in matches:
+                span = doc[start:end]
+                # 如果查询词或词元在这个 span 内，则添加这个 span 作为候选
+                if any(t.text.lower() == query.lower() or t.lemma_.lower() == query.lower() for t in span):
+                    # 获取该 span 在当前 doc 下的锚点 tokens
+                    # 这里取最匹配 query 的那个 token 作为模板化锚点
+                    target_token_indices = {t.i for t in span if t.text.lower() == query.lower() or t.lemma_.lower() == query.lower()}
+                    
+                    literal = span.text.lower()
+                    lemma_form = " ".join([t.lemma_.lower() for t in span])
+                    template_form = canonicalize_sentence_span(span, target_token_indices)
+                    
+                    if literal != query.lower():
+                        forms.append(literal)
+                    if lemma_form != literal and lemma_form != query.lower():
+                        forms.append(lemma_form)
+                    if template_form != lemma_form and template_form != literal and template_form != query.lower():
+                        forms.append(template_form)
+
         # 寻找匹配 query 的 token
         target_tokens = [t for t in doc if t.text.lower() == query.lower() or t.lemma_.lower() == query.lower()]
         
@@ -56,12 +83,35 @@ def generate_candidates(query: str, context_sentence: str, occurrence: int | Non
             span = doc[subtree[0].i : subtree[-1].i + 1]
             add_span_forms(span)
                 
-        # 2. General Verb Phrase Extractor
-        verb_head = None
-        if target.pos_ in ("VERB", "AUX"):
-            verb_head = target
-        elif target.head and target.head.pos_ in ("VERB", "AUX"):
-            verb_head = target.head
+        # 2. Anchor Lifter (Verb/Predicate Head Discovery)
+        # 目标：从宾语、介词宾语、修饰语等回溯到谓词头，以识别完整短语
+        def find_logical_verb_head(token):
+            curr = token
+            # 限制深度 3 层，避免过度提升
+            for _ in range(3):
+                if curr.pos_ in ("VERB", "AUX"):
+                    return curr
+                if not curr.head or curr.head == curr:
+                    break
+                
+                # 受限追溯关系
+                valid_up_deps = {"pobj", "dobj", "advmod", "acomp", "prt", "prep", "dative", "attr", "npadvmod"}
+                
+                # 针对所有格 sb's 的特殊追溯逻辑
+                # 如果当前词是被所有格修饰的名词 (如 mind 在 one's mind 中)
+                # 且点击的是 mind，则允许向上追溯到谓词 (如 make up)
+                is_poss_head = any(c.dep_ == "poss" and (
+                    c.lemma_.lower() in {"i", "you", "he", "she", "we", "they", "my", "your", "his", "her", "our", "their", "one", "someone", "somebody"} or
+                    c.text.lower() in {"sb", "sth"}
+                ) for c in curr.children)
+                
+                if curr.dep_ in valid_up_deps or is_poss_head:
+                    curr = curr.head
+                else:
+                    break
+            return None
+
+        verb_head = find_logical_verb_head(target)
             
         if verb_head:
             # Full relaxed phrase

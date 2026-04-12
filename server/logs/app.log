@@ -29,3 +29,143 @@
 2026-04-12 23:18:56 | INFO     | app.services.dictionary.nlp:52 | dict: spaCy pipeline preloaded
 2026-04-12 23:18:56 | INFO     | app.main:60 | Dictionary spaCy pipeline preloaded
 2026-04-12 23:18:56 | INFO     | app.main:82 | Analysis task worker started
+2026-04-12 23:27:22 | INFO     | app.database.connection:137 | Redis connection closed
+2026-04-12 23:27:22 | INFO     | app.database.connection:66 | PostgreSQL connection pool closed
+2026-04-12 23:27:22 | INFO     | app.main:92 | Application shutdown complete
+2026-04-12 23:41:19 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:41:19 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-12 23:41:19 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-12 23:41:19 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:41:19 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-12 23:41:19 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-12 23:41:19 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-12 23:41:27 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-12 23:41:27 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-12 23:41:27 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-12 23:41:33 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:41:33 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-12 23:41:34 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-12 23:41:34 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:41:34 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-12 23:41:34 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-12 23:41:34 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-12 23:41:36 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-12 23:41:36 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-12 23:41:36 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-12 23:41:39 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:41:39 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-12 23:41:39 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-12 23:41:39 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:41:39 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-12 23:41:39 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-12 23:41:39 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-12 23:41:58 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-12 23:41:58 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-12 23:41:58 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-12 23:42:02 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:42:02 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-12 23:42:02 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-12 23:42:02 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:42:03 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-12 23:42:03 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-12 23:42:03 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-12 23:43:15 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-12 23:43:15 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-12 23:43:15 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-12 23:43:18 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:43:18 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-12 23:43:18 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-12 23:43:18 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:43:19 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-12 23:43:19 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-12 23:43:19 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-12 23:43:34 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-12 23:43:34 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-12 23:43:34 | INFO     | [[[app]]]            | Application shutdown complete
+[32m2026-04-12 23:43:37 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)[0m
+[32m2026-04-12 23:43:37 | INFO     | [[[app]]]            | PostgreSQL pool initialized[0m
+[32m2026-04-12 23:43:37 | INFO     | [[[db] connection]]  | Redis connection established[0m
+[32m2026-04-12 23:43:37 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.[0m
+[32m2026-04-12 23:43:38 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded[0m
+[32m2026-04-12 23:43:38 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded[0m
+[32m2026-04-12 23:43:38 | INFO     | [[[app]]]            | Analysis task worker started[0m
+[32m2026-04-12 23:43:40 | INFO     | [[[db] connection]]  | Redis connection closed[0m
+[32m2026-04-12 23:43:40 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed[0m
+[32m2026-04-12 23:43:40 | INFO     | [[[app]]]            | Application shutdown complete[0m
+2026-04-12 23:43:43 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:43:43 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-12 23:43:43 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-12 23:43:43 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:43:44 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-12 23:43:44 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-12 23:43:44 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-12 23:46:36 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-12 23:46:36 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-12 23:46:36 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-12 23:46:40 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:46:40 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-12 23:46:40 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-12 23:46:40 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:46:41 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-12 23:46:41 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-12 23:46:41 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-12 23:47:28 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-12 23:47:28 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-12 23:47:28 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-12 23:47:36 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:47:36 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-12 23:47:36 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-12 23:47:36 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:47:36 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-12 23:47:36 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-12 23:47:36 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-12 23:49:08 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-12 23:49:08 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-12 23:49:08 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-12 23:49:13 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-12 23:49:13 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-12 23:49:13 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-12 23:49:13 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-12 23:49:14 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-12 23:49:14 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-12 23:49:14 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-13 00:06:39 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-13 00:06:39 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-13 00:06:39 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-13 00:06:42 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-13 00:06:42 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-13 00:06:42 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-13 00:06:42 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-13 00:06:43 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-13 00:06:43 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-13 00:06:43 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-13 00:06:56 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-13 00:06:56 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-13 00:06:56 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-13 00:07:02 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-13 00:07:02 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-13 00:07:02 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-13 00:07:02 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-13 00:07:05 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-13 00:07:05 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-13 00:07:05 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-13 00:07:09 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-13 00:07:09 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-13 00:07:09 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-13 00:07:12 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-13 00:07:12 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-13 00:07:12 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-13 00:07:12 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-13 00:07:13 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-13 00:07:13 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-13 00:07:13 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-13 00:07:57 | INFO     | [[[db] connection]]  | Redis connection closed
+2026-04-13 00:07:57 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
+2026-04-13 00:07:57 | INFO     | [[[app]]]            | Application shutdown complete
+2026-04-13 00:08:00 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
+2026-04-13 00:08:00 | INFO     | [[[app]]]            | PostgreSQL pool initialized
+2026-04-13 00:08:00 | INFO     | [[[db] connection]]  | Redis connection established
+2026-04-13 00:08:00 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
+2026-04-13 00:08:01 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
+2026-04-13 00:08:01 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
+2026-04-13 00:08:01 | INFO     | [[[app]]]            | Analysis task worker started

@@ -55,8 +55,15 @@ class Tecd3Provider:
         
         # 2. 如果有 context_sentence，嗅探短语
         context_forms = []
-        if request.context_sentence and request.query_type == "word":
-            context_forms = generate_candidates(request.query, request.context_sentence, request.occurrence)
+        doc = None
+        if request.context_sentence:
+            from app.services.dictionary.nlp import check_dict_spacy_model, get_dict_nlp
+            if check_dict_spacy_model():
+                nlp = get_dict_nlp()
+                doc = nlp(request.context_sentence)
+
+        if doc and request.query_type == "word":
+            context_forms = generate_candidates(request.query, request.context_sentence, request.occurrence, doc=doc)
 
         # 3. 如果 query 本身是 phrase，增加 canonical template
         if request.query_type == "phrase":
@@ -71,10 +78,12 @@ class Tecd3Provider:
                 from app.services.dictionary.nlp import check_dict_spacy_model, get_dict_nlp
                 from app.services.dictionary.phrase_templates import canonicalize_sentence_span
                 if check_dict_spacy_model():
+                    # 这里如果是 phrase 查询，我们对 query 本身建 doc
+                    # 注意：这跟 context_sentence 的 doc 不同
                     nlp = get_dict_nlp()
-                    doc = nlp(request.query)
-                    if len(doc) > 1:
-                        span = doc[:]
+                    phrase_doc = nlp(request.query)
+                    if len(phrase_doc) > 1:
+                        span = phrase_doc[:]
                         # 不指定锚点 — phrase 查询中所有词都可以被替换为槽位
                         spacy_template = canonicalize_sentence_span(span, set())
                         if spacy_template and spacy_template not in direct_forms:
@@ -105,7 +114,7 @@ class Tecd3Provider:
             
             for lemma in lemma_candidates_forms:
                 if request.context_sentence:
-                    ctx_f = generate_candidates(lemma, request.context_sentence, request.occurrence)
+                    ctx_f = generate_candidates(lemma, request.context_sentence, request.occurrence, doc=doc)
                     for f in ctx_f:
                         lemma_context_forms_set.add(f)
                         if f not in lemma_all_forms:

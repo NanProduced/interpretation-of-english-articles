@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 _dict_spacy_available: Optional[bool] = None
 _dict_spacy_checked: bool = False
 _dict_nlp = None
+_dict_matcher = None
 
 def check_dict_spacy_model() -> bool:
     global _dict_spacy_available, _dict_spacy_checked
@@ -37,6 +38,43 @@ def get_dict_nlp():
         # 不禁用 parser 和 tagger，因为需要基于 DEP 和 POS 来判断 noun chunk 和 sb/sth 槽位
         _dict_nlp = spacy.load("en_core_web_sm", disable=["ner"])
     return _dict_nlp
+
+def get_dict_matcher():
+    """Lazy-load and return a spaCy Matcher with rules for high-frequency dictionary structures."""
+    global _dict_matcher
+    if _dict_matcher is None:
+        nlp = get_dict_nlp()
+        if nlp is None:
+            return None
+        from spacy.matcher import Matcher
+        matcher = Matcher(nlp.vocab)
+        
+        # 1. Comparative Structure: adj/adv + than
+        matcher.add("COMP_STRICT", [
+            [{"POS": {"IN": ["ADJ", "ADV"]}, "TAG": {"IN": ["JJR", "RBR"]}}, {"LOWER": "than"}]
+        ])
+        
+        # 2. Comparative Structure: more/less + adj/adv + than
+        matcher.add("COMP_MORE_LESS", [
+            [{"LOWER": {"IN": ["more", "less"]}}, {"POS": {"IN": ["ADJ", "ADV"]}}, {"LOWER": "than"}]
+        ])
+        
+        # 3. Comparative with Gap: adj/adv + (much/far/slightly) + than
+        matcher.add("COMP_GAP", [
+            [
+                {"POS": {"IN": ["ADJ", "ADV"]}, "TAG": {"IN": ["JJR", "RBR"]}},
+                {"LOWER": {"IN": ["much", "far", "slightly", "way", "even"]}, "OP": "?"},
+                {"LOWER": "than"}
+            ]
+        ])
+        
+        # 4. Idiom: be there for
+        matcher.add("BE_THERE_FOR", [
+            [{"LEMMA": "be"}, {"LOWER": "there"}, {"LOWER": "for"}]
+        ])
+        
+        _dict_matcher = matcher
+    return _dict_matcher
 
 
 def preload_dict_nlp() -> bool:
