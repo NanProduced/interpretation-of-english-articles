@@ -6,6 +6,7 @@ Provides endpoints for saving, retrieving, and managing analysis records.
 
 from __future__ import annotations
 
+from logging import getLogger
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -19,6 +20,8 @@ from app.schemas.user_assets.records import (
 )
 from app.services.auth.dependencies import AuthUserDep
 from app.services.user_assets import records as records_svc
+
+logger = getLogger("app.api")
 
 router = APIRouter(prefix="/records", tags=["records"])
 
@@ -59,6 +62,7 @@ async def create_record(
             updated_at=updated_at,
         )
     except Exception as e:
+        logger.error("create_record failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -84,6 +88,7 @@ async def list_records(
             limit=limit,
         )
     except Exception as e:
+        logger.error("list_records failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -104,6 +109,7 @@ async def get_record_by_client_id(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("get_record_by_client_id failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -124,6 +130,7 @@ async def get_record(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("get_record failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -146,6 +153,7 @@ async def update_record(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("update_record failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -166,4 +174,5 @@ async def delete_record(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("delete_record failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e

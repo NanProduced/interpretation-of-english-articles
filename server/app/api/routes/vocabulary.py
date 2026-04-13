@@ -6,6 +6,7 @@ Provides endpoints for managing vocabulary entries.
 
 from __future__ import annotations
 
+from logging import getLogger
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
@@ -19,6 +20,8 @@ from app.schemas.user_assets.vocabulary import (
 )
 from app.services.auth.dependencies import AuthUserDep
 from app.services.user_assets import vocabulary as vocab_svc
+
+logger = getLogger("app.api")
 
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
 
@@ -53,6 +56,7 @@ async def add_vocabulary(
             updated_at=updated_at,
         )
     except Exception as e:
+        logger.error("add_vocabulary failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -78,6 +82,7 @@ async def list_vocabulary(
             limit=limit,
         )
     except Exception as e:
+        logger.error("list_vocabulary failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -102,6 +107,7 @@ async def update_vocabulary(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("update_vocabulary failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -122,4 +128,5 @@ async def delete_vocabulary(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("delete_vocabulary failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e

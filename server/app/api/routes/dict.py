@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from logging import getLogger
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -9,6 +10,8 @@ from fastapi import APIRouter, HTTPException, Query
 from app.services.dictionary import get_service
 from app.services.dictionary.schemas import DictionaryEntryResult, DictionaryLookupResult
 from app.services.dictionary.service import LookupError
+
+logger = getLogger("app.api")
 
 router = APIRouter(prefix="/dict", tags=["dict"])
 
@@ -39,6 +42,7 @@ async def lookup_word(
     except LookupError:
         raise HTTPException(status_code=404, detail=f"Word not found: {word}") from None
     except Exception as exc:
+        logger.error("lookup_word failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail=f"Dictionary service error: {exc}") from exc
 
 
@@ -52,4 +56,5 @@ async def lookup_entry(
     except LookupError:
         raise HTTPException(status_code=404, detail=f"Entry not found: {id}") from None
     except Exception as exc:
+        logger.error("lookup_entry failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail=f"Dictionary service error: {exc}") from exc

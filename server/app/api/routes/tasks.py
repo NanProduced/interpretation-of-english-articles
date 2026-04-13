@@ -7,10 +7,13 @@ Provides endpoints for submitting, querying, and managing analysis tasks.
 from __future__ import annotations
 
 import asyncio
+from logging import getLogger
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 from starlette.responses import JSONResponse
+
+logger = getLogger("app.api")
 
 from app.schemas.analysis import RenderSceneModel
 from app.schemas.tasks import (
@@ -192,6 +195,7 @@ async def submit_analysis_task(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("submit_analysis_task failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -213,6 +217,7 @@ async def get_current_task(
             task=TaskStatusResponse(**task),
         )
     except Exception as e:
+        logger.error("get_current_task failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -233,4 +238,5 @@ async def get_task(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("get_task failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e

@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from logging import getLogger
+
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -16,6 +18,8 @@ from app.services.auth import (
 )
 from app.services.auth.dependencies import AuthUserDep
 from app.services.auth.wechat import WeChatAPIError, code2session
+
+logger = getLogger("app.api")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -51,6 +55,7 @@ async def wechat_login(
     try:
         wechat_session = await code2session(code)
     except WeChatAPIError as e:
+        logger.error("wechat_login code2session failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=502,
             detail=f"WeChat service error: {e.errmsg}",

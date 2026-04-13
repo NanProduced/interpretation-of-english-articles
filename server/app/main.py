@@ -5,11 +5,13 @@
 """
 
 import asyncio
+import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from logging import getLogger
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.config.logging_config import setup_logging
@@ -108,6 +110,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(api_router)
+
+    # --- 全局异常处理器 ---
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        """HTTPException 统一处理，记录错误日志"""
+        logger.error(
+            "HTTP %d: %s | path=%s | detail=%s",
+            exc.status_code,
+            exc.status_text,
+            request.url.path,
+            exc.detail,
+        )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+
+    @app.exception_handler(Exception)
+    async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """未捕获的异常统一处理，记录完整堆栈"""
+        tb = traceback.format_exc()
+        logger.error(
+            "Unhandled exception: %s | path=%s\n%s",
+            type(exc).__name__,
+            request.url.path,
+            tb,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Internal server error: {type(exc).__name__}"},
+        )
 
     @app.get("/", tags=["system"])
     async def root() -> dict[str, str]:

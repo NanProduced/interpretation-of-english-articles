@@ -6,6 +6,7 @@ Provides endpoints for managing favorite records.
 
 from __future__ import annotations
 
+from logging import getLogger
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -18,6 +19,8 @@ from app.schemas.user_assets.favorites import (
 )
 from app.services.auth.dependencies import AuthUserDep
 from app.services.user_assets import favorites as fav_svc
+
+logger = getLogger("app.api")
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 
@@ -39,6 +42,7 @@ async def add_favorite(
         )
         return {"id": str(fav_id), "ok": True}
     except Exception as e:
+        logger.error("add_favorite failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -56,6 +60,7 @@ async def list_favorites(
             total=len(items),
         )
     except Exception as e:
+        logger.error("list_favorites failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -72,4 +77,5 @@ async def remove_favorite(
         )
         return FavoriteDeleteResponse(deleted=count > 0)
     except Exception as e:
+        logger.error("remove_favorite failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e

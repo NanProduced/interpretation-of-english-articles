@@ -6,6 +6,7 @@ Provides endpoints for checking user credit/quota information.
 
 from __future__ import annotations
 
+from logging import getLogger
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -13,6 +14,8 @@ from pydantic import BaseModel
 
 from app.services.analysis.credit_service import ensure_credit_account, get_quota_info
 from app.services.auth.dependencies import AuthUserDep
+
+logger = getLogger("app.api")
 
 router = APIRouter(prefix="/me", tags=["user"])
 
@@ -42,4 +45,5 @@ async def get_user_quota(
         info = await get_quota_info(user_id)
         return QuotaResponse(**info)
     except Exception as e:
+        logger.error("get_user_quota failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
