@@ -10,7 +10,7 @@ from app.services.analysis.prompt_strategy import (
     build_repair_prompt_strategy,
     build_vocabulary_prompt_strategy,
 )
-from app.services.analysis.user_rules import derive_user_rules
+from app.services.analysis.goal_planner import build_goal_execution_plan
 
 
 def test_merge_prompt_sections_replaces_by_tag_and_preserves_order() -> None:
@@ -34,10 +34,10 @@ def test_merge_prompt_sections_replaces_by_tag_and_preserves_order() -> None:
 
 
 def test_vocabulary_prompt_uses_tagged_sections_for_daily_intermediate() -> None:
-    user_rules = derive_user_rules("daily_reading", "intermediate_reading")
+    plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
     deps = VocabularyAgentDeps(
         sentences=[{"sentence_id": "s1", "text": "Hello, world!"}],
-        prompt_strategy=build_vocabulary_prompt_strategy(user_rules),
+        prompt_strategy=build_vocabulary_prompt_strategy(plan),
         examples=[],
     )
 
@@ -48,14 +48,13 @@ def test_vocabulary_prompt_uses_tagged_sections_for_daily_intermediate() -> None
     assert "<input_sentences>" in prompt
     assert "profile_id: daily_intermediate" in prompt
     assert "当前 profile=daily_intermediate，按 baseline 调试" in prompt
-    assert "只标最影响理解的高价值词" in prompt
-
+    assert "只标最影响理解、具有解释价值的词汇点" in prompt
 
 def test_grammar_prompt_uses_balanced_policy_lines() -> None:
-    user_rules = derive_user_rules("daily_reading", "intermediate_reading")
+    plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
     deps = GrammarAgentDeps(
         sentences=[{"sentence_id": "s1", "text": "Higher gas prices result in higher costs."}],
-        prompt_strategy=build_grammar_prompt_strategy(user_rules),
+        prompt_strategy=build_grammar_prompt_strategy(plan),
         examples=[],
     )
 
@@ -63,7 +62,8 @@ def test_grammar_prompt_uses_balanced_policy_lines() -> None:
 
     assert "<policy>" in prompt
     assert "grammar_granularity: balanced" in prompt
-    assert "复杂句仍优先，但允许少量高价值局部 grammar_note" in prompt
+    assert "在复杂长难句分析与局部语法点" in prompt
+    assert "保持平衡" in prompt
 
 
 def test_repair_prompt_strategy_adds_runtime_constraints_section() -> None:

@@ -11,12 +11,12 @@ from app.schemas.internal.analysis import (
 )
 from app.services.analysis.input_preparation import prepare_input
 from app.services.analysis.projection import project_to_render_scene
-from app.services.analysis.user_rules import derive_user_rules
+from app.services.analysis.goal_planner import build_goal_execution_plan
 
 
 def test_vocab_highlight_projects_to_inline_mark() -> None:
     prepared = prepare_input("The implementation of sustainable practices is challenging.")
-    user_rules = derive_user_rules("daily_reading", "intermediate_reading")
+    plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
     output = AnnotationOutput(
         annotations=[VocabHighlight(sentence_id="s1", text="implementation", exam_tags=["cet", "gre"])],
         sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="可持续实践的实施是具有挑战性的。")],
@@ -27,7 +27,7 @@ def test_vocab_highlight_projects_to_inline_mark() -> None:
         source_type="user_input",
         reading_goal="daily_reading",
         reading_variant="intermediate_reading",
-        profile_id=user_rules.profile_id,
+        profile_id=plan.prompt_profile,
         request_id="test-001",
     )
     assert len(outcome.result.inline_marks) == 1
@@ -40,7 +40,7 @@ def test_vocab_highlight_projects_to_inline_mark() -> None:
 
 def test_grammar_note_projects_to_inline_mark_and_entry() -> None:
     prepared = prepare_input("So fundamental are these challenges that traditional methods fail.")
-    user_rules = derive_user_rules("exam", "gaokao")
+    plan = build_goal_execution_plan("exam", "gaokao")
     output = AnnotationOutput(
         annotations=[
             GrammarNote(
@@ -58,7 +58,7 @@ def test_grammar_note_projects_to_inline_mark_and_entry() -> None:
         source_type="user_input",
         reading_goal="exam",
         reading_variant="gaokao",
-        profile_id=user_rules.profile_id,
+        profile_id=plan.prompt_profile,
         request_id="test-005",
     )
     assert len(outcome.result.inline_marks) == 1
@@ -69,7 +69,7 @@ def test_grammar_note_projects_to_inline_mark_and_entry() -> None:
 
 def test_sentence_analysis_projects_to_entry_only() -> None:
     prepared = prepare_input("They recognize that sustainable success requires a fundamental rethinking of core business models.")
-    user_rules = derive_user_rules("daily_reading", "intermediate_reading")
+    plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
     output = AnnotationOutput(
         annotations=[
             SentenceAnalysis(
@@ -92,7 +92,7 @@ def test_sentence_analysis_projects_to_entry_only() -> None:
         source_type="user_input",
         reading_goal="daily_reading",
         reading_variant="intermediate_reading",
-        profile_id=user_rules.profile_id,
+        profile_id=plan.prompt_profile,
         request_id="test-006",
     )
     assert len(outcome.result.inline_marks) == 0
@@ -107,7 +107,7 @@ def test_mixed_annotations_project_correctly() -> None:
         "The implementation of sustainable practices requires fundamental rethinking. "
         "This concept has become a buzzword."
     )
-    user_rules = derive_user_rules("daily_reading", "intermediate_reading")
+    plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
     output = AnnotationOutput(
         annotations=[
             VocabHighlight(sentence_id="s1", text="implementation", exam_tags=["cet"]),
@@ -125,7 +125,7 @@ def test_mixed_annotations_project_correctly() -> None:
         source_type="user_input",
         reading_goal="daily_reading",
         reading_variant="intermediate_reading",
-        profile_id=user_rules.profile_id,
+        profile_id=plan.prompt_profile,
         request_id="test-007",
     )
     assert len(outcome.result.inline_marks) == 3
@@ -133,7 +133,7 @@ def test_mixed_annotations_project_correctly() -> None:
 
 def test_missing_translation_adds_warning() -> None:
     prepared = prepare_input("First sentence. Second sentence.")
-    user_rules = derive_user_rules("daily_reading", "intermediate_reading")
+    plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
     output = AnnotationOutput(
         annotations=[],
         sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="第一句。")],
@@ -144,7 +144,7 @@ def test_missing_translation_adds_warning() -> None:
         source_type="user_input",
         reading_goal="daily_reading",
         reading_variant="intermediate_reading",
-        profile_id=user_rules.profile_id,
+        profile_id=plan.prompt_profile,
         request_id="test-008",
     )
     assert any(warning.get("code") == "translation_coverage_incomplete" for warning in outcome.warnings)

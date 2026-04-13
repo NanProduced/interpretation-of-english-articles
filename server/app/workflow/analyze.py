@@ -22,7 +22,7 @@ from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
 from app.llm.runtime import dump_model_selection
 from app.llm.types import ModelSelection, parse_model_selection
 from app.schemas.analysis import AnalyzeRequest, RenderSceneModel
-from app.services.analysis.user_rules import derive_user_rules
+from app.services.analysis.goal_planner import build_goal_execution_plan
 from app.workflow.analyze_nodes import (
     WORKFLOW_NAME,
     WORKFLOW_VERSION,
@@ -138,7 +138,7 @@ async def _invoke_article_analysis(payload: AnalyzeRequest) -> dict[str, Any]:
         model_selection,
         (MODEL_ROUTE_ANNOTATION_GENERATION,),
     )
-    user_rules = derive_user_rules(
+    plan = build_goal_execution_plan(
         normalized_payload.reading_goal,
         normalized_payload.reading_variant,
     )
@@ -160,7 +160,7 @@ async def _invoke_article_analysis(payload: AnalyzeRequest) -> dict[str, Any]:
                 source_type=normalized_payload.source_type,
                 reading_goal=normalized_payload.reading_goal,
                 reading_variant=normalized_payload.reading_variant,
-                profile_id=user_rules.profile_id,
+                profile_id=plan.prompt_profile,
                 extra={
                     "model_preset": model_selection.preset if model_selection else None,
                     "runtime_model_selection": bool(model_selection),

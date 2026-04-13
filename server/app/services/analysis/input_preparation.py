@@ -728,7 +728,7 @@ def sanitize_text(source_text: str) -> tuple[str, SanitizeReport]:
             }:
                 tag.append("\n")
             tag.unwrap()
-        text = soup.get_text(separator="\n")
+        text = soup.get_text(separator="")
         if html_tag_count > 0:
             actions.append("bs4_html_processing")
             removed_segment_count += html_tag_count

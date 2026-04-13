@@ -2,7 +2,7 @@ from app.schemas.common import TextSpan
 from app.schemas.internal.analysis import PreparedSentence
 from app.services.analysis.anchor_resolution import resolve_anchor
 from app.services.analysis.input_preparation import prepare_input
-from app.services.analysis.user_rules import derive_user_rules
+from app.services.analysis.goal_planner import build_goal_execution_plan
 
 
 def test_prepare_input_sanitizes_markup_links_and_code() -> None:
@@ -16,12 +16,12 @@ def test_prepare_input_sanitizes_markup_links_and_code() -> None:
     assert prepared.sentences[0].text == "Hello\nVisit now."
 
 
-def test_derive_user_rules_preserves_beginner_profile_and_policies() -> None:
-    rules = derive_user_rules("daily_reading", "beginner_reading")
+def test_build_goal_execution_plan_preserves_beginner_profile_and_policies() -> None:
+    plan = build_goal_execution_plan("daily_reading", "beginner_reading")
 
-    assert rules.profile_id == "daily_beginner"
-    assert rules.grammar_granularity == "focused"
-    assert rules.vocabulary_policy == "high_value_only"
+    assert plan.prompt_profile == "daily_beginner"
+    assert plan.policy.grammar_focus == "focused"
+    assert plan.policy.vocabulary_focus == "high_value_only"
 
 
 def test_resolve_anchor_supports_exact_and_normalized_match() -> None:

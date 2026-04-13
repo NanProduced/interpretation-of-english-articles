@@ -48,7 +48,7 @@ from app.services.analysis.strategy_builder import (
     build_translation_bundle,
     build_vocabulary_bundle,
 )
-from app.services.analysis.user_rules import derive_user_rules
+from app.services.analysis.goal_planner import build_goal_execution_plan
 from app.workflow.analyze_state import AnalyzeState
 from app.workflow.tracing import build_llm_trace_metadata
 
@@ -149,9 +149,7 @@ def _build_agent_trace_metadata(
     model_selection: ModelSelection | None = None,
 ) -> dict[str, object]:
     payload = state["payload"]
-    user_rules = state.get("user_rules") or derive_user_rules(
-        payload.reading_goal, payload.reading_variant
-    )
+    plan = state["goal_execution_plan"]
     model_config = resolve_model_config(
         get_settings(), MODEL_ROUTE_ANNOTATION_GENERATION, model_selection
     )
@@ -162,7 +160,7 @@ def _build_agent_trace_metadata(
         source_type=payload.source_type,
         reading_goal=payload.reading_goal,
         reading_variant=payload.reading_variant,
-        profile_id=user_rules.profile_id,
+        profile_id=plan.prompt_profile,
         model_name=model_config.model_name if model_config else "unconfigured",
         model_provider=model_config.provider if model_config else "unconfigured",
         extra={
@@ -318,8 +316,12 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
 
 async def derive_user_config_node(state: AnalyzeState) -> AnalyzeState:
     payload = state["payload"]
-    user_rules = derive_user_rules(payload.reading_goal, payload.reading_variant)
-    return {"user_rules": user_rules}
+    plan = build_goal_execution_plan(payload.reading_goal, payload.reading_variant)
+    
+    if plan.topology_mode == "academic":
+        raise NotImplementedError(f"Topology mode '{plan.topology_mode}' is not yet implemented.")
+        
+    return {"goal_execution_plan": plan}
 
 
 async def _run_parallel_agents(
@@ -328,16 +330,16 @@ async def _run_parallel_agents(
 ) -> dict[str, Any]:
     """并行运行三个 agent。"""
     prepared_input = state["prepared_input"]
-    user_rules = state["user_rules"]
+    plan = state["goal_execution_plan"]
 
     sentences_data = [
         {"sentence_id": s.sentence_id, "text": s.text}
         for s in prepared_input.sentences
     ]
 
-    vocab_bundle = build_vocabulary_bundle(user_rules)
-    grammar_bundle = build_grammar_bundle(user_rules)
-    translation_bundle = build_translation_bundle(user_rules)
+    vocab_bundle = build_vocabulary_bundle(plan)
+    grammar_bundle = build_grammar_bundle(plan)
+    translation_bundle = build_translation_bundle(plan)
 
     vocab_deps = VocabularyAgentDeps(
         sentences=sentences_data,
@@ -497,8 +499,8 @@ async def normalize_and_ground_node(state: AnalyzeState) -> AnalyzeState:
 
     # 如果任何 draft 缺失，返回错误
     if vocabulary_draft is None or grammar_draft is None or translation_draft is None:
-        user_rules = state.get("user_rules")
-        profile_id = user_rules.profile_id if user_rules else "unresolved"
+        plan = state.get("goal_execution_plan")
+        profile_id = plan.prompt_profile if plan else "unresolved"
         return {
             "normalized_result": None,
             "render_scene": _empty_result(
@@ -537,7 +539,7 @@ async def normalize_and_ground_node(state: AnalyzeState) -> AnalyzeState:
         grammar_draft=grammar_draft,
         translation_draft=translation_draft,
         sentences=sentences,
-        profile_id=state["user_rules"].profile_id,
+        policy=state["goal_execution_plan"].policy,
     )
 
     current_run = get_current_run_tree()
@@ -677,14 +679,14 @@ async def project_render_scene_node(state: AnalyzeState) -> AnalyzeState:
     payload = state["payload"]
     prepared_input = state["prepared_input"]
     normalized_result = state.get("normalized_result")
-    user_rules = state.get("user_rules")
+    plan = state.get("goal_execution_plan")
 
     if normalized_result is None:
         return {
             "render_scene": _empty_result(
                 request_id=payload.request_id or "",
                 payload=payload,
-                profile_id=user_rules.profile_id if user_rules else "unresolved",
+                profile_id=plan.prompt_profile if plan else "unresolved",
             ),
         }
 
@@ -702,7 +704,7 @@ async def project_render_scene_node(state: AnalyzeState) -> AnalyzeState:
         source_type=payload.source_type,
         reading_goal=payload.reading_goal,
         reading_variant=payload.reading_variant,
-        profile_id=user_rules.profile_id if user_rules else "unknown",
+        profile_id=plan.prompt_profile if plan else "unknown",
         request_id=payload.request_id or "",
     )
 
@@ -731,8 +733,8 @@ async def assemble_result_node(state: AnalyzeState) -> AnalyzeState:
 
     if render_scene is None:
         payload = state["payload"]
-        user_rules = state.get("user_rules")
-        profile_id = user_rules.profile_id if user_rules else "unresolved"
+        plan = state.get("goal_execution_plan")
+        profile_id = plan.prompt_profile if plan else "unresolved"
         return {
             "render_scene": _empty_result(
                 request_id=payload.request_id or "",

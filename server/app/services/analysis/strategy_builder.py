@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.schemas.internal.analysis import UserRules
+from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.services.analysis.example_strategy import (
     ExampleStrategy,
     get_grammar_example_strategy,
@@ -33,30 +33,30 @@ class StrategyBundle:
 
 
 def build_vocabulary_bundle(
-    user_rules: UserRules,
+    plan: GoalExecutionPlan,
 ) -> StrategyBundle:
     """构建 vocabulary agent 的 strategy bundle。"""
     return StrategyBundle(
-        prompt_strategy=build_vocabulary_prompt_strategy(user_rules),
-        example_strategy=get_vocabulary_example_strategy(user_rules),
+        prompt_strategy=build_vocabulary_prompt_strategy(plan),
+        example_strategy=get_vocabulary_example_strategy(plan),
     )
 
 
 def build_grammar_bundle(
-    user_rules: UserRules,
+    plan: GoalExecutionPlan,
 ) -> StrategyBundle:
     """构建 grammar agent 的 strategy bundle。"""
     return StrategyBundle(
-        prompt_strategy=build_grammar_prompt_strategy(user_rules),
-        example_strategy=get_grammar_example_strategy(user_rules),
+        prompt_strategy=build_grammar_prompt_strategy(plan),
+        example_strategy=get_grammar_example_strategy(plan),
     )
 
 
 def build_translation_bundle(
-    user_rules: UserRules,
+    plan: GoalExecutionPlan,
 ) -> StrategyBundle:
     """构建 translation agent 的 strategy bundle。"""
     return StrategyBundle(
-        prompt_strategy=build_translation_prompt_strategy(user_rules),
-        example_strategy=get_translation_example_strategy(user_rules),
+        prompt_strategy=build_translation_prompt_strategy(plan),
+        example_strategy=get_translation_example_strategy(plan),
     )

@@ -13,7 +13,7 @@ from app.schemas.internal.analysis import (
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
 from app.services.analysis.input_preparation import prepare_input
 from app.services.analysis.projection import project_to_render_scene
-from app.services.analysis.user_rules import derive_user_rules
+from app.services.analysis.goal_planner import build_goal_execution_plan
 from app.workflow import analyze_nodes
 
 
@@ -167,7 +167,7 @@ def test_analyze_route_surfaces_draft_validation_warnings(monkeypatch) -> None:
 
 def test_projection_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
     prepared_input = prepare_input("This sentence mentions this first. Another sentence mentions leverage clearly.")
-    user_rules = derive_user_rules("daily_reading", "intermediate_reading")
+    plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
 
     baseline = project_to_render_scene(
         annotation_output=AnnotationOutput(
@@ -181,7 +181,7 @@ def test_projection_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
         source_type="user_input",
         reading_goal="daily_reading",
         reading_variant="intermediate_reading",
-        profile_id=user_rules.profile_id,
+        profile_id=plan.prompt_profile,
         request_id="req-1",
     )
 
@@ -205,7 +205,7 @@ def test_projection_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
         source_type="user_input",
         reading_goal="daily_reading",
         reading_variant="intermediate_reading",
-        profile_id=user_rules.profile_id,
+        profile_id=plan.prompt_profile,
         request_id="req-2",
     )
 
@@ -221,10 +221,9 @@ def test_parallel_agents_aggregate_usage_summary(monkeypatch) -> None:
     prepared_input = prepare_input("Sentence one. Sentence two.")
     state = {
         "prepared_input": prepared_input,
-        "user_rules": derive_user_rules("daily_reading", "intermediate_reading"),
+        "goal_execution_plan": analyze_nodes.build_goal_execution_plan("daily_reading", "intermediate_reading"),
         "payload": AnalyzeRequest.model_validate(
-            {
-                "request_id": "req-usage",
+            {                "request_id": "req-usage",
                 "text": "Sentence one. Sentence two.",
                 "source_type": "user_input",
                 "reading_goal": "daily_reading",
@@ -281,7 +280,7 @@ def test_llm_span_sets_usage_metadata_for_langsmith(monkeypatch) -> None:
     monkeypatch.setattr(analyze_nodes, "get_current_run_tree", lambda: fake_run)
     monkeypatch.setattr(analyze_nodes, "run_vocabulary_agent", _fake_vocabulary_agent)
     prompt_strategy = analyze_nodes.build_vocabulary_bundle(
-        derive_user_rules("daily_reading", "intermediate_reading")
+        analyze_nodes.build_goal_execution_plan("daily_reading", "intermediate_reading")
     ).prompt_strategy
 
     deps = analyze_nodes.VocabularyAgentDeps(

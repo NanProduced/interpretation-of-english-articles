@@ -1,171 +1,471 @@
-2026-04-12 23:03:40 | INFO     | app.database.connection:56 | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:03:40 | INFO     | app.main:45 | PostgreSQL pool initialized
-2026-04-12 23:03:41 | INFO     | app.database.connection:123 | Redis connection established
-2026-04-12 23:03:41 | INFO     | app.observability.langsmith:53 | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:03:41 | INFO     | app.main:72 | Analysis task worker started
-2026-04-12 23:04:24 | INFO     | app.database.connection:137 | Redis connection closed
-2026-04-12 23:04:24 | INFO     | app.database.connection:66 | PostgreSQL connection pool closed
-2026-04-12 23:04:24 | INFO     | app.main:82 | Application shutdown complete
-2026-04-12 23:04:27 | INFO     | app.database.connection:56 | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:04:27 | INFO     | app.main:45 | PostgreSQL pool initialized
-2026-04-12 23:04:27 | INFO     | app.database.connection:123 | Redis connection established
-2026-04-12 23:04:27 | INFO     | app.observability.langsmith:53 | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:04:27 | INFO     | app.main:72 | Analysis task worker started
-2026-04-12 23:18:45 | INFO     | app.database.connection:137 | Redis connection closed
-2026-04-12 23:18:45 | INFO     | app.database.connection:66 | PostgreSQL connection pool closed
-2026-04-12 23:18:45 | INFO     | app.main:82 | Application shutdown complete
-2026-04-12 23:18:48 | INFO     | app.database.connection:56 | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:18:48 | INFO     | app.main:45 | PostgreSQL pool initialized
-2026-04-12 23:18:48 | INFO     | app.database.connection:123 | Redis connection established
-2026-04-12 23:18:48 | INFO     | app.observability.langsmith:53 | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:18:48 | INFO     | app.main:72 | Analysis task worker started
-2026-04-12 23:18:53 | INFO     | app.database.connection:137 | Redis connection closed
-2026-04-12 23:18:53 | INFO     | app.database.connection:66 | PostgreSQL connection pool closed
-2026-04-12 23:18:53 | INFO     | app.main:82 | Application shutdown complete
-2026-04-12 23:18:55 | INFO     | app.database.connection:56 | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:18:55 | INFO     | app.main:46 | PostgreSQL pool initialized
-2026-04-12 23:18:56 | INFO     | app.database.connection:123 | Redis connection established
-2026-04-12 23:18:56 | INFO     | app.observability.langsmith:53 | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:18:56 | INFO     | app.services.dictionary.nlp:52 | dict: spaCy pipeline preloaded
-2026-04-12 23:18:56 | INFO     | app.main:60 | Dictionary spaCy pipeline preloaded
-2026-04-12 23:18:56 | INFO     | app.main:82 | Analysis task worker started
-2026-04-12 23:27:22 | INFO     | app.database.connection:137 | Redis connection closed
-2026-04-12 23:27:22 | INFO     | app.database.connection:66 | PostgreSQL connection pool closed
-2026-04-12 23:27:22 | INFO     | app.main:92 | Application shutdown complete
-2026-04-12 23:41:19 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:41:19 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-12 23:41:19 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-12 23:41:19 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:41:19 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-12 23:41:19 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-12 23:41:19 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-12 23:41:27 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-12 23:41:27 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-12 23:41:27 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-12 23:41:33 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:41:33 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-12 23:41:34 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-12 23:41:34 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:41:34 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-12 23:41:34 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-12 23:41:34 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-12 23:41:36 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-12 23:41:36 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-12 23:41:36 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-12 23:41:39 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:41:39 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-12 23:41:39 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-12 23:41:39 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:41:39 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-12 23:41:39 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-12 23:41:39 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-12 23:41:58 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-12 23:41:58 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-12 23:41:58 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-12 23:42:02 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:42:02 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-12 23:42:02 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-12 23:42:02 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:42:03 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-12 23:42:03 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-12 23:42:03 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-12 23:43:15 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-12 23:43:15 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-12 23:43:15 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-12 23:43:18 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:43:18 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-12 23:43:18 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-12 23:43:18 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:43:19 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-12 23:43:19 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-12 23:43:19 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-12 23:43:34 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-12 23:43:34 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-12 23:43:34 | INFO     | [[[app]]]            | Application shutdown complete
-[32m2026-04-12 23:43:37 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)[0m
-[32m2026-04-12 23:43:37 | INFO     | [[[app]]]            | PostgreSQL pool initialized[0m
-[32m2026-04-12 23:43:37 | INFO     | [[[db] connection]]  | Redis connection established[0m
-[32m2026-04-12 23:43:37 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.[0m
-[32m2026-04-12 23:43:38 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded[0m
-[32m2026-04-12 23:43:38 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded[0m
-[32m2026-04-12 23:43:38 | INFO     | [[[app]]]            | Analysis task worker started[0m
-[32m2026-04-12 23:43:40 | INFO     | [[[db] connection]]  | Redis connection closed[0m
-[32m2026-04-12 23:43:40 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed[0m
-[32m2026-04-12 23:43:40 | INFO     | [[[app]]]            | Application shutdown complete[0m
-2026-04-12 23:43:43 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:43:43 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-12 23:43:43 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-12 23:43:43 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:43:44 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-12 23:43:44 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-12 23:43:44 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-12 23:46:36 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-12 23:46:36 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-12 23:46:36 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-12 23:46:40 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:46:40 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-12 23:46:40 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-12 23:46:40 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:46:41 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-12 23:46:41 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-12 23:46:41 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-12 23:47:28 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-12 23:47:28 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-12 23:47:28 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-12 23:47:36 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:47:36 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-12 23:47:36 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-12 23:47:36 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:47:36 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-12 23:47:36 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-12 23:47:36 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-12 23:49:08 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-12 23:49:08 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-12 23:49:08 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-12 23:49:13 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-12 23:49:13 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-12 23:49:13 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-12 23:49:13 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-12 23:49:14 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-12 23:49:14 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-12 23:49:14 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-13 00:06:39 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-13 00:06:39 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-13 00:06:39 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-13 00:06:42 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-13 00:06:42 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-13 00:06:42 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-13 00:06:42 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-13 00:06:43 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-13 00:06:43 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-13 00:06:43 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-13 00:06:56 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-13 00:06:56 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-13 00:06:56 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-13 00:07:02 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-13 00:07:02 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-13 00:07:02 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-13 00:07:02 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-13 00:07:05 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-13 00:07:05 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-13 00:07:05 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-13 00:07:09 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-13 00:07:09 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-13 00:07:09 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-13 00:07:12 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-13 00:07:12 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-13 00:07:12 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-13 00:07:12 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-13 00:07:13 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-13 00:07:13 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-13 00:07:13 | INFO     | [[[app]]]            | Analysis task worker started
-2026-04-13 00:07:57 | INFO     | [[[db] connection]]  | Redis connection closed
-2026-04-13 00:07:57 | INFO     | [[[db] connection]]  | PostgreSQL connection pool closed
-2026-04-13 00:07:57 | INFO     | [[[app]]]            | Application shutdown complete
-2026-04-13 00:08:00 | INFO     | [[[db] connection]]  | PostgreSQL connection pool created (max_size=15)
-2026-04-13 00:08:00 | INFO     | [[[app]]]            | PostgreSQL pool initialized
-2026-04-13 00:08:00 | INFO     | [[[db] connection]]  | Redis connection established
-2026-04-13 00:08:00 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'english-article-interpretation-dev'.
-2026-04-13 00:08:01 | INFO     | [[[dict] nlp]]       | dict: spaCy pipeline preloaded
-2026-04-13 00:08:01 | INFO     | [[[app]]]            | Dictionary spaCy pipeline preloaded
-2026-04-13 00:08:01 | INFO     | [[[app]]]            | Analysis task worker started
+2026-04-13 11:47:02 | WARNING  | [[auth] wechat]      | WeChat code2session failed: {'errcode': 40029, 'errmsg': 'invalid code'}
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: spaCy model en_core_web_sm loaded successfully
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:03 | ERROR    | [[[workflow] analyze_nodes]] | vocabulary_agent 调用失败
+NoneType: None
+2026-04-13 11:47:03 | ERROR    | [[[workflow] analyze_nodes]] | grammar_agent 调用失败
+NoneType: None
+2026-04-13 11:47:03 | ERROR    | [[[workflow] analyze_nodes]] | translation_agent 调用失败
+NoneType: None
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:03 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'test-project'.
+2026-04-13 11:47:03 | WARNING  | [[[tasks] input_preparation]] | spaCy unavailable, falling back to regex sentence splitting
+2026-04-13 11:47:03 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:47:04 | INFO     | [[[tasks] task_executor]] | Requeued 2 stale analysis tasks
+2026-04-13 11:47:04 | INFO     | [[[tasks] task_executor]] | Task 6f938fd8-f111-4334-93e7-add4b89f0845 succeeded (record=874eab46-d1e4-4072-b03c-2845a4896650, cost=17 points)
+2026-04-13 11:47:04 | ERROR    | [[[tasks] task_executor]] | Task c01e7410-0d6c-416a-bbee-d5afb7705ec9 failed: Workflow produced no renderable content after heavy degradation
+Traceback (most recent call last):
+  File "C:\Users\nanpr\miniprogram\interpretation-of-english-articles\server\app\services\analysis\task_executor.py", line 254, in execute_task
+    raise UnrenderableAnalysisError(
+        "Workflow produced no renderable content after heavy degradation"
+    )
+app.services.analysis.task_executor.UnrenderableAnalysisError: Workflow produced no renderable content after heavy degradation
+2026-04-13 11:48:08 | WARNING  | [[[auth] wechat]]    | WeChat code2session failed: {'errcode': 40029, 'errmsg': 'invalid code'}
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: spaCy model en_core_web_sm loaded successfully
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:09 | ERROR    | [[[workflow] analyze_nodes]] | vocabulary_agent 调用失败
+NoneType: None
+2026-04-13 11:48:09 | ERROR    | [[[workflow] analyze_nodes]] | grammar_agent 调用失败
+NoneType: None
+2026-04-13 11:48:09 | ERROR    | [[[workflow] analyze_nodes]] | translation_agent 调用失败
+NoneType: None
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:09 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'test-project'.
+2026-04-13 11:48:10 | WARNING  | [[[tasks] input_preparation]] | spaCy unavailable, falling back to regex sentence splitting
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:48:10 | INFO     | [[[tasks] task_executor]] | Requeued 2 stale analysis tasks
+2026-04-13 11:48:10 | INFO     | [[[tasks] task_executor]] | Task f83d2714-236d-45de-bc6c-7275037884f4 succeeded (record=fc3f6852-ebb2-419e-843a-ec573491477e, cost=17 points)
+2026-04-13 11:48:10 | ERROR    | [[[tasks] task_executor]] | Task a36ac212-8ccd-4b36-9db4-4cc2a6b97dd0 failed: Workflow produced no renderable content after heavy degradation
+Traceback (most recent call last):
+  File "C:\Users\nanpr\miniprogram\interpretation-of-english-articles\server\app\services\analysis\task_executor.py", line 254, in execute_task
+    raise UnrenderableAnalysisError(
+        "Workflow produced no renderable content after heavy degradation"
+    )
+app.services.analysis.task_executor.UnrenderableAnalysisError: Workflow produced no renderable content after heavy degradation
+2026-04-13 11:49:22 | WARNING  | [[[auth] wechat]]    | WeChat code2session failed: {'errcode': 40029, 'errmsg': 'invalid code'}
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: spaCy model en_core_web_sm loaded successfully
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:23 | ERROR    | [[[workflow] analyze_nodes]] | vocabulary_agent 调用失败
+NoneType: None
+2026-04-13 11:49:23 | ERROR    | [[[workflow] analyze_nodes]] | grammar_agent 调用失败
+NoneType: None
+2026-04-13 11:49:23 | ERROR    | [[[workflow] analyze_nodes]] | translation_agent 调用失败
+NoneType: None
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:23 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'test-project'.
+2026-04-13 11:49:24 | WARNING  | [[[tasks] input_preparation]] | spaCy unavailable, falling back to regex sentence splitting
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:49:24 | INFO     | [[[tasks] task_executor]] | Requeued 2 stale analysis tasks
+2026-04-13 11:49:24 | INFO     | [[[tasks] task_executor]] | Task 0fe4c95c-ad64-48ce-8ab6-8bfd99e87dc7 succeeded (record=65713336-5f1d-478b-8e39-fd1c806fe93b, cost=17 points)
+2026-04-13 11:49:24 | ERROR    | [[[tasks] task_executor]] | Task 7406da20-95bf-4591-be2b-4a3097106b20 failed: Workflow produced no renderable content after heavy degradation
+Traceback (most recent call last):
+  File "C:\Users\nanpr\miniprogram\interpretation-of-english-articles\server\app\services\analysis\task_executor.py", line 254, in execute_task
+    raise UnrenderableAnalysisError(
+        "Workflow produced no renderable content after heavy degradation"
+    )
+app.services.analysis.task_executor.UnrenderableAnalysisError: Workflow produced no renderable content after heavy degradation
+2026-04-13 11:52:03 | WARNING  | [[[auth] wechat]]    | WeChat code2session failed: {'errcode': 40029, 'errmsg': 'invalid code'}
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: spaCy model en_core_web_sm loaded successfully
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:04 | ERROR    | [[[workflow] analyze_nodes]] | vocabulary_agent 调用失败
+NoneType: None
+2026-04-13 11:52:04 | ERROR    | [[[workflow] analyze_nodes]] | grammar_agent 调用失败
+NoneType: None
+2026-04-13 11:52:04 | ERROR    | [[[workflow] analyze_nodes]] | translation_agent 调用失败
+NoneType: None
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:04 | INFO     | [[[app] langsmith]]  | LangSmith environment initialized for project 'test-project'.
+2026-04-13 11:52:04 | WARNING  | [[[tasks] input_preparation]] | spaCy unavailable, falling back to regex sentence splitting
+2026-04-13 11:52:04 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:52:05 | INFO     | [[[tasks] task_executor]] | Requeued 2 stale analysis tasks
+2026-04-13 11:52:05 | INFO     | [[[tasks] task_executor]] | Task e7fcb3cf-9849-414a-8aa8-194edd819a68 succeeded (record=c1a1da06-5dc1-460e-9ea8-0f09ab16c3a4, cost=17 points)
+2026-04-13 11:52:05 | ERROR    | [[[tasks] task_executor]] | Task 51af9c79-7ea7-4c72-8c2c-298ec7de42e1 failed: Workflow produced no renderable content after heavy degradation
+Traceback (most recent call last):
+  File "C:\Users\nanpr\miniprogram\interpretation-of-english-articles\server\app\services\analysis\task_executor.py", line 254, in execute_task
+    raise UnrenderableAnalysisError(
+        "Workflow produced no renderable content after heavy degradation"
+    )
+app.services.analysis.task_executor.UnrenderableAnalysisError: Workflow produced no renderable content after heavy degradation
+2026-04-13 11:56:48 | INFO     | [[[tasks] input_preparation]] | prepare_input: spaCy model en_core_web_sm loaded successfully
+2026-04-13 11:56:48 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:56:48 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:56:48 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:56:48 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:56:48 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:56:48 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:56:48 | ERROR    | [[[workflow] analyze_nodes]] | vocabulary_agent 调用失败
+NoneType: None
+2026-04-13 11:56:48 | ERROR    | [[[workflow] analyze_nodes]] | grammar_agent 调用失败
+NoneType: None
+2026-04-13 11:56:48 | ERROR    | [[[workflow] analyze_nodes]] | translation_agent 调用失败
+NoneType: None
+2026-04-13 11:56:49 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:56:49 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:56:49 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:56:49 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:56:49 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:56:49 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed
+2026-04-13 11:56:49 | INFO     | [[[tasks] input_preparation]] | prepare_input: fast_path decision
+2026-04-13 11:56:49 | INFO     | [[[tasks] input_preparation]] | prepare_input: layer5_split completed
+2026-04-13 11:56:49 | INFO     | [[[tasks] input_preparation]] | prepare_input: pipeline completed

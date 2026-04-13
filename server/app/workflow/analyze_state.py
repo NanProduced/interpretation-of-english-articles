@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import TypedDict
 
 from app.schemas.analysis import AnalyzeRequest, RenderSceneModel, Warning
-from app.schemas.internal.analysis import PreparedInput, UserRules
+from app.schemas.internal.analysis import PreparedInput
+from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
 from app.schemas.internal.normalized import DropLogEntry, NormalizedAnnotationResult
 
@@ -12,7 +13,7 @@ class AnalyzeState(TypedDict, total=False):
     # Request & Input
     payload: AnalyzeRequest
     prepared_input: PreparedInput
-    user_rules: UserRules
+    goal_execution_plan: GoalExecutionPlan
 
     # V3: Parallel agent drafts
     vocabulary_draft: VocabularyDraft | None

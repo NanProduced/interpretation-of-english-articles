@@ -10,6 +10,7 @@ from app.schemas.internal.analysis import (
     VocabHighlight,
 )
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
+from app.schemas.internal.execution_plan import GoalPolicy
 from app.services.analysis.normalize_and_ground import normalize_and_ground
 
 
@@ -42,7 +43,7 @@ def test_normalize_drops_spaced_vocab_highlight() -> None:
             sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="翻译")]
         ),
         sentences=[_sentence("s1", "Shopkeepers are going to extreme lengths.")],
-        profile_id="daily_intermediate",
+        policy=GoalPolicy(annotation_density=3, vocabulary_focus="high_value_only", grammar_focus="balanced", translation_focus="natural"),
     )
     assert result.annotations == []
     assert any("single_word" in item.drop_reason or "single" in item.drop_reason for item in result.drop_log)
@@ -69,7 +70,7 @@ def test_normalize_drops_invalid_single_word_phrase_gloss() -> None:
             sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="翻译")]
         ),
         sentences=[_sentence("s1", "This concept became a buzzword.")],
-        profile_id="daily_intermediate",
+        policy=GoalPolicy(annotation_density=3, vocabulary_focus="high_value_only", grammar_focus="balanced", translation_focus="natural"),
     )
     assert result.annotations == []
     assert any("single-token" in item.drop_reason or "single_token" in item.drop_reason for item in result.drop_log)
@@ -107,7 +108,7 @@ def test_density_control_uses_profile_limit() -> None:
             sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="翻译")]
         ),
         sentences=[_sentence("s1", "The constitutional monarchy, which many say matters, is something that people debate.")],
-        profile_id="daily_beginner",
+        policy=GoalPolicy(annotation_density=2, vocabulary_focus="high_value_only", grammar_focus="focused", translation_focus="natural"),
     )
     assert len(result.annotations) == 2
     assert any(item.drop_stage == "density_control" for item in result.drop_log)
@@ -131,7 +132,7 @@ def test_sentence_analysis_with_result_in_being_done_survives_normalize() -> Non
             sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="翻译")]
         ),
         sentences=[_sentence("s1", "Higher gas prices result in farmers being forced to pay more for fertilizer.")],
-        profile_id="daily_intermediate",
+        policy=GoalPolicy(annotation_density=3, vocabulary_focus="high_value_only", grammar_focus="balanced", translation_focus="natural"),
     )
     assert len(result.annotations) == 1
     assert result.annotations[0].type == "sentence_analysis"

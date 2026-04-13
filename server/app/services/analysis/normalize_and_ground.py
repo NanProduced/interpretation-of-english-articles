@@ -19,6 +19,7 @@ from app.schemas.internal.analysis import (
     VocabHighlight,
 )
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
+from app.schemas.internal.execution_plan import GoalPolicy
 from app.schemas.internal.normalized import DropLogEntry, NormalizedAnnotationResult
 from app.services.analysis.draft_validators import (
     validate_context_gloss_business_rules,
@@ -54,19 +55,11 @@ LOW_VALUE_WORDS: set[str] = {
     "number", "percent", "type", "kind", "sort", "class",
 }
 
-DENSITY_LIMITS: dict[str, int] = {
-    "daily_beginner": 2,
-    "daily_intermediate": 3,
-    "daily_intensive": 4,
-    "academic_general": 4,
-}
-
-
 @dataclass
 class NormalizationContext:
     sentences: list[PreparedSentence]
     sentence_map: dict[str, PreparedSentence]
-    profile_id: str
+    policy: GoalPolicy
 
 
 def _make_anchor_key(annotation_type: str, sentence_id: str, anchor_text: str) -> str:
@@ -82,14 +75,6 @@ def _make_anchor_key(annotation_type: str, sentence_id: str, anchor_text: str) -
 
 def _is_substring(text: str, sentence_text: str) -> bool:
     return text in sentence_text
-
-
-def _resolve_density_limit(profile_id: str) -> int:
-    if profile_id in DENSITY_LIMITS:
-        return DENSITY_LIMITS[profile_id]
-    if profile_id.startswith("exam_"):
-        return 4
-    return 3
 
 
 def _log_drop(
@@ -339,7 +324,7 @@ def _density_control(
     ctx: NormalizationContext,
     drop_log: list[DropLogEntry],
 ) -> list[Annotation]:
-    max_per_sentence = _resolve_density_limit(ctx.profile_id)
+    max_per_sentence = ctx.policy.annotation_density
     grouped: dict[str, list[Annotation]] = {}
     for annotation in annotations:
         grouped.setdefault(annotation.sentence_id, []).append(annotation)
@@ -396,12 +381,12 @@ def normalize_and_ground(
     grammar_draft: GrammarDraft,
     translation_draft: TranslationDraft,
     sentences: list[PreparedSentence],
-    profile_id: str,
+    policy: GoalPolicy,
 ) -> NormalizedAnnotationResult:
     ctx = NormalizationContext(
         sentences=sentences,
         sentence_map={sentence.sentence_id: sentence for sentence in sentences},
-        profile_id=profile_id,
+        policy=policy,
     )
     drop_log: list[DropLogEntry] = []
 
