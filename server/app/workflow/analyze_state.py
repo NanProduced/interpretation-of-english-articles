@@ -15,7 +15,7 @@ class AnalyzeState(TypedDict, total=False):
     prepared_input: PreparedInput
     goal_execution_plan: GoalExecutionPlan
 
-    # V3: Parallel agent drafts
+    # Parallel agent drafts
     vocabulary_draft: VocabularyDraft | None
     grammar_draft: GrammarDraft | None
     translation_draft: TranslationDraft | None
@@ -25,17 +25,16 @@ class AnalyzeState(TypedDict, total=False):
     repair_usage: dict[str, object] | None
     usage_summary: dict[str, object] | None
 
-    # V3: Normalization result
+    # Normalization result
     normalized_result: NormalizedAnnotationResult | None
     drop_log: list[DropLogEntry]  # Alias for normalized_result.drop_log for direct access
 
-    # V3: Optional repair
+    # Optional repair
     repair_request: dict | None
 
-    # V3: Final result
+    # Final result
     render_scene: RenderSceneModel
 
-    # Legacy aliases for compatibility during transition
-    annotation_output: dict | None  # Deprecated: use normalized_result
+    # Consolidated warnings
     warnings: list[Warning]
-    processing_warnings: list[Warning]  # V3: consolidated warnings
+    processing_warnings: list[Warning]  # consolidated warnings

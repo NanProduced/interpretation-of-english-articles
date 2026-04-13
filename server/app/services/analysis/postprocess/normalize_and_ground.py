@@ -21,7 +21,7 @@ from app.schemas.internal.analysis import (
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
 from app.schemas.internal.execution_plan import GoalPolicy
 from app.schemas.internal.normalized import DropLogEntry, NormalizedAnnotationResult
-from app.services.analysis.draft_validators import (
+from app.services.analysis.postprocess.draft_validators import (
     validate_context_gloss_business_rules,
     validate_phrase_gloss_business_rules,
     validate_vocab_highlight_business_rules,

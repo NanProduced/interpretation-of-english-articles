@@ -159,7 +159,3 @@ def resolve_multi_text_anchor(
         resolved_parts.append(span)
 
     return resolved_parts
-
-
-# 向后兼容：单段锚点解析直接使用 resolve_text_anchor
-resolve_anchor = resolve_text_anchor

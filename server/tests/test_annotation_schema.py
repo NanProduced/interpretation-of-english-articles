@@ -12,7 +12,7 @@ from app.schemas.internal.analysis import (
     AnnotationOutput,
     VocabHighlight,
 )
-from app.services.analysis.draft_validators import (
+from app.services.analysis.postprocess.draft_validators import (
     validate_context_gloss_business_rules,
     validate_phrase_gloss_business_rules,
     validate_vocab_highlight_business_rules,

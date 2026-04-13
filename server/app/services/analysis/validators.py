@@ -1,9 +1,9 @@
 """
-V2.1 Annotation 校验器
+Annotation 校验器
 
 负责校验 LLM 输出的 annotation 是否符合规范。
 
-校验规则（docs/workflow/v2/v2-1-refactor-design.md）：
+校验规则：
 
 1. VocabHighlight：
    - text 必须是 sentence 的真实子串
@@ -45,12 +45,12 @@ from app.schemas.internal.analysis import (
 )
 
 if TYPE_CHECKING:
-    from app.services.analysis.input_preparation import PreparedInput
+    from app.services.analysis.preprocess.input_preparation import PreparedInput
 
 logger = logging.getLogger(__name__)
 
 # 允许的 ExamTag
-ALLOWED_EXAM_TAGS: set[str] = {"gaokao", "cet", "gre", "ielts_toefl"}
+ALLOWED_EXAM_TAGS: set[str] = {"gaokao", "cet", "gre_tem", "ielts_toefl"}
 
 # 允许的 PhraseType
 ALLOWED_PHRASE_TYPES: set[str] = {"collocation", "phrasal_verb", "idiom", "proper_noun", "compound"}

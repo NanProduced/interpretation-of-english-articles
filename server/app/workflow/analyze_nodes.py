@@ -1,15 +1,13 @@
-"""V3 Workflow Nodes for article_analysis.
+"""Workflow Nodes for article_analysis.
 
-v3 节点设计：
+节点设计：
 1. prepare_input - 输入清洗、分段分句
 2. derive_user_config - 用户配置推导
-3. vocabulary_agent - 词汇维度标注（并行）
-4. grammar_agent - 结构维度标注（并行）
-5. translation_agent - 逐句翻译（并行）
-6. normalize_and_ground - 确定性归一化
-7. repair_agent - 可选修复
-8. project_render_scene - 前端协议投影
-9. assemble_result - 结果收敛
+3. parallel_agents - 词汇、结构、翻译并行标注
+4. normalize_and_ground - 确定性归一化
+5. repair_agent - 可选修复
+6. project_render_scene - 前端协议投影
+7. assemble_result - 结果收敛
 """
 
 from __future__ import annotations
@@ -34,21 +32,21 @@ from app.llm.runtime import get_model_selection
 from app.llm.types import ModelSelection
 from app.schemas.analysis import AnalyzeRequestMeta, ArticleStructure, RenderSceneModel, Warning
 from app.schemas.internal.analysis import PreparedSentence
-from app.services.analysis.draft_validators import validate_all_drafts
-from app.services.analysis.input_preparation import prepare_input
-from app.services.analysis.normalize_and_ground import normalize_and_ground
-from app.services.analysis.projection import project_to_render_scene
-from app.services.analysis.runners import (
+from app.services.analysis.postprocess.draft_validators import validate_all_drafts
+from app.services.analysis.preprocess.input_preparation import prepare_input
+from app.services.analysis.postprocess.normalize_and_ground import normalize_and_ground
+from app.services.analysis.postprocess.projection import project_to_render_scene
+from app.services.analysis.runtime.runners import (
     run_grammar_agent,
     run_translation_agent,
     run_vocabulary_agent,
 )
-from app.services.analysis.strategy_builder import (
+from app.services.analysis.prompting.strategy_builder import (
     build_grammar_bundle,
     build_translation_bundle,
     build_vocabulary_bundle,
 )
-from app.services.analysis.goal_planner import build_goal_execution_plan
+from app.services.analysis.planning.goal_planner import build_goal_execution_plan
 from app.workflow.analyze_state import AnalyzeState
 from app.workflow.tracing import build_llm_trace_metadata
 
@@ -271,9 +269,8 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
             ),
         }
 
-    PROCEED_FAST = {"article_en"}
-    PROCEED_WARN = {"article_mixed", "structured_doc", "html_like"}
     FAIL_WARN = {"code_like", "other"}
+    PROCEED_WARN = {"article_mixed", "structured_doc", "html_like"}
 
     if prepared_input.text_type in FAIL_WARN:
         warnings.append(
@@ -293,7 +290,6 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
         )
 
     if prepared_input.english_ratio < 0.45 or not prepared_input.sentences:
-        # 弱拦截：记录 warning 但继续流程
         warnings.append(
             Warning(
                 code="LOW_ENGLISH_RATIO",
@@ -315,12 +311,12 @@ async def prepare_input_node(state: AnalyzeState) -> AnalyzeState:
 
 
 async def derive_user_config_node(state: AnalyzeState) -> AnalyzeState:
+    existing_plan = state.get("goal_execution_plan")
+    if existing_plan is not None:
+        return {}
+
     payload = state["payload"]
     plan = build_goal_execution_plan(payload.reading_goal, payload.reading_variant)
-    
-    if plan.topology_mode == "academic":
-        raise NotImplementedError(f"Topology mode '{plan.topology_mode}' is not yet implemented.")
-        
     return {"goal_execution_plan": plan}
 
 
@@ -357,12 +353,10 @@ async def _run_parallel_agents(
         examples=translation_bundle.example_strategy.examples,
     )
 
-    # 构建 metadata
     vocab_meta = _build_agent_trace_metadata(state, "vocabulary_agent", model_selection)
     grammar_meta = _build_agent_trace_metadata(state, "grammar_agent", model_selection)
     translation_meta = _build_agent_trace_metadata(state, "translation_agent", model_selection)
 
-    # 并行执行
     vocab_task = _run_vocabulary_llm_span(
         deps=vocab_deps, metadata=vocab_meta, model_selection=model_selection
     )
@@ -375,55 +369,28 @@ async def _run_parallel_agents(
 
     results = await asyncio.gather(vocab_task, grammar_task, translation_task, return_exceptions=True)
 
-    # 解析结果
     vocab_result = results[0] if not isinstance(results[0], Exception) else None
     grammar_result = results[1] if not isinstance(results[1], Exception) else None
     translation_result = results[2] if not isinstance(results[2], Exception) else None
 
-    # 处理异常
     errors: list[Warning] = []
     if isinstance(results[0], Exception):
         logger.exception("vocabulary_agent 调用失败")
-        errors.append(
-            Warning(
-                code="VOCABULARY_AGENT_FAILED",
-                level="error",
-                message=f"vocabulary agent 调用失败: {results[0]}",
-            )
-        )
+        errors.append(Warning(code="VOCABULARY_AGENT_FAILED", level="error", message=f"vocabulary agent 调用失败: {results[0]}"))
     if isinstance(results[1], Exception):
         logger.exception("grammar_agent 调用失败")
-        errors.append(
-            Warning(
-                code="GRAMMAR_AGENT_FAILED",
-                level="error",
-                message=f"grammar agent 调用失败: {results[1]}",
-            )
-        )
+        errors.append(Warning(code="GRAMMAR_AGENT_FAILED", level="error", message=f"grammar agent 调用失败: {results[1]}"))
     if isinstance(results[2], Exception):
         logger.exception("translation_agent 调用失败")
-        errors.append(
-            Warning(
-                code="TRANSLATION_AGENT_FAILED",
-                level="error",
-                message=f"translation agent 调用失败: {results[2]}",
-            )
-        )
+        errors.append(Warning(code="TRANSLATION_AGENT_FAILED", level="error", message=f"translation agent 调用失败: {results[2]}"))
 
-    # 提取 output
     vocabulary_output = vocab_result.get("output") if vocab_result else None
     grammar_output = grammar_result.get("output") if grammar_result else None
     translation_output = translation_result.get("output") if translation_result else None
     vocabulary_usage = vocab_result.get("usage") if vocab_result else None
     grammar_usage = grammar_result.get("usage") if grammar_result else None
     translation_usage = translation_result.get("usage") if translation_result else None
-    usage_summary = _aggregate_usage_summary(
-        {
-            "vocabulary": vocabulary_usage,
-            "grammar": grammar_usage,
-            "translation": translation_usage,
-        }
-    )
+    usage_summary = _aggregate_usage_summary({"vocabulary": vocabulary_usage, "grammar": grammar_usage, "translation": translation_usage})
 
     return {
         "vocabulary_draft": vocabulary_output,
@@ -437,41 +404,8 @@ async def _run_parallel_agents(
     }
 
 
-async def vocabulary_agent_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
-    """Vocabulary agent node - returns immediately if vocabulary_draft already exists (set by parallel_agents_node)."""
-    if state.get("vocabulary_draft") is not None:
-        return {}
-    # This node should not be reached if the graph is structured correctly
-    # The parallel_agents_node handles all three agents
-    return {}
-
-
-async def grammar_agent_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
-    """Grammar agent node - returns immediately if grammar_draft already exists (set by parallel_agents_node)."""
-    if state.get("grammar_draft") is not None:
-        return {}
-    return {}
-
-
-async def translation_agent_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
-    """Translation agent node - returns immediately if translation_draft already exists (set by parallel_agents_node)."""
-    if state.get("translation_draft") is not None:
-        return {}
-    return {}
-
-
 async def parallel_agents_node(state: AnalyzeState, config: RunnableConfig) -> AnalyzeState:
-    """Parallel agents node - runs all three agents concurrently using asyncio.gather.
-
-    This is the single entry point for all three agents to avoid duplicate LLM calls.
-    """
-    if (
-        state.get("vocabulary_draft") is not None
-        and state.get("grammar_draft") is not None
-        and state.get("translation_draft") is not None
-    ):
-        return {}
-
+    """Parallel agents node."""
     model_selection = _model_selection(config)
     result = await _run_parallel_agents(state, model_selection)
     errors = result.get("agent_errors", [])
@@ -497,42 +431,21 @@ async def normalize_and_ground_node(state: AnalyzeState) -> AnalyzeState:
     grammar_draft = state.get("grammar_draft")
     translation_draft = state.get("translation_draft")
 
-    # 如果任何 draft 缺失，返回错误
     if vocabulary_draft is None or grammar_draft is None or translation_draft is None:
         plan = state.get("goal_execution_plan")
         profile_id = plan.prompt_profile if plan else "unresolved"
         return {
             "normalized_result": None,
-            "render_scene": _empty_result(
-                request_id=payload.request_id or "",
-                payload=payload,
-                profile_id=profile_id,
-            ),
+            "render_scene": _empty_result(request_id=payload.request_id or "", payload=payload, profile_id=profile_id),
             "warnings": [
                 *state.get("warnings", []),
-                Warning(
-                    code="NORMALIZE_AND_GROUND_FAILED",
-                    level="error",
-                    message="并行 agent 未返回有效结果，无法进行归一化",
-                ),
+                Warning(code="NORMALIZE_AND_GROUND_FAILED", level="error", message="并行 agent 未返回有效结果，无法进行归一化"),
             ],
         }
 
-    sentences = [
-        PreparedSentence.model_validate(s)
-        if not isinstance(s, PreparedSentence)
-        else s
-        for s in prepared_input.sentences
-    ]
-
-    # 收集 draft 校验 warnings（不丢弃）
-    validation_warnings = validate_all_drafts(
-        vocabulary_draft, grammar_draft, translation_draft, sentences
-    )
-    draft_warnings = [
-        Warning(code="DRAFT_VALIDATION", level="warning", message=msg)
-        for msg in validation_warnings
-    ]
+    sentences = [PreparedSentence.model_validate(s) if not isinstance(s, PreparedSentence) else s for s in prepared_input.sentences]
+    validation_warnings = validate_all_drafts(vocabulary_draft, grammar_draft, translation_draft, sentences)
+    draft_warnings = [Warning(code="DRAFT_VALIDATION", level="warning", message=msg) for msg in validation_warnings]
 
     normalized_result = normalize_and_ground(
         vocabulary_draft=vocabulary_draft,
@@ -567,20 +480,13 @@ async def repair_agent_node(state: AnalyzeState, config: RunnableConfig) -> Anal
     """Repair agent node（条件触发）。"""
     normalized_result = state.get("normalized_result")
 
-    # 检查是否需要 repair
     if normalized_result is not None:
         drop_count = len(normalized_result.drop_log) if normalized_result.drop_log else 0
         annotation_count = len(normalized_result.annotations)
-        if annotation_count > 0:
-            failure_ratio = drop_count / (annotation_count + drop_count)
-        else:
-            failure_ratio = 0.0
-
+        failure_ratio = drop_count / (annotation_count + drop_count) if annotation_count > 0 else 0.0
         if failure_ratio <= ANCHOR_FAILURE_THRESHOLD:
-            # 不需要 repair
             return {"repair_request": None}
 
-    # 需要 repair
     prepared_input = state["prepared_input"]
     vocabulary_draft = state.get("vocabulary_draft")
     grammar_draft = state.get("grammar_draft")
@@ -589,16 +495,9 @@ async def repair_agent_node(state: AnalyzeState, config: RunnableConfig) -> Anal
     if vocabulary_draft is None or grammar_draft is None or translation_draft is None:
         return {"repair_request": None}
 
-    error_context = (
-        f"normalized_result 锚点失败率过高或结构异常。"
-        f"drop_log: {len(normalized_result.drop_log) if normalized_result else 0} items"
-    )
-
+    error_context = f"normalized_result 锚点失败率过高或结构异常。drop_log: {len(normalized_result.drop_log) if normalized_result else 0} items"
     repair_deps = RepairAgentDeps(
-        sentences=[
-            {"sentence_id": s.sentence_id, "text": s.text}
-            for s in prepared_input.sentences
-        ],
+        sentences=[{"sentence_id": s.sentence_id, "text": s.text} for s in prepared_input.sentences],
         original_drafts={
             "vocabulary_draft": vocabulary_draft.model_dump(mode="json") if vocabulary_draft else {},
             "grammar_draft": grammar_draft.model_dump(mode="json") if grammar_draft else {},
@@ -609,19 +508,15 @@ async def repair_agent_node(state: AnalyzeState, config: RunnableConfig) -> Anal
     repair_meta["extra"] = {**(repair_meta.get("extra") or {}), "error_context": error_context}
 
     try:
-        repair_result = await _run_repair_llm_span(
-            deps=repair_deps, metadata=repair_meta, error_context=error_context
-        )
+        repair_result = await _run_repair_llm_span(deps=repair_deps, metadata=repair_meta, error_context=error_context)
         repaired_result = repair_result.get("output")
         repair_usage = repair_result.get("usage")
-        usage_summary = _aggregate_usage_summary(
-            {
-                "vocabulary": state.get("vocabulary_usage"),
-                "grammar": state.get("grammar_usage"),
-                "translation": state.get("translation_usage"),
-                "repair": repair_usage,
-            }
-        )
+        usage_summary = _aggregate_usage_summary({
+            "vocabulary": state.get("vocabulary_usage"),
+            "grammar": state.get("grammar_usage"),
+            "translation": state.get("translation_usage"),
+            "repair": repair_usage,
+        })
         return {
             "repair_request": {"error_context": error_context, "repaired": True},
             "normalized_result": repaired_result,
@@ -635,11 +530,7 @@ async def repair_agent_node(state: AnalyzeState, config: RunnableConfig) -> Anal
             "repair_request": {"error_context": error_context, "repaired": False},
             "warnings": [
                 *state.get("warnings", []),
-                Warning(
-                    code="REPAIR_AGENT_FAILED",
-                    level="warning",
-                    message="repair agent 调用失败，继续使用归一化结果",
-                ),
+                Warning(code="REPAIR_AGENT_FAILED", level="warning", message="repair agent 调用失败，继续使用归一化结果"),
             ],
         }
 
@@ -665,11 +556,7 @@ async def _run_repair_llm_span(
     usage = extract_run_usage(result)
     current_run = get_current_run_tree()
     if current_run is not None:
-        _set_current_run(
-            run_tree=current_run,
-            metadata=metadata,
-            usage_metadata=usage,
-        )
+        _set_current_run(run_tree=current_run, metadata=metadata, usage_metadata=usage)
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -682,22 +569,10 @@ async def project_render_scene_node(state: AnalyzeState) -> AnalyzeState:
     plan = state.get("goal_execution_plan")
 
     if normalized_result is None:
-        return {
-            "render_scene": _empty_result(
-                request_id=payload.request_id or "",
-                payload=payload,
-                profile_id=plan.prompt_profile if plan else "unresolved",
-            ),
-        }
+        return {"render_scene": _empty_result(request_id=payload.request_id or "", payload=payload, profile_id=plan.prompt_profile if plan else "unresolved")}
 
-    # 将 NormalizedAnnotationResult 转换为 AnnotationOutput 格式以兼容现有 projection
     from app.schemas.internal.analysis import AnnotationOutput
-
-    annotation_output = AnnotationOutput(
-        annotations=normalized_result.annotations,
-        sentence_translations=normalized_result.sentence_translations,
-    )
-
+    annotation_output = AnnotationOutput(annotations=normalized_result.annotations, sentence_translations=normalized_result.sentence_translations)
     projection_outcome = project_to_render_scene(
         annotation_output=annotation_output,
         prepared_input=prepared_input,
@@ -710,20 +585,11 @@ async def project_render_scene_node(state: AnalyzeState) -> AnalyzeState:
 
     current_run = get_current_run_tree()
     if current_run is not None:
-        current_run.set(
-            metadata={
-                "inline_marks_count": len(projection_outcome.result.inline_marks),
-                "sentence_entries_count": len(projection_outcome.result.sentence_entries),
-                "projection_warnings_count": len(projection_outcome.warnings),
-            },
-        )
+        current_run.set(metadata={"inline_marks_count": len(projection_outcome.result.inline_marks), "sentence_entries_count": len(projection_outcome.result.sentence_entries), "projection_warnings_count": len(projection_outcome.warnings)})
 
     return {
         "render_scene": projection_outcome.result,
-        "warnings": [
-            *state.get("warnings", []),
-            *[Warning(**w) for w in projection_outcome.warnings],
-        ],
+        "warnings": [*state.get("warnings", []), *[Warning(**w) for w in projection_outcome.warnings]],
     }
 
 
@@ -734,52 +600,25 @@ async def assemble_result_node(state: AnalyzeState) -> AnalyzeState:
     if render_scene is None:
         payload = state["payload"]
         plan = state.get("goal_execution_plan")
-        profile_id = plan.prompt_profile if plan else "unresolved"
-        return {
-            "render_scene": _empty_result(
-                request_id=payload.request_id or "",
-                payload=payload,
-                profile_id=profile_id,
-            ),
-        }
+        return {"render_scene": _empty_result(request_id=payload.request_id or "", payload=payload, profile_id=plan.prompt_profile if plan else "unresolved")}
 
-    # 确保 warnings 不重复
     existing_warnings = state.get("warnings", [])
     if existing_warnings and hasattr(render_scene, "warnings"):
         seen_keys = {(w.code, w.sentence_id) for w in render_scene.warnings}
         for w in existing_warnings:
-            key = (w.code, w.sentence_id)
-            if key not in seen_keys:
+            if (w.code, w.sentence_id) not in seen_keys:
                 render_scene.warnings.append(w)
-                seen_keys.add(key)
+                seen_keys.add((w.code, w.sentence_id))
 
-    # 推导 user_facing_state
-    # degraded_heavy: 关键 Agent 调用失败
-    heavy_failure_codes = {
-        "VOCABULARY_AGENT_FAILED",
-        "GRAMMAR_AGENT_FAILED",
-        "TRANSLATION_AGENT_FAILED",
-        "NORMALIZE_AND_GROUND_FAILED",
-    }
+    heavy_failure_codes = {"VOCABULARY_AGENT_FAILED", "GRAMMAR_AGENT_FAILED", "TRANSLATION_AGENT_FAILED", "NORMALIZE_AND_GROUND_FAILED"}
     has_heavy_failure = any(w.code in heavy_failure_codes for w in render_scene.warnings)
     has_no_entries = len(render_scene.sentence_entries) == 0 and len(render_scene.inline_marks) == 0
-
-    # informational 级别的 warning 不触发 degradation，只做提示
-    informational_codes = {
-        "LOW_ENGLISH_RATIO",
-        "HIGH_NOISE_RATIO",
-        "UNSUPPORTED_TEXT_TYPE",
-        "DRAFT_VALIDATION",
-    }
-    has_informational_only = (
-        len(render_scene.warnings) > 0
-        and all(w.code in informational_codes for w in render_scene.warnings)
-    )
+    informational_codes = {"LOW_ENGLISH_RATIO", "HIGH_NOISE_RATIO", "UNSUPPORTED_TEXT_TYPE", "DRAFT_VALIDATION"}
+    has_informational_only = len(render_scene.warnings) > 0 and all(w.code in informational_codes for w in render_scene.warnings)
 
     if has_heavy_failure and has_no_entries:
         render_scene.user_facing_state = "degraded_heavy"
     elif len(render_scene.warnings) > 0 and not has_informational_only:
-        # 存在真实 agent 失败（非 informational warning）→ degraded_light
         render_scene.user_facing_state = "degraded_light"
     else:
         render_scene.user_facing_state = "normal"

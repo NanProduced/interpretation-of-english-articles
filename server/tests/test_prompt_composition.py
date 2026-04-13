@@ -3,14 +3,14 @@ from app.agents.vocabulary_agent import (
     VocabularyAgentDeps,
     build_vocabulary_prompt,
 )
-from app.services.analysis.prompt_composer import PromptSection, merge_prompt_sections
-from app.services.analysis.prompt_strategy import (
+from app.services.analysis.prompting.prompt_composer import PromptSection, merge_prompt_sections
+from app.services.analysis.prompting.prompt_strategy import (
     build_grammar_prompt_strategy,
     build_prompt_sections,
     build_repair_prompt_strategy,
     build_vocabulary_prompt_strategy,
 )
-from app.services.analysis.goal_planner import build_goal_execution_plan
+from app.services.analysis.planning.goal_planner import build_goal_execution_plan
 
 
 def test_merge_prompt_sections_replaces_by_tag_and_preserves_order() -> None:
@@ -47,8 +47,8 @@ def test_vocabulary_prompt_uses_tagged_sections_for_daily_intermediate() -> None
     assert "<policy>" in prompt
     assert "<input_sentences>" in prompt
     assert "profile_id: daily_intermediate" in prompt
-    assert "当前 profile=daily_intermediate，按 baseline 调试" in prompt
-    assert "只标最影响理解、具有解释价值的词汇点" in prompt
+    assert "本次任务是基础阅读辅助，不做考试解析，也不做学术导读" in prompt
+    assert "优先标注真正影响理解的语境义、固定搭配、短语动词" in prompt
 
 def test_grammar_prompt_uses_balanced_policy_lines() -> None:
     plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
@@ -62,8 +62,8 @@ def test_grammar_prompt_uses_balanced_policy_lines() -> None:
 
     assert "<policy>" in prompt
     assert "grammar_granularity: balanced" in prompt
-    assert "在复杂长难句分析与局部语法点" in prompt
-    assert "保持平衡" in prompt
+    assert "只处理真正影响理解的结构" in prompt
+    assert "复杂句优先解释主干、从句关系和阅读顺序" in prompt
 
 
 def test_repair_prompt_strategy_adds_runtime_constraints_section() -> None:

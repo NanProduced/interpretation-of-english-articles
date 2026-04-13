@@ -11,13 +11,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.schemas.internal.execution_plan import GoalExecutionPlan
-from app.services.analysis.example_strategy import (
+from app.services.analysis.prompting.example_strategy import (
     ExampleStrategy,
     get_grammar_example_strategy,
     get_translation_example_strategy,
     get_vocabulary_example_strategy,
 )
-from app.services.analysis.prompt_strategy import (
+from app.services.analysis.prompting.prompt_strategy import (
     PromptStrategy,
     build_grammar_prompt_strategy,
     build_translation_prompt_strategy,

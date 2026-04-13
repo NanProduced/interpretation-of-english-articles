@@ -30,7 +30,7 @@ class GoalExecutionPlan(BaseModel):
     goal_id: ReadingGoal = Field(description="阅读目标。")
     variant_id: ReadingVariant = Field(description="阅读变体。")
     topology_mode: Literal["learning", "academic"] = Field(description="工作流拓扑模式。")
-    output_mode: Literal["learning_scene_v1", "academic_scene_v1"] = Field(description="输出渲染模式。")
+    output_mode: Literal["learning_scene", "academic_scene"] = Field(description="输出渲染模式。")
     prompt_profile: str = Field(description="对应旧的 profile_id。")
     few_shot_mode: Literal["baseline", "manual", "rag"] = Field(default="baseline", description="Few-shot 策略。")
     policy: GoalPolicy = Field(description="后处理硬策略。")

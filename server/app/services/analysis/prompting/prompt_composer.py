@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from app.services.analysis.example_strategy import ExampleEntry
+from app.services.analysis.prompting.example_strategy import ExampleEntry
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,8 +1,8 @@
 from app.schemas.common import TextSpan
 from app.schemas.internal.analysis import PreparedSentence
-from app.services.analysis.anchor_resolution import resolve_anchor
-from app.services.analysis.input_preparation import prepare_input
-from app.services.analysis.goal_planner import build_goal_execution_plan
+from app.services.analysis.postprocess.anchor_resolution import resolve_text_anchor
+from app.services.analysis.preprocess.input_preparation import prepare_input
+from app.services.analysis.planning.goal_planner import build_goal_execution_plan
 
 
 def test_prepare_input_sanitizes_markup_links_and_code() -> None:
@@ -32,8 +32,8 @@ def test_resolve_anchor_supports_exact_and_normalized_match() -> None:
         sentence_span=TextSpan(start=10, end=59),
     )
 
-    exact = resolve_anchor(sentence, "products")
-    normalized = resolve_anchor(sentence, "high value")
+    exact = resolve_text_anchor(sentence, "products")
+    normalized = resolve_text_anchor(sentence, "high value")
 
     assert exact is not None
     assert exact.start == 38
@@ -49,5 +49,5 @@ def test_resolve_anchor_drops_ambiguous_occurrence_without_index() -> None:
         sentence_span=TextSpan(start=0, end=42),
     )
 
-    assert resolve_anchor(sentence, "chocolate") is None
-    assert resolve_anchor(sentence, "chocolate", anchor_occurrence=2) is not None
+    assert resolve_text_anchor(sentence, "chocolate") is None
+    assert resolve_text_anchor(sentence, "chocolate", anchor_occurrence=2) is not None

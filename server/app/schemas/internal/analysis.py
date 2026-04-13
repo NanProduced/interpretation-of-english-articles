@@ -10,7 +10,6 @@ ReadingGoal = Literal["exam", "daily_reading", "academic"]
 ReadingVariant = Literal[
     "gaokao",
     "cet",
-    "gre",
     "gre_tem",
     "ielts_toefl",
     "beginner_reading",
@@ -22,7 +21,7 @@ AnnotationStyle = Literal["exam_oriented", "plain_and_supportive", "structural_a
 TranslationStyle = Literal["exam", "natural", "academic"]
 GrammarGranularity = Literal["focused", "balanced", "structural"]
 VocabularyPolicy = Literal["high_value_only", "exam_priority", "academic_priority"]
-ExamTag = Literal["gaokao", "cet", "gre", "gre_tem", "ielts_toefl"]
+ExamTag = Literal["gaokao", "cet", "gre_tem", "ielts_toefl"]
 
 BASE_MODEL_CONFIG = ConfigDict(extra="forbid", str_strip_whitespace=True)
 PHRASE_TYPES = ("collocation", "phrasal_verb", "idiom", "proper_noun", "compound")

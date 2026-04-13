@@ -28,8 +28,8 @@ from app.schemas.internal.analysis import (
     AnnotationOutput,
     VocabHighlight,
 )
-from app.services.analysis.anchor_resolution import resolve_multi_text_anchor, resolve_text_anchor
-from app.services.analysis.input_preparation import PreparedInput
+from app.services.analysis.postprocess.anchor_resolution import resolve_multi_text_anchor, resolve_text_anchor
+from app.services.analysis.preprocess.input_preparation import PreparedInput
 
 if TYPE_CHECKING:
     from app.schemas.internal.analysis import PreparedSentence

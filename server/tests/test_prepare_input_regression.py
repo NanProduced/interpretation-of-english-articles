@@ -14,7 +14,7 @@ Covers:
 import pytest
 
 from app.schemas.common import TextSpan
-from app.services.analysis.input_preparation import (
+from app.services.analysis.preprocess.input_preparation import (
     _ABBREVIATION_RE,
     _check_spacy_model,
     _is_fast_path_eligible,
@@ -174,7 +174,7 @@ def test_layer5_split_no_spacy_records_explicit_action(monkeypatch: pytest.Monke
     layer5_split must record 'regex_sentence_split_no_spacy', NOT 'regex_sentence_split'.
     """
     # Simulate spaCy being unavailable by patching _spacy_available
-    import app.services.analysis.input_preparation as inp
+    import app.services.analysis.preprocess.input_preparation as inp
 
     monkeypatch.setattr(inp, "_spacy_available", False)
     # Reset the singleton so layer5_split will use the patched value
@@ -199,7 +199,7 @@ def test_layer5_split_spaCy_available_records_spaCy_action(monkeypatch: pytest.M
     When spaCy IS available and fast_path=True,
     layer5_split must record 'spacy_sentence_split'.
     """
-    import app.services.analysis.input_preparation as inp
+    import app.services.analysis.preprocess.input_preparation as inp
 
     # Ensure spaCy is checked
     inp._check_spacy_model()
@@ -224,7 +224,7 @@ def test_layer5_split_forced_regex_action_records_exactly_that(monkeypatch: pyte
     When forced_regex_action='regex_sentence_split_no_spacy' is passed,
     the recorded action must be exactly that — not generic 'regex_sentence_split'.
     """
-    import app.services.analysis.input_preparation as inp
+    import app.services.analysis.preprocess.input_preparation as inp
 
     monkeypatch.setattr(inp, "_spacy_available", True)  # spaCy available but we force regex
 
@@ -243,7 +243,7 @@ def test_normal_regex_path_records_generic_action() -> None:
     When fast_path=False with NO forced_regex_action (normal structured_doc path),
     action should be generic 'regex_sentence_split'.
     """
-    import app.services.analysis.input_preparation as inp
+    import app.services.analysis.preprocess.input_preparation as inp
 
     # Temporarily set _spacy_available to True to isolate the fast_path=False path
     saved = inp._spacy_available

@@ -11,7 +11,7 @@ from app.schemas.internal.analysis import (
 )
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
 from app.schemas.internal.execution_plan import GoalPolicy
-from app.services.analysis.normalize_and_ground import normalize_and_ground
+from app.services.analysis.postprocess.normalize_and_ground import normalize_and_ground
 
 
 def _sentence(sentence_id: str, text: str) -> PreparedSentence:

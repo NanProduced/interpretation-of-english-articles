@@ -11,9 +11,9 @@ from app.schemas.internal.analysis import (
     VocabHighlight,
 )
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
-from app.services.analysis.input_preparation import prepare_input
-from app.services.analysis.projection import project_to_render_scene
-from app.services.analysis.goal_planner import build_goal_execution_plan
+from app.services.analysis.preprocess.input_preparation import prepare_input
+from app.services.analysis.postprocess.projection import project_to_render_scene
+from app.services.analysis.planning.goal_planner import build_goal_execution_plan
 from app.workflow import analyze_nodes
 
 
@@ -139,6 +139,20 @@ def test_analyze_route_returns_empty_result_when_all_agents_fail(monkeypatch) ->
     assert body["inline_marks"] == []
     assert body["sentence_entries"] == []
 
+def test_analyze_route_returns_controlled_error_for_academic_placeholder() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/analyze",
+        json={
+            "text": "This paper investigates representation learning in sparse settings.",
+            "reading_goal": "academic",
+            "reading_variant": "academic_general",
+            "source_type": "user_input",
+        },
+    )
+    assert response.status_code == 501
+    assert response.json()["detail"] == "Academic topology mode is not yet implemented."
+
 
 def test_analyze_route_surfaces_draft_validation_warnings(monkeypatch) -> None:
     monkeypatch.setattr(analyze_nodes, "_run_vocabulary_llm_span", _invalid_vocab_span)
@@ -241,6 +255,33 @@ def test_parallel_agents_aggregate_usage_summary(monkeypatch) -> None:
         "total_tokens": 68,
     }
     assert result["usage_summary"]["per_agent"]["vocabulary"]["total_tokens"] == 18
+
+def test_derive_user_config_node_reuses_precomputed_plan(monkeypatch) -> None:
+    precomputed_plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
+
+    def _fail(*args, **kwargs):
+        raise AssertionError("build_goal_execution_plan should not be called")
+
+    monkeypatch.setattr(analyze_nodes, "build_goal_execution_plan", _fail)
+
+    result = asyncio.run(
+        analyze_nodes.derive_user_config_node(
+            {
+                "goal_execution_plan": precomputed_plan,
+                "payload": AnalyzeRequest.model_validate(
+                    {
+                        "request_id": "req-precomputed",
+                        "text": "Sentence one.",
+                        "source_type": "user_input",
+                        "reading_goal": "daily_reading",
+                        "reading_variant": "intermediate_reading",
+                    }
+                ),
+            }
+        )
+    )
+
+    assert result == {}
 
 
 class _FakeRunTree:

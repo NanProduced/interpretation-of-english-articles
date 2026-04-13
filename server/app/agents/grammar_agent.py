@@ -8,9 +8,9 @@ from functools import lru_cache
 from pydantic_ai import Agent
 
 from app.schemas.internal.drafts import GrammarDraft
-from app.services.analysis.example_strategy import ExampleEntry
-from app.services.analysis.prompt_composer import build_agent_prompt
-from app.services.analysis.prompt_strategy import PromptStrategy, build_prompt_sections
+from app.services.analysis.prompting.example_strategy import ExampleEntry
+from app.services.analysis.prompting.prompt_composer import build_agent_prompt
+from app.services.analysis.prompting.prompt_strategy import PromptStrategy, build_prompt_sections
 
 
 @dataclass
