@@ -1,554 +1,597 @@
-# 差异化输出策略设计文档
+# 差异化输出执行架构设计
 
-> 文档定位：用于指导 Claread 透读在 Workflow V3 上实现“按阅读目标差异化输出”的配置架构、prompt 分层和 few-shot 注入机制。  
-> 生效范围：本稿是 [Workflow V3 设计与重构文档](./workflow-v3-design.md) 的补充细化稿，聚焦 `reading_goal` / `reading_variant` 的策略设计，不展开模型路由、前端页面改造和 exam_tag 数据建设细节。  
-> 当前阶段结论：先以 `daily_reading + intermediate_reading` 作为唯一 baseline，对 prompt 做“非风格化、仅基础输出控制”的收敛；其余场景先完成设计，不立即落代码。
+> 文档定位：定义 Claread 透读在 Workflow V3 中支持差异化输出的代码级执行架构，重点回答 `reading_goal` / `reading_variant` 会影响哪些阶段、如何装配 prompt、何时需要分叉 agent 拓扑。\
+> 生效范围：本稿补充 [Workflow V3 设计与重构文档](./workflow-v3-design.md)，聚焦执行架构，不展开具体 prompt 文案、few-shot 内容库、exam\_tag 数据结构细节。\
+> 当前阶段目标：尽快定下可扩展的执行架构，然后优先落地 `daily_reading + intermediate_reading` baseline。\
+> 当前明确决策：
+>
+> - `daily_reading + intermediate_reading` 是唯一 baseline。
+> - baseline 定义为“非风格化、只保留基础任务与格式约束”。
+> - `exam` 与 `academic` 先完成执行架构设计，不要求本轮立即全部落代码。
 
-## 1. 背景
+## 1. 背景与当前问题
 
-当前 V3 主链路已经具备以下基础能力：
+当前代码已经具备差异化输出的基础骨架：
 
-- 请求层可传入 `reading_goal` 与 `reading_variant`
-- 后端可把它们映射为 `UserRules`
-- 三个 agent 已拆分为 `vocabulary_agent`、`grammar_agent`、`translation_agent`
-- prompt 运行时部分已经支持 section 化组装
-- example 注入已经预留 `ExampleStrategy`
+- 请求层可传入 `reading_goal` / `reading_variant`
+- `derive_user_rules` 已负责把请求场景映射为内部规则
+- 三个主 agent 已拆分为 `vocabulary_agent` / `grammar_agent` / `translation_agent`
+- runtime prompt 已支持 section 化组装
+- example 注入已预留 `ExampleStrategy`
 
-但当前实现仍有一个明显问题：
+但现在真正缺的不是“更多 variant 说明”，而是一套清晰的执行架构。
 
-- “用户场景差异”
-- “教学策略差异”
-- “prompt 注入差异”
-- “few-shot 来源差异”
-- “后处理密度控制差异”
+当前主要问题：
 
-还没有被拆成稳定、可独立演进的层次。
+1. `profile_id` 同时承担 prompt 语义、实验标识和 normalize 密度控制，职责混杂。
+2. 文档之前把配置层拆得过细，但没有给出请求如何流经这些层的端到端数据流。
+3. prompt 分层没有区分静态 system prompt 与 runtime prompt，容易把大量稳定约束搬到每次请求里，造成 token 浪费和稳定性下降。
+4. `academic` 场景不只是 overlay 差异，而是可能需要 agent 职责和输出协议分支，之前文档没有把这一点提到架构级。
 
-结果是：
+因此本稿只解决下面两个关键问题：
 
-1. baseline 不够纯，当前 prompt 中仍混有风格性规则和内联示例。
-2. `profile_id` 同时承担 prompt 语义与后处理密度控制，不利于精细扩展。
-3. 后续要做 exam / academic 时，很容易继续把 prompt 写成越来越大的条件分支。
+1. 三类 `reading_goal` 在执行时分别影响哪些阶段。
+2. 代码层应该如何建模，才能既支持 prompt / few-shot 差异，又支持未来拓扑分支。
 
-因此本稿先解决两个问题：
+## 2. 设计目标
 
-1. 差异化能力的设计边界是什么。
-2. 代码架构应该如何分层，才能允许后续仅通过 prompt / few-shot / policy 调整场景输出。
+本稿的设计目标只有 4 个：
 
-## 2. 目标
-
-本阶段目标：
-
-1. 明确三类 `reading_goal` 的产品意图与输出策略差异。
-2. 设计一套可扩展的配置架构，把 baseline、风格化 overlay、few-shot、RAG 注入彼此解耦。
-3. 确定第一阶段只落地 `daily_reading`，且只调 prompt，不先改 agent topology。
+1. 建立一套足够简单但可扩展的执行配置模型。
+2. 明确静态 system prompt 与 runtime 注入内容的边界。
+3. 明确 `daily_reading`、`exam`、`academic` 对 workflow 的动态影响范围。
+4. 明确哪些差异可以通过 overlay 解决，哪些必须通过拓扑分支解决。
 
 非目标：
 
-1. 当前不实现 exam_tag 数据库改造。
-2. 当前不实现 RAG few-shot 检索。
-3. 当前不立刻重写 academic 的完整 agent 逻辑。
-4. 当前不引入新的 workflow node。
+1. 当前不定义具体 prompt 正文。
+2. 当前不定义具体 few-shot 样例库。
+3. 当前不展开 exam\_tag 在数据库中的写法和回填逻辑。
+4. 当前不讨论模型选型和 provider 路由。
 
-## 3. 设计原则
+## 3. 核心结论
 
-### 3.1 baseline 必须是“无额外风格”的对照组
+### 3.1 差异化输出不只影响 prompt
 
-baseline 不是“默认风格”，而是“最小教学约束 + 最小格式约束 + 最小 few-shot”。
+`reading_goal` 在执行时可能影响 4 类东西：
 
-它应满足：
+1. agent 拓扑是否变化
+2. 每个 agent 的 system prompt / runtime prompt 是否变化
+3. normalize 阶段的硬策略是否变化
+4. projection / render contract 是否变化
 
-- 不提前模拟考试讲解口吻
-- 不提前模拟论文导读口吻
-- 不额外注入发散举例、术语扩展、考试技巧
-- 只要求模型在既定 schema 下，产出稳定、克制、可解释的结果
+因此不能把所有差异化都塞进 prompt。
 
-这意味着：
+### 3.2 baseline 必须尽量“瘦”
 
-- 基础任务定义要保留
-- 输出格式要求要保留
-- 与特定场景绑定的风格性规则应移出 baseline
+baseline 不是“默认风格”，而是系统的对照组。
 
-### 3.2 差异化优先作用在“讲解选择与表达方式”，而不是 schema
+它只保留：
 
-V3 第一阶段不建议为每种 `reading_goal` 设计完全不同的返回协议。
+- agent 的基础职责
+- 输出 schema 约束
+- 最基本的任务优先级
+- 最少 few-shot
 
-推荐原则：
+它不应保留：
 
-- 前端 contract 尽量统一
-- 内部 agent draft schema 尽量统一
-- 差异化主要体现在：
-  - prompt overlay
-  - few-shot selection
-  - annotation density
-  - 解释角度
-  - 翻译风格
-  - 句子解析侧重点
+- 考试导向语气
+- 学术导读语气
+- 大量示例
+- 某一类用户特有的发散解释方式
 
-只有当某个场景的任务目标与当前 schema 产生根本冲突时，才考虑分叉 agent 或分叉输出层。
+### 3.3 system prompt 必须静态化，runtime prompt 只放动态信息
 
-### 3.3 先保证 daily_reading 收敛，再扩展其他场景
+在当前实现里，`Agent(..., instructions=...)` 天然承担 system prompt 角色，这一层必须保留。
 
-`daily_reading` 是最适合做 baseline 的场景，原因是：
+建议：
 
-- 用户目标最接近“辅助理解 + 温和学习”
-- 不强依赖考试知识体系
-- 不强依赖学科术语体系
-- 仅通过 prompt 收敛就能得到较高价值
+- 静态 system prompt：放 agent 长期稳定的角色边界、schema 契约、硬禁止项
+- runtime prompt：只放当前请求相关的 goal / variant / policy / few-shot / input\_sentences
 
-所以第一阶段建议：
+这样才能保证：
 
-1. 明确 `daily_reading` baseline
-2. 清理现有 prompt 中不属于 baseline 的规则
-3. 建立 overlay 机制
-4. 再讨论 `exam` 与 `academic`
+- 稳定规则不在每次请求重复传输
+- agent 类本身仍然是业务逻辑载体
+- runtime 注入保持轻量和可替换
 
-## 4. 用户场景建模
+### 3.4 `academic` 必须预留拓扑分支
 
-## 4.1 `daily_reading`
+`academic` 的目标不是“学英语”，而是“理解论文/文献内容”。
 
-目标用户：
+这意味着它很可能在中期需要：
 
-- 在日常阅读中提升英语能力的普通学习者
-- 重点不是应试，而是“读懂 + 顺手学到东西”
+- 新的 agent 节点
+- 新的输出协议
+- 新的前端展示方式
 
-核心诉求：
+所以执行架构必须显式支持 topology branch，而不是默认所有 goal 永远走同一套三 agent 流程。
 
-- 遇到不熟的词、短语时能快速看懂
-- 遇到一般长句时能被拆清楚
-- 语法解释尽量直白，不要被英语语言学术语压住
-- 有需要时可以补少量例子或换种说法帮助理解
+## 4. 三类 `reading_goal` 对执行链路的影响
 
-策略特点：
+下表是本稿最重要的设计结论。
 
-- 以理解与支持型讲解为主
-- 允许少量教学型扩展，但不做考试导向表达
-- 语法可以讲，但优先说“怎么理解”，再说“它叫什么”
+| 阶段                   | `daily_reading`    | `exam`                            | `academic`                      |
+| -------------------- | ------------------ | --------------------------------- | ------------------------------- |
+| `prepare_input`      | 基本一致               | 基本一致                              | 基本一致，后续可增强术语/引用保留               |
+| `derive_user_config` | 生成学习型 plan         | 生成考试型 plan                        | 生成学术理解型 plan                    |
+| agent 拓扑             | 使用 learning 拓扑     | 使用 learning 拓扑                    | 短期可兼容 learning，长期需要 academic 拓扑 |
+| vocabulary agent     | 普通词汇/短语/语境义支持      | exam\_tag 相关展示与考试优先级              | 术语、学术表达、领域搭配优先                  |
+| grammar agent        | 直白解释、少术语           | 随考试类型改变强调点                        | 长期应演化为 structure/argument agent |
+| translation agent    | 自然、支持理解            | 兼顾考试理解与句法映射                       | 术语准确、信息结构清晰                     |
+| normalize            | 控制密度、去噪            | 控制密度并尊重 exam 优先级                  | 可能要改密度和冲突策略                     |
+| projection           | 现有 render contract | 现有 render contract + exam\_tag 展示 | 中长期可能需要新 contract               |
 
-按 `reading_variant` 细分：
+结论拆解如下。
 
-### `beginner_reading`
+### 4.1 `daily_reading`
 
-- 词汇与短语帮助优先级最高
-- 长句拆解要更积极
-- 语法点数量可以适当少而清晰
-- 更强调“看懂这句”的直接帮助
+&#x20;
 
-### `intermediate_reading`
+本场景是 **meaning-focused**（以理解内容为目标，语言知识是副产品）。
 
-- 词汇、短语、结构说明保持均衡
-- 仍以自然解释为主，不提前转向考试风格
-- 推荐作为 baseline 主对照组
+核心原则：语境义优先于生词标注。用户的主要障碍不是纯生词，而是"认识但在这里不确定什么意思"的多义词和短语搭配。
 
-### `intensive_reading`
+它影响：
 
-- 可以提高结构分析密度
-- 可以允许少量术语，但术语不应主导说明
-- 强调“精读式理解”，但仍不是考试解析
+- vocabulary 选点偏向高价值词、短语、语境义（语境义 > 生词）
+- grammar 解释偏向"怎么理解"，弱化术语堆叠
+- translation 偏向自然、顺畅、帮助理解
+- normalize 密度控制偏克制
 
-## 4.2 `exam`
+它不影响：
 
-目标用户：
+- 主 workflow 拓扑
+- 对外 render scene 基本协议
 
-- 以考试提分为核心目的的学习者
+所以 `daily_reading` 主要是 prompt 与 normalize policy 的差异，不需要拓扑分支。
 
-核心诉求：
+### 4.2 `exam`
 
-- 解释要围绕该考试真正关心的点
-- 同样的句子，不同考试的讲解重点应不同
-- 词汇优先级、长难句拆法、语法强调程度都应体现考试差异
+&#x20;
 
-本场景的关键不是“统一 exam prompt”，而是“按考试类型建子策略”。
+本场景是 **form-focused**（以识别和运用语言形式为目标，内容理解是手段）。
 
-当前建议的 `reading_variant` 方向：
+与 `daily_reading` 的本质区别不是"程度"，而是"解析目标"：
 
-- `gaokao`
-- `cet`
-- `kaoyan`
-- `gre_tem`（建议后续替代当前 `gre`）
-- `ielts_toefl`
+- vocabulary 不只是调优先级，而是从"帮你理解这个词"转向"帮你掌握这个词的考试相关用法"（词义辨析、固定搭配、常考语境）
+- grammar 不只是调强调程度，而是从"帮你读懂这句"转向"帮你看到考试在考什么"
 
-说明：
+它影响：
 
-- `gre_tem` 是暂定设计名，不代表本轮必须改代码。
-- exam_tag 的数据库建设在下一轮专题讨论，不在本稿展开。
+- vocabulary 的选点逻辑和解释角度
+- grammar / sentence analysis 的解析目标
+- translation 的表达重心
+- 前端单词卡片是否显示 exam\_tag
 
-各子场景策略摘要：
+它当前不必影响：
 
-### `gaokao`
+- 主 workflow 拓扑
+- 主 render scene 协议
 
-- 重点偏显性语法、基础词汇和阅读理解支撑
-- 解释应直接、清晰、显性
-- 术语可用，但要尽量贴近中学英语教学语言
+所以 `exam` 第一阶段仍属于“共享拓扑 + 独立策略包”。
 
-### `cet`
+### 4.3 `academic`
 
-- 不主打显性语法讲解
-- 更强调理解辅助、固定搭配、阅读中的隐含结构
-- 语法解释应弱化“考点感”，强化“帮助理解”
+&#x20;
 
-### `kaoyan`
+本场景是"学术文本理解"，用户主要不是来学英语，而是来理解内容。
 
-- 高度依赖长难句、从句嵌套、主从关系拆解
-- 句子结构分析权重显著提升
-- 翻译与结构说明要更紧密配合
+学术文本的理解障碍主要来自信息密度和论证结构，而不是语法难度本身。典型障碍包括：衔接信号词的论证关系、高密度指代链条、名词化与被动语态导致的信息压缩。这些都不属于传统 grammar 或 vocabulary 的范畴，这也是 `grammar_agent` 长期应演化为 `structure_agent` 的语言学依据。
 
-### `gre_tem`
+它影响：
 
-- 允许更高密度、更精细的语法与结构分析
-- 可以适当使用更专业的术语
-- 但术语必须服务于理解，不能沦为标签堆叠
+- 词汇解释目标从"英语学习"转向"术语理解"
+- 语法讲解目标从"语法学习"转向"结构与论证理解"
+- 翻译目标从"自然易懂"转向"术语准确、关系清晰"
 
-### `ielts_toefl`
+它中期可能影响：
 
-- 语法不是显性考点
-- 更强调它作为理解与表达工具的价值
-- 讲解中应弱化“这是什么语法题”，强化“这会如何影响阅读理解与表达准确性”
+- agent 名称与职责
+- normalize 策略
+- projection 输出
+- 前端页面布局
 
-设计注意：
+所以 `academic` 必须被视为潜在的 topology branch，而不是单纯 overlay。
 
-- exam 不是一个 overlay，而是一族 overlay profile。
-- 后续需要单独补一份“考试场景知识来源与校验方案”，避免只凭经验写 prompt。
+## 5. 推荐的配置模型
 
-## 4.3 `academic`
+之前文档把配置拆成 5 层，过细了。本稿改为只保留 3 个核心对象。
 
-目标用户：
+## 5.1 `AnalyzeRequest`
 
-- 阅读英文论文、学术文献的研究生、研究者、从业者
+对应用户原始输入。
 
-核心诉求：
+职责：
 
-- 快速理解论文在说什么
-- 术语准确
-- 长句拆清楚
-- 句子分析以“理解论证与信息结构”为目标，而不是“学英语”
+- 表达用户选择了什么目标和变体
+- 不包含派生策略
 
-与 `daily_reading` 的根本区别：
-
-- 用户主要不是来学英语
-- 用户主要不是来学语法
-- 用户要的是“准确理解文本内容”
-
-因此 academic 不应简单视为“更高级的 daily_reading”。
-
-推荐策略：
-
-- vocabulary 重点转向术语、学术表达、领域搭配
-- grammar_note 大幅弱化，只有在结构确实阻碍理解时才出现
-- sentence_analysis 转为“信息结构与逻辑层次拆解”
-- translation 风格应强调准确、术语一致、论证关系清晰
-
-这意味着：
-
-- academic 很可能需要独立 prompt overlay
-- 长期看甚至可能需要独立的 grammar / sentence analysis 任务定义
-
-但在第一阶段，仍建议先保持现有 agent topology，只改 prompt 和 policy。
-
-## 5. 推荐的配置分层
-
-为避免继续把所有逻辑塞进 `UserRules`，建议把配置拆成 5 层。
-
-### 5.1 `RequestConfig`
-
-对应用户原始请求：
+建议继续保留：
 
 - `reading_goal`
 - `reading_variant`
 - `source_type`
 
-职责：
+## 5.2 `GoalExecutionPlan`
 
-- 保留用户输入事实
-- 不携带推导后的教学语义
-
-### 5.2 `ScenarioConfig`
-
-对应标准化场景定义：
-
-- `scenario_id`
-- `goal_family`
-- `variant_family`
-- `difficulty_level`
-- `domain_mode`
+这是整个差异化执行架构的核心对象。
 
 职责：
 
-- 把请求配置映射为统一场景标识
-- 供 tracing、实验分桶、overlay 选择使用
+- 表达“这个请求实际应该怎么跑”
 
-### 5.3 `TaskPolicy`
+建议包含：
 
-对应确定性产品策略：
-
-- `vocabulary_policy`
-- `grammar_policy`
-- `translation_policy`
-- `annotation_density`
-- `term_precision_level`
-- `expansion_level`
-
-职责：
-
-- 控制“该讲什么、讲多少、哪类优先”
-- 供 prompt 与 normalize_and_ground 同时消费
-
-注意：
-
-- 这一层不应包含自然语言 prompt 文本
-- 也不应绑定某个 agent 的具体话术
-
-### 5.4 `PromptPlan`
-
-对应 prompt 注入计划：
-
-- `base_sections`
-- `policy_sections`
-- `style_sections`
-- `overlay_sections`
-- `runtime_sections`
-
-职责：
-
-- 明确 prompt 的来源与覆盖顺序
-- 允许后续只替换局部 section，而不是拼接大字符串
-
-### 5.5 `ExamplePlan`
-
-对应 few-shot 计划：
-
-- `provider = baseline | manual | rag`
-- `selection_mode`
-- `example_ids`
-- `resolved_examples`
-
-职责：
-
-- 明确示例从哪里来
-- 让 baseline、手工配置、RAG 检索共享同一注入口
-
-## 6. 推荐的运行时装配结构
-
-当前的 `UserRules -> PromptStrategy / ExampleStrategy` 可以继续保留思路，但建议升级为下述 bundle：
-
-```text
-AnalysisConfigBundle
-├── scenario_config
-├── task_policy
-├── vocabulary_prompt_plan
-├── grammar_prompt_plan
-├── translation_prompt_plan
-├── vocabulary_example_plan
-├── grammar_example_plan
-└── translation_example_plan
+```python
+GoalExecutionPlan(
+    goal_id: str,
+    variant_id: str,
+    topology_mode: Literal["learning", "academic"],
+    output_mode: Literal["learning_scene_v1", "academic_scene_v1"],
+    prompt_profile: str,
+    few_shot_mode: Literal["baseline", "manual", "rag"],
+    policy: GoalPolicy,
+    agent_plans: dict[str, AgentExecutionPlan],
+)
 ```
 
-推荐职责：
+说明：
 
-- `derive_user_config_node`
-  统一生成 `AnalysisConfigBundle`
-- `parallel_agents_node`
-  只消费 bundle，不再现场推导 prompt/example
+- `topology_mode` 决定走哪套 workflow/agent 拓扑
+- `output_mode` 决定 projection 目标协议
+- `policy` 是硬策略，normalize 必须依赖它
+- `agent_plans` 是每个 agent 的运行时配置
+
+## 5.3 `AgentExecutionPlan`
+
+职责：
+
+- 表达某个 agent 在当前请求下如何运行
+
+建议包含：
+
+```python
+AgentExecutionPlan(
+    enabled: bool,
+    system_prompt_id: str,
+    runtime_prompt_sections: list[PromptSection],
+    few_shot_examples: list[ExampleEntry],
+    soft_hints: dict[str, object],
+)
+```
+
+关键点：
+
+- `system_prompt_id` 指向静态 prompt 模板，不把长 system prompt 塞到 runtime
+- `runtime_prompt_sections` 只放当前请求相关信息
+- `few_shot_examples` 是当前请求最终决议后的样例，而不是 provider 本身
+
+## 5.4 `GoalPolicy`
+
+职责：
+
+- 表达所有确定性硬策略
+
+建议包含：
+
+```python
+GoalPolicy(
+    annotation_density: int,
+    vocabulary_focus: str,
+    grammar_focus: str,
+    translation_focus: str,
+    terminology_mode: str,
+    expansion_mode: str,
+    normalize_priority: dict[str, int],
+)
+```
+
+这层由代码消费，不直接作为 prompt 文本。
+
+## 6. 端到端数据流
+
+这是差异化输出开发时最重要的数据流图。
+
+```mermaid
+flowchart TD
+    A["AnalyzeRequest"] --> B["derive_user_config"]
+    B --> C["GoalExecutionPlan"]
+    C --> D["select topology"]
+    C --> E["build agent runtime context"]
+    D --> F["learning topology or academic topology"]
+    E --> G["AgentExecutionPlan: vocabulary"]
+    E --> H["AgentExecutionPlan: grammar/structure"]
+    E --> I["AgentExecutionPlan: translation"]
+    G --> J["static system prompt + runtime prompt"]
+    H --> J
+    I --> J
+    J --> K["agent outputs"]
+    C --> L["GoalPolicy"]
+    K --> M["normalize_and_ground"]
+    L --> M
+    C --> N["output_mode"]
+    M --> O["projection"]
+    N --> O
+    O --> P["final render scene"]
+```
+
+执行顺序解释：
+
+1. API 收到 `AnalyzeRequest`
+2. `derive_user_config` 不再只生成 `UserRules`，而是生成 `GoalExecutionPlan`
+3. workflow 根据 `topology_mode` 决定运行哪套 agent 拓扑
+4. 每个 agent 读取自己的 `AgentExecutionPlan`
+5. agent 运行时使用：
+   - 静态 `instructions` 作为 system prompt
+   - `runtime_prompt_sections` + `few_shot_examples` + `input_sentences` 作为 runtime prompt
+6. `normalize_and_ground` 读取 `GoalPolicy` 执行硬限制
+7. `projection` 根据 `output_mode` 生成对应的 render contract
+
+## 7. system prompt 与 runtime prompt 的边界
+
+这是本稿必须定死的一条规则。
+
+## 7.1 静态 system prompt 中必须保留的内容
+
+静态 system prompt 属于 agent 定义的一部分。
+
+建议长期保留：
+
+- agent 的角色定义
+- agent 负责哪些输出类型
+- schema 合法性约束
+- 锚点必须来自原句
+- 不允许输出 schema 外内容
+- 不确定时如何保守处理
+
+这类内容是稳定的、跨请求复用的，不应在每次 runtime 注入。
+
+## 7.2 runtime prompt 中允许变化的内容
+
+runtime prompt 只放当前请求才会变化的部分：
+
+- `reading_goal`
+- `reading_variant`
+- 本次 `GoalPolicy` 翻译出来的场景约束
+- few-shot
+- 当前输入句子
+
+推荐 runtime section 只有 4 类：
+
+1. `request_context`
+2. `scenario_policy`
+3. `examples`
+4. `input_sentences`
+
+不再建议继续拆成大量抽象层。
+
+## 7.3 为什么不能把所有逻辑都移到 runtime
+
+如果几乎所有说明都放入 runtime：
+
+- 每次请求都要重复发送长文本
+- system prompt 的稳定锚点会被削弱
+- agent 类会退化成空壳
+- 不利于长期维护和 code review
+
+因此本稿的明确决策是：
+
+- agent 类继续保留静态业务身份
+- runtime 层只负责请求相关差异
+
+## 8. 拓扑分支设计
+
+## 8.1 `learning` 拓扑
+
+适用于：
+
+- `daily_reading`
+- `exam`
+
+建议节点：
+
+- `vocabulary_agent`
+- `grammar_agent`
+- `translation_agent`
 - `normalize_and_ground`
-  读取 `task_policy` 中与密度控制有关的确定性参数
+- `project_render_scene`
 
-这样做的收益：
+## 8.2 `academic` 拓扑
 
-1. 配置推导集中，便于调试与 tracing。
-2. prompt 与后处理解耦，不再都绑在 `profile_id` 上。
-3. 未来新增 `exam` / `academic` 不需要把逻辑散落到 node、agent、normalize 多处。
+适用于：
 
-## 7. Prompt 分层建议
+- `academic`
 
-建议把 agent prompt 统一拆成以下层次：
+短期兼容方案：
 
-1. `agent_core`
-2. `output_contract`
-3. `baseline_task`
-4. `scenario_policy`
-5. `style_overlay`
-6. `few_shot_examples`
-7. `input_sentences`
+- 仍可复用 `vocabulary_agent`
+- 仍可临时复用 `translation_agent`
+- `grammar_agent` 先通过 prompt 退化为结构解释器
 
-含义如下：
+中期目标：
 
-### `agent_core`
+- 将 `grammar_agent` 替换为 `structure_agent`
+- 明确其职责是：
+  - 句法层次拆解
+  - 论证/信息结构提示
+  - 学术句子压缩结构展开
 
-稳定定义 agent 的角色边界，例如：
+长期风险：
 
-- vocabulary agent 只负责哪些 annotation 类型
-- grammar agent 只负责哪些结构说明
-- translation agent 必须全覆盖逐句翻译
+- `academic` 可能需要不同的 projection 与前端页面结构
 
-这部分应尽量长期稳定，不随场景频繁改。
+因此执行架构必须允许：
 
-### `output_contract`
+- `topology_mode = academic`
+- `output_mode != learning_scene_v1`
 
-只描述结构约束、禁止事项、锚点规则。
+即使这一轮不立刻实现，也必须在设计中留出口。
 
-这部分应尽量是“纯格式控制”。
+## 9. normalize 策略的优先级
 
-### `baseline_task`
+`annotation_density` 的归属必须明确。
 
-只描述在无风格化前提下，这个 agent 的基础任务优先级。
+本稿结论：
 
-例如：
+- `annotation_density` 属于 `GoalPolicy`
+- 真正执行位置在 `normalize_and_ground`
+- prompt 中关于密度的描述只是 soft hint
 
-- 少标但不能乱标
-- 语法解释优先说怎么理解
-- 翻译要忠实、自然、完整
+优先级顺序必须写死为：
 
-### `scenario_policy`
+1. schema 合法性
+2. `GoalPolicy` 硬策略
+3. prompt soft hint
+4. 模型自由发挥
 
-从 `TaskPolicy` 翻译成自然语言约束。
+也就是说：
 
-例如：
+- prompt 可以鼓励“少标”或“均衡”
+- 但最终保留多少条，必须由 normalize 的硬策略裁定
 
-- 本场景弱化语法术语
-- 本场景提高长难句结构说明优先级
-- 本场景优先术语准确性
+这样才能避免：
 
-### `style_overlay`
+- prompt 说少标，normalize 又放宽
+- prompt 想多标，normalize 又无上限
 
-只用于“额外风格化”或“场景特殊表达方式”。
+两边互相打架。
 
-例如：
+## 10. `exam` 变体命名的正式说明
 
-- exam 的考试导向表达
-- academic 的论文导读表达
+本稿采用以下 `reading_variant` 设计：
 
-baseline 阶段可以为空。
+- `gaokao`
+- `cet`
+- `gre_tem`
+- `ielts_toefl`
 
-### `few_shot_examples`
+说明如下。
 
-统一由 example plan 注入。
+### 10.1 `gaokao`
 
-关键要求：
+- 面向高考
+- 对应 `exam_tag = [gaokao]`
 
-- agent 静态 instructions 里不再长期内嵌大量示例
-- baseline 例子也应通过这一层进入
+### 10.2 `cet`
 
-### `input_sentences`
+- 面向大学英语四六级
+- 对应 `exam_tag = [cet4, cet6]`
 
-保持现在的做法即可。
+### 10.3 `gre_tem`
 
-## 8. 三类 goal 的模块化实现建议
+这里的 `gre_tem` 不是指美国 GRE 考试。
 
-## 8.1 `daily_reading`
+它表示一个合并场景：
 
-第一阶段建议仅通过以下方式实现：
+- 考研英语
+- TEM（中国英语专业等级考试）
 
-- 清理静态 instructions 中过强的风格性表述
-- 补一层更纯的 baseline task section
-- 通过 `scenario_policy` 区分 beginner / intermediate / intensive
+对应 `exam_tag = [gre, tem4, tem8]`
 
-不建议第一阶段做：
+其中：
 
-- 单独分叉 agent
-- 单独分叉 schema
-- 单独分叉 normalize 逻辑
+- 数据库内部仍使用 `gre` 作为考研英语的 legacy tag
+- 前端展示文本统一渲染为“考研”
 
-## 8.2 `exam`
+这个命名的含义必须在代码注释和文档中明确，否则极易误解为真正的 GRE。
 
-第二阶段建议实现为：
+### 10.4 `ielts_toefl`
 
-- 共用 agent topology
-- 为每个 exam variant 准备独立的 prompt overlay
-- 为每个 exam variant 准备可演进的 example provider
-- 在 `TaskPolicy` 中增加 exam-specific priority
+- 面向雅思 / 托福
+- 对应 `exam_tag = [ielts, toefl]`
 
-如果后续发现某些考试场景在输出类型上差异过大，再考虑分叉 agent。
+## 11. exam\_tag 的职责边界
 
-## 8.3 `academic`
+本轮已知事实：
 
-建议分两步：
+- exam\_tag 已插入 PostgreSQL 词典数据库
+- exam\_tag 当前不参与筛选
+- exam\_tag 当前不建索引
+- exam\_tag 当前只用于当用户选择对应 exam variant 时，在单词卡片上显示该词相关考试标签
 
-第一步：
+因此本稿明确：
 
-- 保持当前三 agent 架构
-- 大幅调整 vocabulary / grammar / translation prompt overlay
-- 压低 grammar_note 权重，提高 sentence_analysis 的信息结构分析属性
+- exam\_tag 当前是“展示增强信号”
+- 不是 retrieval filter
+- 不是 candidate selection 的硬条件
 
-第二步：
+后续如果要把 exam\_tag 纳入词汇优先级计算，应单独设计，不在本稿默认开启。
 
-- 评估是否需要把 `grammar_agent` 演化为 `structure_agent`
-- 评估是否需要为 academic 增加术语一致性和论证关系专门约束
+## 12. 推荐代码改造方向
 
-## 9. 第一阶段实施范围
+推荐逐步把现有实现收敛为下列职责：
 
-当前建议只做以下内容：
+- `derive_user_rules` 升级为 `build_goal_execution_plan`
+- `PromptStrategy` 升级为 `AgentExecutionPlan.runtime_prompt_sections`
+- `ExampleStrategy` 升级为最终 resolved examples
+- `normalize_and_ground` 不再依赖 `profile_id`，改依赖 `GoalPolicy`
 
-1. 明确 `daily_reading + intermediate_reading` 的 baseline 定义。
-2. 从三个 agent 的静态 instructions 中分离出：
-   - 核心角色定义
-   - 纯输出契约
-   - 可迁移的示例
-3. 把示例从静态 instructions 迁移到 `ExampleStrategy`。
-4. 把与场景相关的 policy 改为通过 section 注入。
-5. 把 normalize 中的密度控制从 `profile_id` 绑定改为 `TaskPolicy` 绑定。
+建议新增或演化的文件职责：
 
-这一阶段不做：
+- `app/services/analysis/goal_execution_plan.py`
+  - 定义 `GoalExecutionPlan`、`AgentExecutionPlan`、`GoalPolicy`
+- `app/services/analysis/goal_planner.py`
+  - 负责 `AnalyzeRequest -> GoalExecutionPlan`
+- `app/services/analysis/runtime_prompt_builder.py`
+  - 负责从 `AgentExecutionPlan` 生成 runtime prompt sections
+- `app/services/analysis/topology_selector.py`
+  - 负责根据 `topology_mode` 选择 learning / academic 拓扑
 
-1. 新增 goal / variant 枚举
-2. 接入 RAG
-3. 接入 exam_tag
-4. academic 特化 agent
-
-## 10. 推荐代码改造方向
-
-建议后续重构的目标目录职责如下：
-
-- `app/services/analysis/scenario_config.py`
-  负责 `reading_goal + reading_variant -> ScenarioConfig`
-- `app/services/analysis/task_policy.py`
-  负责场景到产品策略的确定性映射
-- `app/services/analysis/prompt_plan.py`
-  负责 section 组合计划
-- `app/services/analysis/example_provider.py`
-  负责 baseline/manual/rag 的示例解析
-- `app/services/analysis/config_bundle.py`
-  负责统一产出 `AnalysisConfigBundle`
-
-现有文件可对应演化为：
+现有文件的迁移方向：
 
 - `user_rules.py`
-  逐步收缩或被替代，不再承担全部策略职责
+  - 保留兼容层，逐步退出主路径
 - `prompt_strategy.py`
-  从“字段包”升级为“prompt plan builder”
+  - 收缩为 runtime prompt 组装工具
 - `example_strategy.py`
-  从“静态 list 容器”升级为“example provider façade”
+  - 收缩为 example resolve 工具
 - `strategy_builder.py`
-  升级为 bundle assembler，面向 agent 产出最终 plan
+  - 被 `goal_planner.py` 吸收
 
-## 11. 决策摘要
+## 13. 第一阶段落地范围
 
-本稿的关键决策如下：
+当前最优先、也最务实的落地范围如下：
 
-1. baseline 必须定义为“非风格化、仅基础输出控制”的对照组。
-2. `daily_reading` 先落地，`intermediate_reading` 作为主 baseline。
-3. `exam` 是一组子策略，不是单一 prompt。
-4. `academic` 不是更高级的 `daily_reading`，其任务目标本质不同。
-5. 差异化优先通过 prompt overlay、few-shot provider、task policy 实现，而不是立即分叉 workflow。
-6. 后处理策略应从 `profile_id` 解耦，改为消费显式 policy。
+1. 先不改 workflow 拓扑。
+2. 先引入 `GoalExecutionPlan` / `AgentExecutionPlan` / `GoalPolicy` 三个对象。
+3. 先把静态 system prompt 与 runtime prompt 边界切清。
+4. 先把 `normalize_and_ground` 对密度的依赖改成读取 `GoalPolicy`。
+5. 先只落地 `daily_reading + intermediate_reading` baseline。
 
-## 12. 待讨论问题
+这一阶段暂不做：
 
-下一轮建议按以下顺序继续讨论：
+1. `academic` 新节点
+2. 新 projection contract
+3. `exam` 复杂优先级逻辑
+4. RAG few-shot
 
-1. `daily_reading` baseline 的三个 agent prompt 应保留什么，移出什么。
-2. `daily_reading` 的 beginner / intermediate / intensive 应分别调整哪些 policy。
-3. exam 维度的 `reading_variant` 是否正式改为 `gaokao / cet / kaoyan / gre_tem / ielts_toefl`。
-4. academic 是否仍保留 `grammar_agent` 命名，还是中长期改为 `structure_agent`。
-5. exam_tag 在数据库中的建模方式与 few-shot/RAG 的联动方式。
+## 14. 后续讨论顺序
 
-## 13. 最终结论
+建议后续按这个顺序推进：
 
-差异化输出的核心不是“给不同场景多加几句 prompt”，而是先把系统拆成稳定的层：
+1. 先定 `GoalExecutionPlan` / `AgentExecutionPlan` / `GoalPolicy` 的字段。
+2. 再定三个 agent 的静态 system prompt 与 runtime prompt 边界。
+3. 再收敛 `daily_reading + intermediate_reading` baseline prompt。
+4. 再讨论 `daily_reading` 其他 variant 的策略差异。
+5. 再讨论 `exam` 的 prompt / example / exam\_tag 展示增强。
+6. 最后单独开一轮讨论 `academic` 拓扑和前端协议。
 
-- 用户请求层
-- 场景标准化层
-- 产品策略层
-- prompt overlay 层
-- example provider 层
+## 15. 最终结论
 
-只有这样，`daily_reading`、`exam`、`academic` 才能在共享 workflow 主体的前提下，分别演进自己的输出策略，而不会把当前 baseline 再次污染成一个难以调试的大 prompt。
+差异化输出策略真正要解决的不是“每个 variant 用什么语气”，而是下面这套执行问题：
+
+1. 请求进入后，系统如何决定当前该走哪套拓扑。
+2. 每个 agent 的哪些约束应静态固化，哪些应动态注入。
+3. normalize 的硬策略从哪里来，谁说了算。
+4. 哪些 `reading_goal` 只是策略差异，哪些已经是任务定义差异。
+
+本稿的明确答案是：
+
+- `daily_reading` 和 `exam` 先共享 learning 拓扑
+- `academic` 预留 topology branch
+- system prompt 静态化，runtime prompt 只保留请求相关差异
+- 用 `GoalExecutionPlan` 统一承载所有运行时差异
+- 用 `GoalPolicy` 统一承载 normalize 的硬策略
+
+这样后续再推进具体 variant 风格时，系统不会再次退化成一个难以维护的大 prompt 分支集合。
