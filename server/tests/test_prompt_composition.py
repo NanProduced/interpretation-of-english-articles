@@ -47,8 +47,8 @@ def test_vocabulary_prompt_uses_tagged_sections_for_daily_intermediate() -> None
     assert "<policy>" in prompt
     assert "<input_sentences>" in prompt
     assert "profile_id: daily_intermediate" in prompt
-    assert "本次任务是基础阅读辅助，不做考试解析，也不做学术导读" in prompt
-    assert "优先标注真正影响理解的语境义、固定搭配、短语动词" in prompt
+    assert "context_gloss 是重点" in prompt
+    assert "地道搭配" in prompt
 
 def test_grammar_prompt_uses_balanced_policy_lines() -> None:
     plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
@@ -62,8 +62,8 @@ def test_grammar_prompt_uses_balanced_policy_lines() -> None:
 
     assert "<policy>" in prompt
     assert "grammar_granularity: balanced" in prompt
-    assert "只处理真正影响理解的结构" in prompt
-    assert "复杂句优先解释主干、从句关系和阅读顺序" in prompt
+    assert "只在结构真正影响理解时才标注" in prompt
+    assert "日常中怎么用" in prompt
 
 
 def test_repair_prompt_strategy_adds_runtime_constraints_section() -> None:

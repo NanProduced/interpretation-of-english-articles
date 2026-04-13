@@ -5,6 +5,7 @@
 - baseline = 最少 few-shot
 - 后续可通过 RAG 注入 dynamic few-shot
 - 不影响 baseline 稳定性
+- 示例要体现 variant 的差异化方向
 """
 
 from __future__ import annotations
@@ -40,12 +41,12 @@ BEGINNER_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
     ExampleEntry(
         example_type="phrase",
         sentence_text="He decided to give up smoking.",
-        output_fragment='{"type": "phrase_gloss", "text": "give up", "phrase_type": "phrasal_verb", "zh": "放弃；戒掉"}',
+        output_fragment='{"type": "phrase_gloss", "text": "give up", "phrase_type": "phrasal_verb", "zh": "放弃；戒掉。日常很常用，比如 give up smoking（戒烟）、give up trying（放弃尝试）"}',
     ),
     ExampleEntry(
-        example_type="context",
-        sentence_text="She was so thin she practically vanished in the crowd.",
-        output_fragment='{"type": "context_gloss", "text": "vanished", "gloss": "消失了；看不见了", "reason": "vanish 本义是突然消失，这里形容人太瘦小而在人群中不显眼"}',
+        example_type="phrase",
+        sentence_text="She takes care of her little brother every day.",
+        output_fragment='{"type": "phrase_gloss", "text": "takes care of", "phrase_type": "collocation", "zh": "照顾；照看。日常超常用，比如 take care of yourself（照顾好自己）"}',
     ),
 ]
 
@@ -56,9 +57,9 @@ BEGINNER_GRAMMAR_EXAMPLES: list[ExampleEntry] = [
         output_fragment='{"type": "sentence_analysis", "label": "拆解长句", "analysis_zh": "主干是 The boy is my brother（那个男孩是我弟弟）。中间 who is wearing a red hat 是补充说明男孩的，告诉我们是\"戴红帽子的\"那个男孩。先看主干，再看中间的补充说明。", "chunks": [{"order": 1, "label": "主干主语", "text": "The boy"}, {"order": 2, "label": "补充说明", "text": "who is wearing a red hat"}, {"order": 3, "label": "主干谓语宾语", "text": "is my brother"}]}',
     ),
     ExampleEntry(
-        example_type="sentence_analysis",
-        sentence_text="The book that I bought yesterday is very interesting.",
-        output_fragment='{"type": "sentence_analysis", "label": "拆解长句", "analysis_zh": "主干是 The book is very interesting（这本书很有趣）。中间 that I bought yesterday 是补充说明哪本书的，告诉我们是\"昨天买的\"那本。", "chunks": [{"order": 1, "label": "主干主语", "text": "The book"}, {"order": 2, "label": "补充说明", "text": "that I bought yesterday"}, {"order": 3, "label": "主干谓语", "text": "is very interesting"}]}',
+        example_type="grammar",
+        sentence_text="He gave up smoking last year.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "gave up"}, {"text": "smoking"}], "label": "give up + 动词-ing", "note_zh": "give up 后面跟动词的 -ing 形式，表示\"放弃做某事\"。日常很常用，比如 I gave up eating junk food（我戒掉了垃圾食品）。"}',
     ),
 ]
 
@@ -75,7 +76,7 @@ BEGINNER_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
     ),
 ]
 
-# --- INTERMEDIATE EXAMPLES (Original Baseline) ---
+# --- INTERMEDIATE EXAMPLES ---
 INTERMEDIATE_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
     ExampleEntry(
         example_type="phrase",
@@ -84,13 +85,13 @@ INTERMEDIATE_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
     ),
     ExampleEntry(
         example_type="context",
-        sentence_text="The visuals rendered the ancient world far more vivid than earlier documentaries.",
-        output_fragment='{"type": "context_gloss", "text": "rendered", "gloss": "把…呈现出来", "reason": "render 常见义为\"使得\"或\"渲染\"，此处表示视觉上把远古世界呈现出来，词典基本义不足以解释"}',
+        sentence_text="The government has been slow to address the issue.",
+        output_fragment='{"type": "context_gloss", "text": "address", "gloss": "处理；应对", "reason": "address 常见义为\"地址\"或\"演讲\"，此处是\"着手处理问题\"的语境义"}',
     ),
     ExampleEntry(
         example_type="context",
-        sentence_text="The government has been slow to address the issue.",
-        output_fragment='{"type": "context_gloss", "text": "address", "gloss": "处理；应对", "reason": "address 常见义为\"地址\"或\"演讲\"，此处是\"着手处理问题\"的语境义"}',
+        sentence_text="The visuals rendered the ancient world far more vivid than earlier documentaries.",
+        output_fragment='{"type": "context_gloss", "text": "rendered", "gloss": "把…呈现出来", "reason": "render 常见义为\"使得\"或\"渲染\"，此处表示视觉上把远古世界呈现出来"}',
     ),
 ]
 
@@ -124,7 +125,7 @@ INTERMEDIATE_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
 INTENSIVE_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
     ExampleEntry(
         example_type="context",
-        sentence_text="The architect's design was a subtle nod to brutalism.",
+        sentence_text="The architect\'s design was a subtle nod to brutalism.",
         output_fragment='{"type": "context_gloss", "text": "nod to", "gloss": "致敬；呼应", "reason": "nod 原指点头，此处修辞性地表示设计上对某种风格的隐喻性致敬，体现了选词的委婉与深度"}',
     ),
     ExampleEntry(

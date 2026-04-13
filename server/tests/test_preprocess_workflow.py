@@ -20,7 +20,7 @@ def test_build_goal_execution_plan_preserves_beginner_profile_and_policies() -> 
     plan = build_goal_execution_plan("daily_reading", "beginner_reading")
 
     assert plan.prompt_profile == "daily_beginner"
-    assert plan.policy.grammar_focus == "focused"
+    assert plan.policy.grammar_focus == "explicit_split"
     assert plan.policy.vocabulary_focus == "high_value_only"
 
 

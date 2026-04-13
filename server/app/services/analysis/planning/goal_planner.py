@@ -86,9 +86,9 @@ def build_goal_execution_plan(reading_goal: ReadingGoal, reading_variant: Readin
         )
 
     variant_map: dict[str, tuple[str, str, str, str, int]] = {
-        "beginner_reading": ("daily_beginner", "explicit_split", "high_value_only", "literal_support", 4),
-        "intermediate_reading": ("daily_intermediate", "balanced", "high_value_only", "natural", 3),
-        "intensive_reading": ("daily_intensive", "structural_logic", "semantic_nuance", "nuanced_aesthetic", 2),
+        "beginner_reading": ("daily_beginner", "explicit_split", "high_value_only", "literal_support", 6),
+        "intermediate_reading": ("daily_intermediate", "balanced", "high_value_only", "natural", 4),
+        "intensive_reading": ("daily_intensive", "structural_logic", "semantic_nuance", "nuanced_aesthetic", 3),
     }
     profile_id, grammar_granularity, vocabulary_policy, translation_style, density = variant_map[reading_variant]
     

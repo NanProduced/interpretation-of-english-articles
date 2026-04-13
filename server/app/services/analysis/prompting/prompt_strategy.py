@@ -6,6 +6,7 @@
 - agent 通过统一 strategy builder 获取 prompt 和 examples
 - baseline 配置尽量短，尽量少 few-shot
 - runtime prompt 采用可替换 section 组装，便于后续 profile 差异化
+- 差异化的核心是"用户需要什么"，而非"怎么限制 LLM 输出"
 """
 
 from __future__ import annotations
@@ -15,7 +16,6 @@ from dataclasses import dataclass
 from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.services.analysis.planning.goal_views import (
     get_annotation_style,
-    get_prompt_baseline_text,
 )
 from app.services.analysis.prompting.prompt_composer import PromptSection
 
@@ -67,9 +67,6 @@ def build_prompt_sections(strategy: PromptStrategy) -> tuple[PromptSection, ...]
 def build_vocabulary_prompt_strategy(plan: GoalExecutionPlan) -> PromptStrategy:
     """构建 vocabulary agent 的 prompt 策略。"""
 
-    baseline_text = get_prompt_baseline_text(plan)
-    extra_instructions = (baseline_text,) if baseline_text else ()
-
     return PromptStrategy(
         profile_id=plan.prompt_profile,
         reading_goal=plan.goal_id,
@@ -77,15 +74,11 @@ def build_vocabulary_prompt_strategy(plan: GoalExecutionPlan) -> PromptStrategy:
         vocabulary_policy=plan.policy.vocabulary_focus,
         annotation_style=get_annotation_style(plan),
         policy_lines=_build_vocabulary_policy_lines(plan),
-        extra_instructions=extra_instructions,
     )
 
 
 def build_grammar_prompt_strategy(plan: GoalExecutionPlan) -> PromptStrategy:
     """构建 grammar agent 的 prompt 策略。"""
-
-    baseline_text = get_prompt_baseline_text(plan)
-    extra_instructions = (baseline_text,) if baseline_text else ()
 
     return PromptStrategy(
         profile_id=plan.prompt_profile,
@@ -94,15 +87,11 @@ def build_grammar_prompt_strategy(plan: GoalExecutionPlan) -> PromptStrategy:
         grammar_granularity=plan.policy.grammar_focus,
         annotation_style=get_annotation_style(plan),
         policy_lines=_build_grammar_policy_lines(plan),
-        extra_instructions=extra_instructions,
     )
 
 
 def build_translation_prompt_strategy(plan: GoalExecutionPlan) -> PromptStrategy:
     """构建 translation agent 的 prompt 策略。"""
-
-    baseline_text = get_prompt_baseline_text(plan)
-    extra_instructions = (baseline_text,) if baseline_text else ()
 
     return PromptStrategy(
         profile_id=plan.prompt_profile,
@@ -110,7 +99,6 @@ def build_translation_prompt_strategy(plan: GoalExecutionPlan) -> PromptStrategy
         reading_variant=plan.variant_id,
         translation_style=plan.policy.translation_focus,
         policy_lines=_build_translation_policy_lines(plan),
-        extra_instructions=extra_instructions,
     )
 
 
@@ -126,65 +114,79 @@ def build_repair_prompt_strategy(error_context: str) -> PromptStrategy:
 
 
 def _build_vocabulary_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
-    lines: list[str] = []
-    density = plan.policy.annotation_density
     focus = plan.policy.vocabulary_focus
-
-    lines.append(f"词汇标注上限：每句最多保留 {density} 个高价值词汇点。")
 
     if focus == "high_value_only":
         if plan.variant_id == "beginner_reading":
-            lines.append("选词策略：广覆盖。即使某些词在进阶阅读中算基础词，如果对初学者有门槛也请标注。宁多标也不漏标。")
-            lines.append("过滤规则：只过滤 the/is/are 等功能词和极高频日常词。常见基础词如果在该语境下可能不认识，仍然标注。")
+            return (
+                '用户是英语初学者，词汇量约 1,500\u20133,000 词。他们最需要的是：看懂文章 + 学到日常能用的表达。',
+                '标词策略：对初学者来说可能不认识的词都标出来。但释义要直白\u2014\u2014直接给中文意思，不要展开词源或辨析。',
+                'phrase_gloss 是重点：短语和搭配是初学者最想学的东西。遇到短语动词、日常搭配，优先用 phrase_gloss 标注，释义中可以给一个简单的日常例句，让用户觉得学完就能用。',
+                'context_gloss 少用：初学者还不需要辨析多义词的细微差别，只在词义严重偏离常见义时才用。',
+            )
         else:
-            lines.append("选词策略：精选标注。优先标注多义词的语境义、地道搭配和短语动词。常见基础词、顺着上下文即可读懂的词不标。")
-            lines.append("释义要求：先给语境义，再对比常见义项。解释为什么在这里是这个意思而不是平时那个意思。如果是短语可以做一些举例辅助理解或学习。")
-            lines.append("过滤规则：用户大概率认识的词不标。宁缺毋滥。")
+            return (
+                '用户有一定英语基础，词汇量约 3,000\u20135,000 词。他们能读懂大部分内容，但会在多义词的语境义和地道搭配上卡住。',
+                '标词策略：只标用户\u201c认识但可能不确定这里什么意思\u201d的词和真正地道的搭配。基础词不标。',
+                'context_gloss 是重点：多义词在当前语境下的意思，先给语境义，再对比常见义项，解释为什么在这里是这个意思。',
+                'phrase_gloss 关注地道搭配和短语动词，释义可以适当举例帮助理解和学习。',
+            )
     elif focus == "semantic_nuance":
-        lines.append("选词策略：少标但深挖。只标注近义词辨析、搭配隐含义、修辞用法和感情色彩（褒贬）。")
-        lines.append("释义要求：具有启发性和深度。解释作者为什么选这个词而不是近义词，选词的精妙之处在哪里。可以进行拓展发散，帮助用户学习更多相关知识。")
-        lines.append("过滤规则：用户大概率认识的词和常见语境义不标。只标真正有深度挖掘价值的表达。")
+        return (
+            '用户英语水平较高，词汇量约 5,000\u20138,000 词。他们几乎认识所有词，但想理解更深层的语义和修辞。',
+            '标词策略：只标真正有深度挖掘价值的表达\u2014\u2014近义词辨析、搭配隐含义、修辞用法、感情色彩。',
+            '释义要有深度：解释作者为什么选这个词而不是近义词，选词的精妙之处在哪里。可以拓展发散，帮助用户建立更丰富的语义网络。',
+            '常见词和常见语境义不标。宁缺毋滥。',
+        )
 
-    return tuple(lines)
+    return ()
 
 
 def _build_grammar_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
-    lines: list[str] = []
     focus = plan.policy.grammar_focus
 
     if focus == "explicit_split":
-        lines.append("教学目标：帮用户看懂这句话在说什么，培养语感。")
-        lines.append("讲解策略：使用通俗易懂的语言，用户英语水平可能较低，重要的是帮助用户建立英语学习兴趣，可以用和中文做比较来帮助用户理解。")
-        lines.append("术语要求：避免语法术语。用'修饰''补充说明''先看...再看...'等直白表达，不要说'定语从句''状语从句'。")
-        lines.append("拆解方式：指出句子主干（主语、谓语、宾语），然后说明修饰成分修饰的是谁，按什么顺序读。")
+        return (
+            '用户是英语初学者，他们不需要系统学语法，但需要看懂长句。你的目标是帮他们拆解句子，同时让他们觉得英语有趣、实用。',
+            'sentence_analysis 为主：遇到长句就拆，帮用户看清\u201c先看什么、再看什么\u201d。用直白语言，不要用语法术语\u2014\u2014说\u201c补充说明\u201d而不是\u201c定语从句\u201d，说\u201c表示原因的部分\u201d而不是\u201c原因状语从句\u201d。',
+            'grammar_note 关注实用性：挑出日常能用的表达方式来讲。比如遇到 give up + doing，告诉用户\u201c表示放弃做某事，后面跟动词的 -ing 形式，日常很常用\u201d。让用户觉得学完就能用起来。',
+            '可以和中文做对比来帮助理解，比如\u201c英语里这个修饰语放在后面，而中文通常放在前面\u201d。',
+        )
     elif focus == "balanced":
-        lines.append("教学目标：帮用户理解结构如何承载意义，以及学会如何去使用这些表达方式。")
-        lines.append("讲解策略：先讲清楚语法，再告知日常生活中如何使用。")
-        lines.append("术语要求：可适度引入语法术语（如'定语从句''被动语态'），但必须附带直白解释。")
+        return (
+            '用户有一定英语基础，他们能理解大部分句子结构，但会在复杂从句和特殊结构上卡住。',
+            'grammar_note 为主：只在结构真正影响理解时才标注。可以适度使用语法术语（如\u201c定语从句\u201d\u201c被动语态\u201d），但必须附带直白解释。',
+            '讲解策略：先讲清楚结构是什么，再告诉用户这种表达在日常中怎么用。',
+            'sentence_analysis 只用于真正复杂的嵌套句，不需要拆解一般从句。',
+        )
     elif focus == "structural_logic":
-        lines.append("教学目标：帮用户理解作者为什么选择这种表达方式。")
-        lines.append("讲解策略：克制标注。仅在结构真正阻碍理解或带来修辞效果时才分析。")
-        lines.append("术语要求：可使用标准语法术语，用户能理解。")
-        lines.append("分析重点：侧重'结构如何承载意义'——倒装为什么强调、省略为什么紧凑、插入语为什么打断。")
-        lines.append("触发条件：侧重于高精度的句法解析和语篇逻辑衔接。简单结构不标。")
+        return (
+            '用户英语水平较高，他们能理解大部分句法结构。你的目标是帮他们理解作者为什么选择这种表达方式。',
+            '克制标注：只在结构带来修辞效果或隐含逻辑时才分析。简单结构不标。',
+            '分析重点：结构如何承载意义\u2014\u2014倒装为什么强调、省略为什么紧凑、插入语为什么打断。可使用标准语法术语。',
+            'sentence_analysis 用于信息密度极高的句子，分析信息层次和逻辑衔接。',
+        )
 
-    return tuple(lines)
+    return ()
 
 
 def _build_translation_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
-    lines: list[str] = []
     style = plan.policy.translation_focus
 
     if style == "literal_support":
-        lines.append("翻译角色：翻译是用户的主要理解通道。用户可能先看翻译再回看原文。")
-        lines.append("翻译风格：忠实详尽。字面意义与原文尽可能对应，保留原文的逻辑顺序。")
-        lines.append("要求：确保初学者能通过翻译快速定位到英文原句的对应成分。")
-        lines.append("补充说明：必要时可用括号补充原文省略的主语或逻辑关系，例如：'(政府)决定'、'(这)意味着'。")
+        return (
+            '用户是英语初学者，翻译是他们理解文章的主要方式。他们可能会先看翻译，再回看英文。',
+            '翻译要忠实详尽，尽量保留原文的逻辑顺序和句子结构，让用户能轻松对照中英文。',
+            '必要时可用括号补充原文省略的成分，如\u201c(政府)决定\u201d、\u201c(这)意味着\u201d。',
+        )
     elif style == "natural":
-        lines.append("翻译风格：自然意译。追求地道、顺畅的中文表达，不刻意贴英语语序。")
+        return (
+            '翻译追求自然通顺的中文表达，不刻意贴英语语序。用户会用翻译来确认自己的理解是否正确。',
+        )
     elif style == "nuanced_aesthetic":
-        lines.append("翻译角色：翻译是用户的精细理解辅助。用户基本能自主理解，翻译的价值在于揭示微妙含义和修辞效果。")
-        lines.append("翻译风格：优雅且精准。在准确还原逻辑的基础上，尽量体现原文的语气、修辞和文学美感。")
-        lines.append("补充说明：对关键表达可附加注释，说明原文此处的隐含义或修辞手法。")
+        return (
+            '用户基本能自主理解原文，翻译的价值在于揭示微妙含义和修辞效果。',
+            '在准确还原逻辑的基础上，尽量体现原文的语气和修辞选择。对关键表达可附加注释说明隐含义或修辞手法。',
+        )
 
-    return tuple(lines)
+    return ()

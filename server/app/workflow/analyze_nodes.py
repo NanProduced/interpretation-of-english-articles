@@ -480,12 +480,18 @@ async def repair_agent_node(state: AnalyzeState, config: RunnableConfig) -> Anal
     """Repair agent node（条件触发）。"""
     normalized_result = state.get("normalized_result")
 
-    if normalized_result is not None:
-        drop_count = len(normalized_result.drop_log) if normalized_result.drop_log else 0
+    if normalized_result is not None and normalized_result.drop_log:
+        quality_drops = [
+            d for d in normalized_result.drop_log
+            if d.drop_stage != "density_control"
+        ]
+        quality_drop_count = len(quality_drops)
         annotation_count = len(normalized_result.annotations)
-        failure_ratio = drop_count / (annotation_count + drop_count) if annotation_count > 0 else 0.0
+        failure_ratio = quality_drop_count / (annotation_count + quality_drop_count) if annotation_count > 0 else 0.0
         if failure_ratio <= ANCHOR_FAILURE_THRESHOLD:
             return {"repair_request": None}
+    elif normalized_result is not None:
+        return {"repair_request": None}
 
     prepared_input = state["prepared_input"]
     vocabulary_draft = state.get("vocabulary_draft")
@@ -495,7 +501,9 @@ async def repair_agent_node(state: AnalyzeState, config: RunnableConfig) -> Anal
     if vocabulary_draft is None or grammar_draft is None or translation_draft is None:
         return {"repair_request": None}
 
-    error_context = f"normalized_result 锚点失败率过高或结构异常。drop_log: {len(normalized_result.drop_log) if normalized_result else 0} items"
+    quality_drop_count = len([d for d in (normalized_result.drop_log or []) if d.drop_stage != "density_control"])
+    total_drop_count = len(normalized_result.drop_log) if normalized_result else 0
+    error_context = f"normalized_result 锚点失败率过高或结构异常。quality_drops: {quality_drop_count}, density_drops: {total_drop_count - quality_drop_count}"
     repair_deps = RepairAgentDeps(
         sentences=[{"sentence_id": s.sentence_id, "text": s.text} for s in prepared_input.sentences],
         original_drafts={
