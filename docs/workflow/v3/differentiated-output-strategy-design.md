@@ -69,7 +69,7 @@
 - vocabulary 解释向考试相关用法和高频考点倾斜
 - grammar 强调“这个考试在考什么”
 - translation 兼顾理解与应试句法映射
-- 词汇卡片允许显示对应 variant 的 `exam_tag`
+- 词汇卡片通过查词接口展示对应 variant 的 `exam_tag`（LLM 不输出该字段）
 
 它主要影响：
 
@@ -255,6 +255,8 @@ flowchart TD
 
 ## 9. exam variant 与 exam_tag 约定
 
+> ⚠️ 更新（2026-04-13）：`VocabHighlight` 不再由 LLM 输出 `exam_tags` 字段。exam_tags 仅由词典数据库持有，用于查词展示。
+
 当前约定如下：
 
 - `gaokao` -> `exam_tag=[gaokao]`
@@ -263,12 +265,17 @@ flowchart TD
 - `tem` -> `exam_tag=[tem4, tem8]`
 - `ielts_toefl` -> `exam_tag=[ielts, toefl]`
 
+数据流说明：
+
+- **LLM 输出**：`VocabHighlight` schema 不含 `exam_tags` 字段
+- **词典数据库**：保存词条的 `exam_tags`，用于过滤和展示
+- **前端展示**：词汇卡片的 `exam_tags` 来自查词接口，不来自 LLM annotation
+- 当前 `exam_tag` 不参与筛选，不建索引
+
 额外说明：
 
 - 数据库内部 `kaoyan` 已替换原 `gre` 作为考研英语标签
 - 前端展示文案：`kaoyan` 渲染为”考研英语”，`tem` 渲染为”专业英语 (TEM4/8)”
-- 当前 `exam_tag` 只用于词汇卡片展示增强
-- 当前 `exam_tag` 不参与筛选，不建索引
 
 ## 10. 当前代码结构
 

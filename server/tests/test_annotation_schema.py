@@ -24,14 +24,13 @@ def test_vocab_highlight_rejects_unknown_fields() -> None:
         VocabHighlight(
             sentence_id="s1",
             text="test",
-            exam_tags=[],
             definition="bad",
         )
 
 
 def test_vocab_highlight_rejects_spaces() -> None:
     with pytest.raises(ValidationError):
-        VocabHighlight(sentence_id="s1", text="two words", exam_tags=[])
+        VocabHighlight(sentence_id="s1", text="two words")
 
 
 def test_phrase_gloss_single_word_requires_proper_type() -> None:
@@ -50,7 +49,6 @@ def test_business_rule_helpers_match_schema_constraints() -> None:
         sentence_id="s1",
         text="two words",
         occurrence=None,
-        exam_tags=[],
     )
     invalid_phrase = PhraseGloss.model_construct(
         type="phrase_gloss",
@@ -79,7 +77,7 @@ def test_business_rule_helpers_match_schema_constraints() -> None:
 def test_annotation_output_accepts_mixed_annotations() -> None:
     output = AnnotationOutput(
         annotations=[
-            VocabHighlight(sentence_id="s1", text="constitutional", exam_tags=[]),
+            VocabHighlight(sentence_id="s1", text="constitutional"),
             PhraseGloss(
                 sentence_id="s1",
                 text="scored 100 per cent",

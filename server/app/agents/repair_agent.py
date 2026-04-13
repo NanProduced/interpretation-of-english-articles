@@ -43,7 +43,7 @@ REPAIR_INSTRUCTIONS = """
 【可修复范围】
 1. sentence_id 错误
 2. anchor_text 不在对应句子中
-3. 缺失字段（exam_tags、phrase_type 等）
+3. 缺失字段（phrase_type 等）
 4. 枚举值错误
 5. 结构格式错误
 6. 删除无法 grounding 的无效项

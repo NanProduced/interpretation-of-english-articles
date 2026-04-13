@@ -61,7 +61,7 @@ export const READING_CONFIG_MAP: Record<ReadingGoal, PurposeOption> = {
   }
 };
 
-const SERVER_GOAL_TO_UI_GOAL: Record<string, ReadingGoal> = {
+export const SERVER_GOAL_TO_UI_GOAL: Record<string, ReadingGoal> = {
   exam: 'exam',
   daily_reading: 'daily',
   academic: 'academic',
@@ -124,4 +124,15 @@ export const normalizeServerAnalyzeParams = (
 ) => {
   const goal = SERVER_GOAL_TO_UI_GOAL[readingGoal] || 'daily';
   return getApiParams(goal, readingVariant);
+};
+
+/**
+ * 从服务器返回的原始字段获取友好的显示文本
+ */
+export const getSafeDisplayLabel = (serverGoal: string, serverVariant?: string | null) => {
+  // 兼容驼峰 (dailyReading -> daily_reading)
+  const normalizedGoalKey = serverGoal.replace(/([A-Z])/g, "_$1").toLowerCase();
+  
+  const goal = SERVER_GOAL_TO_UI_GOAL[serverGoal] || SERVER_GOAL_TO_UI_GOAL[normalizedGoalKey] || 'daily';
+  return getDisplayLabel(goal, serverVariant);
 };

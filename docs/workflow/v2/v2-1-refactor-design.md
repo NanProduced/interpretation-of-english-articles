@@ -429,6 +429,8 @@ class VocabHighlight(BaseModel):
 2. **不输出释义**
 3. 释义、音标、发音、词性等词典数据由后端词典代理接口提供
 
+> ⚠️ **v2 历史文档说明**：本章节描述的 `VocabHighlight.exam_tags` 设计已被 v3 废弃。v3 中 LLM 不再输出 `exam_tags`，该字段仅由词典数据库持有，用于查词展示。
+
 `exam_tags` 规则：
 
 1. 标签来源于后端预定义集合，不允许自由发明

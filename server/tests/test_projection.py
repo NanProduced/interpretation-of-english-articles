@@ -18,7 +18,7 @@ def test_vocab_highlight_projects_to_inline_mark() -> None:
     prepared = prepare_input("The implementation of sustainable practices is challenging.")
     plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
     output = AnnotationOutput(
-        annotations=[VocabHighlight(sentence_id="s1", text="implementation", exam_tags=["cet", "kaoyan"])],
+        annotations=[VocabHighlight(sentence_id="s1", text="implementation")],
         sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="可持续实践的实施是具有挑战性的。")],
     )
     outcome = project_to_render_scene(
@@ -110,7 +110,7 @@ def test_mixed_annotations_project_correctly() -> None:
     plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
     output = AnnotationOutput(
         annotations=[
-            VocabHighlight(sentence_id="s1", text="implementation", exam_tags=["cet"]),
+            VocabHighlight(sentence_id="s1", text="implementation"),
             PhraseGloss(sentence_id="s2", text="buzzword", phrase_type="compound", zh="流行术语"),
             ContextGloss(sentence_id="s1", text="requires", gloss="这里表示“需要进行”", reason="句中强调的是实现该动作的要求"),
         ],

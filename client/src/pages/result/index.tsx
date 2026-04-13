@@ -17,6 +17,7 @@ import { ensureLoggedIn } from '../../services/auth'
 import { track } from '../../services/analytics'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
+import { getSafeDisplayLabel } from '../../config/purpose'
 import './index.scss'
 
 /** 页面模式选项 */
@@ -421,7 +422,7 @@ export default function Result() {
             {request.sourceType === 'user_input' ? '手动输入' : '每日文章'}
           </Text>
           <Text className='level-tag'>
-            {request.readingVariant.toUpperCase()}
+            {getSafeDisplayLabel(request.readingGoal, request.readingVariant)}
           </Text>
         </View>
       </View>

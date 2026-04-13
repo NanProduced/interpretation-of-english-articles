@@ -7,7 +7,6 @@ Annotation 校验器
 
 1. VocabHighlight：
    - text 必须是 sentence 的真实子串
-   - exam_tags 只允许预定义集合
    - 不允许有释义字段（由后端词典接口提供）
 
 2. PhraseGloss：
@@ -48,9 +47,6 @@ if TYPE_CHECKING:
     from app.services.analysis.preprocess.input_preparation import PreparedInput
 
 logger = logging.getLogger(__name__)
-
-# 允许的 ExamTag
-ALLOWED_EXAM_TAGS: set[str] = {"gaokao", "cet", "kaoyan", "tem", "ielts_toefl"}
 
 # 允许的 PhraseType
 ALLOWED_PHRASE_TYPES: set[str] = {"collocation", "phrasal_verb", "idiom", "proper_noun", "compound"}
@@ -107,22 +103,6 @@ def validate_vocab_highlight(
             "anchor_not_substring",
             f"VocabHighlight.text 不是句子真实子串: '{annotation.text}'",
             sentence_id=annotation.sentence_id,
-        )
-
-    # 检查 exam_tags
-    for tag in annotation.exam_tags:
-        if tag not in ALLOWED_EXAM_TAGS:
-            result.add_error(
-                "exam_tag_invalid",
-                f"不允许的 exam_tag: {tag}",
-                allowed=list(ALLOWED_EXAM_TAGS),
-            )
-
-    # 检查 exam_tags 数量
-    if len(annotation.exam_tags) > 2:
-        result.add_warning(
-            "exam_tags_too_many",
-            f"exam_tags 数量建议 1-2 个，当前: {len(annotation.exam_tags)}",
         )
 
     return result

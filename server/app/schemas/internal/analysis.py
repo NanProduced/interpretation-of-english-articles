@@ -19,10 +19,9 @@ ReadingVariant = Literal[
     "academic_general",
 ]
 AnnotationStyle = Literal["exam_oriented", "plain_and_supportive", "structural_and_academic"]
-TranslationStyle = Literal["exam", "natural", "academic"]
-GrammarGranularity = Literal["focused", "balanced", "structural"]
-VocabularyPolicy = Literal["high_value_only", "exam_priority", "academic_priority"]
-ExamTag = Literal["gaokao", "cet", "kaoyan", "tem", "ielts_toefl"]
+TranslationStyle = Literal["exam", "natural", "academic", "literal_support", "nuanced_aesthetic"]
+GrammarGranularity = Literal["focused", "balanced", "structural", "explicit_split", "structural_logic"]
+VocabularyPolicy = Literal["high_value_only", "exam_priority", "academic_priority", "semantic_nuance"]
 
 BASE_MODEL_CONFIG = ConfigDict(extra="forbid", str_strip_whitespace=True)
 PHRASE_TYPES = ("collocation", "phrasal_verb", "idiom", "proper_noun", "compound")
@@ -149,11 +148,6 @@ class VocabHighlight(BaseModel):
         description="原文中的单个英文词。不能含空格；多词表达请使用 PhraseGloss 或 ContextGloss。",
     )
     occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现")
-    exam_tags: list[ExamTag] = Field(
-        default_factory=list,
-        max_length=2,
-        description="可选考试标签。baseline 下不作为是否标注的主驱动。",
-    )
 
     @field_validator("text")
     @classmethod

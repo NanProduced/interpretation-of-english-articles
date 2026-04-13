@@ -21,7 +21,7 @@ async def _fake_run_vocabulary_span(*args, **kwargs):
     return {
         "output": VocabularyDraft(
             vocab_highlights=[
-                VocabHighlight(sentence_id="s1", text="constitutional", exam_tags=[])
+                VocabHighlight(sentence_id="s1", text="constitutional")
             ],
             phrase_glosses=[],
             context_glosses=[],
@@ -56,7 +56,6 @@ async def _invalid_vocab_span(*args, **kwargs):
         sentence_id="s1",
         text="extreme lengths",
         occurrence=None,
-        exam_tags=[],
     )
     return {
         "output": VocabularyDraft(
@@ -185,7 +184,7 @@ def test_projection_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
 
     baseline = project_to_render_scene(
         annotation_output=AnnotationOutput(
-            annotations=[VocabHighlight(sentence_id="s2", text="leverage", exam_tags=[])],
+            annotations=[VocabHighlight(sentence_id="s2", text="leverage")],
             sentence_translations=[
                 SentenceTranslation(sentence_id="s1", translation_zh="第一句先提到了 this。"),
                 SentenceTranslation(sentence_id="s2", translation_zh="第二句清楚地提到了 leverage。"),
@@ -208,7 +207,7 @@ def test_projection_keeps_stable_ids_when_prior_mark_is_dropped() -> None:
                     phrase_type="collocation",
                     zh="缺失锚点",
                 ),
-                VocabHighlight(sentence_id="s2", text="leverage", exam_tags=[]),
+                VocabHighlight(sentence_id="s2", text="leverage"),
             ],
             sentence_translations=[
                 SentenceTranslation(sentence_id="s1", translation_zh="第一句先提到了 this。"),

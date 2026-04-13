@@ -29,7 +29,6 @@ def test_normalize_drops_spaced_vocab_highlight() -> None:
         sentence_id="s1",
         text="extreme lengths",
         occurrence=None,
-        exam_tags=[],
     )
     result = normalize_and_ground(
         vocabulary_draft=VocabularyDraft.model_construct(
@@ -90,8 +89,8 @@ def test_density_control_uses_profile_limit() -> None:
             label="宾语从句",
             note_zh="说明 that 引导从句。",
         ),
-        VocabHighlight(sentence_id="s1", text="constitutional", exam_tags=[]),
-        VocabHighlight(sentence_id="s1", text="monarchy", exam_tags=[]),
+        VocabHighlight(sentence_id="s1", text="constitutional"),
+        VocabHighlight(sentence_id="s1", text="monarchy"),
     ]
     result = normalize_and_ground(
         vocabulary_draft=VocabularyDraft(

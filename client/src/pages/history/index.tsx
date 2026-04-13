@@ -10,6 +10,7 @@ import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import { useLayoutStore } from '../../stores/layout'
+import { getSafeDisplayLabel } from '../../config/purpose'
 import './index.scss'
 
 /** 格式化日期 */
@@ -210,7 +211,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
                       </View>
                     )}
                     <Text className='config-tag'>
-                      {record.requestPayload.reading_variant.toUpperCase()}
+                      {getSafeDisplayLabel(record.requestPayload.reading_goal, record.requestPayload.reading_variant)}
                     </Text>
                   </View>
                 </View>
