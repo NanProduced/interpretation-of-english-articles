@@ -7,6 +7,7 @@ Redis 作为可选增强，通过 redis_enabled 标志控制。
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -22,6 +23,23 @@ logger = logging.getLogger(__name__)
 # 全局连接池句柄
 DB_POOL: asyncpg.Pool | None = None
 RedisPool: redis.Redis | None = None
+
+
+async def init_connection(conn: asyncpg.Connection) -> None:
+    """初始化数据库连接，注册 JSONB 编解码器。"""
+    await conn.set_type_codec(
+        "jsonb",
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema="pg_catalog",
+    )
+    # 也为 json 字段注册（如有）
+    await conn.set_type_codec(
+        "json",
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema="pg_catalog",
+    )
 
 
 async def init_db(
@@ -51,6 +69,7 @@ async def init_db(
         max_size=pool_size + max_overflow,
         command_timeout=pool_timeout,
         max_inactive_connection_lifetime=max_inactive_connection_lifetime,
+        init=init_connection,
         server_settings={"application_name": "claread-server"},
     )
     logger.info("PostgreSQL connection pool created (max_size=%d)", pool_size + max_overflow)

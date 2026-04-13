@@ -77,6 +77,7 @@ export default function Result() {
     y: number
   }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null)
+  const [animTrigger, setAnimTrigger] = useState(0) // 用于触发弹跳动效
   const [activeSentenceId, setActiveSentenceId] = useState<string | null>(null)
   const [selectedWord, setSelectedWord] = useState<string | null>(null)
 
@@ -212,6 +213,9 @@ export default function Result() {
     if (!recordId) return
     const isAdding = !favorited
 
+    // 播放弹跳反馈
+    setAnimTrigger(prev => prev + 1)
+
     if (isAdding) {
       // 先写本地
       saveFavorite({ recordId, createdAt: Date.now() } as FavoriteRecord)
@@ -233,7 +237,7 @@ export default function Result() {
         // 其他错误静默忽略
       }
     } else {
-      // 取消收藏
+      // 取消收藏（乐观更新，失败时回滚）
       removeFavorite(recordId)
       updateRecord(recordId, { isFavorited: false })
       setFavorited(false)
@@ -243,7 +247,10 @@ export default function Result() {
       try {
         await CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'remove')
       } catch {
-        // 静默忽略删除失败的场景
+        // 云端删除失败，回滚本地状态
+        saveFavorite({ recordId, createdAt: Date.now() } as FavoriteRecord)
+        updateRecord(recordId, { isFavorited: true })
+        setFavorited(true)
       }
     }
   }
@@ -486,7 +493,11 @@ export default function Result() {
             {renderParagraphs()}
             
             <View className='article-end-actions'>
-              <View className={`end-btn-secondary ${favorited ? 'favorited' : ''}`} onClick={handleToggleFavorite}>
+              <View 
+                key={`fav-btn-${animTrigger}`}
+                className={`end-btn-secondary ${favorited ? 'favorited' : ''} ${animTrigger > 0 ? 'animate-spring' : ''}`} 
+                onClick={handleToggleFavorite}
+              >
                 <LucideIcon name='bookmark' size={18} color={favorited ? 'var(--color-warn)' : 'var(--text-main)'} />
                 <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏'}</Text>
               </View>
@@ -531,19 +542,38 @@ export default function Result() {
             lemma: detailEntry.baseWord ?? detailEntry.word,
             phonetic: detailEntry.phonetic,
             provider: dictResult.provider || 'tecd3',
+            sentence: wordPopup.contextSentence,
           }
           saveVocabEntry(vocabEntry)
+          // 立即刷新 vocabList，避免等 useEffect 导致体感延迟
+          const allVocabAfter = getVocabulary()
+          const wordsAfter = allVocabAfter
+            .filter((v) => v.recordId === recordId)
+            .map((v) => v.word.toLowerCase())
+          setVocabList(wordsAfter)
           track('add_vocab', { word: w })
 
-          try {
-            await CloudSyncService.syncVocab(vocabEntry)
-          } catch (err: any) {
-            if (err?.statusCode === 401) {
-              const relogin = await ensureLoggedIn()
-              if (relogin) {
-                await CloudSyncService.syncVocab(vocabEntry)
+          // 云端同步（带重试）
+          let lastError: any
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              await CloudSyncService.syncVocab(vocabEntry)
+              lastError = null
+              break
+            } catch (err: any) {
+              lastError = err
+              if (err?.statusCode === 401) {
+                const relogin = await ensureLoggedIn()
+                if (!relogin) break
+                // relogin success, retry
+              } else {
+                // 非 401 错误，第一次重试，第二次放弃
+                if (attempt === 0) continue
               }
             }
+          }
+          if (lastError) {
+            console.warn('[result] syncVocab failed after retries:', w, lastError)
           }
         }}
         onFavorite={(w) => { track('favorite_word', { word: w }) }}

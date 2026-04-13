@@ -209,14 +209,14 @@ export function saveVocabEntry(entry: VocabEntry): void {
   try {
     const vocab = getVocabulary()
     /**
-     * 去重策略：优先用 lemma + recordId，其次用 word + recordId。
-     * 这样同词不同词形不会重复入库。
+     * 去重策略：统一用 lemma（如果有）加 recordId 来判断，
+     * 如果没有 lemma 则用 word（统一小写）加 recordId。
+     * 确保同一篇文章中同一 lemma 的词不会重复。
      */
+    const entryKey = (entry.lemma || entry.word).toLowerCase()
     const exists = vocab.some((v) => {
-      if (entry.lemma && v.lemma) {
-        return v.lemma === entry.lemma && v.recordId === entry.recordId
-      }
-      return v.word === entry.word && v.recordId === entry.recordId
+      const vKey = (v.lemma || v.word).toLowerCase()
+      return vKey === entryKey && v.recordId === entry.recordId
     })
     if (exists) return
     Taro.setStorageSync(KEYS.VOCABULARY, [entry, ...vocab])

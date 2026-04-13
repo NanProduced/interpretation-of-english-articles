@@ -29,6 +29,10 @@ export interface VocabEntry {
   tags?: string[]
   /** 词形变换列表 */
   exchange?: string[]
+  /** 来源句子文本 */
+  sentence?: string
+  /** 来源上下文文本 */
+  context?: string
   /** 词典来源 */
   provider?: string
 }

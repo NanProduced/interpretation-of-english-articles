@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { getRecordIds, getRecord, deleteRecord } from '../../services/storage'
+import { getRecordIds, getRecord, deleteRecord, getVocabulary } from '../../services/storage'
 import { useAuthStore } from '../../stores/auth'
 import { fetchCloudRecords, deleteCloudRecord } from '../../services/api/records.client'
 import { fetchCloudFavorites } from '../../services/api/favorites.client'
@@ -70,9 +70,18 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
           fetchCloudFavorites(),
         ])
         const favIds = new Set(favResult.items.map((f) => f.recordId))
+        
+        // 计算生词数
+        const allVocab = getVocabulary()
+        const vocabCounts: Record<string, number> = {}
+        allVocab.forEach(v => {
+          if (v.recordId) vocabCounts[v.recordId] = (vocabCounts[v.recordId] || 0) + 1
+        })
+
         const merged: AnalysisRecord[] = recordResult.items.map((r) => ({
           ...r,
           isFavorited: favIds.has(r.recordId),
+          vocabCount: vocabCounts[r.recordId] || 0,
         }))
         setRecords(merged)
         track('view_history', { count: merged.length, source: 'cloud' })
@@ -84,11 +93,22 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     }
 
     // 本地兜底
+    const allVocab = getVocabulary()
+    const vocabCounts: Record<string, number> = {}
+    allVocab.forEach(v => {
+      if (v.recordId) vocabCounts[v.recordId] = (vocabCounts[v.recordId] || 0) + 1
+    })
+
     const ids = getRecordIds()
     const loaded: AnalysisRecord[] = []
     for (const id of ids) {
       const record = getRecord(id)
-      if (record) loaded.push(record)
+      if (record) {
+        loaded.push({
+          ...record,
+          vocabCount: vocabCounts[id] || 0
+        })
+      }
     }
     setRecords(loaded)
     track('view_history', { count: loaded.length, source: 'local' })
@@ -180,10 +200,14 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
               )}
             </View>
           ) : (
-            filteredRecords.map((record) => (
+            filteredRecords.map((record, index) => (
                 <View
                 key={record.recordId}
                 className='history-card'
+                style={{ 
+                  animation: `slideInUp 0.6s var(--ease-spring) both`,
+                  animationDelay: `${index * 0.05}s`
+                }}
                 onClick={() => goToResult(record.recordId)}
               >
                 <View className='card-header'>
@@ -200,6 +224,11 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
                         <Text>★ 已收藏</Text>
                       </View>
                     )}
+                    {record.vocabCount && record.vocabCount > 0 ? (
+                      <View className='vocab-tag-count'>
+                        <Text>📚 {record.vocabCount} 生词</Text>
+                      </View>
+                    ) : null}
                     {record.pageState === 'loading' && (
                       <View className='processing-tag'>
                         <Text>⌛ 处理中</Text>

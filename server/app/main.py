@@ -116,9 +116,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
         """HTTPException 统一处理，记录错误日志"""
         logger.error(
-            "HTTP %d: %s | path=%s | detail=%s",
+            "HTTP %d | path=%s | detail=%s",
             exc.status_code,
-            exc.status_text,
             request.url.path,
             exc.detail,
         )

@@ -9,7 +9,7 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthStore } from '../../stores/auth'
-import { getVocabulary, removeVocabEntry } from '../../services/storage'
+import { getVocabulary, removeVocabEntry, getRecord } from '../../services/storage'
 import { fetchCloudVocabulary, deleteCloudVocabulary } from '../../services/api/vocabulary.client'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
@@ -97,9 +97,13 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
 
   /** 跳转回原文记录 */
   const goToResult = (recordId: string) => {
-    if (recordId) {
-      Taro.navigateTo({ url: `/pages/result/index?recordId=${recordId}&mode=replay` })
+    if (!recordId) return
+    const record = getRecord(recordId)
+    if (!record) {
+      Taro.showToast({ title: '原文记录已删除', icon: 'none' })
+      return
     }
+    Taro.navigateTo({ url: `/pages/result/index?recordId=${recordId}&mode=replay` })
   }
 
   /** 删除生词 */
@@ -149,10 +153,14 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
             </View>
           </View>
         ) : (
-          vocabList.map((entry) => (
+          vocabList.map((entry, index) => (
             <View
               key={entry.id}
               className='vocab-card'
+              style={{ 
+                animation: `slideInUp 0.6s var(--ease-spring) both`,
+                animationDelay: `${index * 0.05}s`
+              }}
               onClick={() => entry.recordId && goToResult(entry.recordId)}
             >
               <View className='card-header'>
@@ -170,8 +178,20 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
                   <Text className='delete-icon'>×</Text>
                 </View>
               </View>
-              <View className='card-footer'>
+              <View className='card-body'>
                 <Text className='meaning-text'>{entry.meaning}</Text>
+                {entry.sentence && (
+                  <View className='context-box'>
+                    <Text className='context-text'>{entry.sentence}</Text>
+                  </View>
+                )}
+              </View>
+              <View className='card-footer'>
+                <View className='source-info'>
+                  {entry.recordId && !getRecord(entry.recordId) && (
+                    <Text className='deleted-tag'>原文已删</Text>
+                  )}
+                </View>
                 <Text className='date-text'>{formatDate(entry.addedAt)}</Text>
               </View>
             </View>

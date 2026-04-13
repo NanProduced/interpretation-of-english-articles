@@ -33,4 +33,6 @@ export interface AnalysisRecord {
   updatedAt: number
   /** 是否已收藏全文 */
   isFavorited: boolean
+  /** 关联生词数 */
+  vocabCount?: number
 }

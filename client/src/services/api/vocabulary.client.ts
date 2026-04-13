@@ -64,6 +64,8 @@ function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
     tags: dto.tags,
     exchange: dto.exchange,
     provider: dto.source_provider,
+    sentence: dto.source_sentence || undefined,
+    context: dto.source_context || undefined,
   }
 }
 
@@ -108,8 +110,8 @@ export async function addVocabToCloud(
       tags: entry.tags || [],
       exchange: entry.exchange || [],
       source_provider: entry.provider || 'tecd3',
-      source_sentence: null,
-      source_context: null,
+      source_sentence: entry.sentence || null,
+      source_context: entry.context || null,
       payload_json: {},
     },
   })

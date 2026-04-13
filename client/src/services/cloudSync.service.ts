@@ -14,6 +14,7 @@ import type { VocabEntry } from '../types/view/vocabulary.vm'
 import { getRecord } from './storage'
 import {
   saveRecordToCloud,
+  fetchCloudRecordByClientId,
   deleteCloudRecord,
 } from './api/records.client'
 import {
@@ -40,6 +41,22 @@ function hashString(str: string): string {
 // ---------------------------------------------------------------------------
 // CloudSyncService
 // ---------------------------------------------------------------------------
+
+/** 尝试从本地或后端找回云端 UUID */
+async function resolveCloudId(clientRecordId: string): Promise<string | null> {
+  // 1. 先看本地有没有内存中的新值（虽然 store 可能没更新完，但 storage 里可能有了）
+  const local = getRecord(clientRecordId)
+  if (local?.cloudId) return local.cloudId
+
+  // 2. 本地没有，尝试从后端 Lookup
+  try {
+    const cloudRecord = await fetchCloudRecordByClientId(clientRecordId)
+    if (cloudRecord?.cloudId) return cloudRecord.cloudId
+  } catch {
+    // 忽略 Lookup 失败
+  }
+  return null
+}
 
 export const CloudSyncService = {
   /**
@@ -76,16 +93,22 @@ export const CloudSyncService = {
    */
   async syncFavorite(cloudId: string | undefined, clientRecordId: string, action: 'add' | 'remove'): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
-    if (!cloudId) {
-      console.warn('[cloudSync] syncFavorite skipped: missing cloudId')
+    
+    let resolvedId = cloudId
+    if (!resolvedId) {
+      resolvedId = (await resolveCloudId(clientRecordId)) || undefined
+    }
+
+    if (!resolvedId) {
+      console.warn('[cloudSync] syncFavorite skipped: missing cloudId even after resolve', clientRecordId)
       return
     }
 
     try {
       if (action === 'add') {
-        await addFavoriteToCloud(cloudId, clientRecordId)
+        await addFavoriteToCloud(resolvedId, clientRecordId)
       } else {
-        await removeFavoriteFromCloud(cloudId)
+        await removeFavoriteFromCloud(resolvedId)
       }
     } catch (err) {
       console.warn('[cloudSync] syncFavorite failed', clientRecordId, action, err)
@@ -97,13 +120,20 @@ export const CloudSyncService = {
    */
   async syncVocab(entry: VocabEntry): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
-    if (!entry.cloudRecordId) {
+    
+    let resolvedRecordId = entry.cloudRecordId
+    if (!resolvedRecordId && entry.recordId) {
+      resolvedRecordId = (await resolveCloudId(entry.recordId)) || undefined
+    }
+
+    if (!resolvedRecordId) {
        console.warn('[cloudSync] syncVocab skipped: missing cloudRecordId for word', entry.word)
        return
     }
 
     try {
-      await addVocabToCloud(entry)
+      // 这里的 entry 是 clone 的或者是最新的，确保带上 resolvedRecordId
+      await addVocabToCloud({ ...entry, cloudRecordId: resolvedRecordId })
     } catch (err) {
       console.warn('[cloudSync] syncVocab failed', entry.word, err)
     }

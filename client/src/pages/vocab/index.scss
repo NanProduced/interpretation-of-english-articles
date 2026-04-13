@@ -17,12 +17,17 @@
 
     .vocab-card {
       background-color: #fff;
-      padding: 32rpx;
-      border-radius: 32rpx;
-      margin-bottom: 24rpx;
+      padding: 36rpx;
+      border-radius: var(--radius-md);
+      margin-bottom: 32rpx;
       border: 1rpx solid var(--border-color);
-      box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
-      &:active { transform: scale(0.98); }
+      box-shadow: var(--shadow-paper);
+      transition: transform 0.2s var(--ease-spring);
+      
+      &:active { 
+        transform: scale(0.97); 
+        background-color: var(--color-bg);
+      }
 
       .card-header {
         display: flex;
@@ -32,21 +37,22 @@
 
         .word-text {
           flex: 1;
-          font-size: 34rpx;
-          font-weight: bold;
+          font-size: 38rpx;
+          font-weight: var(--weight-bold);
           color: var(--color-ink);
-          line-height: 1.3;
+          font-family: var(--font-english-serif), serif;
+          line-height: 1.2;
         }
 
         .pos-tag {
           flex-shrink: 0;
           font-size: 20rpx;
-          background-color: var(--vocab-surface);
-          color: var(--vocab-label);
-          padding: 4rpx 16rpx;
-          border-radius: 8rpx;
-          font-weight: bold;
-          border: 1rpx solid var(--vocab-border);
+          background-color: #fffbeb;
+          color: #d97706;
+          padding: 6rpx 16rpx;
+          border-radius: var(--radius-xs);
+          font-weight: var(--weight-bold);
+          border: 1rpx solid #fef3c7;
         }
 
         .mastered-tag {
@@ -72,28 +78,62 @@
         }
       }
 
-      .card-footer {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-
+      .card-body {
+        margin-bottom: 20rpx;
         .meaning-text {
-          flex: 1;
           font-size: 26rpx;
           color: var(--text-sub);
           line-height: 1.5;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
+          margin-bottom: 12rpx;
+          display: block;
+        }
+
+        .context-box {
+          background-color: var(--color-bg);
+          padding: 24rpx;
+          border-radius: var(--radius-sm);
+          border: 1rpx solid var(--border-color);
+          
+          .context-text {
+            font-size: 26rpx;
+            color: var(--text-main);
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-family: var(--font-english-serif), serif;
+            font-style: italic;
+          }
+        }
+      }
+
+      .card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 16rpx;
+        border-top: 1rpx dashed var(--border-color);
+
+        .source-info {
+          display: flex;
+          align-items: center;
+          gap: 12rpx;
+
+          .deleted-tag {
+            font-size: 18rpx;
+            color: #ef4444;
+            background-color: #fef2f2;
+            padding: 2rpx 10rpx;
+            border-radius: 6rpx;
+            border: 1rpx solid #fee2e2;
+          }
         }
 
         .date-text {
           flex-shrink: 0;
           font-size: 22rpx;
           color: var(--text-muted);
-          margin-left: 16rpx;
         }
       }
     }
