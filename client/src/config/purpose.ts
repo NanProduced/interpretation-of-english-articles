@@ -3,7 +3,8 @@ export type ServerReadingGoal = 'exam' | 'daily_reading' | 'academic';
 export type ReadingVariant =
   | 'gaokao'
   | 'cet'
-  | 'gre'
+  | 'kaoyan'
+  | 'tem'
   | 'ielts_toefl'
   | 'beginner_reading'
   | 'intermediate_reading'
@@ -34,7 +35,8 @@ export const READING_CONFIG_MAP: Record<ReadingGoal, PurposeOption> = {
     variants: [
       { value: 'gaokao', label: '高考英语' },
       { value: 'cet', label: '四六级 (CET-4/6)' },
-      { value: 'gre', label: '考研/专业英语' },
+      { value: 'kaoyan', label: '考研英语' },
+      { value: 'tem', label: '专业英语 (TEM4/8)' },
       { value: 'ielts_toefl', label: '雅思/托福' }
     ]
   },
@@ -68,7 +70,9 @@ const SERVER_GOAL_TO_UI_GOAL: Record<string, ReadingGoal> = {
 const LEGACY_VARIANT_ALIASES: Record<string, ReadingVariant> = {
   cet4: 'cet',
   cet6: 'cet',
-  kaoyan: 'gre',
+  kaoyan: 'kaoyan',
+  gre: 'kaoyan',
+  tem: 'tem',
   ielts: 'ielts_toefl',
   toefl: 'ielts_toefl',
   beginner: 'beginner_reading',

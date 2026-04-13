@@ -11,7 +11,8 @@ _PROFILE_BASELINES: dict[str, str] = {
     ),
     "daily_intensive": "[Placeholder] 日常精读模式风格待定。",
     "academic_general": "[Placeholder] 学术通用模式风格待定。",
-    "exam_gre_tem": "[Placeholder] 考研/专四专八模式风格待定。",
+    "exam_kaoyan": "[Placeholder] 考研英语模式风格待定。",
+    "exam_tem": "[Placeholder] 专业英语模式风格待定。",
     "exam_ielts_toefl": "[Placeholder] 雅思/托福模式风格待定。",
 }
 
@@ -19,7 +20,7 @@ _PROFILE_BASELINES: dict[str, str] = {
 def get_annotation_style(plan: GoalExecutionPlan) -> str:
     """根据执行计划获取标注风格描述。"""
     if plan.goal_id == "exam":
-        return "structural_and_academic" if plan.variant_id in ("gre", "gre_tem") else "exam_oriented"
+        return "structural_and_academic" if plan.variant_id in ("kaoyan", "tem") else "exam_oriented"
     elif plan.goal_id == "academic":
         return "structural_and_academic"
     return "plain_and_supportive"

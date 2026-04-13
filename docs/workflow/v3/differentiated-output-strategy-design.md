@@ -259,13 +259,14 @@ flowchart TD
 
 - `gaokao` -> `exam_tag=[gaokao]`
 - `cet` -> `exam_tag=[cet4, cet6]`
-- `gre_tem` -> `exam_tag=[gre, tem4, tem8]`
+- `kaoyan` -> `exam_tag=[kaoyan]`
+- `tem` -> `exam_tag=[tem4, tem8]`
 - `ielts_toefl` -> `exam_tag=[ielts, toefl]`
 
 额外说明：
 
-- 数据库内部 `gre` 仍是考研英语的 legacy tag
-- 前端展示文案应统一渲染为“考研”
+- 数据库内部 `kaoyan` 已替换原 `gre` 作为考研英语标签
+- 前端展示文案：`kaoyan` 渲染为”考研英语”，`tem` 渲染为”专业英语 (TEM4/8)”
 - 当前 `exam_tag` 只用于词汇卡片展示增强
 - 当前 `exam_tag` 不参与筛选，不建索引
 

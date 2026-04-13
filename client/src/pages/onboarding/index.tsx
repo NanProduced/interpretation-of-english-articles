@@ -42,7 +42,7 @@ export default function Onboarding() {
   }
 
   const purposes = [
-    { id: 'exam', title: '考试备考', desc: '四六级、考研、雅思托福等', icon: 'book' },
+    { id: 'exam', title: '考试备考', desc: '四六级、考研英语、专业英语、雅思托福等', icon: 'book' },
     { id: 'daily', title: '日常阅读提升', desc: '新闻、博客、小说等外刊', icon: 'coffee' },
     { id: 'academic', title: '学术/专业阅读', desc: '论文、行业报告、技术文档', icon: 'grad' },
   ]

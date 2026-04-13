@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # 允许的 ExamTag
-ALLOWED_EXAM_TAGS: set[str] = {"gaokao", "cet", "gre_tem", "ielts_toefl"}
+ALLOWED_EXAM_TAGS: set[str] = {"gaokao", "cet", "kaoyan", "tem", "ielts_toefl"}
 
 # 允许的 PhraseType
 ALLOWED_PHRASE_TYPES: set[str] = {"collocation", "phrasal_verb", "idiom", "proper_noun", "compound"}

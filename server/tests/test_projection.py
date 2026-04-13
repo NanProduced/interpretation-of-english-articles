@@ -18,7 +18,7 @@ def test_vocab_highlight_projects_to_inline_mark() -> None:
     prepared = prepare_input("The implementation of sustainable practices is challenging.")
     plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
     output = AnnotationOutput(
-        annotations=[VocabHighlight(sentence_id="s1", text="implementation", exam_tags=["cet", "gre_tem"])],
+        annotations=[VocabHighlight(sentence_id="s1", text="implementation", exam_tags=["cet", "kaoyan"])],
         sentence_translations=[SentenceTranslation(sentence_id="s1", translation_zh="可持续实践的实施是具有挑战性的。")],
     )
     outcome = project_to_render_scene(
