@@ -92,24 +92,15 @@
       background-color: var(--color-white);
       border-radius: var(--radius-md);
       box-shadow: var(--shadow-paper);
-      // 模拟高级纸张质感：垂直红线 + 水平横纹
-      background-image: 
-        linear-gradient(to right, transparent 72rpx, rgba(190, 18, 60, 0.12) 72rpx, rgba(190, 18, 60, 0.12) 73.5rpx, transparent 73.5rpx),
-        repeating-linear-gradient(
-          transparent,
-          transparent 59rpx,
-          rgba(0, 0, 0, 0.015) 59rpx,
-          rgba(0, 0, 0, 0.015) 60rpx
-        );
-      background-size: 100% 100%, 100% 60rpx;
+      // 精简设计：移除繁琐纹理，回归纯粹画布
       animation: slideInUp 0.5s var(--ease-spring) 0.1s both;
 
       .content-textarea {
         width: 100%;
         flex: 1;
-        padding: 40rpx 40rpx 40rpx 96rpx; // 左侧留出页边距空间
+        padding: 40rpx; 
         font-size: 34rpx;
-        line-height: 60rpx; 
+        line-height: var(--leading-relaxed); 
         color: var(--color-ink);
         font-family: var(--font-serif);
         background: transparent;
@@ -121,25 +112,59 @@
         font-weight: var(--weight-normal);
         font-family: var(--font-sans);
         opacity: 0.5;
-        padding-left: 96rpx; // 占位符也需要偏移
+        padding-left: 0; 
       }
 
-      .empty-action {
+      .empty-guide {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        top: 38.2%; // 黄金比例位置
+        left: 0;
+        right: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16rpx;
-        color: var(--text-muted);
-        opacity: 0.8;
-        transition: all 0.2s ease;
+        text-align: center;
+        pointer-events: none;
+        animation: fadeIn 0.8s ease both;
 
-        &:active { opacity: 1; transform: translate(-50%, -50%) scale(0.98); }
+        .guide-title {
+          font-size: 36rpx;
+          color: var(--text-muted);
+          font-family: var(--font-serif);
+          letter-spacing: 0.02em;
+          margin-bottom: 12rpx;
+          opacity: 0.4;
+        }
 
-        text { font-size: 26rpx; font-weight: var(--weight-medium); }
+        .guide-subtitle {
+          font-size: 24rpx;
+          color: var(--text-muted);
+          font-weight: var(--weight-normal);
+          opacity: 0.3;
+        }
+      }
+
+      .paste-shortcut {
+        position: absolute;
+        bottom: 40rpx;
+        left: 40rpx;
+        display: flex;
+        align-items: center;
+        gap: 8rpx;
+        padding: 12rpx 24rpx;
+        background-color: var(--color-bg);
+        border: 1rpx solid var(--border-color);
+        border-radius: 100rpx;
+        animation: slideInUp 0.5s var(--ease-spring) both;
+        z-index: 10;
+
+        text {
+          font-size: 24rpx;
+          color: var(--text-sub);
+          font-weight: var(--weight-medium);
+        }
+
+        &:active { opacity: 0.7; transform: scale(0.95); }
       }
     }
 
@@ -168,56 +193,54 @@
   }
 
   .bottom-bar {
-    background-color: var(--color-bg); // 与页面融为一体
-    padding: 32rpx 40rpx calc(40rpx + env(safe-area-inset-bottom));
-    transition: all 0.4s var(--ease-spring);
+    padding: 40rpx 48rpx calc(48rpx + env(safe-area-inset-bottom));
     animation: slideInUp 0.4s var(--ease-spring) 0.2s both;
 
-    .bar-top-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 24rpx;
-    }
-
-    .ink-stats {
-      .stats-text {
-        font-size: 24rpx;
-        color: var(--text-muted);
-        font-weight: var(--weight-medium);
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        transition: all 0.3s ease;
-
-        &.ready {
-          color: var(--color-ink);
-          font-weight: var(--weight-bold);
-        }
-      }
-    }
-
     .interpret-btn {
-      height: 104rpx;
-      background-color: var(--border-color);
+      height: 112rpx;
+      background-color: var(--border-light);
       border-radius: var(--radius-md);
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 16rpx;
+      justify-content: space-between;
+      padding: 0 40rpx;
       transition: all 0.4s var(--ease-spring);
       
-      text {
-        color: var(--text-muted);
-        font-size: 32rpx;
-        font-weight: var(--weight-bold);
-        letter-spacing: 2rpx;
+      .btn-content {
+        display: flex;
+        align-items: center;
+        gap: 24rpx;
+
+        .btn-text {
+          color: var(--text-muted);
+          font-size: 34rpx;
+          font-weight: var(--weight-bold);
+          letter-spacing: 2rpx;
+        }
+
+        .btn-divider {
+          width: 1rpx;
+          height: 32rpx;
+          background-color: var(--border-color);
+        }
+
+        .btn-stats {
+          font-size: 24rpx;
+          color: var(--text-muted);
+          font-family: var(--font-serif);
+          font-weight: var(--weight-medium);
+          opacity: 0.6;
+        }
       }
 
       &.active {
         background-color: var(--color-ink);
         box-shadow: var(--shadow-md);
         
-        text { color: #fff; }
+        .btn-text { color: #fff; }
+        .btn-divider { background-color: rgba(255, 255, 255, 0.2); }
+        .btn-stats { color: rgba(255, 255, 255, 0.7); }
+
         &:active { transform: scale(0.98); opacity: 0.9; }
       }
     }

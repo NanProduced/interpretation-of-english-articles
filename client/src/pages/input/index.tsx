@@ -177,7 +177,7 @@ export default function InputPage() {
         <View className='textarea-wrapper'>
           <Textarea
             className='content-textarea'
-            placeholder='在这里倾倒你感兴趣的英文篇章...'
+            placeholder=''
             placeholderClass='placeholder-style'
             maxlength={10000}
             value={content}
@@ -188,42 +188,35 @@ export default function InputPage() {
             cursorSpacing={100}
           />
           {!content && (
-             <View className='empty-action' onClick={async () => {
-               const res = await Taro.getClipboardData();
-               if (res.data) setContent(res.data);
-             }}>
-               <LucideIcon name='clipboard' size={16} color='var(--text-muted)' />
-               <Text>从剪贴板粘贴</Text>
+             <View className='empty-guide' onClick={() => setIsFocused(true)}>
+               <Text className='guide-title'>输入英文篇章</Text>
+               <Text className='guide-subtitle'>在此开始你的深度阅读之旅</Text>
              </View>
           )}
-        </View>
 
-        {/* 墨水气泡剪贴板 */}
-        {showClipboardBubble && (
-          <View className='ink-bubble' onClick={() => {
-            setContent(clipboardContent)
-            setShowClipboardBubble(false)
-            Taro.showToast({ title: '已注入内容', icon: 'none' })
-          }}>
-            <LucideIcon name='clipboard' size={16} color='#fff' />
-            <Text className='bubble-text'>识别到剪贴板，点击注入</Text>
-          </View>
-        )}
+          {/* 弱化后的剪贴板提示 - 改为静默的侧边提示 */}
+          {showClipboardBubble && !content && (
+            <View className='paste-shortcut' onClick={() => {
+              setContent(clipboardContent)
+              setShowClipboardBubble(false)
+              Taro.showToast({ title: '已注入剪贴板内容', icon: 'none' })
+            }}>
+              <LucideIcon name='clipboard' size={14} color='var(--text-muted)' />
+              <Text>粘贴自剪贴板</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* 底部动态统计与操作 */}
       <View className='bottom-bar safe-area-bottom'>
-        <View className='bar-top-row'>
-          <View className='ink-stats'>
-            <Text className={`stats-text ${wordsCount >= 10 ? 'ready' : ''}`}>
-              {wordsCount} words
-            </Text>
-          </View>
-        </View>
-
         <View className={`interpret-btn ${wordsCount >= 10 ? 'active' : ''}`} onClick={handleSubmit}>
-          <Text>开启解析</Text>
-          <LucideIcon name='sparkles' size={18} color='#fff' />
+          <View className='btn-content'>
+            <Text className='btn-text'>开始透读</Text>
+            <View className='btn-divider' />
+            <Text className='btn-stats'>{wordsCount} words</Text>
+          </View>
+          <LucideIcon name='sparkles' size={18} color={wordsCount >= 10 ? '#fff' : 'var(--text-muted)'} />
         </View>
       </View>
 

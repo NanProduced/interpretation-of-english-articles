@@ -14,6 +14,7 @@ export type ReadingVariant =
 export interface VariantOption {
   value: ReadingVariant; // This matches the reading_variant expected by the server
   label: string;
+  description?: string;
 }
 
 export interface PurposeOption {
@@ -28,33 +29,33 @@ export interface PurposeOption {
 export const READING_CONFIG_MAP: Record<ReadingGoal, PurposeOption> = {
   exam: {
     label: '考试备考',
-    description: '针对专项考试优化',
+    description: '深度解析真题句式与核心考点',
     icon: 'graduationCap',
     serverGoal: 'exam',
     defaultVariant: 'cet',
     variants: [
-      { value: 'gaokao', label: '高考英语' },
-      { value: 'cet', label: '四六级 (CET-4/6)' },
-      { value: 'kaoyan', label: '考研英语' },
-      { value: 'tem', label: '专业英语 (TEM4/8)' },
-      { value: 'ielts_toefl', label: '雅思/托福' }
+      { value: 'gaokao', label: '高考英语', description: '侧重基础语法与完形填空核心句式' },
+      { value: 'cet', label: '四六级 (CET-4/6)', description: '精准捕捉考试常用短语与复合句分析' },
+      { value: 'kaoyan', label: '考研英语', description: '攻克长难句，还原学术化命题逻辑' },
+      { value: 'tem', label: '专业英语 (TEM4/8)', description: '对标专四/专八，强化翻译与改错思维' },
+      { value: 'ielts_toefl', label: '雅思/托福', description: '专注于批判性思维与高阶同义替换' }
     ]
   },
   daily: {
     label: '日常阅读',
-    description: '平滑阅读体验',
+    description: '在流畅阅读中自然提升积累',
     icon: 'coffee',
     serverGoal: 'daily_reading',
     defaultVariant: 'intermediate_reading',
     variants: [
-      { value: 'beginner_reading', label: '入门难度' },
-      { value: 'intermediate_reading', label: '进阶难度' },
-      { value: 'intensive_reading', label: '精读练习' }
+      { value: 'beginner_reading', label: '入门难度', description: '适合初学者，重点在于词法拆解与直译' },
+      { value: 'intermediate_reading', label: '进阶难度', description: '中级进阶，侧重上下文联系与自然翻译' },
+      { value: 'intensive_reading', label: '精读练习', description: '逐字逐句深度剖析，适合精读训练' }
     ]
   },
   academic: {
     label: '学术文献',
-    description: '严谨术语与结构分析',
+    description: '识别极其复杂的从句嵌套，辅助科研文献深度理解',
     icon: 'bookOpen',
     serverGoal: 'academic',
     defaultVariant: 'academic_general'

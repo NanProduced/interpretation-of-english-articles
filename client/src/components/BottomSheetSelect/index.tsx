@@ -128,10 +128,17 @@ export default function BottomSheetSelect({
                   className={`bs-option ${isSelected ? 'selected' : ''}`}
                   onClick={() => handleVariantClick(variant.value)}
                 >
-                  <Text className='bs-option-label'>{variant.label}</Text>
-                  {isSelected && (
-                    <LucideIcon name='check' size={18} color='var(--color-ink)' />
-                  )}
+                  <View className='bs-option-left'>
+                    <Text className='bs-option-label'>{variant.label}</Text>
+                    {variant.description && (
+                      <Text className='bs-option-desc'>{variant.description}</Text>
+                    )}
+                  </View>
+                  <View className='bs-option-right'>
+                    {isSelected && (
+                      <LucideIcon name='check' size={18} color='var(--color-ink)' />
+                    )}
+                  </View>
                 </View>
               )
             })}
