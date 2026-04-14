@@ -86,7 +86,7 @@ async def upsert_record(
                     reading_goal        = EXCLUDED.reading_goal,
                     reading_variant     = EXCLUDED.reading_variant,
                     extended            = EXCLUDED.extended,
-                    user_facing_state   = EXCLUDED.user_facing_state,
+                    user_facing_state   = COALESCE(EXCLUDED.user_facing_state, analysis_records.user_facing_state, 'processing'),
                     analysis_status     = EXCLUDED.analysis_status,
                     deleted_at          = NULL,
                     deleted_by          = NULL,
@@ -95,7 +95,7 @@ async def upsert_record(
                 """,
                 user_id, client_record_id, source_type, title, source_text,
                 source_text_hash, reading_goal, reading_variant, extended,
-                user_facing_state, analysis_status, now,
+                user_facing_state or 'processing', analysis_status, now,
             )
             assert record_row is not None
             record_id = UUID(str(record_row["id"]))
@@ -226,7 +226,7 @@ async def list_records(
             FROM analysis_records r
             {content_join}
             WHERE r.user_id = $1 AND r.deleted_at IS NULL
-            ORDER BY r.created_at DESC
+            ORDER BY r.updated_at DESC
             LIMIT $2 OFFSET $3
             """,
             user_id,

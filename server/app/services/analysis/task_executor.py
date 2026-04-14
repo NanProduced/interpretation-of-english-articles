@@ -339,7 +339,8 @@ async def execute_task(
             await records_svc.update_record(
                 user_id=user_id,
                 record_id=record_id,
-                analysis_status="failed"
+                analysis_status="failed",
+                user_facing_state="failed"
             )
             await insert_task_event(
                 task_id,

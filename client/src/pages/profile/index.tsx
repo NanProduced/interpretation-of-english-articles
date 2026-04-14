@@ -34,6 +34,16 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const [wordCount, setWordCount] = useState(0)
   const [quota, setQuota] = useState<{ remaining: number, dailyFree: number, bonus: number } | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
+  
+  // 获取阅读等级头衔与勋章进化
+  const getReadingTier = (count: number) => {
+    if (count === 0) return { title: '初探者', icon: 'award', color: '#a1a1aa' }
+    if (count < 5) return { title: '求知者', icon: 'bookOpen', color: 'var(--color-ink)' }
+    if (count < 20) return { title: '博学者', icon: 'medal', color: '#B8860B' } // 深金
+    return { title: '硕儒', icon: 'crown', color: 'var(--color-exam)' } // 绯红
+  }
+  
+  const tier = getReadingTier(articleCount)
   // 昵称更新防抖定时器
   const nicknameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -144,7 +154,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           label: "当前模式配置",
           value: getDisplayLabel(purpose as ReadingGoal, level),
           icon: 'settings',
-          url: '/pages/onboarding/index',
+          url: '/pages/onboarding/index?from=profile',
           color: 'blue',
         },
         {
@@ -169,7 +179,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     if (item.url) {
       Taro.navigateTo({ url: item.url })
     }
-    // 无 url 的项（如"当前模式配置"）为纯信息展示，不触发导航
+    // 无 url 的项仅为展示，不触发导航
   }
 
   const displayName = userInfo?.nickname || (isLoggedIn ? `用户 ${(userInfo?.user_id || '').slice(0, 8)}` : '未登录')
@@ -274,10 +284,22 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
               </View>
             </View>
 
-            {/* Achievement Footer */}
+            {/* Achievement Coronation */}
             <View className='dashboard-footer'>
-              <Text className='history-label'>已读篇数</Text>
-              <Text className='history-value'>{loadingStats ? '-' : articleCount}</Text>
+              <View className='achievement-badge'>
+                <View className='medal-icon' style={{ borderColor: tier.color + '20' }}>
+                  <LucideIcon name={tier.icon as any} size={16} color={tier.color} />
+                </View>
+                <View className='text-group'>
+                  <Text className='history-label'>已读存档</Text>
+                  <Text className='tier-text' style={{ color: tier.color }}>{tier.title}</Text>
+                </View>
+              </View>
+              <View className='history-value-box'>
+                <Text className='history-value' style={{ color: articleCount > 0 ? tier.color : 'var(--color-ink)' }}>
+                  {loadingStats ? '...' : articleCount}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -305,15 +327,6 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
             </View>
           ))}
 
-          {isLoggedIn && (
-            <View className='menu-group logout-group'>
-              <View className='group-box'>
-                <View className='menu-item logout-item' onClick={handleLogout}>
-                  <Text className='logout-text'>退出登录</Text>
-                </View>
-              </View>
-            </View>
-          )}
         </View>
 
         <View className='version-tag'>

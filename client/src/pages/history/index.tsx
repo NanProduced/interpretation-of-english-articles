@@ -186,7 +186,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     ]
 
     filteredRecords.forEach(r => {
-      const t = r.createdAt
+      const t = r.updatedAt || r.createdAt
       if (t >= todayTs) groups[0].items.push(r)
       else if (t >= yesterdayTs) groups[1].items.push(r)
       else if (t >= sevenDaysTs) groups[2].items.push(r)

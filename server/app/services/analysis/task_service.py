@@ -137,9 +137,9 @@ async def submit_task(
                     user_id, client_record_id, source_type,
                     source_text, source_text_hash,
                     reading_goal, reading_variant, extended,
-                    analysis_status, created_at, updated_at
+                    analysis_status, user_facing_state, created_at, updated_at
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'queued', $9, $9)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'queued', 'processing', $9, $9)
                 RETURNING id
                 """,
                 user_id,

@@ -172,7 +172,7 @@
             line-height: 1;
 
             &.is-loading {
-              font-size: 24rpx; // 缩小提示语字号
+              font-size: 24rpx;
               opacity: 0.4;
               font-family: var(--font-english-sans);
               animation: inkPulse 2s infinite ease-in-out;
@@ -180,13 +180,6 @@
           }
         }
       }
-...
-  @keyframes inkPulse {
-    0% { opacity: 0.2; }
-    50% { opacity: 0.5; }
-    100% { opacity: 0.2; }
-  }
-}
 
       .credits-list {
         padding: 0 48rpx 40rpx;
@@ -239,33 +232,71 @@
       }
 
       .dashboard-footer {
-        padding: 24rpx 48rpx;
+        padding: 32rpx 48rpx;
         background: var(--border-light); 
         display: flex;
         justify-content: space-between;
         align-items: center;
         border-top: 1rpx solid rgba(0, 0, 0, 0.02);
+        position: relative;
+        overflow: hidden;
 
-        .history-label {
-          font-size: 22rpx;
-          font-weight: var(--weight-bold);
-          color: var(--text-muted);
-          text-transform: uppercase;
+        .achievement-badge {
+          display: flex;
+          align-items: center;
+          gap: 20rpx;
+
+          .medal-icon {
+            width: 56rpx;
+            height: 56rpx;
+            background: var(--color-white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.03);
+            border: 2rpx solid; // 动态颜色由内联 style 提供
+            animation: medalGlow 4s infinite ease-in-out;
+            transition: all 0.3s ease;
+          }
+
+          .text-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2rpx;
+
+            .history-label {
+              font-size: 18rpx;
+              font-weight: var(--weight-bold);
+              color: var(--text-muted);
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+            }
+
+            .tier-text {
+              font-size: 24rpx;
+              font-weight: var(--weight-bold);
+              font-family: var(--font-english-sans);
+            }
+          }
         }
 
-        .history-value {
-          font-size: 26rpx;
-          font-weight: var(--weight-bold);
-          color: var(--color-ink);
-          font-family: var(--font-serif);
-          
-          &::after {
-            content: " 篇";
-            font-size: 20rpx;
-            font-family: var(--font-sans);
-            font-weight: var(--weight-medium);
-            opacity: 0.5;
-            margin-left: 4rpx;
+        .history-value-box {
+          .history-value {
+            font-size: 40rpx;
+            font-weight: var(--weight-bold);
+            color: var(--color-ink);
+            font-family: var(--font-serif);
+            
+            &::after {
+              content: " Papers";
+              font-size: 18rpx;
+              font-family: var(--font-english-sans);
+              font-weight: var(--weight-medium);
+              opacity: 0.4;
+              margin-left: 8rpx;
+              text-transform: uppercase;
+            }
           }
         }
       }
@@ -279,9 +310,9 @@
         display: block;
         font-size: 20rpx;
         font-weight: var(--weight-bold);
-        color: var(--color-ink); // 使用墨色
+        color: var(--color-ink);
         text-transform: uppercase;
-        letter-spacing: 0.15em; // 增加间距
+        letter-spacing: 0.15em;
         padding-left: 12rpx;
         margin-bottom: 20rpx;
         opacity: 0.35;
@@ -291,7 +322,7 @@
         background-color: var(--color-white);
         border-radius: var(--radius-md);
         overflow: hidden;
-        box-shadow: var(--shadow-paper); // 统一为纸张投影
+        box-shadow: var(--shadow-paper);
         border: 1rpx solid rgba(0, 0, 0, 0.02);
 
         .menu-item {
@@ -316,7 +347,7 @@
             gap: 24rpx;
 
             .icon-box {
-              width: 48rpx; // 缩小图标占位，去除厚重背景
+              width: 48rpx;
               height: 48rpx;
               display: flex;
               align-items: center;
@@ -353,7 +384,6 @@
         }
       }
     }
-
   }
 
   .version-tag {
@@ -363,5 +393,17 @@
     font-size: 22rpx;
     color: var(--text-muted);
     font-weight: 500;
+  }
+
+  @keyframes inkPulse {
+    0% { opacity: 0.2; }
+    50% { opacity: 0.5; }
+    100% { opacity: 0.2; }
+  }
+
+  @keyframes medalGlow {
+    0% { transform: scale(1); box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03); }
+    50% { transform: scale(1.05); box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06); }
+    100% { transform: scale(1); box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03); }
   }
 }

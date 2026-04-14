@@ -18,6 +18,8 @@ import { track } from '../../services/analytics'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { getSafeDisplayLabel } from '../../config/purpose'
+import { ReadingGoal } from '../../config/purpose'
+import BottomSheetSelect from '../../components/BottomSheetSelect'
 import './index.scss'
 
 /** 页面模式选项 */
@@ -93,6 +95,15 @@ export default function Result() {
   const recordId = useArticleStore((s) => s.recordId)
   const cloudId = useArticleStore((s) => s.cloudId)
   const isReplayMode = useArticleStore((s) => s.isReplayMode)
+
+  const [showModeSheet, setShowModeSheet] = useState(false)
+  const [tempConfig, setTempConfig] = useState<{
+    purpose: ReadingGoal;
+    level: string | null;
+  }>({
+    purpose: 'daily_reading',
+    level: 'intermediate_reading'
+  })
 
 
 
@@ -254,15 +265,46 @@ export default function Result() {
     }
   }
 
+  const handleModeSelect = (goal: ReadingGoal, level: string | null) => {
+    setShowModeSheet(false)
+    const text = requestParams?.text
+    const source_type = requestParams?.source_type || 'user_input'
+    
+    if (!text) {
+      Taro.showToast({ title: '无法获取原文', icon: 'none' })
+      return
+    }
+
+    // 重新发起分析（生成新记录）
+    analyze({
+      text,
+      reading_goal: goal,
+      reading_variant: level as any,
+      source_type: source_type as any,
+      extended: false,
+    })
+    
+    // 跳转到干净的结果页（触发新任务的 loading 状态）
+    Taro.redirectTo({ url: '/pages/result/index' })
+  }
+
   const handleRetry = () => {
-    const { pageState, requestParams, reset } = useArticleStore.getState()
-    // error / timeout / network_fail / empty: 就地重试，保留用户的文章内容
-    const retryableStates: ResultPageState[] = ['failed', 'timeout', 'network_fail', 'empty']
-    if (retryableStates.includes(pageState) && requestParams) {
-      track('retry', { pageState })
-      useArticleStore.getState().analyze(requestParams)
+    const { pageState, reset } = useArticleStore.getState()
+    
+    // 如果是回看模式，或者当前状态是失败/重型降级，点击按钮应触发“针对当前内容的策略调整”
+    const isErrorState = ['failed', 'timeout', 'network_fail', 'empty', 'degraded_heavy'].includes(pageState)
+    
+    if (isReplayMode || isErrorState) {
+      // 拉起策略选择弹窗
+      if (requestParams) {
+        setTempConfig({
+          purpose: requestParams.reading_goal,
+          level: requestParams.reading_variant
+        })
+      }
+      setShowModeSheet(true)
     } else {
-      // success (normal/degraded): 重置状态，跳转到输入页继续分析新的文本
+      // 正常成功态点击“再分析一篇”，回到输入页
       reset()
       Taro.redirectTo({ url: '/pages/input/index' })
     }
@@ -584,6 +626,14 @@ export default function Result() {
           }
         }}
         onFavorite={(w) => { track('favorite_word', { word: w }) }}
+      />
+
+      <BottomSheetSelect
+        visible={showModeSheet}
+        currentGoal={tempConfig.purpose}
+        currentLevel={tempConfig.level}
+        onClose={() => setShowModeSheet(false)}
+        onSelect={handleModeSelect}
       />
     </>
   )

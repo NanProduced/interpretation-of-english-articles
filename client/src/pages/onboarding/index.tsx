@@ -6,19 +6,22 @@ import { READING_CONFIG_MAP } from '../../config/purpose'
 import './index.scss'
 
 export default function Onboarding() {
+  const router = Taro.useRouter()
   const [step, setStep] = useState<1 | 2>(1)
   const [isReady, setIsReady] = useState(false)
   const { purpose, setPurpose, level, setLevel } = useConfigStore()
 
-  // 记忆逻辑：如果已有配置且不是从 Profile 进来（此处简化判断），直达首页
+  // 记忆逻辑：如果已有配置且不是从 Profile 进来，直达首页
   useEffect(() => {
-    // isReady 保证只在页面完全挂载后才检查，避免与 app.tsx redirectTo 冲突
+    const fromProfile = router.params.from === 'profile'
     const hasConfig = Taro.getStorageSync('user_configured')
-    if (hasConfig) {
+    
+    if (hasConfig && !fromProfile) {
       Taro.reLaunch({ url: '/pages/home/index' })
+      return
     }
     setIsReady(true)
-  }, [])
+  }, [router.params.from])
 
   const handleNext = () => {
     if (step === 1) {
