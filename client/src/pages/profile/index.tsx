@@ -179,84 +179,63 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
         {/* User Card */}
         <View className='user-card'>
-          <Button
-            className='avatar-btn'
-            openType={isLoggedIn ? 'chooseAvatar' : undefined}
-            onChooseAvatar={isLoggedIn ? onChooseAvatar : undefined}
-            onClick={!isLoggedIn ? handleLogin : undefined}
-          >
-            {userInfo?.avatar_url ? (
-              <Image className='avatar-img' src={userInfo.avatar_url} mode='aspectFill' />
-            ) : (
-              <View className='avatar-text'>{avatarChar}</View>
-            )}
-          </Button>
-
-          <View className='user-info'>
-            {isLoggedIn ? (
-              <View className='nickname-wrapper'>
-                <Input
-                  className='nickname-input'
-                  type='nickname'
-                  value={userInfo?.nickname || ''}
-                  placeholder='点击设置昵称'
-                  placeholderStyle='color: #a1a1aa; font-weight: 500;'
-                  maxlength={20}
-                  onBlur={onNicknameChange}
-                  onConfirm={onNicknameChange}
-                />
-                <View className='edit-icon-box'>
-                  <LucideIcon name='pencil' size={14} color='currentColor' />
-                </View>
-              </View>
-            ) : (
-              <Text className='nickname' onClick={handleLogin}>点击登录微信</Text>
-            )}
-            <View className='stats-row'>
-              {loadingStats ? (
-                <Text className='stats-label'>加载中...</Text>
-              ) : articleCount > 0 ? (
-                <>
-                  <Text className='stats-label'>已读 </Text>
-                  <Text className='stats-value'>{articleCount}</Text>
-                  <Text className='stats-label'> 篇</Text>
-                  {quota !== null && (
-                    <>
-                      <Text className='stats-label'> · 积分 </Text>
-                      <Text className='stats-value'>{quota.remaining}</Text>
-                    </>
-                  )}
-                </>
+          <View className='user-profile-section'>
+            <Button
+              className='avatar-btn'
+              openType={isLoggedIn ? 'chooseAvatar' : undefined}
+              onChooseAvatar={isLoggedIn ? onChooseAvatar : undefined}
+              onClick={!isLoggedIn ? handleLogin : undefined}
+            >
+              {userInfo?.avatar_url ? (
+                <Image className='avatar-img' src={userInfo.avatar_url} mode='aspectFill' />
               ) : (
-                <>
-                  <Text className='stats-label'>暂无阅读记录</Text>
-                  {quota !== null && (
-                    <>
-                      <Text className='stats-label'> · 积分 </Text>
-                      <Text className='stats-value'>{quota.remaining}</Text>
-                    </>
-                  )}
-                </>
+                <LucideIcon name='user' size={32} color={isLoggedIn ? '#fff' : 'var(--text-muted)'} />
+              )}
+            </Button>
+
+            <View className='user-info'>
+              {isLoggedIn ? (
+                <View className='nickname-wrapper'>
+                  <Input
+                    className='nickname-input'
+                    type='nickname'
+                    value={userInfo?.nickname || ''}
+                    placeholder='点击设置昵称'
+                    placeholderStyle='color: #a1a1aa; font-weight: 500;'
+                    maxlength={20}
+                    onBlur={onNicknameChange}
+                    onConfirm={onNicknameChange}
+                  />
+                  <View className='edit-icon-box'>
+                    <LucideIcon name='pencil' size={14} color='currentColor' />
+                  </View>
+                </View>
+              ) : (
+                <View className='nickname-wrapper' onClick={handleLogin}>
+                  <Text className='nickname'>点击登录微信</Text>
+                  <Text className='login-subtitle'>登录后可同步数据到云端</Text>
+                </View>
               )}
             </View>
+          </View>
+
+          {/* Stats Dashboard */}
+          <View className='stats-dashboard'>
+            <View className='stat-item'>
+              <Text className='stat-value'>{loadingStats ? '-' : articleCount}</Text>
+              <Text className='stat-label'>已读篇数</Text>
+            </View>
+            <View className='stat-divider' />
+            <View className='stat-item'>
+              <Text className='stat-value'>{loadingStats ? '-' : (quota?.remaining ?? '-')}</Text>
+              <Text className='stat-label'>剩余积分</Text>
+            </View>
             {quota !== null && (
-              <View className='quota-hint'>
-                <Text>1 积分 ≈ 1000 Token，每日免费 {quota.dailyFree} 积分</Text>
+              <View className='stat-hint'>
+                <Text>每日免费 {quota.dailyFree} 积分</Text>
               </View>
             )}
           </View>
-
-          {isLoggedIn && (
-            <View className='logout-icon-btn' onClick={handleLogout}>
-              <LucideIcon name='logOut' size={20} color='var(--text-muted)' />
-            </View>
-          )}
-        </View>
-
-        <View className='login-tip'>
-          <Text className='tip-text'>
-            {isLoggedIn ? '已登录 · 数据已同步到云端' : '登录后可同步数据到云端，跨设备查看'}
-          </Text>
         </View>
 
         <View className='menu-list'>
@@ -281,6 +260,16 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
               </View>
             </View>
           ))}
+
+          {isLoggedIn && (
+            <View className='menu-group logout-group'>
+              <View className='group-box'>
+                <View className='menu-item logout-item' onClick={handleLogout}>
+                  <Text className='logout-text'>退出登录</Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
 
         <View className='version-tag'>
