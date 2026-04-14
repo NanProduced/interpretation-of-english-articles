@@ -43,7 +43,15 @@ _PROFILE_BASELINES: dict[str, str] = {
         "词汇标注应侧重熟词僻义和考研高频难词，而不是基础词义覆盖。"
         "注意：用户可能上传较简单的文本。只标注文本中确实存在的复杂结构和考试相关词汇，不要为了凑数而硬标不适配的内容。标注质量优先于数量。"
     ),
-    "exam_tem": "[Placeholder] 专业英语模式风格待定。",
+    "exam_tem": (
+        "用户是英语专业备考学生（专四/专八），词汇量约 8,000–13,000 词。"
+        "他们是英语专业生，对语言学术语和文学概念有系统学习背景。"
+        "专八阅读的核心是文学性文本和批判性阅读——需要理解修辞手法、隐喻、象征、叙事角度等文学概念。"
+        "专四有独立语法选择题，但专八通过阅读和改错间接考察语法。"
+        "GrammarNote 的角色是修辞分析——倒装、省略、反复在文学中的功能，而不是教语法规则。"
+        "词汇标注应侧重文学性词汇、修辞术语和文化特定表达，而不是基础词义覆盖。"
+        "注意：用户可能上传非文学性文本。只对文本中确实存在的修辞手法和文学特征做分析，不要对普通说明文强行做修辞解读。标注质量优先于数量。"
+    ),
     "exam_ielts_toefl": "[Placeholder] 雅思/托福模式风格待定。",
 }
 
@@ -56,6 +64,8 @@ def get_annotation_style(plan: GoalExecutionPlan) -> str:
             return "exam_cet"
         if plan.variant_id == "kaoyan":
             return "exam_kaoyan"
+        if plan.variant_id == "tem":
+            return "exam_tem"
         return "structural_and_academic" if plan.variant_id in ("tem",) else "exam_oriented"
     elif plan.goal_id == "academic":
         return "structural_and_academic"

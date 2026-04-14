@@ -55,10 +55,10 @@ def build_goal_execution_plan(reading_goal: ReadingGoal, reading_variant: Readin
             )
         if reading_variant == "tem":
             policy = GoalPolicy(
-                annotation_density=4,
-                vocabulary_focus="academic_priority",
-                grammar_focus="structural",
-                translation_focus="academic",
+                annotation_density=5,
+                vocabulary_focus="literary_depth",
+                grammar_focus="rhetorical",
+                translation_focus="nuanced_aesthetic",
             )
             return GoalExecutionPlan(
                 goal_id=reading_goal,

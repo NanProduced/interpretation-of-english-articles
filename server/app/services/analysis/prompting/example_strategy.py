@@ -335,6 +335,62 @@ KAOYAN_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
 ]
 
 
+# --- TEM EXAMPLES ---
+TEM_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="context",
+        sentence_text="The old house stood at the end of the lane, its windows like blind eyes staring into nothingness.",
+        output_fragment='{"type": "context_gloss", "text": "blind", "gloss": "失明的；无神的", "reason": "blind 常见义为\"盲的\"，此处修饰 windows，通过拟人手法赋予窗户\"失明的眼睛\"的意象，暗示房屋的荒废和死寂。专八常考察对修辞含义的精确理解，需超越字面义体会隐喻效果"}',
+    ),
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="She found herself between Scylla and Charybdis, unable to please either her employer or her family.",
+        output_fragment='{"type": "phrase_gloss", "text": "between Scylla and Charybdis", "phrase_type": "idiom", "zh": "进退两难；腹背受敌。源自希腊神话中两个海怪的故事，文学文本中常用来暗示人物的两难困境，比 between a rock and a hard place 更具文学性和文化底蕴"}',
+    ),
+    ExampleEntry(
+        example_type="vocab",
+        sentence_text="The novel\'s evocative prose transports readers to a bygone era.",
+        output_fragment='{"type": "vocab_highlight", "text": "evocative"}',
+    ),
+    ExampleEntry(
+        example_type="context",
+        sentence_text="The politician\'s promise was, at best, a Faustian bargain.",
+        output_fragment='{"type": "context_gloss", "text": "Faustian", "gloss": "浮士德式的；为获取利益而出卖灵魂的", "reason": "Faustian 源自德国传说中浮士德与魔鬼的交易，此处隐喻政客的承诺看似诱人实则代价惨重。专八常考察对文化典故的识别和理解"}',
+    ),
+]
+
+TEM_GRAMMAR_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="Never had she felt so alone, so utterly abandoned by the world.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "Never"}, {"text": "had she felt"}], "label": "倒装 + 反复", "note_zh": "Never 前置触发倒装，营造紧迫感和戏剧性——读者先被\"从未\"击中，再感受到主语的孤独。so...so... 反复强化情绪的递进，从 alone 到 utterly abandoned，孤独感层层加深。这种倒装+反复的组合是文学文本中常见的情绪渲染手法，专八常考作者意图题"}',
+    ),
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="The shadows lengthened, stretched across the empty room like the fingers of some unseen hand.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "lengthened"}, {"text": "stretched"}], "label": "动词并列 + 明喻", "note_zh": "lengthened 和 stretched 两个动词并列，赋予阴影主动性和侵入感——阴影不是被动存在，而是在\"蔓延\"。like the fingers of some unseen hand 是明喻，将阴影比作\"看不见的手指\"，营造不安和神秘氛围。这种动词选择+明喻的组合是文学描写中常见的氛围营造手法"}',
+    ),
+    ExampleEntry(
+        example_type="sentence_analysis",
+        sentence_text="Had she known then what she knows now, she would never have opened that door, would never have stepped into the light that was, in truth, no light at all.",
+        output_fragment='{"type": "sentence_analysis", "label": "虚拟倒装 + 反复否定 + 反讽", "analysis_zh": "Had she known 是虚拟条件句倒装，表达与过去事实相反的假设，奠定悔恨基调。would never have...would never have... 反复否定强化不可挽回的遗憾感。that was, in truth, no light at all 是反讽——看似光明实则黑暗，暗示主角被表象蒙蔽。整句通过虚拟+反复+反讽的三重修辞，将悔恨和幻灭推向极致。这种手法在专八阅读中常考作者意图和态度判断", "chunks": [{"order": 1, "label": "虚拟假设", "text": "Had she known then what she knows now"}, {"order": 2, "label": "反复否定一", "text": "she would never have opened that door"}, {"order": 3, "label": "反复否定二", "text": "would never have stepped into the light"}, {"order": 4, "label": "反讽揭示", "text": "that was, in truth, no light at all"}]}',
+    ),
+]
+
+TEM_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="Never had she felt so alone, so utterly abandoned by the world.",
+        output_fragment='{"sentence_id": "s1", "translation_zh": "她从未感到如此孤独，如此被世界彻底遗弃。"}',
+    ),
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="The shadows lengthened, stretched across the empty room like the fingers of some unseen hand.",
+        output_fragment='{"sentence_id": "s2", "translation_zh": "阴影渐渐拉长，如同一只看不见的手的指头般蔓延过空荡荡的房间。（此处 like 明喻将阴影比作手指，营造不安氛围）"}',
+    ),
+]
+
+
 def get_vocabulary_example_strategy(
     plan: GoalExecutionPlan,
 ) -> ExampleStrategy:
@@ -352,6 +408,8 @@ def get_vocabulary_example_strategy(
         examples = CET_VOCABULARY_EXAMPLES
     elif plan.variant_id == "kaoyan":
         examples = KAOYAN_VOCABULARY_EXAMPLES
+    elif plan.variant_id == "tem":
+        examples = TEM_VOCABULARY_EXAMPLES
     else:
         examples = INTERMEDIATE_VOCABULARY_EXAMPLES
         
@@ -375,6 +433,8 @@ def get_grammar_example_strategy(
         examples = CET_GRAMMAR_EXAMPLES
     elif plan.variant_id == "kaoyan":
         examples = KAOYAN_GRAMMAR_EXAMPLES
+    elif plan.variant_id == "tem":
+        examples = TEM_GRAMMAR_EXAMPLES
     else:
         examples = INTERMEDIATE_GRAMMAR_EXAMPLES
         
@@ -398,6 +458,8 @@ def get_translation_example_strategy(
         examples = CET_TRANSLATION_EXAMPLES
     elif plan.variant_id == "kaoyan":
         examples = KAOYAN_TRANSLATION_EXAMPLES
+    elif plan.variant_id == "tem":
+        examples = TEM_TRANSLATION_EXAMPLES
     else:
         examples = INTERMEDIATE_TRANSLATION_EXAMPLES
         
