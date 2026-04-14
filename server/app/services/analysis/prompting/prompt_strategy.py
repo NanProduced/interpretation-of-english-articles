@@ -146,6 +146,13 @@ def _build_vocabulary_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
                 'phrase_gloss 是重点：高考完形填空和语法填空大量考固定搭配。遇到短语动词和固定搭配，优先用 phrase_gloss 标注，释义要包含用法提示（如 look forward to + doing sth. 期待做某事）。',
                 'context_gloss 用于"词义猜测题"常考的熟词僻义场景，reason 字段要帮用户学会"通过上下文推断词义"的考试策略。',
             )
+        if plan.variant_id == "cet":
+            return (
+                '用户是四六级备考学生，他们需要扩展词汇量和掌握同义替换来提分。',
+                '标词策略：优先标四六级新增高频词（超出高考大纲的词），尤其是词性易混淆的同根词（如 economy/economic/economical）、选词填空常考词。高考级别的基础词不标。',
+                'phrase_gloss 是最高优先级：四六级阅读的核心考察机制是同义替换，短语搭配是同义替换的主要载体。遇到高频搭配（如 account for, result in, contribute to），优先用 phrase_gloss 标注，释义要包含同义表达提示（如 "account for = 占……比例/解释，同义表达：make up, explain"）。',
+                'context_gloss 用于"词义题"和选词填空中需要语境判断的场景，reason 字段可提示"四六级选项常用该词的常见义设置干扰"。',
+            )
         return (
             '用户是英语考试备考者，他们需要掌握考试高频词和固定搭配。',
             '标词策略：优先标考试高频词和固定搭配。基础词不标。',
@@ -197,6 +204,18 @@ def _build_grammar_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
         return (
             '用户是考试备考者，语法是考试考点。采用显性教学方式讲解语法点。',
         )
+    elif focus == "speed_support":
+        if plan.variant_id == "cet":
+            return (
+                '用户是四六级备考学生，语法不是显性考点，但某些结构会拖慢阅读速度。你的目标是帮用户快速识别句子结构，提升阅读速度。',
+                'grammar_note 采用"理解提速"方式：指出结构是什么、在句中的作用、快速理解的提示（如"which 从句可先跳过，抓主干"）。不需要深入讲解语法规则。',
+                '优先标注拖慢阅读速度的结构：定语从句（影响主干识别）、非谓语动词（压缩信息）、被动语态（动作主体不清）、名词性从句。其次是状语从句、并列结构、同位语、插入语。',
+                'sentence_analysis 用于帮用户"快速找到主干信息"——先抽出主干（核心信息），再说明修饰成分各自补充了什么，可点出"在段落匹配题中，这句核心信息可能被改写为……"。',
+                '简单句和结构清晰的句子不需要标注。只标注真正影响阅读速度的结构。',
+            )
+        return (
+            '用户需要提升阅读速度，语法标注以理解提速为主。',
+        )
 
     return ()
 
@@ -218,6 +237,13 @@ def _build_translation_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
             '必要时可用括号补充原文省略的成分，如"(政府)决定"、"(这)意味着"。',
         )
     elif style == "natural":
+        if plan.variant_id == "cet":
+            return (
+                '用户是四六级备考学生，翻译是他们理解文章和确认理解的重要方式。',
+                '翻译追求自然通顺的中文表达，适度体现原文结构，让用户能对照中英文学习。',
+                '对含同义替换的关键句，可在翻译后用括号补充提示（如"此处 contribute to 即题目中的 lead to"），帮助用户建立同义替换敏感度。',
+                '较长句可适当拆分为短句以提高可读性。',
+            )
         return (
             '翻译追求自然通顺的中文表达，不刻意贴英语语序。用户会用翻译来确认自己的理解是否正确。',
         )

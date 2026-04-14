@@ -138,6 +138,8 @@ interface SessionUserResponse {
   session_id: string
   avatar_url?: string
   nickname?: string
+  cumulative_article_count?: number
+  settings?: Record<string, any>
 }
 
 /** 获取当前会话用户信息 */
@@ -145,6 +147,21 @@ export async function fetchSessionUser(): Promise<SessionUserResponse> {
   return request<SessionUserResponse>({
     url: '/auth/session/me',
     method: 'GET',
+  })
+}
+
+interface UpdateProfileRequest {
+  nickname?: string
+  avatar_url?: string
+  settings?: Record<string, any>
+}
+
+/** 更新用户资料 */
+export async function fetchUpdateProfile(data: UpdateProfileRequest): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>({
+    url: '/auth/profile',
+    method: 'PATCH',
+    data,
   })
 }
 

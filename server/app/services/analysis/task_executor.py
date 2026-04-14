@@ -298,6 +298,9 @@ async def execute_task(
                 metadata=_build_deduction_metadata(usage_summary),
             )
 
+        # 4. Increment Achievement Stats
+        await records_svc.increment_user_reading_count(user_id)
+
         finished_at = datetime.now(timezone.utc)
         await update_task_status(
             task_id,

@@ -37,10 +37,12 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   
   // 获取阅读等级头衔与勋章进化
   const getReadingTier = (count: number) => {
-    if (count === 0) return { title: '初探者', icon: 'award', color: '#a1a1aa' }
-    if (count < 5) return { title: '求知者', icon: 'bookOpen', color: 'var(--color-ink)' }
-    if (count < 20) return { title: '博学者', icon: 'medal', color: '#B8860B' } // 深金
-    return { title: '硕儒', icon: 'crown', color: 'var(--color-exam)' } // 绯红
+    if (count < 5) return { title: 'Newcomer', cnTitle: '新来者', icon: 'userRound', color: '#d4d4d8' }
+    if (count < 30) return { title: 'Explorer', cnTitle: '探索者', icon: 'award', color: '#a1a1aa' }
+    if (count < 80) return { title: 'Scholar', cnTitle: '学者', icon: 'bookOpen', color: '#1e293b' }
+    if (count < 120) return { title: 'Fellow', cnTitle: '研究员', icon: 'medal', color: '#B8860B' }
+    if (count < 300) return { title: 'Luminary', cnTitle: '先驱', icon: 'crown', color: '#be123c' }
+    return { title: 'Polymath', cnTitle: '通才', icon: 'gem', color: '#7c3aed' }
   }
   
   const tier = getReadingTier(articleCount)
@@ -56,12 +58,19 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     setLoadingStats(true)
     if (isLoggedIn) {
       try {
-        const [recordResult, vocabResult, quotaResult] = await Promise.all([
-          fetchCloudRecords(1, 1).catch(() => ({ total: 0 })),
+        const [vocabResult, quotaResult] = await Promise.all([
           fetchCloudVocabulary(1, 1).catch(() => ({ total: 0 })),
           fetchUserQuota().catch(() => null),
         ])
-        setArticleCount(recordResult.total)
+        
+        // 优先使用 userInfo 中的累计篇数
+        if (userInfo?.cumulativeArticleCount !== undefined) {
+          setArticleCount(userInfo.cumulativeArticleCount)
+        } else {
+          const recordResult = await fetchCloudRecords(1, 1).catch(() => ({ total: 0 }))
+          setArticleCount(recordResult.total)
+        }
+
         setWordCount(vocabResult.total)
         if (quotaResult) {
           setQuota({ 
@@ -85,7 +94,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       setQuota(null)
     }
     setLoadingStats(false)
-  }, [isLoggedIn])
+  }, [isLoggedIn, userInfo])
 
   // 启动时加载 + isLoggedIn 变化时重新加载
   useEffect(() => {
@@ -291,13 +300,13 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                   <LucideIcon name={tier.icon as any} size={16} color={tier.color} />
                 </View>
                 <View className='text-group'>
-                  <Text className='history-label'>已读存档</Text>
-                  <Text className='tier-text' style={{ color: tier.color }}>{tier.title}</Text>
+                  <Text className='history-label'>阅读成就</Text>
+                  <Text className='tier-text' style={{ color: tier.color }}>{tier.title} ({tier.cnTitle})</Text>
                 </View>
               </View>
               <View className='history-value-box'>
                 <Text className='history-value' style={{ color: articleCount > 0 ? tier.color : 'var(--color-ink)' }}>
-                  {loadingStats ? '...' : articleCount}
+                  累计 {loadingStats ? '...' : articleCount} 篇
                 </Text>
               </View>
             </View>

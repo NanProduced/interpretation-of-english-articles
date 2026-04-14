@@ -333,6 +333,30 @@ async def insert_audit_log(
         )
 
 
+async def increment_user_reading_count(user_id: UUID) -> bool:
+    """
+    Increment the user's cumulative article count and update last active time.
+    Atomic operation.
+    """
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    now = datetime.now(timezone.utc)
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """
+            UPDATE users
+            SET cumulative_article_count = cumulative_article_count + 1,
+                last_active_at = $2
+            WHERE id = $1
+            """,
+            user_id,
+            now,
+        )
+    return "UPDATE 1" in result
+
+
 async def delete_record(user_id: UUID, record_id: UUID) -> bool:
     """Soft-delete a record. Results will stay linked but analysis_records marks as deleted."""
     pool = db_connection.DB_POOL

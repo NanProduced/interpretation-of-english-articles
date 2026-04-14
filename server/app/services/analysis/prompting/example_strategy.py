@@ -223,6 +223,62 @@ GAOKAO_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
 ]
 
 
+# --- CET EXAMPLES ---
+CET_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="vocab",
+        sentence_text="The economic growth has slowed down significantly this year.",
+        output_fragment='{"type": "vocab_highlight", "text": "economic"}',
+    ),
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="Rising temperatures account for the decline in crop yields.",
+        output_fragment='{"type": "phrase_gloss", "text": "account for", "phrase_type": "collocation", "zh": "占……比例；是……的原因。同义表达：make up, explain, be responsible for"}',
+    ),
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="The new policy has contributed to a significant reduction in emissions.",
+        output_fragment='{"type": "phrase_gloss", "text": "contributed to", "phrase_type": "collocation", "zh": "促成；有助于。同义表达：led to, resulted in, brought about"}',
+    ),
+    ExampleEntry(
+        example_type="context",
+        sentence_text="The government has been slow to address the issue of climate change.",
+        output_fragment='{"type": "context_gloss", "text": "address", "gloss": "处理；应对", "reason": "address 常见义为\"地址\"或\"演讲\"，此处作动词表示\"着手处理问题\"。四六级选项常用该词的常见义设置干扰，注意根据上下文判断词义"}',
+    ),
+]
+
+CET_GRAMMAR_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="The study, which was conducted by researchers from Harvard, found that regular exercise can reduce stress.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "which"}, {"text": "found"}], "label": "非限制性定语从句", "note_zh": "which 引导非限制性定语从句，补充说明 the study。快速阅读时可先跳过逗号之间的从句，抓住主干 The study found that...（研究发现……）"}',
+    ),
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="Influenced by social media, young people tend to spend more time online.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "Influenced"}, {"text": "tend"}], "label": "过去分词作状语", "note_zh": "Influenced by social media 是过去分词短语作原因状语，表示\"受社交媒体影响\"。快速阅读时，看到句首的过去分词，先找主语和谓语（young people tend to...），再回头看分词短语补充的信息"}',
+    ),
+    ExampleEntry(
+        example_type="sentence_analysis",
+        sentence_text="A recent study conducted by the University of Oxford has found that people who regularly engage in physical activity are less likely to develop heart disease.",
+        output_fragment='{"type": "sentence_analysis", "label": "后置定语 + 宾语从句 + 定语从句", "analysis_zh": "主干：A recent study has found that...（一项最新研究发现……）。conducted by the University of Oxford 是过去分词短语作后置定语修饰 study。that 引导宾语从句，其中 who regularly engage in physical activity 是定语从句修饰 people。主干信息是\"经常锻炼的人更不容易患心脏病\"。在段落匹配题中，这类信息可能被改写为\"physical activity is linked to lower risk of heart disease\"。", "chunks": [{"order": 1, "label": "主干主语", "text": "A recent study"}, {"order": 2, "label": "后置定语", "text": "conducted by the University of Oxford"}, {"order": 3, "label": "主干谓语", "text": "has found"}, {"order": 4, "label": "宾语从句", "text": "that people who regularly engage in physical activity are less likely to develop heart disease"}]}',
+    ),
+]
+
+CET_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="The study, which was conducted by researchers from Harvard, found that regular exercise can reduce stress.",
+        output_fragment='{"sentence_id": "s1", "translation_zh": "这项由哈佛大学研究人员进行的研究发现，经常锻炼可以减轻压力。"}',
+    ),
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="Rising temperatures account for the decline in crop yields.",
+        output_fragment='{"sentence_id": "s2", "translation_zh": "气温上升是农作物产量下降的原因。（此处 account for 即题目中的 be responsible for）"}',
+    ),
+]
+
+
 def get_vocabulary_example_strategy(
     plan: GoalExecutionPlan,
 ) -> ExampleStrategy:
@@ -236,6 +292,8 @@ def get_vocabulary_example_strategy(
         examples = INTENSIVE_VOCABULARY_EXAMPLES
     elif plan.variant_id == "gaokao":
         examples = GAOKAO_VOCABULARY_EXAMPLES
+    elif plan.variant_id == "cet":
+        examples = CET_VOCABULARY_EXAMPLES
     else:
         examples = INTERMEDIATE_VOCABULARY_EXAMPLES
         
@@ -255,6 +313,8 @@ def get_grammar_example_strategy(
         examples = INTENSIVE_GRAMMAR_EXAMPLES
     elif plan.variant_id == "gaokao":
         examples = GAOKAO_GRAMMAR_EXAMPLES
+    elif plan.variant_id == "cet":
+        examples = CET_GRAMMAR_EXAMPLES
     else:
         examples = INTERMEDIATE_GRAMMAR_EXAMPLES
         
@@ -274,6 +334,8 @@ def get_translation_example_strategy(
         examples = INTENSIVE_TRANSLATION_EXAMPLES
     elif plan.variant_id == "gaokao":
         examples = GAOKAO_TRANSLATION_EXAMPLES
+    elif plan.variant_id == "cet":
+        examples = CET_TRANSLATION_EXAMPLES
     else:
         examples = INTERMEDIATE_TRANSLATION_EXAMPLES
         

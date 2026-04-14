@@ -16,6 +16,8 @@ export interface UserInfo {
   session_id?: string
   avatar_url?: string
   nickname?: string
+  cumulativeArticleCount?: number
+  settings?: Record<string, any>
 }
 
 interface AuthState {
@@ -105,9 +107,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             session_id: data.session_id,
             avatar_url: data.avatar_url,
             nickname: data.nickname,
+            cumulativeArticleCount: data.cumulative_article_count,
+            settings: data.settings,
           }
           Taro.setStorageSync(AUTH_USER_KEY, JSON.stringify(userInfo))
           set({ userInfo })
+          // 同步云端配置到本地
+          import('./config').then(({ useConfigStore }) => {
+            useConfigStore.getState().initializeFromCloud()
+          })
         })
         .catch((err: unknown) => {
           // 401 / auth error → token 无效，清除登录态
@@ -138,9 +146,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         session_id: data.session_id,
         avatar_url: data.avatar_url,
         nickname: data.nickname,
+        cumulativeArticleCount: data.cumulative_article_count,
+        settings: data.settings,
       }
       Taro.setStorageSync(AUTH_USER_KEY, JSON.stringify(userInfo))
       set({ userInfo })
+      // 同步云端配置到本地
+      import('./config').then(({ useConfigStore }) => {
+        useConfigStore.getState().initializeFromCloud()
+      })
     } catch {
       // 网络错误，静默忽略
     }

@@ -23,6 +23,21 @@ def build_goal_execution_plan(reading_goal: ReadingGoal, reading_variant: Readin
                 prompt_profile="exam_gaokao",
                 policy=policy,
             )
+        if reading_variant == "cet":
+            policy = GoalPolicy(
+                annotation_density=6,
+                vocabulary_focus="exam_priority",
+                grammar_focus="speed_support",
+                translation_focus="natural",
+            )
+            return GoalExecutionPlan(
+                goal_id=reading_goal,
+                variant_id=reading_variant,
+                topology_mode="learning",
+                output_mode="learning_scene",
+                prompt_profile="exam_cet",
+                policy=policy,
+            )
         if reading_variant == "kaoyan":
             policy = GoalPolicy(
                 annotation_density=4,

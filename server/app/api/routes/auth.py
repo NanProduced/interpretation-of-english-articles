@@ -6,7 +6,9 @@
 
 from __future__ import annotations
 
+import json
 from logging import getLogger
+from typing import Any
 from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, HTTPException, Request
@@ -39,6 +41,7 @@ class ProfileUpdateRequest(BaseModel):
     """更新用户资料请求"""
     nickname: str | None = Field(default=None, max_length=50)
     avatar_url: str | None = Field(default=None, max_length=500)
+    settings: dict[str, Any] | None = Field(default=None, description="用户设置 JSON")
 
 
 @router.post("/wechat/login")
@@ -136,7 +139,10 @@ async def get_current_session_info(
 
     async with db_connection.DB_POOL.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT id, display_name, avatar_url FROM users WHERE id = $1",
+            """
+            SELECT id, display_name, avatar_url, cumulative_article_count, settings_json 
+            FROM users WHERE id = $1
+            """,
             PyUUID(current_user.user_id),
         )
         if row is None:
@@ -147,6 +153,8 @@ async def get_current_session_info(
         "session_id": current_user.session_id,
         "nickname": row["display_name"] or "",
         "avatar_url": row["avatar_url"] or "",
+        "cumulative_article_count": row["cumulative_article_count"] or 0,
+        "settings": json.loads(row["settings_json"]) if row["settings_json"] else {},
     }
 
 
@@ -156,33 +164,51 @@ async def update_profile(
     body: ProfileUpdateRequest,
 ) -> dict:
     """
-    更新当前用户的昵称和头像。
+    更新当前用户的昵称、头像或设置。
 
-    nickname 和 avatar_url 至少传一个。
+    settings 为 JSON 对象，会执行增量合并。
     """
     from app.database import connection as db_connection
 
     if db_connection.DB_POOL is None:
         raise HTTPException(status_code=500, detail="Database not initialized")
 
-    updates: dict[str, str] = {}
-    if body.nickname is not None:
-        updates["display_name"] = body.nickname
-    if body.avatar_url is not None:
-        updates["avatar_url"] = body.avatar_url
-
-    if not updates:
-        raise HTTPException(status_code=400, detail="No fields to update")
-
-    set_clauses = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates.keys()))
-    values = list(updates.values())
+    user_id = PyUUID(current_user.user_id)
 
     async with db_connection.DB_POOL.acquire() as conn:
-        await conn.execute(
-            f"UPDATE users SET {set_clauses} WHERE id = $1",
-            PyUUID(current_user.user_id),
-            *values,
-        )
+        async with conn.transaction():
+            # 1. Fetch current row for JSON merge if needed
+            if body.settings is not None:
+                current_settings_raw = await conn.fetchval(
+                    "SELECT settings_json FROM users WHERE id = $1", user_id
+                )
+                current_settings = json.loads(current_settings_raw) if current_settings_raw else {}
+                # Merge new settings into existing ones
+                current_settings.update(body.settings)
+                new_settings_json = json.dumps(current_settings, ensure_ascii=False)
+            else:
+                new_settings_json = None
+
+            # 2. Build update query
+            updates: dict[str, Any] = {}
+            if body.nickname is not None:
+                updates["display_name"] = body.nickname
+            if body.avatar_url is not None:
+                updates["avatar_url"] = body.avatar_url
+            if new_settings_json is not None:
+                updates["settings_json"] = new_settings_json
+
+            if not updates:
+                raise HTTPException(status_code=400, detail="No fields to update")
+
+            set_clauses = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates.keys()))
+            values = list(updates.values())
+
+            await conn.execute(
+                f"UPDATE users SET {set_clauses} WHERE id = $1",
+                user_id,
+                *values,
+            )
 
     logger.info("profile updated for user %s: %s", current_user.user_id, list(updates.keys()))
 

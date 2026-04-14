@@ -26,6 +26,14 @@ _PROFILE_BASELINES: dict[str, str] = {
         "语法是高考的显性考点，需要直接告诉他们'这是什么语法点、规则是什么、考试怎么考'。"
         "词汇标注应侧重考试高频词和固定搭配，释义要包含用法提示（如 to 后接 doing 还是 do）。"
     ),
+    "exam_cet": (
+        "用户是大学英语四六级备考学生，词汇量约 4,500–5,500 词。"
+        "他们读英语文章时，大部分词认识，但会在同义替换和从句嵌套上卡住。"
+        "四六级阅读的核心能力是信息快速定位和同义替换识别，阅读时间紧张，速度和准确性同样重要。"
+        "语法不是显性考点，但拖慢阅读速度的结构需要帮他们快速识别。"
+        "短语搭配是最高优先级——同义替换是四六级阅读的核心考察机制。"
+        "词汇标注应侧重四六级新增高频词和词性易混淆的同根词，帮助用户从高考词汇向大学词汇过渡。"
+    ),
     "exam_tem": "[Placeholder] 专业英语模式风格待定。",
     "exam_ielts_toefl": "[Placeholder] 雅思/托福模式风格待定。",
 }
@@ -35,6 +43,8 @@ def get_annotation_style(plan: GoalExecutionPlan) -> str:
     if plan.goal_id == "exam":
         if plan.variant_id == "gaokao":
             return "exam_gaokao"
+        if plan.variant_id == "cet":
+            return "exam_cet"
         return "structural_and_academic" if plan.variant_id in ("kaoyan", "tem") else "exam_oriented"
     elif plan.goal_id == "academic":
         return "structural_and_academic"

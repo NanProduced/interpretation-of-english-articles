@@ -58,7 +58,12 @@ export async function ensureLoggedIn(skipConfirmModal = false): Promise<LoginRes
     }
 
     const res = await fetchWeChatLogin(loginResult.code)
-    useAuthStore.getState().login(res.session_token, { user_id: res.user_id })
+    const authStore = useAuthStore.getState()
+    authStore.login(res.session_token, { user_id: res.user_id })
+    
+    // 登录后立即获取完整用户信息（包含云端配置和成就）
+    await authStore.fetchUserInfo()
+    
     Taro.showToast({ title: '登录成功', icon: 'success' })
 
     // 检查是否首次登录（user_configured 未设置）
