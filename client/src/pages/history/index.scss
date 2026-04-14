@@ -152,9 +152,9 @@
       .card-checkbox {
         position: absolute;
         left: 0;
-        top: 0;
-        bottom: 0;
+        top: 36rpx; // 锁定顶部偏移，完美对齐首行标题
         width: 100rpx;
+        height: 60rpx; // 模拟一行文字的高度，方便图标内部居中
         display: flex;
         align-items: center;
         justify-content: center;
@@ -164,8 +164,8 @@
         .checkbox-inner {
           width: 38rpx;
           height: 38rpx;
-          border: 3rpx solid var(--border-color); // 加深默认边框，使其清晰可见
-          background-color: rgba(0, 0, 0, 0.02); // 增加底色暗示
+          border: 3rpx solid var(--border-color);
+          background-color: rgba(0, 0, 0, 0.02);
           border-radius: 50%;
           transition: all 0.25s var(--ease-spring);
           position: relative;
