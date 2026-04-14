@@ -8,6 +8,21 @@ def build_goal_execution_plan(reading_goal: ReadingGoal, reading_variant: Readin
     """把请求场景映射为包含拓扑策略和密度策略的 ExecutionPlan。"""
     
     if reading_goal == "exam":
+        if reading_variant == "gaokao":
+            policy = GoalPolicy(
+                annotation_density=6,
+                vocabulary_focus="exam_priority",
+                grammar_focus="explicit_exam",
+                translation_focus="literal_support",
+            )
+            return GoalExecutionPlan(
+                goal_id=reading_goal,
+                variant_id=reading_variant,
+                topology_mode="learning",
+                output_mode="learning_scene",
+                prompt_profile="exam_gaokao",
+                policy=policy,
+            )
         if reading_variant == "kaoyan":
             policy = GoalPolicy(
                 annotation_density=4,

@@ -19,7 +19,13 @@ _PROFILE_BASELINES: dict[str, str] = {
         "他们几乎能自主理解全文，但想更深入地理解作者的用词选择和表达技巧。主要是想在日常阅读里提升自己的英语能力。"
     ),
     "academic_general": "[Placeholder] 学术通用模式风格待定。",
-    "exam_kaoyan": "[Placeholder] 考研英语模式风格待定。",
+    "exam_gaokao": (
+        "用户是高考英语备考学生，词汇量约 3,500 词（高中大纲）。"
+        "他们读英语文章时，大部分词认识，但会在多义词语境义和复杂句结构上卡住。"
+        "他们学英语的核心目标是考试提分，所以需要：看懂文章 + 掌握考试常考的语言知识点。"
+        "语法是高考的显性考点，需要直接告诉他们'这是什么语法点、规则是什么、考试怎么考'。"
+        "词汇标注应侧重考试高频词和固定搭配，释义要包含用法提示（如 to 后接 doing 还是 do）。"
+    ),
     "exam_tem": "[Placeholder] 专业英语模式风格待定。",
     "exam_ielts_toefl": "[Placeholder] 雅思/托福模式风格待定。",
 }
@@ -27,6 +33,8 @@ _PROFILE_BASELINES: dict[str, str] = {
 
 def get_annotation_style(plan: GoalExecutionPlan) -> str:
     if plan.goal_id == "exam":
+        if plan.variant_id == "gaokao":
+            return "exam_gaokao"
         return "structural_and_academic" if plan.variant_id in ("kaoyan", "tem") else "exam_oriented"
     elif plan.goal_id == "academic":
         return "structural_and_academic"

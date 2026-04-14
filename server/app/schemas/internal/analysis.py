@@ -20,7 +20,7 @@ ReadingVariant = Literal[
 ]
 AnnotationStyle = Literal["exam_oriented", "plain_and_supportive", "structural_and_academic"]
 TranslationStyle = Literal["exam", "natural", "academic", "literal_support", "nuanced_aesthetic"]
-GrammarGranularity = Literal["focused", "balanced", "structural", "explicit_split", "structural_logic"]
+GrammarGranularity = Literal["focused", "balanced", "structural", "explicit_split", "structural_logic", "explicit_exam"]
 VocabularyPolicy = Literal["high_value_only", "exam_priority", "academic_priority", "semantic_nuance"]
 
 BASE_MODEL_CONFIG = ConfigDict(extra="forbid", str_strip_whitespace=True)

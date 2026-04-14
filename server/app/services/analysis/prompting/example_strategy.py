@@ -167,6 +167,62 @@ INTENSIVE_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
 ]
 
 
+# --- GAOKAO EXAMPLES ---
+GAOKAO_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="vocab",
+        sentence_text="The government has adopted new measures to protect the environment.",
+        output_fragment='{"type": "vocab_highlight", "text": "adopted"}',
+    ),
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="She is looking forward to hearing from her pen pal.",
+        output_fragment='{"type": "phrase_gloss", "text": "looking forward to", "phrase_type": "collocation", "zh": "期待；盼望。注意 to 是介词，后面接动词-ing 形式：look forward to doing sth. 期待做某事"}',
+    ),
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="The team carried out the experiment successfully.",
+        output_fragment='{"type": "phrase_gloss", "text": "carried out", "phrase_type": "phrasal_verb", "zh": "执行；实施。高考常考短语，如 carry out a plan/experiment/survey"}',
+    ),
+    ExampleEntry(
+        example_type="context",
+        sentence_text="The government has been slow to address the issue of air pollution.",
+        output_fragment='{"type": "context_gloss", "text": "address", "gloss": "处理；应对", "reason": "address 常见义为\"地址\"或\"演讲\"，此处作动词表示\"着手处理问题\"。高考词义猜测题常考这类熟词僻义，解题关键是看词性和上下文：此处后面接了 the issue（问题），说明是动词\"处理\""}',
+    ),
+]
+
+GAOKAO_GRAMMAR_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="The book that was written by him has become a bestseller.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "that"}, {"text": "was written"}], "label": "定语从句", "note_zh": "that 引导定语从句修饰 the book。that 在从句中作主语，指代先行词 the book，所以从句用被动语态 was written。高考语法填空常考：① 判断用哪个关系词（that/which/who/where） ② 从句的时态和语态。"}',
+    ),
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="Inspired by the speech, the students decided to start their own project.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "Inspired"}, {"text": "decided"}], "label": "过去分词作状语", "note_zh": "Inspired by the speech 是过去分词短语作原因状语，逻辑主语是 the students（学生被演讲激励）。过去分词表被动关系，说明主语是动作的承受者。高考语法填空常考：判断用现在分词（-ing，表主动）还是过去分词（-ed，表被动）。"}',
+    ),
+    ExampleEntry(
+        example_type="sentence_analysis",
+        sentence_text="The research conducted by scientists from different countries shows that climate change has affected the lives of millions of people.",
+        output_fragment='{"type": "sentence_analysis", "label": "过去分词后置定语 + 宾语从句", "analysis_zh": "主干：The research shows that...（这项研究表明……）。conducted by scientists from different countries 是过去分词短语作后置定语，修饰 the research，说明是\"来自不同国家的科学家所进行的\"研究。that 引导宾语从句，作 shows 的宾语，说明研究的结果。高考阅读中遇到长句，先找主干（谁做了什么），再看修饰成分。", "chunks": [{"order": 1, "label": "主干主语", "text": "The research"}, {"order": 2, "label": "后置定语", "text": "conducted by scientists from different countries"}, {"order": 3, "label": "主干谓语", "text": "shows"}, {"order": 4, "label": "宾语从句", "text": "that climate change has affected the lives of millions of people"}]}',
+    ),
+]
+
+GAOKAO_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="The book that was written by him has become a bestseller.",
+        output_fragment='{"sentence_id": "s1", "translation_zh": "他写的那本书已经成为了一本畅销书。"}',
+    ),
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="Inspired by the speech, the students decided to start their own project.",
+        output_fragment='{"sentence_id": "s2", "translation_zh": "（被）演讲所激励，学生们决定开始他们自己的项目。"}',
+    ),
+]
+
+
 def get_vocabulary_example_strategy(
     plan: GoalExecutionPlan,
 ) -> ExampleStrategy:
@@ -178,6 +234,8 @@ def get_vocabulary_example_strategy(
         examples = BEGINNER_VOCABULARY_EXAMPLES
     elif plan.variant_id == "intensive_reading":
         examples = INTENSIVE_VOCABULARY_EXAMPLES
+    elif plan.variant_id == "gaokao":
+        examples = GAOKAO_VOCABULARY_EXAMPLES
     else:
         examples = INTERMEDIATE_VOCABULARY_EXAMPLES
         
@@ -195,6 +253,8 @@ def get_grammar_example_strategy(
         examples = BEGINNER_GRAMMAR_EXAMPLES
     elif plan.variant_id == "intensive_reading":
         examples = INTENSIVE_GRAMMAR_EXAMPLES
+    elif plan.variant_id == "gaokao":
+        examples = GAOKAO_GRAMMAR_EXAMPLES
     else:
         examples = INTERMEDIATE_GRAMMAR_EXAMPLES
         
@@ -212,6 +272,8 @@ def get_translation_example_strategy(
         examples = BEGINNER_TRANSLATION_EXAMPLES
     elif plan.variant_id == "intensive_reading":
         examples = INTENSIVE_TRANSLATION_EXAMPLES
+    elif plan.variant_id == "gaokao":
+        examples = GAOKAO_TRANSLATION_EXAMPLES
     else:
         examples = INTERMEDIATE_TRANSLATION_EXAMPLES
         

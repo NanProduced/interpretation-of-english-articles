@@ -138,6 +138,25 @@ def _build_vocabulary_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
             '释义要有深度：解释作者为什么选这个词而不是近义词，选词的精妙之处在哪里。可以拓展发散，帮助用户建立更丰富的语义网络。',
             '常见词和常见语境义不标。宁缺毋滥。',
         )
+    elif focus == "exam_priority":
+        if plan.variant_id == "gaokao":
+            return (
+                '用户是高考备考学生，他们需要掌握考试高频词和固定搭配来提分。',
+                '标词策略：优先标高考大纲中的核心词汇，尤其是高中新增词、多义词的常考义项、易混淆词（如 affect/effect, rise/raise）。初中已掌握的基础词不标。',
+                'phrase_gloss 是重点：高考完形填空和语法填空大量考固定搭配。遇到短语动词和固定搭配，优先用 phrase_gloss 标注，释义要包含用法提示（如 look forward to + doing sth. 期待做某事）。',
+                'context_gloss 用于"词义猜测题"常考的熟词僻义场景，reason 字段要帮用户学会"通过上下文推断词义"的考试策略。',
+            )
+        return (
+            '用户是英语考试备考者，他们需要掌握考试高频词和固定搭配。',
+            '标词策略：优先标考试高频词和固定搭配。基础词不标。',
+            'phrase_gloss 侧重考试常考搭配，释义包含用法提示。',
+        )
+    elif focus == "academic_priority":
+        return (
+            '用户是学术阅读者，他们需要理解专业术语和学术表达。',
+            '标词策略：优先标学术术语和专业表达，常见词不标。',
+            '释义要准确，可以使用学术领域的标准中文译名。',
+        )
 
     return ()
 
@@ -166,6 +185,18 @@ def _build_grammar_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
             '分析重点：结构如何承载意义——倒装为什么强调、省略为什么紧凑、插入语为什么打断。可使用标准语法术语。',
             'sentence_analysis 用于信息密度极高的句子，分析信息层次和逻辑衔接。',
         )
+    elif focus == "explicit_exam":
+        if plan.variant_id == "gaokao":
+            return (
+                '用户是高考备考学生，语法是高考的显性考点。你的目标是帮他们掌握考试常考的语法知识。',
+                'grammar_note 采用显性教学：直接命名语法现象（如"定语从句""现在分词作状语"），使用中学英语教学术语。note_zh 要包含三层：① 这是什么语法点 ② 规则是什么 ③ 高考常怎么考。',
+                '优先标注高考核心语法点：定语从句、非谓语动词（doing/done/to do）、时态语态、名词性从句。其次是状语从句、强调句、虚拟语气、倒装句。',
+                'sentence_analysis 用于帮用户"看清主谓宾"——先说主干（谁做了什么），再说修饰成分，最后可点出考试相关性。使用中学教学术语。',
+                '简单句不需要任何标注。但如果句子包含高考常考语法点（如定语从句、非谓语），即使结构不复杂也应标注 grammar_note。',
+            )
+        return (
+            '用户是考试备考者，语法是考试考点。采用显性教学方式讲解语法点。',
+        )
 
     return ()
 
@@ -174,6 +205,13 @@ def _build_translation_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
     style = plan.policy.translation_focus
 
     if style == "literal_support":
+        if plan.variant_id == "gaokao":
+            return (
+                '用户是高考备考学生，翻译是他们理解文章和对照学习的重要方式。他们可能会先看翻译，再回看英文。',
+                '翻译要忠实详尽，尽量保留原文的逻辑顺序和句子结构，让用户能轻松对照中英文。',
+                '必要时可用括号补充原文省略的成分，如"(政府)决定"、"(这)意味着"。',
+                '专有名词或术语首次出现时用"中文（英文）"格式，帮助用户积累考试词汇。',
+            )
         return (
             '用户是英语初学者，翻译是他们理解文章的主要方式。他们可能会先看翻译，再回看英文。',
             '翻译要忠实详尽，尽量保留原文的逻辑顺序和句子结构，让用户能轻松对照中英文。',
