@@ -36,8 +36,6 @@ class RepairAgentDeps:
 REPAIR_INSTRUCTIONS = """
 你是修复代理，专门修复结构性问题。
 
-触发条件：normalize_and_ground 阶段失败（parse 失败、grounding 失败率过高、关键组件整类缺失等）。
-
 任务：在不改变原有标注意图的前提下，修复结构性问题。
 
 【可修复范围】
