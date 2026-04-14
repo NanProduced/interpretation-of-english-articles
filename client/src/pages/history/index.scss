@@ -11,70 +11,74 @@
   .filter-tabs {
     display: flex;
     gap: 16rpx;
-    margin-bottom: 32rpx;
+    margin-bottom: 24rpx;
     padding: 32rpx 48rpx 0;
   }
-
+ 
   .filter-tab {
-    padding: 12rpx 32rpx;
-    border-radius: 32rpx;
-    background: #fff;
+    padding: 10rpx 36rpx;
+    border-radius: 100rpx; // 胶囊型
+    background: var(--color-white);
     border: 1rpx solid var(--border-color);
-
+    transition: all 0.3s var(--ease-spring);
+ 
     &.active {
       background: var(--color-ink);
       border-color: var(--color-ink);
+      box-shadow: var(--shadow-sm);
       .filter-tab-label { color: #fff; }
     }
   }
-
+ 
   .filter-tab-label {
     font-size: 26rpx;
-    font-weight: 500;
+    font-weight: var(--weight-medium);
     color: var(--text-sub);
   }
-
+ 
   .list-area {
     flex: 1;
     width: 100%;
-    overflow: hidden;
-    padding: 0 48rpx;
+    padding: 16rpx 48rpx;
     box-sizing: border-box;
     
     .history-card {
-      background-color: #fff;
-      padding: 36rpx;
+      background-color: var(--color-white);
+      padding: 40rpx;
       border-radius: var(--radius-md);
       margin-bottom: 32rpx;
-      border: 1rpx solid var(--border-color);
       box-shadow: var(--shadow-paper);
-      transition: transform 0.2s var(--ease-spring);
+      transition: all 0.3s var(--ease-spring);
+      position: relative;
+      overflow: hidden;
       
       &:active { 
-        transform: scale(0.97); 
-        background-color: var(--color-bg);
+        transform: scale(0.98); 
+        background-color: var(--border-light);
       }
-
+ 
       .card-header {
         display: flex;
         align-items: flex-start;
-        gap: 16rpx;
-        margin-bottom: 16rpx;
-
+        justify-content: space-between;
+        gap: 24rpx;
+        margin-bottom: 24rpx;
+ 
         .item-title {
           flex: 1;
-          font-size: 34rpx;
-          font-weight: var(--weight-semibold);
+          font-size: 36rpx; // 略微增大，增强成就感
+          font-weight: var(--weight-bold);
           color: var(--color-ink);
-          font-family: var(--font-english-serif), serif;
-          line-height: 1.4;
+          font-family: var(--font-serif);
+          line-height: 1.35; // 标题行高稍紧，更有凝聚力
+          letter-spacing: var(--tracking-tight); // 紧缩字距，提升高级感
           overflow: hidden;
           text-overflow: ellipsis;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
         }
-
+ 
         .delete-btn {
           flex-shrink: 0;
           width: 44rpx;
@@ -82,83 +86,86 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          opacity: 0.4;
-          &:active { opacity: 0.8; }
+          opacity: 0.12; // 极简，仅在需要时被注意到
+          transition: all 0.2s ease;
+          &:active { opacity: 0.8; transform: scale(0.9); }
           .delete-icon { font-size: 40rpx; color: var(--text-muted); line-height: 1; }
         }
       }
-
+ 
       .card-footer {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-
+        flex-direction: column;
+        gap: 20rpx;
+ 
         .date-text {
-          font-size: 24rpx;
+          font-size: 22rpx;
           color: var(--text-muted);
+          font-family: var(--font-english-sans);
+          font-weight: var(--weight-medium);
+          letter-spacing: 0.04em; // 日期适当拉开，更具仪式感
+          text-transform: uppercase;
         }
-
+ 
         .tag-row {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 16rpx;
+        }
+ 
+        // 极致精简：完全移除背景与边框，仅保留图标锚点与弱化文字
+        .tag-base {
+          padding: 0;
+          background: transparent !important;
+          border: none !important;
+          font-size: 22rpx; // 稍微增大标签字号
+          font-weight: var(--weight-medium);
+          font-family: var(--font-sans);
           display: flex;
           align-items: center;
           gap: 8rpx;
         }
-
+ 
         .fav-tag {
-          background-color: #fef9c3;
-          border-radius: var(--radius-xs);
-          padding: 6rpx 14rpx;
-          border: 1rpx solid #fef08a;
-
-          text { 
-            font-size: 20rpx; 
-            font-weight: var(--weight-bold); 
-            color: #854d0e; 
-          }
+          @extend .tag-base;
+          color: var(--color-warn);
+          text { opacity: 0.8; }
         }
-
+ 
         .vocab-tag-count {
-          background-color: #f0fdf4;
-          border-radius: var(--radius-xs);
-          padding: 6rpx 14rpx;
-          border: 1rpx solid #dcfce7;
-          
-          text { 
-            font-size: 20rpx; 
-            font-weight: var(--weight-bold); 
-            color: #166534; 
-          }
+          @extend .tag-base;
+          color: var(--color-grammar);
+          text { opacity: 0.8; }
         }
-
+ 
         .processing-tag {
-          background-color: #f0f9ff;
-          border-radius: var(--radius-xs);
-          padding: 6rpx 14rpx;
-          border: 1rpx solid #e0f2fe;
-          text { font-size: 20rpx; font-weight: var(--weight-bold); color: #0369a1; }
+          @extend .tag-base;
+          color: var(--color-info);
+          text { opacity: 0.8; }
         }
-
+ 
         .failed-tag {
-          background-color: #fef2f2;
-          border-radius: var(--radius-xs);
-          padding: 6rpx 14rpx;
-          border: 1rpx solid #fee2e2;
-          text { font-size: 20rpx; font-weight: var(--weight-bold); color: #b91c1c; }
+          @extend .tag-base;
+          color: var(--color-exam);
+          text { opacity: 0.8; }
         }
-
+ 
         .config-tag {
-          font-size: 20rpx;
-          background-color: var(--color-bg);
+          @extend .tag-base;
           color: var(--text-muted);
-          padding: 6rpx 16rpx;
-          border-radius: var(--radius-xs);
-          border: 1rpx solid var(--border-color);
-          font-weight: var(--weight-medium);
+          opacity: 0.6;
+          // 增加一个小圆点作为分隔符的感觉
+          &::before {
+            content: '•';
+            font-size: 16rpx;
+            opacity: 0.5;
+          }
         }
       }
     }
   }
-
+ 
   .empty-state {
     padding-top: 200rpx;
     display: flex;

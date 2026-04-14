@@ -11,6 +11,7 @@ import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import { useLayoutStore } from '../../stores/layout'
 import { getSafeDisplayLabel } from '../../config/purpose'
+import LucideIcon from '../../components/LucideIcon'
 import './index.scss'
 
 /** 格式化日期 */
@@ -213,36 +214,40 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
                 <View className='card-header'>
                   <Text className='item-title'>{getDisplayTitle(record)}</Text>
                   <View className='delete-btn' onClick={(e) => handleDelete(record, e)}>
-                    <Text className='delete-icon'>×</Text>
+                    <LucideIcon name='trash2' size={16} color='var(--text-muted)' />
                   </View>
                 </View>
                 <View className='card-footer'>
-                  <Text className='date-text'>{formatDate(record.createdAt)}</Text>
                   <View className='tag-row'>
                     {record.isFavorited && (
                       <View className='fav-tag'>
-                        <Text>★ 已收藏</Text>
+                        <LucideIcon name='star' size={10} color='var(--color-warn)' />
+                        <Text>已收藏</Text>
                       </View>
                     )}
                     {record.vocabCount && record.vocabCount > 0 ? (
                       <View className='vocab-tag-count'>
-                        <Text>📚 {record.vocabCount} 生词</Text>
+                        <LucideIcon name='book' size={10} color='var(--color-grammar)' />
+                        <Text>{record.vocabCount} 生词</Text>
                       </View>
                     ) : null}
                     {record.pageState === 'loading' && (
                       <View className='processing-tag'>
-                        <Text>⌛ 处理中</Text>
+                        <LucideIcon name='clock' size={10} color='var(--color-info)' />
+                        <Text>处理中</Text>
                       </View>
                     )}
                     {(record.pageState === 'failed' || record.pageState === 'timeout' || record.pageState === 'network_fail') && (
                       <View className='failed-tag'>
-                        <Text>❌ 解析失败</Text>
+                        <LucideIcon name='alertCircle' size={10} color='var(--color-exam)' />
+                        <Text>解析失败</Text>
                       </View>
                     )}
-                    <Text className='config-tag'>
-                      {getSafeDisplayLabel(record.requestPayload.reading_goal, record.requestPayload.reading_variant)}
-                    </Text>
+                    <View className='config-tag'>
+                      <Text>{getSafeDisplayLabel(record.requestPayload.reading_goal, record.requestPayload.reading_variant)}</Text>
+                    </View>
                   </View>
+                  <Text className='date-text'>{formatDate(record.createdAt)}</Text>
                 </View>
               </View>
             ))
