@@ -13,7 +13,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.services.auth.session import SessionInfo, validate_session
 
-__all__ = ["get_current_user", "AuthUser", "AuthUserDep"]
+__all__ = ["get_current_user", "get_optional_user", "AuthUser", "AuthUserDep", "OptionalAuthUserDep"]
 
 security = HTTPBearer(auto_error=False)
 
@@ -59,5 +59,26 @@ async def get_current_user(
     )
 
 
+async def get_optional_user(
+    authorization: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+) -> AuthUser | None:
+    """
+    FastAPI Depends：可选的当前用户解析。
+    如果不带 token，返回 None；如果带了无效 token，仍然抛 401。
+    """
+    if authorization is None or not authorization.credentials:
+        return None
+
+    session_info: SessionInfo | None = await validate_session(authorization.credentials)
+    if session_info is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired session") from None
+
+    return AuthUser(
+        user_id=str(session_info.user_id),
+        session_id=str(session_info.session_id),
+    )
+
+
 # 类型别名，方便 route 使用
 AuthUserDep = Annotated[AuthUser, Depends(get_current_user)]
+OptionalAuthUserDep = Annotated[AuthUser | None, Depends(get_optional_user)]

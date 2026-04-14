@@ -1,28 +1,58 @@
-import { PropsWithChildren, useEffect } from 'react'
+import { PropsWithChildren, useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { useAuthStore } from './stores/auth'
 import { useArticleStore } from './stores/article'
 import { CloudSyncService } from './services/cloudSync.service'
+import { ensureLoggedIn } from './services/auth'
 import { getFavorites, getVocabulary } from './services/storage'
+import LoginGuideModal from './components/LoginGuideModal'
 import './app.scss'
 
 const INTERRUPTED_STATE_KEY = 'analysis_interrupted'
+const GUEST_DISMISSED_KEY = 'guest_dismissed'
 
 function App({ children }: PropsWithChildren<any>) {
+  const [showLoginGuide, setShowLoginGuide] = useState(false)
+
   // 启动时恢复认证状态
   useEffect(() => {
     const restoreState = async () => {
       await useAuthStore.getState().restore()
       if ((Taro as any)._navigatingToOnboarding) return
       ;(Taro as any)._navigatingToOnboarding = true
-      // restore 完成后检查是否首次登录（已登录但未设置过用户配置）→ 跳转 onboarding
+
       const { isLoggedIn } = useAuthStore.getState()
+
       if (isLoggedIn && !Taro.getStorageSync('user_configured')) {
+        // 已登录但未设置过用户配置 → 跳转 onboarding
         Taro.navigateTo({ url: '/pages/onboarding/index' })
+      } else if (!isLoggedIn) {
+        // 未登录：检查是否已选择过游客模式（当天不重复弹窗）
+        const dismissed = Taro.getStorageSync(GUEST_DISMISSED_KEY)
+        const today = new Date().toDateString()
+        if (dismissed !== today) {
+          setShowLoginGuide(true)
+        }
       }
     }
     restoreState()
   }, [])
+
+  const handleLogin = async () => {
+    setShowLoginGuide(false)
+    // LoginGuideModal 已提供确认 UI，跳过 ensureLoggedIn 中的重复弹窗
+    const result = await ensureLoggedIn(true)
+    if (result.success && result.isFirstLogin) {
+      // 首次登录 → 跳转到 Profile 引导填写头像昵称
+      Taro.navigateTo({ url: '/pages/profile/index' })
+    }
+  }
+
+  const handleGuestDismiss = () => {
+    // 记录当天已选择游客模式，明天再弹
+    Taro.setStorageSync(GUEST_DISMISSED_KEY, new Date().toDateString())
+    setShowLoginGuide(false)
+  }
 
   // 处理小程序切前台/后台事件
   useEffect(() => {
@@ -82,7 +112,16 @@ function App({ children }: PropsWithChildren<any>) {
     }
   }, [])
 
-  return children
+  return (
+    <>
+      {children}
+      <LoginGuideModal
+        visible={showLoginGuide}
+        onClose={handleGuestDismiss}
+        onLogin={handleLogin}
+      />
+    </>
+  )
 }
 
 export default App

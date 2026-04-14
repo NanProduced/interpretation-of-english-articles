@@ -7,14 +7,14 @@
 
 import { View, Text, ScrollView, Image, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useConfigStore } from '../../stores/config'
 import { useAuthStore } from '../../stores/auth'
 import { ensureLoggedIn } from '../../services/auth'
 import { getAllRecords, getVocabulary } from '../../services/storage'
 import { fetchCloudRecords } from '../../services/api/records.client'
 import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
-import { fetchUserQuota } from '../../services/api/client'
+import { fetchUserQuota, updateProfile } from '../../services/api/client'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
@@ -34,6 +34,8 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const [wordCount, setWordCount] = useState(0)
   const [quota, setQuota] = useState<{ remaining: number, dailyFree: number } | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
+  // 昵称更新防抖定时器
+  const nicknameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /**
    * 加载统计数据。
@@ -111,11 +113,23 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const onChooseAvatar = (e: any) => {
     const { avatarUrl } = e.detail
     updateUserInfo({ avatar_url: avatarUrl })
+    updateProfile({ avatar_url: avatarUrl }).catch(() => {
+      Taro.showToast({ title: '头像保存失败', icon: 'error' })
+    })
   }
 
   const onNicknameChange = (e: any) => {
     const nickname = e.detail.value
     updateUserInfo({ nickname })
+    // 防抖：300ms 内只发送最后一次
+    if (nicknameTimerRef.current !== null) {
+      clearTimeout(nicknameTimerRef.current)
+    }
+    nicknameTimerRef.current = setTimeout(() => {
+      updateProfile({ nickname }).catch(() => {
+        Taro.showToast({ title: '昵称保存失败', icon: 'error' })
+      })
+    }, 300)
   }
 
   const menuGroups = [
@@ -180,15 +194,21 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
           <View className='user-info'>
             {isLoggedIn ? (
-              <Input
-                className='nickname-input'
-                type='nickname'
-                value={userInfo?.nickname || ''}
-                placeholder='设置昵称'
-                maxlength={20}
-                onBlur={onNicknameChange}
-                onConfirm={onNicknameChange}
-              />
+              <View className='nickname-wrapper'>
+                <Input
+                  className='nickname-input'
+                  type='nickname'
+                  value={userInfo?.nickname || ''}
+                  placeholder='点击设置昵称'
+                  placeholderStyle='color: #a1a1aa; font-weight: 500;'
+                  maxlength={20}
+                  onBlur={onNicknameChange}
+                  onConfirm={onNicknameChange}
+                />
+                <View className='edit-icon-box'>
+                  <LucideIcon name='pencil' size={14} color='currentColor' />
+                </View>
+              </View>
             ) : (
               <Text className='nickname' onClick={handleLogin}>点击登录微信</Text>
             )}

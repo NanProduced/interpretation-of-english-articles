@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
+import { useAuthStore } from '../../stores/auth'
+import { ensureLoggedIn } from '../../services/auth'
 import './index.scss'
+
+const ANONYMOUS_DAILY_TRIAL_LIMIT = 3
 
 function HomeView({ placeholders }: { placeholders: string[] }) {
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
+  const { navBarHeight } = useLayoutStore()
+  const { isLoggedIn, userInfo } = useAuthStore()
+
+  // 匿名用户试用 banner 状态
+  const [guestTrials, setGuestTrials] = useState<number | null>(null)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -17,6 +26,26 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
 
     return () => clearInterval(timer)
   }, [placeholders.length])
+
+  // 获取匿名用户剩余试用次数
+  useEffect(() => {
+    if (isLoggedIn) return
+    const anonymousId = Taro.getStorageSync('anonymous_id') as string | undefined
+    if (!anonymousId) return
+
+    Taro.request({
+      url: `${process.env.TARO_APP_API_BASE || 'http://localhost:8000'}/api/me/quota/anonymous`,
+      method: 'GET',
+      data: { anonymous_id: anonymousId },
+      header: { 'Content-Type': 'application/json' },
+    })
+      .then((res) => {
+        if (res.statusCode === 200 && res.data) {
+          setGuestTrials(res.data.remaining_trials)
+        }
+      })
+      .catch(() => {})
+  }, [isLoggedIn])
 
   const getGreetingConfig = () => {
     const hour = new Date().getHours()
@@ -36,6 +65,49 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
   }
 
   const greeting = getGreetingConfig()
+
+  // 渲染右上角头像/用户图标
+  const renderAvatar = () => {
+    if (isLoggedIn) {
+      const avatarUrl = userInfo?.avatar_url
+      const nickname = userInfo?.nickname || ''
+      const initial = nickname ? nickname.charAt(0).toUpperCase() : 'U'
+
+      if (avatarUrl) {
+        return (
+          <Image
+            className='user-avatar-img'
+            src={avatarUrl}
+            mode='aspectFill'
+            onClick={() => Taro.navigateTo({ url: '/pages/profile/index' })}
+          />
+        )
+      }
+      return (
+        <View
+          className='user-avatar logged'
+          onClick={() => Taro.navigateTo({ url: '/pages/profile/index' })}
+        >
+          <Text className='avatar-initial'>{initial}</Text>
+        </View>
+      )
+    }
+
+    // 未登录：显示游客图标
+    return (
+      <View
+        className='user-avatar guest'
+        onClick={async () => {
+          const result = await ensureLoggedIn()
+          if (result.success && result.isFirstLogin) {
+            Taro.navigateTo({ url: '/pages/profile/index' })
+          }
+        }}
+      >
+        <Text className='avatar-guest-icon'>U</Text>
+      </View>
+    )
+  }
 
   const recommendations = [
     {
@@ -68,64 +140,87 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
   ]
 
   return (
-    <ScrollView scrollY className='recommendation-list' enhanced showScrollbar={false}>
-      <View className='header-section'>
-        <View className='greeting-row'>
-          <Text className='greeting'>{greeting.main}</Text>
-          <View className='user-avatar' />
-        </View>
-        <Text className='sub-greeting'>{greeting.sub}</Text>
-      </View>
+    <View className='home-page'>
+      <NavBar title='Claread透读' />
+      <View className='nav-placeholder' style={{ height: `${navBarHeight}px` }} />
+      <View className='recommendation-list'>
 
-      <View className='light-portal' onClick={() => Taro.navigateTo({ url: '/pages/input/index' })}>
-        <View className='portal-inner'>
-          <View className='portal-text-area'>
-            <Text className='portal-label'>输入文本</Text>
-            <View className='placeholder-wrapper'>
-              <Text className='well-placeholder' key={placeholderIndex}>
-                {placeholders[placeholderIndex]}
-              </Text>
-              <View className='typing-cursor' />
-            </View>
+        {/* 游客试用 Banner */}
+        {!isLoggedIn && guestTrials !== null && (
+          <View
+            className='guest-banner'
+            onClick={async () => {
+              const result = await ensureLoggedIn()
+              if (result.success && result.isFirstLogin) {
+                Taro.navigateTo({ url: '/pages/profile/index' })
+              }
+            }}
+          >
+            <View className='guest-banner-dot' />
+            <Text className='guest-banner-text'>
+              剩余 {guestTrials} 次试用
+              <Text className='guest-banner-link'> · 登录解锁更多</Text>
+            </Text>
           </View>
-          <View className='portal-action-btn'>
-            <LucideIcon name='plus' size={24} color='#fff' />
+        )}
+
+        <View className='header-section'>
+          <View className='greeting-row'>
+            <Text className='greeting'>{greeting.main}</Text>
+            {renderAvatar()}
           </View>
+          <Text className='sub-greeting'>{greeting.sub}</Text>
         </View>
-      </View>
 
-      <View className='section-header'>
-        <Text className='section-title'>每日精选</Text>
-        <Text className='section-more'>更多</Text>
-      </View>
-
-      <View className='feed-content'>
-        {recommendations.map((item) => (
-          <View key={item.id} className='feed-card'>
-            <View className='card-cover-box'>
-              <View className='card-cover' style={{ backgroundImage: `url(${item.cover})` }} />
-              <View className='card-badge'>{item.difficulty}</View>
-            </View>
-            <View className='card-info'>
-              <Text className='item-title'>{item.title}</Text>
-              <View className='item-meta'>
-                <Text className='meta-text'>{item.source}</Text>
-                <View className='meta-dot' />
-                <Text className='meta-text'>{item.readTime}</Text>
+        <View className='light-portal' onClick={() => Taro.navigateTo({ url: '/pages/input/index' })}>
+          <View className='portal-inner'>
+            <View className='portal-text-area'>
+              <Text className='portal-label'>输入文本</Text>
+              <View className='placeholder-wrapper'>
+                <Text className='well-placeholder' key={placeholderIndex}>
+                  {placeholders[placeholderIndex]}
+                </Text>
+                <View className='typing-cursor' />
               </View>
             </View>
+            <View className='portal-action-btn'>
+              <LucideIcon name='plus' size={24} color='#fff' />
+            </View>
           </View>
-        ))}
-      </View>
+        </View>
 
-      <View className='list-footer' />
-    </ScrollView>
+        <View className='section-header'>
+          <Text className='section-title'>每日精选</Text>
+          <Text className='section-more'>更多</Text>
+        </View>
+
+        <View className='feed-content'>
+          {recommendations.map((item) => (
+            <View key={item.id} className='feed-card'>
+              <View className='card-cover-box'>
+                <View className='card-cover' style={{ backgroundImage: `url(${item.cover})` }} />
+                <View className='card-badge'>{item.difficulty}</View>
+              </View>
+              <View className='card-info'>
+                <Text className='item-title'>{item.title}</Text>
+                <View className='item-meta'>
+                  <Text className='meta-text'>{item.source}</Text>
+                  <View className='meta-dot' />
+                  <Text className='meta-text'>{item.readTime}</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View className='list-footer' />
+      </View>
+      <TabBar current='home' />
+    </View>
   )
 }
 
 export default function Home() {
-  const { navBarHeight } = useLayoutStore()
-
   const placeholders = [
     '粘贴一段《经济学人》社论...',
     '粘贴你的 GRE 阅读真题...',
@@ -133,12 +228,5 @@ export default function Home() {
     '粘贴今日份的纽约时报摘要...',
   ]
 
-  return (
-    <View className='home-page'>
-      <NavBar title='Claread透读' />
-      <View className='nav-placeholder' style={{ height: `${navBarHeight}px` }} />
-      <HomeView placeholders={placeholders} />
-      <TabBar current='home' />
-    </View>
-  )
+  return <HomeView placeholders={placeholders} />
 }

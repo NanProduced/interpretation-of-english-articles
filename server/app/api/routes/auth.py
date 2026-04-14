@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from logging import getLogger
+from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -34,6 +35,12 @@ class LogoutRequest(BaseModel):
     session_token: str = Field(min_length=1)
 
 
+class ProfileUpdateRequest(BaseModel):
+    """更新用户资料请求"""
+    nickname: str | None = Field(default=None, max_length=50)
+    avatar_url: str | None = Field(default=None, max_length=500)
+
+
 @router.post("/wechat/login")
 async def wechat_login(
     request: Request,
@@ -45,7 +52,7 @@ async def wechat_login(
     流程：
     1. 校验 code
     2. 调用微信 code2Session 获取 openid
-    3. 查找或创建用户
+    3. 查找或创建用户（新建用户时会生成默认昵称 Claread_xxxx）
     4. 创建业务 session
     5. 返回 session_token
     """
@@ -117,11 +124,66 @@ async def get_current_session_info(
     current_user: AuthUserDep,
 ) -> dict:
     """
-    获取当前登录用户信息（调试/测试用）。
+    获取当前登录用户信息。
 
     需要带有效的 Authorization: Bearer <session_token> header。
+    返回 user_id、session_id、nickname（display_name）、avatar_url。
     """
+    from app.database import connection as db_connection
+
+    if db_connection.DB_POOL is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    async with db_connection.DB_POOL.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, display_name, avatar_url FROM users WHERE id = $1",
+            PyUUID(current_user.user_id),
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
     return {
         "user_id": current_user.user_id,
         "session_id": current_user.session_id,
+        "nickname": row["display_name"] or "",
+        "avatar_url": row["avatar_url"] or "",
     }
+
+
+@router.patch("/profile")
+async def update_profile(
+    current_user: AuthUserDep,
+    body: ProfileUpdateRequest,
+) -> dict:
+    """
+    更新当前用户的昵称和头像。
+
+    nickname 和 avatar_url 至少传一个。
+    """
+    from app.database import connection as db_connection
+
+    if db_connection.DB_POOL is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    updates: dict[str, str] = {}
+    if body.nickname is not None:
+        updates["display_name"] = body.nickname
+    if body.avatar_url is not None:
+        updates["avatar_url"] = body.avatar_url
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    set_clauses = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates.keys()))
+    values = list(updates.values())
+
+    async with db_connection.DB_POOL.acquire() as conn:
+        await conn.execute(
+            f"UPDATE users SET {set_clauses} WHERE id = $1",
+            PyUUID(current_user.user_id),
+            *values,
+        )
+
+    logger.info("profile updated for user %s: %s", current_user.user_id, list(updates.keys()))
+
+    return {"ok": True, "updated": list(updates.keys())}

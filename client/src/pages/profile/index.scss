@@ -70,13 +70,36 @@
         font-family: var(--font-serif);
       }
 
-      .nickname-input {
-        font-size: 40rpx;
-        font-weight: 700;
-        color: var(--color-ink);
-        height: 60rpx;
-        width: 100%;
-        font-family: var(--font-serif);
+      .nickname-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 16rpx;
+
+        .nickname-input {
+          font-size: 40rpx;
+          font-weight: 700;
+          color: var(--color-ink);
+          height: 60rpx;
+          width: auto;
+          max-width: 320rpx;
+          font-family: var(--font-serif);
+        }
+
+        .edit-icon-box {
+          width: 44rpx;
+          height: 44rpx;
+          border-radius: 50%;
+          background: #f4f4f5;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #a1a1aa;
+          transition: background-color 0.2s ease;
+
+          &:active {
+            background: #e4e4e7;
+          }
+        }
       }
 
       .stats-row {

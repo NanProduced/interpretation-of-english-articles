@@ -33,12 +33,73 @@
           width: 64rpx;
           height: 64rpx;
           border-radius: 50%;
-          background-color: var(--color-card-blue);
           border: 1rpx solid var(--border-color);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+
+          &.logged {
+            background-color: var(--color-card-blue);
+          }
+
+          &.guest {
+            background-color: var(--orange-bg);
+          }
+
+          .avatar-initial {
+            font-size: 28rpx;
+            font-weight: var(--weight-bold);
+            color: #fff;
+          }
+
+          .avatar-guest-icon {
+            font-size: 28rpx;
+            font-weight: var(--weight-bold);
+            color: var(--orange-text);
+          }
+        }
+
+        .user-avatar-img {
+          width: 64rpx;
+          height: 64rpx;
+          border-radius: 50%;
+          border: 1rpx solid var(--border-color);
+          overflow: hidden;
         }
       }
 
-      .sub-greeting {
+      .guest-banner {
+  margin: 0 40rpx 24rpx;
+  background: #FFF7ED;
+  border: 1rpx solid #FED7AA;
+  border-radius: var(--radius-md);
+  padding: 20rpx 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+
+  .guest-banner-dot {
+    width: 12rpx;
+    height: 12rpx;
+    border-radius: 50%;
+    background: #F97316;
+    flex-shrink: 0;
+  }
+
+  .guest-banner-text {
+    font-size: var(--text-sm);
+    color: #92400E;
+    font-weight: var(--weight-medium);
+  }
+
+  .guest-banner-link {
+    color: #15803D;
+    font-weight: var(--weight-semibold);
+  }
+}
+
+.sub-greeting {
         font-size: 28rpx;
         color: var(--text-sub);
         font-weight: var(--weight-medium);

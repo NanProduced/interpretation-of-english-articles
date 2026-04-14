@@ -35,6 +35,7 @@ VOCABULARY_INSTRUCTIONS = """
 - context_gloss：词在当前语境下的意思和常见义不同，需要专门说明
 
 如果同一个词同时适合多种标注，只选最合适的一种。
+输出前必须回查：你标注的每个 text 字段，是否能在原句中逐字找到？如果找不到，删除该标注。
 """.strip()
 
 def build_vocabulary_prompt(deps: VocabularyAgentDeps) -> str:

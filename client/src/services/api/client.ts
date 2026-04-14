@@ -157,6 +157,20 @@ export async function fetchSessionLogout(sessionToken: string): Promise<void> {
   })
 }
 
+interface ProfileUpdateRequest {
+  nickname?: string
+  avatar_url?: string
+}
+
+/** 更新用户资料（昵称、头像） */
+export async function updateProfile(data: ProfileUpdateRequest): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>({
+    url: '/auth/profile',
+    method: 'PATCH',
+    data,
+  })
+}
+
 // ============ /analysis-tasks API ============
 
 export type TaskStatus = 'queued' | 'running' | 'finalizing' | 'succeeded' | 'failed' | 'cancelled' | 'expired'
@@ -228,6 +242,34 @@ export async function fetchUserQuota(): Promise<QuotaResponse> {
   return request<QuotaResponse>({
     url: '/me/quota',
     method: 'GET',
+  })
+}
+
+export interface AnonymousQuotaResponse {
+  remaining_trials: number
+  max_trials_per_day: number
+  reset_at: string
+}
+
+export async function fetchAnonymousQuota(anonymousId: string): Promise<AnonymousQuotaResponse> {
+  return request<AnonymousQuotaResponse>({
+    url: '/me/quota/anonymous',
+    method: 'GET',
+    data: { anonymous_id: anonymousId },
+  })
+}
+
+export interface QuotaCheckResponse {
+  allowed: boolean
+  remaining_trials?: number
+  reason?: string
+}
+
+export async function checkAnonymousQuota(anonymousId: string): Promise<QuotaCheckResponse> {
+  return request<QuotaCheckResponse>({
+    url: '/quota/check',
+    method: 'POST',
+    data: { anonymous_id: anonymousId },
   })
 }
 

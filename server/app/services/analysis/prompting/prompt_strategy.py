@@ -120,7 +120,7 @@ def _build_vocabulary_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
         if plan.variant_id == "beginner_reading":
             return (
                 '用户是英语初学者，他们最需要的是：看懂文章 + 学到日常能用的表达。',
-                '标词策略：对初学者来说可能不认识的词都标出来。但释义要直白——直接给中文意思，不要展开词源或辨析。',
+                '标词策略：不要标太简单的常见词（如 social, normal, drop, third 等），这些词初学者大概率认识，优先标真正影响理解的词。但释义要直白——直接给中文意思，不要展开词源或辨析。',
                 'phrase_gloss 是重点：短语和搭配是初学者最想学的东西。遇到短语动词、日常搭配，优先用 phrase_gloss 标注。',
                 '释义中可以给一个简单的日常例句，让用户觉得学完就能用。',
             )
@@ -186,7 +186,7 @@ def _build_translation_policy_lines(plan: GoalExecutionPlan) -> tuple[str, ...]:
     elif style == "nuanced_aesthetic":
         return (
             '用户基本能自主理解原文，翻译的价值在于揭示微妙含义和修辞效果。',
-            '在准确还原逻辑的基础上，尽量体现原文的语气和修辞选择。对关键表达可附加注释说明隐含义或修辞手法。',
+            '在准确传达原文意思的基础上，追求中文表达的文学性和节奏感。对关键词保留英文原文并附注释，帮助读者对照原文品味用词。',
         )
 
     return ()

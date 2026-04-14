@@ -1,9 +1,12 @@
+import Taro from '@tarojs/taro'
 import { create } from 'zustand'
 import {
   AnalyzeRequest,
   submitAnalysisTask,
+  fetchAnalyze,
   getTaskStatus,
   getCurrentTask,
+  checkAnonymousQuota,
   ApiError,
 } from '../services/api/client'
 import { fetchCloudRecord, fetchCloudRecordByClientId } from '../services/api/records.client'
@@ -181,11 +184,68 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         isReplayMode: false,
       })
 
+      // 匿名用户：先消耗试用次数（POST /quota/check 会在后端累加计数）
+      if (!useAuthStore.getState().isLoggedIn) {
+        const anonymousId = Taro.getStorageSync('anonymous_id') as string | undefined
+        if (anonymousId) {
+          try {
+            const quotaResult = await checkAnonymousQuota(anonymousId)
+            if (!quotaResult.allowed) {
+              set({
+                phase: 'error',
+                error: '今日试用次数已用完，请登录后继续使用',
+                errorCode: 'GUEST_QUOTA_EXCEEDED',
+                pageState: 'failed',
+              })
+              return
+            }
+          } catch {
+            // 网络错误时静默放行，不阻塞用户体验
+          }
+        }
+      }
+
       const clientRecordId = `task-${generateLocalRecordId()}`
       let taskId = ''
       let serverRecordId = ''
 
       try {
+        if (!useAuthStore.getState().isLoggedIn) {
+          const res = await fetchAnalyze(normalizedRequest)
+          const vm = analyzeResponseDtoToVm(res)
+          const phase = isEmptyResult(vm) ? 'empty' : 'success'
+          let pageState = derivePageState(phase, null, vm)
+          if (pageState === 'loading' && phase === 'success') {
+            pageState = 'normal'
+          }
+          
+          const localRecord: AnalysisRecord = {
+            recordId: clientRecordId,
+            title: deriveFallbackTitle(normalizedRequest.text),
+            sourceText: normalizedRequest.text,
+            requestPayload: {
+              reading_goal: normalizedRequest.reading_goal,
+              reading_variant: normalizedRequest.reading_variant,
+              source_type: normalizedRequest.source_type,
+            },
+            renderScene: vm,
+            pageState,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            isFavorited: false,
+          }
+          saveRecord(localRecord)
+          track('analyze_success', { pageState })
+          set({
+            sceneData: vm,
+            phase,
+            pageState,
+            recordId: clientRecordId,
+            cloudId: null,
+          })
+          return
+        }
+
         const res = await submitAnalysisTask({
           ...normalizedRequest,
           wait_for_result: true,

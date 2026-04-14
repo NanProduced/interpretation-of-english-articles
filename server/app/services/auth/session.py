@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
 import secrets
+import string
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -16,6 +18,12 @@ from uuid import UUID
 
 from app.config.settings import get_settings
 from app.database import connection as db_connection
+
+
+def _generate_default_display_name() -> str:
+    """生成默认昵称 Claread_xxxx"""
+    suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
+    return f"Claread_{suffix}"
 
 
 def _stable_lock_key(openid: str) -> int:
@@ -86,14 +94,15 @@ async def get_or_create_user_by_wechat(
         if row is not None:
             return row["user_id"]  # type: ignore[no-any-return]
 
-        # 创建新用户
+        # 创建新用户（注册时生成默认昵称 Claread_xxxx）
+        default_name = _generate_default_display_name()
         user_id: UUID = await conn.fetchval(
             """
             INSERT INTO users (display_name, metadata_json)
             VALUES ($1, '{}'::jsonb)
             RETURNING id
             """,
-            f"User_{openid[:8]}",
+            default_name,
         )
 
         # 创建 identity（已持有锁，unique constraint 只起兜底作用）
