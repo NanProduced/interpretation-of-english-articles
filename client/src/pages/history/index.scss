@@ -10,14 +10,51 @@
 
   .filter-tabs {
     display: flex;
-    gap: 16rpx;
-    margin-bottom: 24rpx;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32rpx;
     padding: 32rpx 48rpx 0;
+    width: 100%;
+    box-sizing: border-box;
+
+    .tabs-main {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 12rpx;
+      flex-shrink: 0;
+    }
+
+    .manage-btn {
+      padding: 12rpx 36rpx;
+      background: rgba(0, 0, 0, 0.02);
+      border-radius: 100rpx;
+      border: 1rpx solid transparent;
+      transition: all 0.3s var(--ease-spring);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      
+      text {
+        font-size: 24rpx;
+        color: var(--text-muted);
+        font-weight: var(--weight-medium);
+      }
+
+      &.active {
+        background: rgba(0, 0, 0, 0.06);
+        border-color: rgba(0, 0, 0, 0.05); // 增加一个极淡的边框确认感
+        text { color: var(--color-ink); font-weight: var(--weight-bold); }
+      }
+      
+      &:active { transform: scale(0.94); opacity: 0.8; }
+    }
   }
  
   .filter-tab {
-    padding: 10rpx 36rpx;
-    border-radius: 100rpx; // 胶囊型
+    padding: 12rpx 40rpx;
+    border-radius: 100rpx;
     background: var(--color-white);
     border: 1rpx solid var(--border-color);
     transition: all 0.3s var(--ease-spring);
@@ -31,7 +68,7 @@
   }
  
   .filter-tab-label {
-    font-size: 26rpx;
+    font-size: 24rpx;
     font-weight: var(--weight-medium);
     color: var(--text-sub);
   }
@@ -43,8 +80,8 @@
     box-sizing: border-box;
 
     .history-section {
-      margin-top: 48rpx;
-      &:first-child { margin-top: 24rpx; }
+      margin-top: 56rpx;
+      &:first-child { margin-top: 32rpx; }
 
       .section-header {
         display: flex;
@@ -58,38 +95,116 @@
           height: 8rpx;
           border-radius: 50%;
           background-color: var(--color-ink);
-          opacity: 0.8;
+          opacity: 0.15;
         }
 
         .section-title {
-          font-size: 24rpx;
+          font-size: 22rpx;
           font-weight: var(--weight-bold);
           color: var(--color-ink);
-          letter-spacing: 0.1em;
+          letter-spacing: 0.12em;
           text-transform: uppercase;
+          opacity: 0.4;
+          font-family: var(--font-english-sans);
         }
 
         .section-line {
           flex: 1;
           height: 1rpx;
           background: linear-gradient(to right, var(--border-color), transparent);
+          opacity: 0.5;
         }
       }
     }
     
     .history-card {
       background-color: var(--color-white);
-      padding: 40rpx;
       border-radius: var(--radius-md);
       margin-bottom: 32rpx;
       box-shadow: var(--shadow-paper);
-      transition: all 0.3s var(--ease-spring);
-      position: relative;
+      transition: all 0.45s var(--ease-spring);
+      position: relative; // 必须有 position relative
       overflow: hidden;
+      display: flex;
+      align-items: stretch;
       
       &:active { 
-        transform: scale(0.98); 
-        background-color: var(--border-light);
+        transform: scale(0.995); 
+        background-color: #fafafa;
+      }
+
+      &.is-selected {
+        background-color: #f7f3e8; // 更深的复古纸张色，确保差异明显
+        transform: translateY(-6rpx) scale(1.002);
+        box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.08);
+        
+        &::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border: 4rpx solid var(--color-ink);
+          border-radius: var(--radius-md);
+          pointer-events: none;
+          opacity: 0.15; // 增强描边确认感
+        }
+      }
+
+      .card-checkbox {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 100rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        animation: fadeIn 0.3s ease-out;
+
+        .checkbox-inner {
+          width: 38rpx;
+          height: 38rpx;
+          border: 3rpx solid var(--border-color); // 加深默认边框，使其清晰可见
+          background-color: rgba(0, 0, 0, 0.02); // 增加底色暗示
+          border-radius: 50%;
+          transition: all 0.25s var(--ease-spring);
+          position: relative;
+
+          &.checked {
+            background-color: var(--color-ink);
+            border-color: var(--color-ink);
+            transform: scale(1.1);
+            
+            &::after {
+              content: '';
+              position: absolute;
+              left: 50%;
+              top: 45%;
+              width: 14rpx;
+              height: 7rpx;
+              border-left: 3rpx solid #fff;
+              border-bottom: 3rpx solid #fff;
+              transform: translate(-50%, -50%) rotate(-45deg);
+            }
+          }
+        }
+      }
+
+      .card-content {
+        flex: 1;
+        padding: 40rpx;
+        transition: all 0.4s var(--ease-spring);
+      }
+
+      &.is-selected .card-content {
+        // 选中态可以微调内边距，产生轻微收缩感
+      }
+
+      // 在管理模式下，卡片内容向右平移，为绝对定位的勾选框腾位
+      &.is-edit-mode-card {
+        .card-content {
+          padding-left: 100rpx;
+        }
       }
  
       .card-header {
@@ -101,12 +216,12 @@
  
         .item-title {
           flex: 1;
-          font-size: 36rpx; // 略微增大，增强成就感
+          font-size: 36rpx;
           font-weight: var(--weight-bold);
           color: var(--color-ink);
           font-family: var(--font-serif);
-          line-height: 1.35; // 标题行高稍紧，更有凝聚力
-          letter-spacing: var(--tracking-tight); // 紧缩字距，提升高级感
+          line-height: 1.35;
+          letter-spacing: var(--tracking-tight);
           overflow: hidden;
           text-overflow: ellipsis;
           display: -webkit-box;
@@ -121,7 +236,7 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          opacity: 0.12; // 极简，仅在需要时被注意到
+          opacity: 0.12;
           transition: all 0.2s ease;
           &:active { opacity: 0.8; transform: scale(0.9); }
           .delete-icon { font-size: 40rpx; color: var(--text-muted); line-height: 1; }
@@ -138,7 +253,7 @@
           color: var(--text-muted);
           font-family: var(--font-english-sans);
           font-weight: var(--weight-medium);
-          letter-spacing: 0.04em; // 日期适当拉开，更具仪式感
+          letter-spacing: 0.04em;
           text-transform: uppercase;
         }
  
@@ -149,12 +264,11 @@
           gap: 16rpx;
         }
  
-        // 极致精简：完全移除背景与边框，仅保留图标锚点与弱化文字
         .tag-base {
           padding: 0;
           background: transparent !important;
           border: none !important;
-          font-size: 22rpx; // 稍微增大标签字号
+          font-size: 22rpx;
           font-weight: var(--weight-medium);
           font-family: var(--font-sans);
           display: flex;
@@ -162,40 +276,20 @@
           gap: 8rpx;
         }
  
-        .fav-tag {
-          @extend .tag-base;
-          color: var(--color-warn);
-          text { opacity: 0.8; }
-        }
- 
-        .vocab-tag-count {
-          @extend .tag-base;
-          color: var(--color-grammar);
-          text { opacity: 0.8; }
-        }
- 
-        .processing-tag {
-          @extend .tag-base;
-          color: var(--color-info);
-          text { opacity: 0.8; }
-        }
- 
-        .failed-tag {
-          @extend .tag-base;
-          color: var(--color-exam);
-          text { opacity: 0.8; }
-        }
+        .fav-tag { color: var(--color-warn); font-size: 22rpx; font-weight: var(--weight-medium); display: flex; align-items: center; gap: 8rpx; text { opacity: 0.8; } }
+        .vocab-tag-count { color: var(--color-grammar); font-size: 22rpx; font-weight: var(--weight-medium); display: flex; align-items: center; gap: 8rpx; text { opacity: 0.8; } }
+        .processing-tag { color: var(--color-info); font-size: 22rpx; font-weight: var(--weight-medium); display: flex; align-items: center; gap: 8rpx; text { opacity: 0.8; } }
+        .failed-tag { color: var(--color-exam); font-size: 22rpx; font-weight: var(--weight-medium); display: flex; align-items: center; gap: 8rpx; text { opacity: 0.8; } }
  
         .config-tag {
-          @extend .tag-base;
           color: var(--text-muted);
+          font-size: 22rpx;
+          font-weight: var(--weight-medium);
+          display: flex;
+          align-items: center;
+          gap: 8rpx;
           opacity: 0.6;
-          // 增加一个小圆点作为分隔符的感觉
-          &::before {
-            content: '•';
-            font-size: 16rpx;
-            opacity: 0.5;
-          }
+          &::before { content: '•'; font-size: 16rpx; opacity: 0.5; margin-right: 4rpx; }
         }
       }
     }
@@ -211,4 +305,72 @@
     .empty-action { padding: 12rpx 24rpx; background: var(--color-bg); border: 1rpx solid var(--border-color); border-radius: 16rpx; }
     .empty-sub { font-size: 26rpx; color: var(--text-sub); }
   }
+
+  /* 批量操作工具栏 */
+  .batch-action-bar {
+    position: fixed;
+    bottom: calc(160rpx + env(safe-area-inset-bottom));
+    left: 48rpx;
+    right: 48rpx;
+    height: 116rpx;
+    background: #ffffff;
+    border-radius: 100rpx;
+    box-shadow: 0 40rpx 100rpx rgba(0, 0, 0, 0.15); // 加强阴影使其真正平铺于页面之上
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48rpx;
+    z-index: 1000;
+    animation: batchBarReveal 0.5s var(--ease-spring);
+    border: 1rpx solid rgba(0, 0, 0, 0.04);
+    outline: 1rpx solid rgba(255, 255, 255, 0.8); // 增加一个极其微妙的高光轮廓
+
+    .action-info {
+      .selected-count {
+        font-size: 26rpx;
+        font-weight: var(--weight-bold);
+        color: var(--color-ink);
+        letter-spacing: 0.02em;
+      }
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 16rpx;
+
+      .action-btn {
+        display: flex;
+        align-items: center;
+        gap: 12rpx;
+        padding: 16rpx 36rpx;
+        border-radius: 100rpx;
+        background: var(--color-bg);
+        transition: all 0.2s ease;
+
+        text {
+          font-size: 24rpx;
+          font-weight: var(--weight-bold);
+        }
+
+        &.delete {
+          color: var(--color-exam);
+          background: rgba(190, 18, 60, 0.03);
+          border: 1rpx solid rgba(190, 18, 60, 0.08);
+        }
+
+        &.disabled {
+          opacity: 0.3;
+          filter: grayscale(1);
+          pointer-events: none;
+        }
+
+        &:active:not(.disabled) { transform: scale(0.94); opacity: 0.8; }
+      }
+    }
+  }
+
+@keyframes batchBarReveal {
+  from { transform: translateY(150rpx); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
 }
