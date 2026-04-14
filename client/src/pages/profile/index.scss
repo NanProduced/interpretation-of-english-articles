@@ -77,6 +77,23 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
+
+      .identity-tag {
+        margin-bottom: 12rpx;
+        align-self: flex-start;
+
+        .tag-text {
+          font-size: 18rpx;
+          color: var(--color-white);
+          background-color: var(--color-ink);
+          padding: 4rpx 14rpx;
+          border-radius: 6rpx;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          font-weight: var(--weight-bold);
+          box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.1);
+        }
+      }
       
       .nickname {
         display: block;
@@ -141,16 +158,19 @@
         justify-content: space-between;
         align-items: flex-start;
 
-        .badge {
-          font-size: 18rpx;
-          color: var(--color-ink);
-          background: var(--border-light);
-          padding: 4rpx 16rpx;
-          border-radius: 100rpx;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          font-weight: var(--weight-bold);
-          border: 1rpx solid rgba(0, 0, 0, 0.05);
+        .panel-label {
+          display: flex;
+          align-items: center;
+          gap: 10rpx;
+          opacity: 0.5;
+
+          .label-text {
+            font-size: 18rpx;
+            color: var(--color-ink);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: var(--weight-bold);
+          }
         }
 
         .total-preview {
@@ -232,73 +252,211 @@
       }
 
       .dashboard-footer {
-        padding: 32rpx 48rpx;
-        background: var(--border-light); 
+        padding: 32rpx 40rpx;
+        background: var(--border-light);
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        gap: 16rpx;
         border-top: 1rpx solid rgba(0, 0, 0, 0.02);
         position: relative;
         overflow: hidden;
 
+        &:active {
+          opacity: 0.7;
+          background: rgba(0, 0, 0, 0.05);
+        }
+
         .achievement-badge {
+          flex: 1;
+          min-width: 0;
           display: flex;
           align-items: center;
           gap: 20rpx;
 
           .medal-icon {
-            width: 56rpx;
-            height: 56rpx;
+            flex-shrink: 0;
+            width: 64rpx;
+            height: 64rpx;
             background: var(--color-white);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.03);
-            border: 2rpx solid; // 动态颜色由内联 style 提供
+            box-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.04);
+            border: 2rpx solid;
             animation: medalGlow 4s infinite ease-in-out;
-            transition: all 0.3s ease;
           }
 
           .text-group {
+            flex: 1;
+            min-width: 0;
             display: flex;
             flex-direction: column;
             gap: 2rpx;
 
             .history-label {
-              font-size: 18rpx;
-              font-weight: var(--weight-bold);
+              font-size: 16rpx;
+              font-weight: 800;
               color: var(--text-muted);
               text-transform: uppercase;
-              letter-spacing: 0.1em;
+              letter-spacing: 0.12em;
             }
 
-            .tier-text {
-              font-size: 24rpx;
-              font-weight: var(--weight-bold);
-              font-family: var(--font-english-sans);
+            .tier-row {
+              display: flex;
+              align-items: center;
+              gap: 8rpx;
+              
+              .tier-text {
+                font-size: 24rpx;
+                font-weight: 800;
+                font-family: var(--font-english-sans);
+                color: var(--color-ink);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+
+              .lv-tag {
+                font-size: 14rpx;
+                font-weight: 900;
+                padding: 2rpx 8rpx;
+                border-radius: 4rpx;
+                flex-shrink: 0;
+              }
             }
           }
         }
 
         .history-value-box {
+          text-align: right;
+          flex-shrink: 0;
+          padding-left: 20rpx;
+
           .history-value {
-            font-size: 40rpx;
-            font-weight: var(--weight-bold);
+            display: block;
+            font-size: 32rpx;
+            font-weight: 800;
             color: var(--color-ink);
             font-family: var(--font-serif);
             
             &::after {
               content: " Papers";
-              font-size: 18rpx;
+              font-size: 14rpx;
+              opacity: 0.3;
+              margin-left: 4rpx;
               font-family: var(--font-english-sans);
-              font-weight: var(--weight-medium);
-              opacity: 0.4;
-              margin-left: 8rpx;
               text-transform: uppercase;
             }
           }
         }
+
+        .click-indicator {
+          opacity: 0.15;
+          flex-shrink: 0;
+        }
+      }
+    }
+  }
+
+  .modal-config-wrapper {
+    padding: 20rpx 0;
+  }
+
+  .achievement-guide-content {
+    padding: 20rpx 40rpx 60rpx;
+
+    .guide-header {
+      margin-bottom: 48rpx;
+      .guide-title {
+        display: block;
+        font-size: 38rpx;
+        font-weight: 800;
+        color: var(--color-ink);
+        margin-bottom: 8rpx;
+        letter-spacing: -0.015em;
+      }
+      .guide-desc {
+        font-size: 24rpx;
+        color: var(--text-sub);
+        line-height: 1.6;
+      }
+    }
+
+    .tier-list {
+      display: flex;
+      flex-direction: column;
+      gap: 32rpx;
+      padding-bottom: 60rpx;
+
+      .tier-item {
+        display: flex;
+        align-items: center;
+        gap: 32rpx;
+        padding: 24rpx;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        border: 1rpx solid transparent;
+
+        &.current {
+          background-color: var(--color-bg);
+          border-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .tier-icon-box {
+          width: 80rpx;
+          height: 80rpx;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .tier-info {
+          flex: 1;
+          .tier-main {
+            display: flex;
+            align-items: center;
+            gap: 16rpx;
+            margin-bottom: 6rpx;
+
+            .tier-name {
+              font-size: 30rpx;
+              font-weight: 800;
+              color: var(--color-ink);
+              letter-spacing: -0.01em;
+            }
+            .tier-lv {
+              font-size: 20rpx;
+              font-weight: 800;
+              opacity: 0.4;
+            }
+          }
+          .tier-requirement {
+            font-size: 22rpx;
+            color: var(--text-muted);
+          }
+        }
+
+        .current-label {
+          font-size: 20rpx;
+          color: var(--color-success);
+          font-weight: 700;
+          background-color: #f0fdf4;
+          padding: 4rpx 12rpx;
+          border-radius: 4rpx;
+        }
+      }
+    }
+
+    .guide-footer {
+      margin-top: 64rpx;
+      text-align: center;
+      .footer-tips {
+        font-size: 20rpx;
+        color: var(--text-muted);
+        opacity: 0.5;
       }
     }
   }

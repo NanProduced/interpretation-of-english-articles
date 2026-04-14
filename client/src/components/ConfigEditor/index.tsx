@@ -81,7 +81,7 @@ export default function ConfigEditor({
                   onClick={() => handleGoalSelect(g)}
                 >
                   <View className='card-icon'>
-                    <LucideIcon name={config.icon as any} size={isDetailed ? 28 : 20} color={isSelected ? '#fff' : 'var(--text-main)'} />
+                    <LucideIcon name={config.icon as any} size={isDetailed ? 64 : 40} color={isSelected ? '#fff' : 'var(--text-main)'} />
                   </View>
                   <View className='card-content'>
                     <Text className='card-label'>{config.label}</Text>
@@ -101,8 +101,8 @@ export default function ConfigEditor({
         <View className='variants-container fade-in'>
           <View className='step-header'>
              <View className='back-btn' onClick={handleBack}>
-               <LucideIcon name='arrowLeft' size={20} color='var(--text-main)' />
-               {!isDetailed && <Text className='back-text'>返回</Text>}
+               <LucideIcon name='arrowLeft' size={40} color='var(--text-main)' />
+               <Text className='back-text'>返回</Text>
              </View>
              {isDetailed && (
                 <View className='header-text'>
@@ -130,7 +130,7 @@ export default function ConfigEditor({
                     )}
                   </View>
                   <View className='check-box'>
-                    {isSelected && <LucideIcon name='check' size={18} color='#fff' />}
+                    {isSelected && <LucideIcon name='check' size={28} color='#fff' strokeWidth={3} />}
                   </View>
                 </View>
               )

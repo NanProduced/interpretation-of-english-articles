@@ -18,9 +18,11 @@ import { fetchUserQuota, updateProfile } from '../../services/api/client'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
-import BottomSheetSelect from '../../components/BottomSheetSelect'
+import CenterModal from '../../components/CenterModal'
+import ConfigEditor from '../../components/ConfigEditor'
 import { useLayoutStore } from '../../stores/layout'
 import { getDisplayLabel, ReadingGoal } from '../../config/purpose'
+import { getReadingTier, getAllTiers } from '../../utils/achievement'
 import './index.scss'
 
 interface ProfilePageProps {
@@ -36,17 +38,9 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const [quota, setQuota] = useState<{ remaining: number, dailyFree: number, bonus: number } | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
   const [showModeSheet, setShowModeSheet] = useState(false)
+  const [showAchievementSheet, setShowAchievementSheet] = useState(false)
   
-  // 获取阅读等级头衔与勋章进化
-  const getReadingTier = (count: number) => {
-    if (count < 5) return { title: 'Newcomer', cnTitle: '新来者', icon: 'userRound', color: '#d4d4d8' }
-    if (count < 30) return { title: 'Explorer', cnTitle: '探索者', icon: 'award', color: '#a1a1aa' }
-    if (count < 80) return { title: 'Scholar', cnTitle: '学者', icon: 'bookOpen', color: '#1e293b' }
-    if (count < 120) return { title: 'Fellow', cnTitle: '研究员', icon: 'medal', color: '#B8860B' }
-    if (count < 300) return { title: 'Luminary', cnTitle: '先驱', icon: 'crown', color: '#be123c' }
-    return { title: 'Polymath', cnTitle: '通才', icon: 'gem', color: '#7c3aed' }
-  }
-  
+  const allTiers = getAllTiers()
   const tier = getReadingTier(articleCount)
   // 昵称更新防抖定时器
   const nicknameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -202,27 +196,32 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
               {userInfo?.avatar_url ? (
                 <Image className='avatar-img' src={userInfo.avatar_url} mode='aspectFill' />
               ) : (
-                <LucideIcon name='user' size={32} color={isLoggedIn ? '#fff' : 'var(--text-muted)'} />
+                <LucideIcon name='user' size={64} color={isLoggedIn ? '#fff' : 'var(--text-muted)'} />
               )}
             </Button>
 
             <View className='user-info'>
               {isLoggedIn ? (
-                <View className='nickname-wrapper'>
-                  <Input
-                    className='nickname-input'
-                    type='nickname'
-                    value={userInfo?.nickname || ''}
-                    placeholder='点击设置昵称'
-                    placeholderStyle='color: #a1a1aa; font-weight: 500;'
-                    maxlength={20}
-                    onBlur={onNicknameChange}
-                    onConfirm={onNicknameChange}
-                  />
-                  <View className='edit-icon-box' aria-label='修改昵称'>
-                    <LucideIcon name='pencil' size={14} color='currentColor' />
+                <>
+                  <View className='identity-tag'>
+                    <Text className='tag-text'>标准学者</Text>
                   </View>
-                </View>
+                  <View className='nickname-wrapper'>
+                    <Input
+                      className='nickname-input'
+                      type='nickname'
+                      value={userInfo?.nickname || ''}
+                      placeholder='点击设置昵称'
+                      placeholderStyle='color: #a1a1aa; font-weight: 500;'
+                      maxlength={20}
+                      onBlur={onNicknameChange}
+                      onConfirm={onNicknameChange}
+                    />
+                    <View className='edit-icon-box' aria-label='修改昵称'>
+                      <LucideIcon name='pencil' size={24} color='currentColor' />
+                    </View>
+                  </View>
+                </>
               ) : (
                 <View className='nickname-wrapper' onClick={handleLogin}>
                   <Text className='nickname'>点击登录微信</Text>
@@ -237,7 +236,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                 onClick={handleLogout}
                 aria-label='退出登录'
               >
-                <LucideIcon name='logOut' size={20} color='var(--text-muted)' />
+                <LucideIcon name='logOut' size={40} color='var(--text-muted)' />
               </View>
             )}
           </View>
@@ -245,8 +244,9 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           {/* Account Metrics Portfolio */}
           <View className='stats-dashboard'>
             <View className='dashboard-header'>
-              <View className='badge-row'>
-                <Text className='badge'>标准学者</Text>
+              <View className='panel-label'>
+                <LucideIcon name='ticket' size={28} color='var(--text-muted)' />
+                <Text className='label-text'>额度明细</Text>
               </View>
               <View className='total-preview'>
                 <Text className='label'>当前可用</Text>
@@ -259,7 +259,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
             <View className='credits-list'>
               <View className='credit-item'>
                 <View className='item-info'>
-                  <LucideIcon name='calendar' size={14} color='var(--text-muted)' />
+                  <LucideIcon name='calendar' size={28} color='var(--text-muted)' />
                   <View className='text-group'>
                     <Text className='title'>每日常规额度</Text>
                     <Text className='subtitle'>每日 00:00 自动刷新</Text>
@@ -272,7 +272,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
               <View className='credit-item'>
                 <View className='item-info'>
-                  <LucideIcon name='sparkles' size={14} color='var(--text-muted)' />
+                  <LucideIcon name='sparkles' size={28} color='var(--text-muted)' />
                   <View className='text-group'>
                     <Text className='title'>永久奖励积分</Text>
                     <Text className='subtitle'>通过活动或分享获得</Text>
@@ -283,20 +283,27 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
             </View>
 
             {/* Achievement Coronation */}
-            <View className='dashboard-footer'>
+            <View className='dashboard-footer' onClick={() => setShowAchievementSheet(true)}>
               <View className='achievement-badge'>
-                <View className='medal-icon' style={{ borderColor: tier.color + '20' }}>
-                  <LucideIcon name={tier.icon as any} size={16} color={tier.color} />
+                <View className='medal-icon' style={{ borderColor: tier.color + '40' }}>
+                  <LucideIcon name={tier.icon as any} size={36} color={tier.color} />
                 </View>
                 <View className='text-group'>
                   <Text className='history-label'>阅读成就</Text>
-                  <Text className='tier-text' style={{ color: tier.color }}>{tier.title} ({tier.cnTitle})</Text>
+                  <View className='tier-row'>
+                    <Text className='tier-text' style={{ color: tier.color }}>{tier.cnTitle}</Text>
+                    <Text className='lv-tag' style={{ backgroundColor: tier.color + '15', color: tier.color }}>Lv.{tier.level}</Text>
+                  </View>
                 </View>
               </View>
               <View className='history-value-box'>
                 <Text className='history-value' style={{ color: articleCount > 0 ? tier.color : 'var(--color-ink)' }}>
                   累计 {loadingStats ? '...' : articleCount} 篇
                 </Text>
+              </View>
+              
+              <View className='click-indicator'>
+                <LucideIcon name='chevronRight' size={28} color='var(--text-muted)' />
               </View>
             </View>
           </View>
@@ -311,13 +318,13 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                   <View key={iIdx} className='menu-item' onClick={() => handleMenuClick(item)}>
                     <View className='item-left'>
                       <View className={`icon-box ${item.color}`}>
-                        <LucideIcon name={item.icon as any} size={18} color='currentColor' />
+                        <LucideIcon name={item.icon as any} size={36} color='currentColor' />
                       </View>
                       <Text className='label'>{item.label}</Text>
                     </View>
                     <View className='item-right'>
                       {item.value && <Text className='value-tag'>{item.value}</Text>}
-                      {item.url && <LucideIcon name='chevronRight' size={16} color='#ccc' />}
+                      {item.url && <LucideIcon name='chevronRight' size={32} color='#ccc' />}
                     </View>
                   </View>
                 ))}
@@ -335,13 +342,62 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
       {!isSubView && <TabBar current='profile' />}
 
-      <BottomSheetSelect
+      <CenterModal
         visible={showModeSheet}
-        currentGoal={purpose as ReadingGoal}
-        currentLevel={level}
+        title='设置默认分析模式'
         onClose={() => setShowModeSheet(false)}
-        onSelect={handleModeSelect}
-      />
+      >
+        <View className='modal-config-wrapper'>
+          <ConfigEditor 
+            mode='detailed'
+            initialGoal={purpose as ReadingGoal}
+            initialLevel={level}
+            onComplete={(g, l) => {
+              handleModeSelect(g, l)
+              setShowModeSheet(false)
+            }}
+          />
+        </View>
+      </CenterModal>
+
+      <CenterModal
+        visible={showAchievementSheet}
+        title='学术成就体系'
+        onClose={() => setShowAchievementSheet(false)}
+      >
+        <View className='achievement-guide-content'>
+          <View className='guide-header'>
+            <Text className='guide-title'>阅读勋章进化之路</Text>
+            <Text className='guide-desc'>累积阅读篇数即可自动进阶，解锁更高阶的学术称号与勋章标识。</Text>
+          </View>
+          
+          <View className='tier-list'>
+            {allTiers.map((t) => (
+              <View key={t.level} className={`tier-item ${tier.level === t.level ? 'current' : ''}`}>
+                <View className='tier-icon-box' style={{ color: t.color, backgroundColor: t.color + '25' }}>
+                  <LucideIcon name={t.icon as any} size={40} color={t.color} />
+                </View>
+                <View className='tier-info'>
+                  <View className='tier-main'>
+                    <Text className='tier-name'>{t.cnTitle}</Text>
+                    <Text className='tier-lv'>Lv.{t.level}</Text>
+                  </View>
+                  <Text className='tier-requirement'>
+                    {t.level === 0 ? '注册初始' : `累积阅读经分篇数达 ${[0, 1, 30, 80, 120, 300][t.level]} 篇`}
+                  </Text>
+                </View>
+                {tier.level === t.level && (
+                  <View className='current-label'>当前等级</View>
+                )}
+              </View>
+            ))}
+          </View>
+          
+          <View className='guide-footer'>
+            <Text className='footer-tips'>* 等级由云端同步，删除本地历史不会导致降级</Text>
+          </View>
+        </View>
+      </CenterModal>
     </View>
   )
 }
