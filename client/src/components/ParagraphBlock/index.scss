@@ -103,14 +103,14 @@
     border-radius: 4rpx;
 
     &.is-highlighted-source {
-      background-color: rgba(255, 231, 105, 0.45); // 稍微加深一点透明度
-      box-shadow: 0 0 10rpx rgba(255, 231, 105, 0.2);
+      background-color: var(--highlight-surface);
+      box-shadow: 0 0 10rpx var(--highlight-shadow);
     }
   }
 
   .sentence-text {
     &.is-highlighted {
-      background-color: rgba(255, 231, 105, 0.45);
+      background-color: var(--highlight-surface);
       border-radius: 4rpx;
       padding: 0 4rpx;
       margin: 0 -2rpx;
@@ -119,7 +119,7 @@
 
   .sentence-translation {
     &.is-highlighted {
-      background-color: rgba(255, 231, 105, 0.35);
+      background-color: var(--highlight-soft);
       border-radius: 8rpx;
       padding-left: 8rpx;
       padding-right: 8rpx;
@@ -135,25 +135,27 @@
       transition: all 0.3s var(--ease-out-expo);
 
       &.is-highlighted {
-        background-color: rgba(255, 231, 105, 0.45);
-        color: var(--color-ink); // 高亮时文字颜色加深，保证可读性
-        box-shadow: 0 0 10rpx rgba(255, 231, 105, 0.25);
+        background-color: var(--highlight-surface);
+        color: var(--color-ink);
+        box-shadow: 0 0 10rpx var(--highlight-shadow);
       }
     }
   }
 
-  .space-char, .tone-grammar {
+  .space-char {
     display: inline;
-    white-space: pre;
-    
-    &.tone-grammar {
-      border-bottom: 2.5rpx solid var(--grammar-accent);
-      background: linear-gradient(to top, var(--grammar-surface) 40%, transparent 40%);
-      font-weight: var(--weight-medium);
+    white-space: pre-wrap;
+  }
 
-      &.is-highlighted {
-        background: transparent !important; // 同样处理空格的高亮冲突
-      }
+  .tone-grammar {
+    display: inline;
+    border-bottom: 2.5rpx solid var(--grammar-accent);
+    background: linear-gradient(to top, var(--grammar-surface) 40%, transparent 40%);
+    font-weight: var(--weight-medium);
+    white-space: normal; // 允许自然换行，防止由于 white-space: pre 导致的长句溢出
+
+    &.is-highlighted {
+      background: transparent !important; // 同样处理空格的高亮冲突
     }
   }
 

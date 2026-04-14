@@ -153,41 +153,50 @@ export default function InputPage() {
         showBack
         onBack={handleBack}
         background='transparent'
-        renderRight={
-          content ? (
-            <View className='clear-btn' onClick={() => setContent('')}>
-              <LucideIcon name='eraser' size={20} color='var(--text-muted)' />
-            </View>
-          ) : (
-            <View onClick={() => Taro.navigateTo({ url: '/pages/profile/index' })}>
-              <LucideIcon name='settings' size={20} color='var(--text-muted)' />
-            </View>
-          )
-        }
       />
       <View className='nav-placeholder' style={{ height: navBarHeight + 'px' }} />
 
-      {/* 画布区域 */}
       <View className='canvas-area'>
-        {/* 解读模式 Chip */}
-        <View className='mode-chip' onClick={handleModeChange}>
-          <View className='dot' />
-          <Text>{getDisplayLabel(tempConfig.purpose, tempConfig.level)}</Text>
-          <LucideIcon name='chevronDown' size={12} color='var(--text-muted)' />
+        {/* 指令栏：模式选择 + 功能快捷键 */}
+        <View className='canvas-toolbar'>
+          <View className='mode-chip-v2' onClick={handleModeChange}>
+            <View className='dot' />
+            <Text className='mode-label'>{getDisplayLabel(tempConfig.purpose, tempConfig.level)}</Text>
+            <LucideIcon name='chevronDown' size={14} color='var(--text-sub)' />
+          </View>
+          
+          <View className='toolbar-actions'>
+            {content && (
+              <View className='t-btn clear' onClick={() => setContent('')} role='button' aria-label='清空内容'>
+                <LucideIcon name='eraser' size={18} color='var(--text-muted)' />
+              </View>
+            )}
+          </View>
         </View>
 
-        <Textarea
-          className='content-textarea'
-          placeholder='在这里倾倒你感兴趣的英文篇章...'
-          placeholderClass='placeholder-style'
-          maxlength={10000}
-          value={content}
-          onInput={(e) => setContent(e.detail.value)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          autoFocus
-          cursorSpacing={100}
-        />
+        <View className='textarea-wrapper'>
+          <Textarea
+            className='content-textarea'
+            placeholder='在这里倾倒你感兴趣的英文篇章...'
+            placeholderClass='placeholder-style'
+            maxlength={10000}
+            value={content}
+            onInput={(e) => setContent(e.detail.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            autoFocus
+            cursorSpacing={100}
+          />
+          {!content && (
+             <View className='empty-action' onClick={async () => {
+               const res = await Taro.getClipboardData();
+               if (res.data) setContent(res.data);
+             }}>
+               <LucideIcon name='clipboard' size={16} color='var(--text-muted)' />
+               <Text>从剪贴板粘贴</Text>
+             </View>
+          )}
+        </View>
 
         {/* 墨水气泡剪贴板 */}
         {showClipboardBubble && (

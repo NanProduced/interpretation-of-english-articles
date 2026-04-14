@@ -58,13 +58,14 @@ const COLOR_TOKENS: Record<string, string> = {
   'var(--color-exam)': '#BE123C',
   'var(--color-phrase)': '#6D28D9',
   'var(--color-grammar)': '#047857',
+  'var(--color-warn)': '#F59E0B',
   'var(--vocab-accent)': '#F59E0B',
   'var(--grammar-accent)': '#8B5CF6',
   'var(--sentence-accent)': '#10B981',
   'var(--color-primary)': '#121212', // Aligned with ink
   'var(--text-main)': '#1A1A1A',
   'var(--text-sub)': '#646470',
-  'var(--text-muted)': '#A1A1AA',
+  'var(--text-muted)': '#6B7280',
   'var(--border-color)': 'rgba(0, 0, 0, 0.04)',
 }
 

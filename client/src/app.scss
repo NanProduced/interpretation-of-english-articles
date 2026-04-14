@@ -14,6 +14,7 @@ page {
   --color-exam:      #BE123C;     // 胭脂 (exam)
   --color-phrase:    #6D28D9;     // 丁香 (phrase)
   --color-grammar:   #047857;     // 松石 (grammar)
+  --color-warn:      #F59E0B;     // 琥珀 (warn/favorite)
 
   // --- Category: Vocab (Amber/Orange) ---
   --vocab-surface: #FFF8EB;
@@ -36,10 +37,15 @@ page {
   --sentence-label:   #059669;
   --sentence-content: #065F46;
 
+  // --- Category: Highlight (Marker/Yellow) ---
+  --highlight-surface: rgba(255, 231, 105, 0.45);
+  --highlight-shadow:  rgba(255, 231, 105, 0.2);
+  --highlight-soft:    rgba(255, 231, 105, 0.25);
+
   // 文字层级
   --text-main: #1A1A1A;
   --text-sub:  #646470;           // 略带冷调的灰，增加高级感
-  --text-muted: #8C8C96;
+  --text-muted: #6B7280;          // 提升对比度，符合 WCAG AA (4.5:1)
   --border-color: rgba(0, 0, 0, 0.04);
   --border-light: rgba(0, 0, 0, 0.02);
   

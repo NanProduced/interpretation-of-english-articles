@@ -96,13 +96,17 @@
   top: 0;
   z-index: 100;
   border-bottom: 1rpx solid var(--border-color);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  &::-webkit-scrollbar { display: none; }
 }
 
 .mode-tabs {
-  display: flex;
-  padding: 0;
-  gap: 32rpx;
+  display: inline-flex;
+  padding-right: 48rpx;
+  gap: 48rpx;
   background: transparent;
+  min-width: 100%;
 }
 
 .mode-tab {
@@ -111,6 +115,7 @@
   background: transparent;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  white-space: nowrap;
 
   .mode-tab-label {
     font-size: 28rpx;
@@ -185,7 +190,7 @@
   display: flex;
   margin-top: 100rpx; // 增加段间距，让文章与底部操作区有足够的阅读间隔
   padding: 64rpx 0 0;
-  border-top: 1rpx dashed rgba(0, 0, 0, 0.1); // 使用更清晰的虚线颜色，避免看不清
+  border-top: 1rpx dashed var(--border-color); // 使用 Token 化的边框色
   gap: 32rpx; // 增加按钮间的留白
   align-items: center;
 }
@@ -200,7 +205,7 @@
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04); // 添加微妙阴影使其在浅色背景中悬浮
+  box-shadow: var(--shadow-sm); 
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   
   text {
@@ -229,7 +234,7 @@
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12); // 主操作按钮增亮阴影层级
+  box-shadow: var(--shadow-md); 
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   text {
@@ -258,7 +263,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(3, 2, 19, 0.15);
+  box-shadow: var(--shadow-md);
 
   &:active {
     opacity: 0.9;
@@ -324,7 +329,7 @@
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 28rpx;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 .fallback-title {

@@ -157,7 +157,6 @@ export default function Result() {
   // === 事件处理 ===
 
   const handleWordClick = ({ word, mark, event, contextSentence, occurrence }: WordClickPayload) => {
-    console.log('[result] word clicked:', word, mark?.id)
     const initialMode = 'mini'
     setActiveMarkId(mark?.id ?? null)
     setSelectedWord(word)
@@ -476,8 +475,9 @@ export default function Result() {
                   e.stopPropagation()
                   setPageMode(mode.value as PageMode)
                 }}
-                role='tab'                aria-selected={pageMode === mode.value}
-                aria-label={mode.label}
+                role='tab'
+                aria-selected={pageMode === mode.value}
+                aria-label={`${mode.label}模式`}
               >
                 <Text className='mode-tab-label'>{mode.label}</Text>
               </View>
@@ -497,11 +497,18 @@ export default function Result() {
                 key={`fav-btn-${animTrigger}`}
                 className={`end-btn-secondary ${favorited ? 'favorited' : ''} ${animTrigger > 0 ? 'animate-spring' : ''}`} 
                 onClick={handleToggleFavorite}
+                role='button'
+                aria-label={favorited ? '取消收藏' : '加入收藏'}
               >
                 <LucideIcon name='bookmark' size={18} color={favorited ? 'var(--color-warn)' : 'var(--text-main)'} />
                 <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏'}</Text>
               </View>
-              <View className='end-btn-primary' onClick={handleRetry}>
+              <View 
+                className='end-btn-primary' 
+                onClick={handleRetry}
+                role='button'
+                aria-label='分析新文章'
+              >
                 <LucideIcon name='plus' size={18} color='#fff' />
                 <Text>再分析一篇</Text>
               </View>
