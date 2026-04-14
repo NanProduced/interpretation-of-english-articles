@@ -22,94 +22,50 @@
   box-shadow: 0 -8rpx 48rpx rgba(0, 0, 0, 0.08);
   animation: sheet-appear 0.3s cubic-bezier(0.25, 1, 0.5, 1) both;
   overflow: hidden;
-}
 
-.bs-drag-handle {
-  width: 80rpx;
-  height: 8rpx;
-  background: var(--border-color);
-  border-radius: 4rpx;
-  margin: 24rpx auto 0;
-  flex-shrink: 0;
-}
+  .bs-drag-handle {
+    width: 80rpx;
+    height: 8rpx;
+    background: #e5e7eb;
+    border-radius: 4rpx;
+    margin: 24rpx auto 0;
+    flex-shrink: 0;
+  }
 
-.bs-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 32rpx 48rpx 24rpx;
-  flex-shrink: 0;
-  border-bottom: 1rpx solid var(--border-color);
-}
+  .bs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 32rpx 40rpx;
+    border-bottom: 2rpx solid #f3f4f6;
 
-.bs-back-btn,
-.bs-close-btn {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  &:active { opacity: 0.5; }
-}
-
-.bs-title {
-  font-size: 34rpx;
-  font-weight: var(--weight-bold);
-  color: var(--color-ink);
-  font-family: var(--font-serif);
-  text-align: center;
-  flex: 1;
-}
-
-.bs-list {
-  padding: 16rpx 0;
-  padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
-  overflow-y: auto;
-}
-
-.bs-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28rpx 48rpx;
-  transition: background-color 0.15s ease;
-
-  &:active { background-color: rgba(0, 0, 0, 0.03); }
-
-  &.selected {
-    .bs-option-label {
-      color: var(--color-ink);
-      font-weight: var(--weight-bold);
+    .bs-title {
+      font-size: 30rpx;
+      font-weight: 600;
+      color: #030213;
+    }
+    
+    .bs-close-btn {
+      width: 60rpx;
+      height: 60rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      &:active { opacity: 0.5; }
     }
   }
-}
 
-.bs-option-left {
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-  flex: 1;
-}
+  .bs-content {
+    padding: 24rpx 0;
+    max-height: 850rpx;
+    overflow-y: auto;
+  }
 
-.bs-option-label {
-  font-size: 32rpx;
-  color: var(--color-ink);
-  font-family: var(--font-serif);
-  font-weight: var(--weight-medium);
-  transition: color 0.15s ease;
-}
-
-.bs-option-desc {
-  font-size: 24rpx;
-  color: var(--text-sub);
-  font-weight: var(--weight-normal);
-}
-
-.bs-option-right {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  flex-shrink: 0;
+  .bs-safe-bottom {
+    height: constant(safe-area-inset-bottom);
+    height: env(safe-area-inset-bottom);
+    background: #fff;
+  }
 }
 
 @keyframes overlay-appear {

@@ -18,6 +18,7 @@ import { fetchUserQuota, updateProfile } from '../../services/api/client'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
+import BottomSheetSelect from '../../components/BottomSheetSelect'
 import { useLayoutStore } from '../../stores/layout'
 import { getDisplayLabel, ReadingGoal } from '../../config/purpose'
 import './index.scss'
@@ -27,13 +28,14 @@ interface ProfilePageProps {
 }
 
 export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
-  const { purpose, level } = useConfigStore()
+  const { purpose, level, setPurpose, setLevel } = useConfigStore()
   const { navBarHeight } = useLayoutStore()
   const { isLoggedIn, userInfo, logout, fetchUserInfo, updateUserInfo } = useAuthStore()
   const [articleCount, setArticleCount] = useState(0)
   const [wordCount, setWordCount] = useState(0)
   const [quota, setQuota] = useState<{ remaining: number, dailyFree: number, bonus: number } | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
+  const [showModeSheet, setShowModeSheet] = useState(false)
   
   // 获取阅读等级头衔与勋章进化
   const getReadingTier = (count: number) => {
@@ -51,8 +53,6 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
   /**
    * 加载统计数据。
-   * - 已登录：优先从云端读取（articleCount = 云端记录数，wordCount = 云端生词本数）
-   * - 未登录：从本地读取
    */
   const loadStats = useCallback(async () => {
     setLoadingStats(true)
@@ -63,7 +63,6 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           fetchUserQuota().catch(() => null),
         ])
         
-        // 优先使用 userInfo 中的累计篇数
         if (userInfo?.cumulativeArticleCount !== undefined) {
           setArticleCount(userInfo.cumulativeArticleCount)
         } else {
@@ -80,7 +79,6 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           })
         }
       } catch {
-        // 云端读取失败，降级到本地
         const records = getAllRecords()
         setArticleCount(records.length)
         const vocab = getVocabulary()
@@ -96,40 +94,31 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     setLoadingStats(false)
   }, [isLoggedIn, userInfo])
 
-  // 启动时加载 + isLoggedIn 变化时重新加载
   useEffect(() => {
     loadStats()
+  }, [isLoggedIn, loadStats])
+
+  useEffect(() => {
     if (isLoggedIn) {
       fetchUserInfo()
     }
-  }, [isLoggedIn, loadStats])
+  }, [isLoggedIn])
 
   const handleLogin = async () => {
-    // 立即设置标志，防止 app.tsx restore 和 handleLogin 重复触发跳转
     ;(Taro as any)._navigatingToOnboarding = true
     const result = await ensureLoggedIn()
-    if (result.success) {
-      // 首次登录（未设置过用户配置），跳转 onboarding
-      if (result.isFirstLogin) {
-        Taro.navigateTo({ url: '/pages/onboarding/index' })
-      }
-      // ensureLoggedIn 成功后 auth store 已更新，useEffect 会自动触发 loadStats
+    if (result.success && result.isFirstLogin) {
+      Taro.navigateTo({ url: '/pages/onboarding/index' })
     }
   }
 
   const handleLogout = () => {
     Taro.showModal({
       title: '确认退出登录？',
-      content: '退出后，您的阅读进度和生词本将保留在本地，云端同步暂停。',
+      content: '退出后，您的阅读进度和生词本将保留在本地。',
       confirmText: '退出登录',
       confirmColor: '#ef4444',
-      cancelText: '取消',
-      success: (res) => {
-        if (res.confirm) {
-          logout()
-          // 登出后，useEffect 会检测到 isLoggedIn=false，自动切换到本地统计
-        }
-      }
+      success: (res) => { if (res.confirm) logout() }
     })
   }
 
@@ -144,15 +133,18 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const onNicknameChange = (e: any) => {
     const nickname = e.detail.value
     updateUserInfo({ nickname })
-    // 防抖：300ms 内只发送最后一次
-    if (nicknameTimerRef.current !== null) {
-      clearTimeout(nicknameTimerRef.current)
-    }
+    if (nicknameTimerRef.current) clearTimeout(nicknameTimerRef.current)
     nicknameTimerRef.current = setTimeout(() => {
       updateProfile({ nickname }).catch(() => {
-        Taro.showToast({ title: '昵称保存失败', icon: 'error' })
+        Taro.showToast({ title: '保存失败', icon: 'error' })
       })
     }, 300)
+  }
+
+  const handleModeSelect = (g: ReadingGoal, l: string | null) => {
+    setPurpose(g)
+    setLevel(l)
+    Taro.showToast({ title: '默认配置已更新', icon: 'success' })
   }
 
   const menuGroups = [
@@ -163,7 +155,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           label: "当前模式配置",
           value: getDisplayLabel(purpose as ReadingGoal, level),
           icon: 'settings',
-          url: '/pages/onboarding/index?from=profile',
+          onClick: () => setShowModeSheet(true),
           color: 'blue',
         },
         {
@@ -184,15 +176,12 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     }
   ]
 
-  const handleMenuClick = (item: { url?: string }) => {
-    if (item.url) {
-      Taro.navigateTo({ url: item.url })
-    }
-    // 无 url 的项仅为展示，不触发导航
+  const handleMenuClick = (item: any) => {
+    if (item.onClick) item.onClick()
+    else if (item.url) Taro.navigateTo({ url: item.url })
   }
 
   const displayName = userInfo?.nickname || (isLoggedIn ? `用户 ${(userInfo?.user_id || '').slice(0, 8)}` : '未登录')
-  const avatarChar = isLoggedIn ? 'U' : 'M'
 
   return (
     <View className={`profile-page ${isSubView ? 'sub-view' : ''}`}>
@@ -345,6 +334,14 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       </ScrollView>
 
       {!isSubView && <TabBar current='profile' />}
+
+      <BottomSheetSelect
+        visible={showModeSheet}
+        currentGoal={purpose as ReadingGoal}
+        currentLevel={level}
+        onClose={() => setShowModeSheet(false)}
+        onSelect={handleModeSelect}
+      />
     </View>
   )
 }

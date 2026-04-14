@@ -1,0 +1,228 @@
+.config-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .fade-in {
+    animation: configFadeIn 0.3s ease-out forwards;
+  }
+
+  @keyframes configFadeIn {
+    from { opacity: 0; transform: translateY(10rpx); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-header {
+    margin-bottom: 48rpx;
+    
+    .step-title {
+      display: block;
+      font-size: 40rpx;
+      font-weight: 700;
+      color: var(--text-main, #030213);
+      line-height: 1.4;
+      margin-bottom: 12rpx;
+    }
+    
+    .step-subtitle {
+      display: block;
+      font-size: 26rpx;
+      color: var(--text-muted, #717182);
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 12rpx;
+      margin-bottom: 24rpx;
+      
+      .back-text {
+        font-size: 28rpx;
+        color: var(--text-muted);
+      }
+    }
+  }
+
+  /* --- Detailed Mode --- */
+  &.detailed {
+    padding: 0 40rpx;
+
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 32rpx;
+    }
+
+    .goal-card {
+      display: flex;
+      align-items: flex-start;
+      padding: 40rpx;
+      background: #f8f8fa;
+      border: 4rpx solid transparent;
+      border-radius: 40rpx;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+      &.active {
+        background: var(--text-main, #030213);
+        border-color: var(--text-main, #030213);
+        box-shadow: 0 12rpx 32rpx rgba(3, 2, 19, 0.15);
+        
+        .card-label { color: #fff; }
+        .card-desc { color: rgba(255, 255, 255, 0.6); }
+        .card-icon { background: rgba(255, 255, 255, 0.2); }
+      }
+
+      .card-icon {
+        width: 104rpx;
+        height: 104rpx;
+        background: #fff;
+        border-radius: 32rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 32rpx;
+        flex-shrink: 0;
+      }
+
+      .card-content {
+        flex: 1;
+        .card-label {
+          display: block;
+          font-size: 34rpx;
+          font-weight: 700;
+          margin-bottom: 8rpx;
+        }
+        .card-desc {
+          font-size: 24rpx;
+          line-height: 1.5;
+          color: var(--text-muted);
+        }
+      }
+    }
+
+    .variants-list {
+      display: flex;
+      flex-direction: column;
+      gap: 24rpx;
+    }
+
+    .variant-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 36rpx 40rpx;
+      background: #f8f8fa;
+      border-radius: 32rpx;
+      border: 4rpx solid transparent;
+
+      &.active {
+        background: var(--text-main, #030213);
+        .variant-label { color: #fff; }
+        .variant-desc { color: rgba(255, 255, 255, 0.6); }
+        .check-box { background: var(--color-success, #22c55e); border-color: transparent; }
+      }
+
+      .variant-info {
+        flex: 1;
+        .variant-label { font-size: 32rpx; font-weight: 600; margin-bottom: 4rpx; display: block; }
+        .variant-desc { font-size: 24rpx; color: var(--text-muted); }
+      }
+
+      .check-box {
+        width: 44rpx;
+        height: 44rpx;
+        border-radius: 50%;
+        border: 2rpx solid #ddd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 20rpx;
+      }
+    }
+  }
+
+  /* --- Compact Mode --- */
+  &.compact {
+    padding: 0 32rpx;
+
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16rpx;
+    }
+
+    .goal-card {
+      display: flex;
+      align-items: center;
+      padding: 32rpx;
+      background: #f6f6f7;
+      border-radius: 24rpx;
+      
+      &.active {
+        background: rgba(3, 2, 19, 0.05);
+        .card-label { font-weight: 700; }
+      }
+
+      .card-icon {
+        margin-right: 24rpx;
+        display: flex;
+      }
+
+      .card-content {
+        flex: 1;
+        .card-label { font-size: 30rpx; }
+      }
+    }
+
+    .variants-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12rpx;
+    }
+
+    .variant-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28rpx 32rpx;
+      background: #f6f6f7;
+      border-radius: 20rpx;
+      
+      &.active {
+         background: rgba(3, 2, 19, 0.05);
+         .variant-label { font-weight: 700; }
+         .check-box { display: flex; }
+      }
+      .variant-label { font-size: 28rpx; }
+      .check-box { display: none; }
+    }
+  }
+
+  /* --- Common Parts --- */
+  .submit-area {
+    margin-top: auto;
+    padding: 40rpx 0;
+    
+    .submit-btn {
+      height: 104rpx;
+      background: var(--text-main, #030213);
+      color: #fff;
+      border-radius: 52rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32rpx;
+      font-weight: 700;
+      box-shadow: 0 12rpx 24rpx rgba(3, 2, 19, 0.2);
+      
+      &.disabled {
+        opacity: 0.3;
+        box-shadow: none;
+      }
+      
+      &:active:not(.disabled) {
+        transform: scale(0.98);
+      }
+    }
+  }
+}

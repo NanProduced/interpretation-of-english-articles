@@ -29,34 +29,34 @@ export interface PurposeOption {
 export const READING_CONFIG_MAP: Record<ReadingGoal, PurposeOption> = {
   exam: {
     label: '考试备考',
-    description: '深度解析真题句式与核心考点',
+    description: '面向考试场景，侧重考点理解、长难句拆解和高频词汇。',
     icon: 'graduationCap',
     serverGoal: 'exam',
     defaultVariant: 'cet',
     variants: [
-      { value: 'gaokao', label: '高考英语', description: '侧重基础语法与完形填空核心句式' },
-      { value: 'cet', label: '四六级 (CET-4/6)', description: '精准捕捉考试常用短语与复合句分析' },
-      { value: 'kaoyan', label: '考研英语', description: '攻克长难句，还原学术化命题逻辑' },
-      { value: 'tem', label: '专业英语 (TEM4/8)', description: '对标专四/专八，强化翻译与改错思维' },
-      { value: 'ielts_toefl', label: '雅思/托福', description: '专注于批判性思维与高阶同义替换' }
+      { value: 'gaokao', label: '高考英语', description: '语法填空与阅读高频考点，逐步搭建句型框架' },
+      { value: 'cet', label: '大学四六级(CET-4/6)', description: '训练快速定位与同义替换，突破阅读提速瓶颈' },
+      { value: 'kaoyan', label: '考研英语', description: '主攻长难句与深度推理，还原命题思路' },
+      { value: 'tem', label: '专业英语(TEM-4/8)', description: '精读文学语篇，强化翻译与高级语言运用' },
+      { value: 'ielts_toefl', label: '雅思/托福', description: '熟悉学术语境下的同义改写与段落论证逻辑' }
     ]
   },
   daily: {
     label: '日常阅读',
-    description: '在流畅阅读中自然提升积累',
+    description: '面向日常阅读，侧重读懂文章并自然积累词汇与表达。',
     icon: 'coffee',
     serverGoal: 'daily_reading',
     defaultVariant: 'intermediate_reading',
     variants: [
-      { value: 'beginner_reading', label: '入门难度', description: '适合初学者，重点在于词法拆解与直译' },
-      { value: 'intermediate_reading', label: '进阶难度', description: '中级进阶，侧重上下文联系与自然翻译' },
-      { value: 'intensive_reading', label: '精读练习', description: '逐字逐句深度剖析，适合精读训练' }
+      { value: 'beginner_reading', label: '入门模式', description: '适合初学者，重点帮你先读懂词义和句子' },
+      { value: 'intermediate_reading', label: '进阶模式', description: '适合有一定基础，侧重语境理解和自然表达' },
+      { value: 'intensive_reading', label: '精读模式', description: '适合深入精读，逐句拆解结构、用法和表达细节' }
     ]
   },
   academic: {
     label: '学术文献',
-    description: '识别极其复杂的从句嵌套，辅助科研文献深度理解',
-    icon: 'bookOpen',
+    description: '面向论文和专业材料，侧重术语理解、结构梳理和论证关系。',
+    icon: 'microscope',
     serverGoal: 'academic',
     defaultVariant: 'academic_general'
   }
