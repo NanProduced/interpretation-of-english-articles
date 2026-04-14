@@ -165,6 +165,32 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     Taro.navigateTo({ url: '/pages/input/index' })
   }
 
+  // 核心分组逻辑：将平铺列表转化为“阅读周报”结构
+  const groupedRecords = (() => {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    const todayTs = now.getTime()
+    const yesterdayTs = todayTs - 24 * 60 * 60 * 1000
+    const sevenDaysTs = todayTs - 7 * 24 * 60 * 60 * 1000
+
+    const groups: { label: string; items: AnalysisRecord[] }[] = [
+      { label: '今天', items: [] },
+      { label: '昨天', items: [] },
+      { label: '最近七天', items: [] },
+      { label: '更早以前', items: [] },
+    ]
+
+    filteredRecords.forEach(r => {
+      const t = r.createdAt
+      if (t >= todayTs) groups[0].items.push(r)
+      else if (t >= yesterdayTs) groups[1].items.push(r)
+      else if (t >= sevenDaysTs) groups[2].items.push(r)
+      else groups[3].items.push(r)
+    })
+
+    return groups.filter(g => g.items.length > 0)
+  })()
+
   return (
     <View className={`history-page ${isSubView ? 'sub-view' : ''}`}>
       {!isSubView && <NavBar title='历史解读' />}
@@ -189,7 +215,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
         scrollY
         className='list-area'
       >
-        {loading && records.length === 0 ? null : filteredRecords.length === 0 ? (
+        {loading && records.length === 0 ? null : groupedRecords.length === 0 ? (
             <View className='empty-state'>
               <Text className='empty-text'>
                 {activeTab === 'favorites' ? '暂无收藏记录' : '暂无解读记录'}
@@ -201,54 +227,64 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
               )}
             </View>
           ) : (
-            filteredRecords.map((record, index) => (
-                <View
-                key={record.recordId}
-                className='history-card'
-                style={{ 
-                  animation: `slideInUp 0.6s var(--ease-spring) both`,
-                  animationDelay: `${index * 0.05}s`
-                }}
-                onClick={() => goToResult(record.recordId)}
-              >
-                <View className='card-header'>
-                  <Text className='item-title'>{getDisplayTitle(record)}</Text>
-                  <View className='delete-btn' onClick={(e) => handleDelete(record, e)}>
-                    <LucideIcon name='trash2' size={16} color='var(--text-muted)' />
-                  </View>
+            groupedRecords.map((group) => (
+              <View key={group.label} className='history-section'>
+                <View className='section-header'>
+                  <View className='section-dot' />
+                  <Text className='section-title'>{group.label}</Text>
+                  <View className='section-line' />
                 </View>
-                <View className='card-footer'>
-                  <View className='tag-row'>
-                    {record.isFavorited && (
-                      <View className='fav-tag'>
-                        <LucideIcon name='star' size={10} color='var(--color-warn)' />
-                        <Text>已收藏</Text>
+
+                {group.items.map((record, index) => (
+                  <View
+                    key={record.recordId}
+                    className='history-card'
+                    style={{ 
+                      animation: `slideInUp 0.6s var(--ease-spring) both`,
+                      animationDelay: `${index * 0.05}s`
+                    }}
+                    onClick={() => goToResult(record.recordId)}
+                  >
+                    <View className='card-header'>
+                      <Text className='item-title'>{getDisplayTitle(record)}</Text>
+                      <View className='delete-btn' onClick={(e) => handleDelete(record, e)}>
+                        <LucideIcon name='trash2' size={16} color='var(--text-muted)' />
                       </View>
-                    )}
-                    {record.vocabCount && record.vocabCount > 0 ? (
-                      <View className='vocab-tag-count'>
-                        <LucideIcon name='book' size={10} color='var(--color-grammar)' />
-                        <Text>{record.vocabCount} 生词</Text>
+                    </View>
+                    <View className='card-footer'>
+                      <View className='tag-row'>
+                        {record.isFavorited && (
+                          <View className='fav-tag'>
+                            <LucideIcon name='star' size={10} color='var(--color-warn)' />
+                            <Text>已收藏</Text>
+                          </View>
+                        )}
+                        {record.vocabCount && record.vocabCount > 0 ? (
+                          <View className='vocab-tag-count'>
+                            <LucideIcon name='book' size={10} color='var(--color-grammar)' />
+                            <Text>{record.vocabCount} 生词</Text>
+                          </View>
+                        ) : null}
+                        {record.pageState === 'loading' && (
+                          <View className='processing-tag'>
+                            <LucideIcon name='clock' size={10} color='var(--color-info)' />
+                            <Text>处理中</Text>
+                          </View>
+                        )}
+                        {(record.pageState === 'failed' || record.pageState === 'timeout' || record.pageState === 'network_fail') && (
+                          <View className='failed-tag'>
+                            <LucideIcon name='alertCircle' size={10} color='var(--color-exam)' />
+                            <Text>解析失败</Text>
+                          </View>
+                        )}
+                        <View className='config-tag'>
+                          <Text>{getSafeDisplayLabel(record.requestPayload.reading_goal, record.requestPayload.reading_variant)}</Text>
+                        </View>
                       </View>
-                    ) : null}
-                    {record.pageState === 'loading' && (
-                      <View className='processing-tag'>
-                        <LucideIcon name='clock' size={10} color='var(--color-info)' />
-                        <Text>处理中</Text>
-                      </View>
-                    )}
-                    {(record.pageState === 'failed' || record.pageState === 'timeout' || record.pageState === 'network_fail') && (
-                      <View className='failed-tag'>
-                        <LucideIcon name='alertCircle' size={10} color='var(--color-exam)' />
-                        <Text>解析失败</Text>
-                      </View>
-                    )}
-                    <View className='config-tag'>
-                      <Text>{getSafeDisplayLabel(record.requestPayload.reading_goal, record.requestPayload.reading_variant)}</Text>
+                      <Text className='date-text'>{formatDate(record.createdAt)}</Text>
                     </View>
                   </View>
-                  <Text className='date-text'>{formatDate(record.createdAt)}</Text>
-                </View>
+                ))}
               </View>
             ))
           )}
