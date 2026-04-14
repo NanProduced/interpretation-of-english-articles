@@ -34,6 +34,15 @@ _PROFILE_BASELINES: dict[str, str] = {
         "短语搭配是最高优先级——同义替换是四六级阅读的核心考察机制。"
         "词汇标注应侧重四六级新增高频词和词性易混淆的同根词，帮助用户从高考词汇向大学词汇过渡。"
     ),
+    "exam_kaoyan": (
+        "用户是考研英语备考学生，词汇量约 5,500 词。"
+        "他们读英语文章时，大部分词认识，但会在熟词僻义和长难句上卡住。"
+        "考研英语的核心难点是长难句理解和深度推理，文章来自英美主流报刊，句子复杂度显著高于其他国内英语考试。"
+        "语法不是显性考点，但长难句拆解是理解的核心门槛。"
+        "SentenceAnalysis 是最高优先级——帮用户分清句子层次、看清主干和修饰成分的关系。"
+        "词汇标注应侧重熟词僻义和考研高频难词，而不是基础词义覆盖。"
+        "注意：用户可能上传较简单的文本。只标注文本中确实存在的复杂结构和考试相关词汇，不要为了凑数而硬标不适配的内容。标注质量优先于数量。"
+    ),
     "exam_tem": "[Placeholder] 专业英语模式风格待定。",
     "exam_ielts_toefl": "[Placeholder] 雅思/托福模式风格待定。",
 }
@@ -45,7 +54,9 @@ def get_annotation_style(plan: GoalExecutionPlan) -> str:
             return "exam_gaokao"
         if plan.variant_id == "cet":
             return "exam_cet"
-        return "structural_and_academic" if plan.variant_id in ("kaoyan", "tem") else "exam_oriented"
+        if plan.variant_id == "kaoyan":
+            return "exam_kaoyan"
+        return "structural_and_academic" if plan.variant_id in ("tem",) else "exam_oriented"
     elif plan.goal_id == "academic":
         return "structural_and_academic"
     return "plain_and_supportive"

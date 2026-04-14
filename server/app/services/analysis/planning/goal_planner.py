@@ -40,8 +40,8 @@ def build_goal_execution_plan(reading_goal: ReadingGoal, reading_variant: Readin
             )
         if reading_variant == "kaoyan":
             policy = GoalPolicy(
-                annotation_density=4,
-                vocabulary_focus="academic_priority",
+                annotation_density=5,
+                vocabulary_focus="exam_depth",
                 grammar_focus="structural",
                 translation_focus="academic",
             )

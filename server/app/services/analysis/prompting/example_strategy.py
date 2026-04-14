@@ -279,6 +279,62 @@ CET_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
 ]
 
 
+# --- KAOYAN EXAMPLES ---
+KAOYAN_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="context",
+        sentence_text="The government has been slow to address the growing crisis.",
+        output_fragment='{"type": "context_gloss", "text": "address", "gloss": "处理；应对", "reason": "address 常见义为\"地址\"或\"演讲\"，此处作动词表示\"着手处理\"。考研常通过熟词僻义考察精确理解，解题关键是看词性和上下文：此处后面接了 the growing crisis，说明是动词\"处理\""}',
+    ),
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="The policy is problematic in that it fails to consider regional differences.",
+        output_fragment='{"type": "phrase_gloss", "text": "in that", "phrase_type": "collocation", "zh": "因为；在于。用于引出具体原因或限定范围，比 because 更正式，常出现在考研阅读的论证结构中"}',
+    ),
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="The company succeeded by virtue of its early investment in technology.",
+        output_fragment='{"type": "phrase_gloss", "text": "by virtue of", "phrase_type": "collocation", "zh": "凭借；由于。用于说明某事成立的原因或依据，比 because of 更正式，考研阅读中常出现在因果论证段落"}',
+    ),
+    ExampleEntry(
+        example_type="vocab",
+        sentence_text="The novel approach has attracted widespread attention.",
+        output_fragment='{"type": "vocab_highlight", "text": "novel"}',
+    ),
+]
+
+KAOYAN_GRAMMAR_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="The approach, which was initially designed for urban areas, has failed to address the needs of rural communities.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "which"}, {"text": "has failed"}], "label": "非限制性定语从句 + 主谓分离", "note_zh": "which 引导非限制性定语从句修饰 the approach，可先跳过。主干是 The approach has failed to address...（这种方法未能解决……）。主语和谓语被从句拆开了，阅读时先跳过逗号之间的从句抓主干"}',
+    ),
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="The findings, the researchers argue, challenge the prevailing assumption that economic growth inevitably reduces poverty.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "the researchers argue"}, {"text": "that"}], "label": "插入语 + 同位语从句", "note_zh": "the researchers argue 是插入语，可先跳过。主干是 The findings challenge the assumption（发现挑战了假设）。that 引导同位语从句解释 assumption 的内容。这种\"插入语打断主谓\"的结构在考研文本中很常见"}',
+    ),
+    ExampleEntry(
+        example_type="sentence_analysis",
+        sentence_text="The study suggests that the approach, which was initially designed for urban areas, has failed to address the needs of rural communities, leading researchers to call for a fundamental revision of the policy.",
+        output_fragment='{"type": "sentence_analysis", "label": "宾语从句 + 非限制性定语从句 + 分词结果状语", "analysis_zh": "主干：The study suggests that...（研究表明……）。that 引导宾语从句，从句主干是 the approach has failed to address...（这种方法未能解决……）。which was initially designed for urban areas 是非限制性定语从句修饰 approach，可先跳过。leading researchers to call for... 是现在分词作结果状语，表示\"导致研究人员呼吁……\"。这种\"主句 + 宾语从句内嵌定语从句 + 分词状语\"的多层嵌套结构是考研翻译题的高频出题点", "chunks": [{"order": 1, "label": "主干", "text": "The study suggests"}, {"order": 2, "label": "宾语从句主语", "text": "that the approach"}, {"order": 3, "label": "插入的定语从句", "text": "which was initially designed for urban areas"}, {"order": 4, "label": "宾语从句谓语宾语", "text": "has failed to address the needs of rural communities"}, {"order": 5, "label": "分词结果状语", "text": "leading researchers to call for a fundamental revision of the policy"}]}',
+    ),
+]
+
+KAOYAN_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="The approach, which was initially designed for urban areas, has failed to address the needs of rural communities.",
+        output_fragment='{"sentence_id": "s1", "translation_zh": "这种方法最初是为城市地区设计的，但未能解决农村社区的需求。"}',
+    ),
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="The findings, the researchers argue, challenge the prevailing assumption that economic growth inevitably reduces poverty.",
+        output_fragment='{"sentence_id": "s2", "translation_zh": "研究人员认为，这些发现挑战了经济增长必然减少贫困这一普遍假设。（此处 that 从句解释 assumption 的内容）"}',
+    ),
+]
+
+
 def get_vocabulary_example_strategy(
     plan: GoalExecutionPlan,
 ) -> ExampleStrategy:
@@ -294,6 +350,8 @@ def get_vocabulary_example_strategy(
         examples = GAOKAO_VOCABULARY_EXAMPLES
     elif plan.variant_id == "cet":
         examples = CET_VOCABULARY_EXAMPLES
+    elif plan.variant_id == "kaoyan":
+        examples = KAOYAN_VOCABULARY_EXAMPLES
     else:
         examples = INTERMEDIATE_VOCABULARY_EXAMPLES
         
@@ -315,6 +373,8 @@ def get_grammar_example_strategy(
         examples = GAOKAO_GRAMMAR_EXAMPLES
     elif plan.variant_id == "cet":
         examples = CET_GRAMMAR_EXAMPLES
+    elif plan.variant_id == "kaoyan":
+        examples = KAOYAN_GRAMMAR_EXAMPLES
     else:
         examples = INTERMEDIATE_GRAMMAR_EXAMPLES
         
@@ -336,6 +396,8 @@ def get_translation_example_strategy(
         examples = GAOKAO_TRANSLATION_EXAMPLES
     elif plan.variant_id == "cet":
         examples = CET_TRANSLATION_EXAMPLES
+    elif plan.variant_id == "kaoyan":
+        examples = KAOYAN_TRANSLATION_EXAMPLES
     else:
         examples = INTERMEDIATE_TRANSLATION_EXAMPLES
         
