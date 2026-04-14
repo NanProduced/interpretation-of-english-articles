@@ -32,7 +32,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const { isLoggedIn, userInfo, logout, fetchUserInfo, updateUserInfo } = useAuthStore()
   const [articleCount, setArticleCount] = useState(0)
   const [wordCount, setWordCount] = useState(0)
-  const [quota, setQuota] = useState<{ remaining: number, dailyFree: number } | null>(null)
+  const [quota, setQuota] = useState<{ remaining: number, dailyFree: number, bonus: number } | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
   // 昵称更新防抖定时器
   const nicknameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -54,7 +54,11 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
         setArticleCount(recordResult.total)
         setWordCount(vocabResult.total)
         if (quotaResult) {
-          setQuota({ remaining: quotaResult.remaining_points, dailyFree: quotaResult.daily_free_points })
+          setQuota({ 
+            remaining: quotaResult.remaining_points, 
+            dailyFree: quotaResult.daily_free_points,
+            bonus: quotaResult.bonus_points || 0
+          })
         }
       } catch {
         // 云端读取失败，降级到本地
@@ -185,6 +189,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
               openType={isLoggedIn ? 'chooseAvatar' : undefined}
               onChooseAvatar={isLoggedIn ? onChooseAvatar : undefined}
               onClick={!isLoggedIn ? handleLogin : undefined}
+              aria-label={isLoggedIn ? '修改头像' : '点击登录'}
             >
               {userInfo?.avatar_url ? (
                 <Image className='avatar-img' src={userInfo.avatar_url} mode='aspectFill' />
@@ -206,7 +211,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                     onBlur={onNicknameChange}
                     onConfirm={onNicknameChange}
                   />
-                  <View className='edit-icon-box'>
+                  <View className='edit-icon-box' aria-label='修改昵称'>
                     <LucideIcon name='pencil' size={14} color='currentColor' />
                   </View>
                 </View>
@@ -217,24 +222,63 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                 </View>
               )}
             </View>
-          </View>
 
-          {/* Stats Dashboard */}
-          <View className='stats-dashboard'>
-            <View className='stat-item'>
-              <Text className='stat-value'>{loadingStats ? '-' : articleCount}</Text>
-              <Text className='stat-label'>已读篇数</Text>
-            </View>
-            <View className='stat-divider' />
-            <View className='stat-item'>
-              <Text className='stat-value'>{loadingStats ? '-' : (quota?.remaining ?? '-')}</Text>
-              <Text className='stat-label'>剩余积分</Text>
-            </View>
-            {quota !== null && (
-              <View className='stat-hint'>
-                <Text>每日免费 {quota.dailyFree} 积分</Text>
+            {isLoggedIn && (
+              <View 
+                className='logout-icon-btn' 
+                onClick={handleLogout}
+                aria-label='退出登录'
+              >
+                <LucideIcon name='logOut' size={20} color='var(--text-muted)' />
               </View>
             )}
+          </View>
+
+          {/* Account Metrics Portfolio */}
+          <View className='stats-dashboard'>
+            <View className='dashboard-header'>
+              <View className='badge-row'>
+                <Text className='badge'>标准学者</Text>
+              </View>
+              <View className='total-preview'>
+                <Text className='label'>当前可用</Text>
+                <Text className={`value ${loadingStats ? 'is-loading' : ''}`}>
+                  {loadingStats ? '同步中' : ((quota?.remaining ?? 0) + (quota?.bonus ?? 0))}
+                </Text>
+              </View>
+            </View>
+
+            <View className='credits-list'>
+              <View className='credit-item'>
+                <View className='item-info'>
+                  <LucideIcon name='calendar' size={14} color='var(--text-muted)' />
+                  <View className='text-group'>
+                    <Text className='title'>每日常规额度</Text>
+                    <Text className='subtitle'>每日 00:00 自动刷新</Text>
+                  </View>
+                </View>
+                <Text className='count'>{loadingStats ? '...' : (quota?.remaining ?? 0)}</Text>
+              </View>
+
+              <View className='credit-divider' />
+
+              <View className='credit-item'>
+                <View className='item-info'>
+                  <LucideIcon name='sparkles' size={14} color='var(--text-muted)' />
+                  <View className='text-group'>
+                    <Text className='title'>永久奖励积分</Text>
+                    <Text className='subtitle'>通过活动或分享获得</Text>
+                  </View>
+                </View>
+                <Text className='count'>{loadingStats ? '...' : (quota?.bonus ?? 0)}</Text>
+              </View>
+            </View>
+
+            {/* Achievement Footer */}
+            <View className='dashboard-footer'>
+              <Text className='history-label'>已读篇数</Text>
+              <Text className='history-value'>{loadingStats ? '-' : articleCount}</Text>
+            </View>
           </View>
         </View>
 
