@@ -362,20 +362,19 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
 
       <CenterModal
         visible={showAchievementSheet}
-        title='学术成就体系'
+        title='阅读勋章体系'
         onClose={() => setShowAchievementSheet(false)}
       >
         <View className='achievement-guide-content'>
           <View className='guide-header'>
-            <Text className='guide-title'>阅读勋章进化之路</Text>
-            <Text className='guide-desc'>累积阅读篇数即可自动进阶，解锁更高阶的学术称号与勋章标识。</Text>
+            <Text className='guide-desc'>累计阅读篇数即可解锁更高级别的学术勋章。</Text>
           </View>
           
           <View className='tier-list'>
             {allTiers.map((t) => (
               <View key={t.level} className={`tier-item ${tier.level === t.level ? 'current' : ''}`}>
-                <View className='tier-icon-box' style={{ color: t.color, backgroundColor: t.color + '25' }}>
-                  <LucideIcon name={t.icon as any} size={40} color={t.color} />
+                <View className='tier-icon-box' style={{ color: t.color, backgroundColor: t.color + '15' }}>
+                  <LucideIcon name={t.icon as any} size={42} color={t.color} />
                 </View>
                 <View className='tier-info'>
                   <View className='tier-main'>
@@ -383,7 +382,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                     <Text className='tier-lv'>Lv.{t.level}</Text>
                   </View>
                   <Text className='tier-requirement'>
-                    {t.level === 0 ? '注册初始' : `累积阅读经分篇数达 ${[0, 1, 30, 80, 120, 300][t.level]} 篇`}
+                    {t.level === 0 ? '初始勋章' : `累计阅读达 ${[0, 1, 30, 80, 120, 300][t.level]} 篇`}
                   </Text>
                 </View>
                 {tier.level === t.level && (
@@ -394,7 +393,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           </View>
           
           <View className='guide-footer'>
-            <Text className='footer-tips'>* 等级由云端同步，删除本地历史不会导致降级</Text>
+            <Text className='footer-tips'>* 数据同步自云端，删除本地记录不影响等级</Text>
           </View>
         </View>
       </CenterModal>

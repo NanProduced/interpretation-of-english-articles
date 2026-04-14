@@ -182,7 +182,3 @@ TEM-8 的词汇量要求（13,000）是考研（5,500）的 **2.4 倍**。这意
 - **College English Test**（Wikipedia）：包含 TEM 词汇量要求（TEM-4: 8,000 / TEM-8: 13,000）. https://en.wikipedia.org/wiki/College_English_Test
 - **新疆师范大学外国语学院**. 英语专四专八备考全攻略. https://wgy.xjnu.edu.cn/info/1080/1357.htm
 - **知乎专栏**. 专四专八阅读解题技巧. https://zhuanlan.zhihu.com/p/574246029
-
-### Schema 参考
-
-- **Component-Based Annotation Schema v2.0**：[Component-Based Annotation Schema v2.0 · 标注组件化架构方案](https://www.notion.so/Component-Based-Annotation-Schema-v2-0-190fd909637c4c1690bcce919ae61c18?pvs=21)

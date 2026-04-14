@@ -61,15 +61,21 @@
       display: flex;
       align-items: flex-start;
       padding: 40rpx;
-      background: #f8f8fa;
-      border: 4rpx solid transparent;
+      background: var(--color-bg);
+      border: 1.5rpx solid rgba(0, 0, 0, 0.05);
       border-radius: 40rpx;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.4s var(--ease-spring);
+      position: relative;
+      overflow: hidden;
+
+      &:active {
+        transform: scale(0.97);
+      }
 
       &.active {
         background: var(--color-white);
         border-color: var(--color-ink);
-        box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.04);
+        box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.08);
         transform: translateY(-2rpx);
         
         .card-label { color: var(--color-ink); }
@@ -77,7 +83,7 @@
         .card-icon { 
           background: var(--color-ink); 
           border-radius: 24rpx;
-          // When active, we want the icon to be white since the box ITSELF becomes ink
+          transform: scale(1.05);
         }
       }
 
@@ -125,20 +131,26 @@
       padding: 32rpx 36rpx;
       background: var(--color-bg);
       border-radius: 28rpx;
-      border: 3rpx solid transparent;
-      transition: all 0.2s ease;
+      border: 1.5rpx solid rgba(0, 0, 0, 0.05);
+      transition: all 0.4s var(--ease-spring);
+
+      &:active {
+        transform: scale(0.98);
+        background: rgba(0, 0, 0, 0.02);
+      }
 
       &.active {
         background: var(--color-white);
         border-color: var(--color-ink);
         box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
+        transform: scale(1.01);
 
         .variant-label { color: var(--color-ink); }
         .variant-desc { color: var(--text-sub); }
         .check-box { 
           background: var(--color-ink); 
           border-color: var(--color-ink);
-          transform: scale(1.1);
+          animation: springPop 0.4s var(--ease-spring);
         }
       }
 
