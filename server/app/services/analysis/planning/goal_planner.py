@@ -109,8 +109,8 @@ def build_goal_execution_plan(reading_goal: ReadingGoal, reading_variant: Readin
         return GoalExecutionPlan(
             goal_id=reading_goal,
             variant_id=reading_variant,
-            topology_mode="academic", # 分开建模，不再假装是 learning
-            output_mode="academic_scene",
+            topology_mode="learning",
+            output_mode="learning_scene",
             prompt_profile="academic_general",
             policy=policy,
         )

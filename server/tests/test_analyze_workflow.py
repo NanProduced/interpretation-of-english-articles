@@ -138,7 +138,11 @@ def test_analyze_route_returns_empty_result_when_all_agents_fail(monkeypatch) ->
     assert body["inline_marks"] == []
     assert body["sentence_entries"] == []
 
-def test_analyze_route_returns_controlled_error_for_academic_placeholder() -> None:
+def test_analyze_route_returns_valid_result_for_academic_mode(monkeypatch) -> None:
+    monkeypatch.setattr(analyze_nodes, "_run_vocabulary_llm_span", _fake_run_vocabulary_span)
+    monkeypatch.setattr(analyze_nodes, "_run_grammar_llm_span", _fake_run_grammar_span)
+    monkeypatch.setattr(analyze_nodes, "_run_translation_llm_span", _fake_run_translation_span)
+
     client = TestClient(app)
     response = client.post(
         "/analyze",
@@ -149,8 +153,13 @@ def test_analyze_route_returns_controlled_error_for_academic_placeholder() -> No
             "source_type": "user_input",
         },
     )
-    assert response.status_code == 501
-    assert response.json()["detail"] == "Academic topology mode is not yet implemented."
+    assert response.status_code == 200
+    body = response.json()
+    RenderSceneModel.model_validate(body)
+    assert body["schema_version"] == "3.0.0"
+    assert body["request"]["profile_id"] == "academic_general"
+    assert body["request"]["reading_goal"] == "academic"
+    assert body["request"]["reading_variant"] == "academic_general"
 
 
 def test_analyze_route_surfaces_draft_validation_warnings(monkeypatch) -> None:
@@ -345,3 +354,65 @@ def test_llm_span_sets_usage_metadata_for_langsmith(monkeypatch) -> None:
         "total_tokens": 18,
     }
     assert "usage" not in fake_run.calls[0]["metadata"]
+
+
+def test_academic_goal_execution_plan_uses_learning_topology() -> None:
+    plan = build_goal_execution_plan("academic", "academic_general")
+    assert plan.goal_id == "academic"
+    assert plan.variant_id == "academic_general"
+    assert plan.topology_mode == "learning"
+    assert plan.output_mode == "learning_scene"
+    assert plan.prompt_profile == "academic_general"
+    assert plan.policy.vocabulary_focus == "academic_priority"
+    assert plan.policy.grammar_focus == "structural"
+    assert plan.policy.translation_focus == "academic"
+
+
+def test_academic_example_strategy_returns_academic_examples() -> None:
+    from app.services.analysis.prompting.example_strategy import (
+        get_vocabulary_example_strategy,
+        get_grammar_example_strategy,
+        get_translation_example_strategy,
+        ACADEMIC_VOCABULARY_EXAMPLES,
+        ACADEMIC_GRAMMAR_EXAMPLES,
+        ACADEMIC_TRANSLATION_EXAMPLES,
+    )
+
+    plan = build_goal_execution_plan("academic", "academic_general")
+    
+    vocab_strategy = get_vocabulary_example_strategy(plan)
+    assert vocab_strategy.examples == ACADEMIC_VOCABULARY_EXAMPLES
+    assert vocab_strategy.selection_mode == "baseline"
+    
+    grammar_strategy = get_grammar_example_strategy(plan)
+    assert grammar_strategy.examples == ACADEMIC_GRAMMAR_EXAMPLES
+    assert grammar_strategy.selection_mode == "baseline"
+    
+    translation_strategy = get_translation_example_strategy(plan)
+    assert translation_strategy.examples == ACADEMIC_TRANSLATION_EXAMPLES
+    assert translation_strategy.selection_mode == "baseline"
+
+
+def test_academic_prompt_strategy_has_academic_focus() -> None:
+    from app.services.analysis.prompting.prompt_strategy import (
+        build_vocabulary_prompt_strategy,
+        build_grammar_prompt_strategy,
+        build_translation_prompt_strategy,
+    )
+
+    plan = build_goal_execution_plan("academic", "academic_general")
+    
+    vocab_strategy = build_vocabulary_prompt_strategy(plan)
+    assert vocab_strategy.profile_id == "academic_general"
+    assert vocab_strategy.reading_goal == "academic"
+    assert vocab_strategy.vocabulary_policy == "academic_priority"
+    
+    grammar_strategy = build_grammar_prompt_strategy(plan)
+    assert grammar_strategy.profile_id == "academic_general"
+    assert grammar_strategy.reading_goal == "academic"
+    assert grammar_strategy.grammar_granularity == "structural"
+    
+    translation_strategy = build_translation_prompt_strategy(plan)
+    assert translation_strategy.profile_id == "academic_general"
+    assert translation_strategy.reading_goal == "academic"
+    assert translation_strategy.translation_style == "academic"

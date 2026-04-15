@@ -447,6 +447,72 @@ IELTS_TOEFL_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
 ]
 
 
+# --- ACADEMIC EXAMPLES ---
+ACADEMIC_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="The results can be attributed to a combination of factors.",
+        output_fragment='{"type": "phrase_gloss", "text": "attributed to", "phrase_type": "collocation", "zh": "归因于。学术高频搭配，用于说明因果关系。功能：引出原因或解释"}',
+    ),
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="In terms of methodology, this study adopts a qualitative approach.",
+        output_fragment='{"type": "phrase_gloss", "text": "In terms of", "phrase_type": "collocation", "zh": "就……而言；在……方面。学术高频搭配，用于限定讨论范围。功能：话题切换或范围限定"}',
+    ),
+    ExampleEntry(
+        example_type="context",
+        sentence_text="The Chicago school of economics has influenced policy-making worldwide.",
+        output_fragment='{"type": "context_gloss", "text": "school", "gloss": "学派；流派", "reason": "school 常见义为\"学校\"，此处指学术流派。学术语境中常用来指代具有共同理论框架的学者群体"}',
+    ),
+    ExampleEntry(
+        example_type="context",
+        sentence_text="This paper addresses the limitations of previous research.",
+        output_fragment='{"type": "context_gloss", "text": "addresses", "gloss": "探讨；处理；应对", "reason": "address 常见义为\"地址\"或\"演讲\"，此处作动词表示\"着手探讨或处理问题\"。学术论文中常用"}',
+    ),
+    ExampleEntry(
+        example_type="vocab",
+        sentence_text="The empirical evidence supports our hypothesis.",
+        output_fragment='{"type": "vocab_highlight", "text": "empirical"}',
+    ),
+    ExampleEntry(
+        example_type="vocab",
+        sentence_text="The theoretical framework provides a basis for analysis.",
+        output_fragment='{"type": "vocab_highlight", "text": "framework"}',
+    ),
+]
+
+ACADEMIC_GRAMMAR_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="The data, which was collected over three years, reveals significant trends.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "which"}, {"text": "reveals"}], "label": "非限制性定语从句", "note_zh": "which 引导非限制性定语从句，补充说明数据的收集时间。快速阅读时可先跳过逗号之间的从句，抓住主干：The data reveals significant trends（数据揭示了显著趋势）。功能：补充信息，不影响主干理解"}',
+    ),
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="It has been suggested that this approach may have limitations.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "It has been suggested"}, {"text": "may have"}], "label": "形式主语 + 被动语态", "note_zh": "It 是形式主语，真正的主语是 that 从句。has been suggested 是被动语态，动作执行者被省略（学术惯例）。这种结构在学术文本中极常见，用于表达\"有人认为\"或\"研究表明\"，避免直接引用特定研究者。功能：客观陈述，弱化主体"}',
+    ),
+    ExampleEntry(
+        example_type="sentence_analysis",
+        sentence_text="Although previous studies have identified these patterns, the underlying mechanisms remain poorly understood, and further research is needed to elucidate the causal relationships.",
+        output_fragment='{"type": "sentence_analysis", "label": "让步转折 + 并列论证", "analysis_zh": "这是一个典型的学术论证结构。Although 引导让步从句，承认已有研究的贡献（identified these patterns），为转折做铺垫。主句分两部分：第一部分指出研究空白（mechanisms remain poorly understood），第二部分提出研究需求（further research is needed）。整句功能：定位研究缺口，justify 当前研究的必要性。", "chunks": [{"order": 1, "label": "让步承认", "text": "Although previous studies have identified these patterns"}, {"order": 2, "label": "指出缺口", "text": "the underlying mechanisms remain poorly understood"}, {"order": 3, "label": "提出需求", "text": "and further research is needed to elucidate the causal relationships"}]}',
+    ),
+]
+
+ACADEMIC_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="The empirical evidence suggests that the methodology is robust.",
+        output_fragment='{"sentence_id": "s1", "translation_zh": "实证证据表明该方法学是稳健的。（empirical = 实证的，methodology = 方法学，robust = 稳健的——这些是学术论文中的标准术语）"}',
+    ),
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="Although these findings are significant, further research is required to validate the causal relationships.",
+        output_fragment='{"sentence_id": "s2", "translation_zh": "尽管这些发现具有重要意义，但仍需进一步研究以验证因果关系。（Although 表示让步转折，是学术论证中\"承认局限+提出需求\"的典型结构）"}',
+    ),
+]
+
+
 def get_vocabulary_example_strategy(
     plan: GoalExecutionPlan,
 ) -> ExampleStrategy:
@@ -454,7 +520,9 @@ def get_vocabulary_example_strategy(
     if plan.few_shot_mode != "baseline":
         return ExampleStrategy(examples=[], selection_mode=plan.few_shot_mode)
     
-    if plan.variant_id == "beginner_reading":
+    if plan.goal_id == "academic":
+        examples = ACADEMIC_VOCABULARY_EXAMPLES
+    elif plan.variant_id == "beginner_reading":
         examples = BEGINNER_VOCABULARY_EXAMPLES
     elif plan.variant_id == "intensive_reading":
         examples = INTENSIVE_VOCABULARY_EXAMPLES
@@ -481,7 +549,9 @@ def get_grammar_example_strategy(
     if plan.few_shot_mode != "baseline":
         return ExampleStrategy(examples=[], selection_mode=plan.few_shot_mode)
         
-    if plan.variant_id == "beginner_reading":
+    if plan.goal_id == "academic":
+        examples = ACADEMIC_GRAMMAR_EXAMPLES
+    elif plan.variant_id == "beginner_reading":
         examples = BEGINNER_GRAMMAR_EXAMPLES
     elif plan.variant_id == "intensive_reading":
         examples = INTENSIVE_GRAMMAR_EXAMPLES
@@ -508,7 +578,9 @@ def get_translation_example_strategy(
     if plan.few_shot_mode != "baseline":
         return ExampleStrategy(examples=[], selection_mode=plan.few_shot_mode)
         
-    if plan.variant_id == "beginner_reading":
+    if plan.goal_id == "academic":
+        examples = ACADEMIC_TRANSLATION_EXAMPLES
+    elif plan.variant_id == "beginner_reading":
         examples = BEGINNER_TRANSLATION_EXAMPLES
     elif plan.variant_id == "intensive_reading":
         examples = INTENSIVE_TRANSLATION_EXAMPLES
