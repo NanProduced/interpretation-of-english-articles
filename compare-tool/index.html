@@ -725,6 +725,82 @@
             display: block;
         }
 
+        .token-summary-card {
+            background: var(--bg-color);
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .token-summary-card h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .token-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .token-summary-item {
+            text-align: center;
+            padding: 8px;
+        }
+
+        .token-summary-item .label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .token-summary-item .value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .token-summary-item.left .value { color: var(--left-color); }
+        .token-summary-item.right .value { color: var(--right-color); }
+
+        .token-agent-card {
+            background: var(--bg-color);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .token-agent-card .agent-name {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .token-agent-details {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+        }
+
+        .token-agent-details span {
+            color: var(--text-secondary);
+        }
+
+        .token-agent-details strong {
+            color: var(--text-primary);
+            margin-left: 4px;
+        }
+
+        .token-no-data {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 16px;
+            font-size: 13px;
+        }
+
         @media (max-width: 1200px) {
             .results-container {
                 grid-template-columns: 1fr;
@@ -836,6 +912,7 @@
                             <button class="tab active" data-tab="left-annotations">标注</button>
                             <button class="tab" data-tab="left-translations">翻译</button>
                             <button class="tab" data-tab="left-entries">句尾入口</button>
+                            <button class="tab" data-tab="left-tokens">Token</button>
                             <button class="tab" data-tab="left-warnings">警告</button>
                         </div>
                         <div id="left-annotations" class="tab-content active">
@@ -860,6 +937,12 @@
                                 <div id="left-entries-list"></div>
                             </div>
                         </div>
+                        <div id="left-tokens" class="tab-content">
+                            <div class="result-section">
+                                <h4>Token 使用情况</h4>
+                                <div id="left-tokens-content"></div>
+                            </div>
+                        </div>
                         <div id="left-warnings" class="tab-content">
                             <div class="result-section">
                                 <h4>警告 (<span id="left-warning-count">0</span>)</h4>
@@ -879,6 +962,7 @@
                             <button class="tab active" data-tab="right-annotations">标注</button>
                             <button class="tab" data-tab="right-translations">翻译</button>
                             <button class="tab" data-tab="right-entries">句尾入口</button>
+                            <button class="tab" data-tab="right-tokens">Token</button>
                             <button class="tab" data-tab="right-warnings">警告</button>
                         </div>
                         <div id="right-annotations" class="tab-content active">
@@ -901,6 +985,12 @@
                             <div class="result-section">
                                 <h4>句尾入口 (<span id="right-entry-count">0</span>)</h4>
                                 <div id="right-entries-list"></div>
+                            </div>
+                        </div>
+                        <div id="right-tokens" class="tab-content">
+                            <div class="result-section">
+                                <h4>Token 使用情况</h4>
+                                <div id="right-tokens-content"></div>
                             </div>
                         </div>
                         <div id="right-warnings" class="tab-content">
@@ -1126,6 +1216,9 @@
         function displayMetrics(left, right) {
             const grid = document.getElementById('metrics-grid');
             
+            const leftTokens = left.metrics.token_usage;
+            const rightTokens = right.metrics.token_usage;
+            
             const metrics = [
                 {
                     label: '执行耗时',
@@ -1133,6 +1226,30 @@
                     rightValue: right.metrics.duration_ms,
                     unit: 'ms',
                     lowerIsBetter: true
+                },
+                {
+                    label: '总 Token',
+                    leftValue: leftTokens?.total_tokens ?? '-',
+                    rightValue: rightTokens?.total_tokens ?? '-',
+                    unit: '',
+                    lowerIsBetter: true,
+                    isToken: true
+                },
+                {
+                    label: '输入 Token',
+                    leftValue: leftTokens?.input_tokens ?? '-',
+                    rightValue: rightTokens?.input_tokens ?? '-',
+                    unit: '',
+                    lowerIsBetter: true,
+                    isToken: true
+                },
+                {
+                    label: '输出 Token',
+                    leftValue: leftTokens?.output_tokens ?? '-',
+                    rightValue: rightTokens?.output_tokens ?? '-',
+                    unit: '',
+                    lowerIsBetter: true,
+                    isToken: true
                 },
                 {
                     label: '标注数量',
@@ -1175,7 +1292,9 @@
                 let comparison = 'equal';
                 let diff = '';
                 
-                if (m.leftValue !== m.rightValue) {
+                const hasData = m.leftValue !== '-' && m.rightValue !== '-';
+                
+                if (hasData && m.leftValue !== m.rightValue) {
                     const leftBetter = m.lowerIsBetter ? m.leftValue < m.rightValue : m.leftValue > m.rightValue;
                     comparison = leftBetter ? 'better' : 'worse';
                     
@@ -1191,13 +1310,82 @@
                             <span style="color: var(--text-secondary); margin: 0 4px;">/</span>
                             <span style="color: var(--right-color)">${m.rightValue}${m.unit}</span>
                         </div>
+                        ${hasData ? `
                         <div class="comparison ${comparison}">
                             ${comparison === 'better' ? `左侧更优 ${diff}` : 
                               comparison === 'worse' ? `右侧更优 ${diff}` : '持平'}
                         </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
+        }
+
+        function displayTokenUsage(side, tokenUsage) {
+            const container = document.getElementById(`${side}-tokens-content`);
+            
+            if (!tokenUsage) {
+                container.innerHTML = '<div class="token-no-data">暂无 Token 使用数据</div>';
+                return;
+            }
+
+            let html = '';
+
+            if (tokenUsage.total_tokens !== null && tokenUsage.total_tokens !== undefined) {
+                html += `
+                    <div class="token-summary-card">
+                        <h4>汇总</h4>
+                        <div class="token-summary-grid">
+                            <div class="token-summary-item ${side}">
+                                <div class="label">总 Token</div>
+                                <div class="value">${tokenUsage.total_tokens}</div>
+                            </div>
+                            <div class="token-summary-item ${side}">
+                                <div class="label">输入</div>
+                                <div class="value">${tokenUsage.input_tokens ?? '-'}</div>
+                            </div>
+                            <div class="token-summary-item ${side}">
+                                <div class="label">输出</div>
+                                <div class="value">${tokenUsage.output_tokens ?? '-'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (tokenUsage.per_agent && Object.keys(tokenUsage.per_agent).length > 0) {
+                html += '<div class="token-summary-card"><h4>各 Agent 详情</h4>';
+                
+                for (const [agentName, usage] of Object.entries(tokenUsage.per_agent)) {
+                    if (usage) {
+                        const displayName = {
+                            'vocabulary_agent': '词汇标注 Agent',
+                            'grammar_agent': '语法标注 Agent',
+                            'translation_agent': '翻译 Agent',
+                            'repair_agent': '修复 Agent',
+                        }[agentName] || agentName;
+
+                        html += `
+                            <div class="token-agent-card">
+                                <div class="agent-name">${displayName}</div>
+                                <div class="token-agent-details">
+                                    <span>总: <strong>${usage.total_tokens ?? '-'}</strong></span>
+                                    <span>输入: <strong>${usage.input_tokens ?? '-'}</strong></span>
+                                    <span>输出: <strong>${usage.output_tokens ?? '-'}</strong></span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                html += '</div>';
+            }
+
+            if (!html) {
+                html = '<div class="token-no-data">暂无 Token 使用数据</div>';
+            }
+
+            container.innerHTML = html;
         }
 
         function displayResultPanel(side, data) {
@@ -1274,6 +1462,8 @@
             } else {
                 warningsList.innerHTML = '<div style="color: var(--text-secondary); padding: 16px; text-align: center;">无警告</div>';
             }
+
+            displayTokenUsage(side, data.metrics.token_usage);
         }
 
         function displayJudgeResult(judgeResult, leftModelName, rightModelName) {
