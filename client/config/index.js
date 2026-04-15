@@ -17,7 +17,6 @@ const config = {
   },
   copy: {
     patterns: [
-      { from: 'public/index.html', to: 'dist/index.html' }
     ],
     options: {
     }
@@ -62,6 +61,19 @@ const config = {
     },
     router: {
       mode: 'hash'
+    },
+    webpackChain(chain, webpack) {
+      chain.plugin('html')
+        .use(require('html-webpack-plugin'), [{
+          template: './public/index.html',
+          filename: 'index.html',
+          inject: true,
+          minify: {
+            collapseWhitespace: true,
+            removeComments: true,
+            removeAttributeQuotes: true
+          }
+        }])
     }
   }
 }
