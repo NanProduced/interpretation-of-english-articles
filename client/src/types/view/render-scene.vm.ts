@@ -128,8 +128,6 @@ export interface RenderSceneVmBase {
   warnings: WarningModel[]
 }
 
-export type RenderSceneVm = RenderSceneVmBase
-
 export type ContentResultState = 'normal' | 'degraded_light' | 'degraded_heavy'
 
 export type ResultPageState =
