@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useArticleStore } from '../../stores/article'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
-import { InlineMarkModel, PageMode, RenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
+import { InlineMarkModel, PageMode, RenderSceneVm, ResultPageState, isAcademicScene } from '../../types/view/render-scene.vm'
 import NavBar from '../../components/NavBar'
 import ParagraphBlock, { type WordClickPayload } from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
@@ -20,6 +20,9 @@ import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { getSafeDisplayLabel } from '../../config/purpose'
 import { ReadingGoal } from '../../config/purpose'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
+import AcademicDocumentSummary from '../../components/AcademicDocumentSummary'
+import AcademicNoteCard, { AcademicNoteType } from '../../components/AcademicNoteCard'
+import AcademicParagraphRole from '../../components/AcademicParagraphRole'
 import './index.scss'
 
 /** 页面模式选项 */
@@ -504,6 +507,93 @@ export default function Result() {
     })
   }
 
+  const renderAcademicContent = () => {
+    if (!sceneData || !isAcademicScene(sceneData)) return null
+
+    const { termNotes, logicNotes, interpretationNotes, paragraphRoles, documentSummary } = sceneData
+
+    const hasAcademicContent = 
+      termNotes?.length > 0 || 
+      logicNotes?.length > 0 || 
+      interpretationNotes?.length > 0 || 
+      paragraphRoles?.length > 0 || 
+      documentSummary
+
+    if (!hasAcademicContent) return null
+
+    return (
+      <View className='academic-content-section'>
+        {documentSummary && (
+          <View className='academic-section'>
+            <View className='section-header'>
+              <LucideIcon name='file-text' size={18} color='var(--summary-header-accent)' />
+              <Text className='section-title'>全文摘要</Text>
+            </View>
+            <AcademicDocumentSummary summary={documentSummary} />
+          </View>
+        )}
+
+        {paragraphRoles?.length > 0 && (
+          <View className='academic-section'>
+            <View className='section-header'>
+              <LucideIcon name='layers' size={18} color='var(--role-background-accent)' />
+              <Text className='section-title'>段落结构</Text>
+            </View>
+            <View className='paragraph-roles-container'>
+              {paragraphRoles.map((role, idx) => (
+                <AcademicParagraphRole key={role.paragraphId} role={role} order={idx + 1} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {(termNotes?.length > 0 || logicNotes?.length > 0 || interpretationNotes?.length > 0) && (
+          <View className='academic-section'>
+            <View className='section-header'>
+              <LucideIcon name='book-open' size={18} color='var(--term-accent)' />
+              <Text className='section-title'>深度解析</Text>
+            </View>
+            <View className='notes-container'>
+              {termNotes?.map((note, idx) => (
+                <AcademicNoteCard
+                  key={`term-${note.sentenceId}-${idx}`}
+                  type='term'
+                  label='术语理解'
+                  title={note.termZh}
+                  content={note.definition || ''}
+                  category={note.category}
+                  contextHint={note.contextHint}
+                />
+              ))}
+              {logicNotes?.map((note, idx) => (
+                <AcademicNoteCard
+                  key={`logic-${note.sentenceId}-${idx}`}
+                  type='logic'
+                  label='逻辑关系'
+                  title={note.label}
+                  content={note.explanationZh}
+                  relation={note.relation}
+                />
+              ))}
+              {interpretationNotes?.map((note, idx) => (
+                <AcademicNoteCard
+                  key={`interpretation-${note.sentenceId}-${idx}`}
+                  type='interpretation'
+                  label='解释性理解'
+                  title={note.intendedMeaningZh.slice(0, 30) + (note.intendedMeaningZh.length > 30 ? '...' : '')}
+                  content={note.intendedMeaningZh}
+                  literalTranslation={note.literalTranslation}
+                  whyNotLiteral={note.whyNotLiteral}
+                  rhetoricalPurpose={note.rhetoricalPurpose}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+    )
+  }
+
   return pageShell(
     <>
       <View className='result-content-root'>
@@ -533,6 +623,8 @@ export default function Result() {
         <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={handleScroll}>
           <View className='article-container'>
             {renderParagraphs()}
+            
+            {renderAcademicContent()}
             
             <View className='article-end-actions'>
               <View 

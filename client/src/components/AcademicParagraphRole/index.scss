@@ -1,0 +1,91 @@
+.academic-paragraph-role {
+  margin: 8rpx 0;
+  background: var(--color-white);
+  border-radius: var(--radius-sm);
+  border: 1rpx solid var(--border-color);
+  border-left: 4rpx solid var(--role-background-accent);
+  overflow: hidden;
+
+  .role-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20rpx 24rpx;
+    transition: background-color 0.2s ease;
+
+    &:active {
+      background: var(--color-bg);
+    }
+
+    .header-main {
+      display: flex;
+      align-items: center;
+      gap: 12rpx;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .order-badge {
+      width: 36rpx;
+      height: 36rpx;
+      border-radius: 8rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--role-background-accent);
+      flex-shrink: 0;
+
+      .order-text {
+        font-size: 22rpx;
+        font-weight: var(--weight-bold);
+        color: var(--color-white);
+        font-family: var(--font-mono);
+      }
+    }
+
+    .role-label {
+      font-size: 26rpx;
+      font-weight: var(--weight-medium);
+      color: var(--role-background-accent);
+      font-family: var(--font-sans);
+      letter-spacing: 0.01em;
+    }
+  }
+
+  .role-content {
+    padding: 0 24rpx 20rpx;
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+
+  .summary-section,
+  .claim-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+  }
+
+  .section-label {
+    font-size: 22rpx;
+    color: var(--text-muted);
+    font-weight: var(--weight-medium);
+  }
+
+  .section-content {
+    font-size: 28rpx;
+    color: var(--text-main);
+    line-height: 1.7;
+    font-family: var(--font-sans);
+    letter-spacing: 0.01em;
+
+    &.claim {
+      color: var(--role-claim-accent);
+      font-weight: var(--weight-medium);
+      padding: 12rpx 16rpx;
+      background: rgba(var(--role-claim-accent-rgb), 0.05);
+      border-radius: var(--radius-sm);
+      border-left: 3rpx solid var(--role-claim-accent);
+    }
+  }
+}
