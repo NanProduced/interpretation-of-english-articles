@@ -16,6 +16,90 @@ GOAL_VARIANT_MAP: dict[ReadingGoal, set[ReadingVariant]] = {
     "academic": {"academic_general"},
 }
 
+TermCategory = Literal[
+    "technical_term",
+    "abbreviation",
+    "variable",
+    "method_name",
+    "concept",
+    "concept_opposition",
+    "proper_noun",
+]
+
+LogicRelation = Literal[
+    "contrast",
+    "concession",
+    "qualification",
+    "causation",
+    "comparison",
+    "hypothesis",
+    "conclusion",
+    "condition",
+    "addition",
+    "sequence",
+]
+
+ParagraphRoleType = Literal[
+    "definition",
+    "background",
+    "problem_statement",
+    "methodology",
+    "evidence",
+    "result",
+    "limitation",
+    "transition",
+    "discussion",
+    "conclusion",
+]
+
+
+class TermNote(BaseModel):
+    type: Literal["term_note"] = "term_note"
+    sentence_id: str = Field(description="句子ID")
+    text: str = Field(description="术语/概念文本")
+    occurrence: int | None = Field(default=None, description="同一句中该文本第几次出现")
+    category: TermCategory = Field(description="术语类别")
+    term_zh: str = Field(description="术语的中文翻译/解释")
+    definition: str | None = Field(default=None, description="术语的详细定义")
+    context_hint: str | None = Field(default=None, description="在当前语境下的特殊含义提示")
+
+
+class LogicNote(BaseModel):
+    type: Literal["logic_note"] = "logic_note"
+    sentence_id: str = Field(description="句子ID")
+    spans: list[SpanRefPart] = Field(description="逻辑关系涉及的文本片段")
+    relation: LogicRelation = Field(description="逻辑关系类型")
+    label: str = Field(description="逻辑关系的简短标签")
+    explanation_zh: str = Field(description="中文解释")
+
+
+class InterpretationNote(BaseModel):
+    type: Literal["interpretation_note"] = "interpretation_note"
+    sentence_id: str = Field(description="句子ID")
+    spans: list[SpanRefPart] | None = Field(default=None, description="需要特别解释的文本片段")
+    literal_translation: str | None = Field(default=None, description="字面翻译")
+    intended_meaning_zh: str = Field(description="作者真正想表达的意思")
+    why_not_literal: str | None = Field(default=None, description="为什么不能只按字面理解")
+    rhetorical_purpose: str | None = Field(default=None, description="修辞目的")
+
+
+class ParagraphRole(BaseModel):
+    type: Literal["paragraph_role"] = "paragraph_role"
+    paragraph_id: str = Field(description="段落ID")
+    role: ParagraphRoleType = Field(description="段落功能类型")
+    label: str = Field(description="段落功能的简短标签")
+    summary_zh: str = Field(description="该段落的内容摘要")
+    key_claim: str | None = Field(default=None, description="该段落的核心主张或发现")
+
+
+class DocumentSummary(BaseModel):
+    type: Literal["document_summary"] = "document_summary"
+    research_problem_zh: str | None = Field(default=None, description="研究问题")
+    methodology_zh: str | None = Field(default=None, description="研究方法")
+    key_findings_zh: str | None = Field(default=None, description="核心发现")
+    limitations_zh: str | None = Field(default=None, description="研究限制")
+    overall_significance_zh: str | None = Field(default=None, description="整体意义")
+
 
 class AnalyzeRequest(BaseModel):
     text: str = Field(min_length=1, description="待分析的原始英文文本。")
@@ -166,3 +250,8 @@ class RenderSceneModel(BaseModel):
     inline_marks: list[InlineMark] = Field(default_factory=list, description="行内标注。")
     sentence_entries: list[SentenceEntry] = Field(default_factory=list, description="句尾入口。")
     warnings: list[Warning] = Field(default_factory=list, description="渲染与校验告警。")
+    term_notes: list[TermNote] = Field(default_factory=list, description="术语/概念标注列表（academic 模式）。")
+    logic_notes: list[LogicNote] = Field(default_factory=list, description="逻辑关系标注列表（academic 模式）。")
+    interpretation_notes: list[InterpretationNote] = Field(default_factory=list, description="解释性理解标注列表（academic 模式）。")
+    paragraph_roles: list[ParagraphRole] = Field(default_factory=list, description="段落功能标注列表（academic 模式）。")
+    document_summary: DocumentSummary | None = Field(default=None, description="全文综合摘要（academic 模式）。")

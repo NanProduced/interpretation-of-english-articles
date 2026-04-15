@@ -11,10 +11,18 @@ from app.schemas.internal.analysis import (
     VocabHighlight,
 )
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
+from app.schemas.internal.academic_drafts import (
+    InterpretationDraft,
+    LogicDraft,
+    StructureDraft,
+    TermDraft,
+    AcademicTranslationDraft,
+)
 from app.services.analysis.preprocess.input_preparation import prepare_input
 from app.services.analysis.postprocess.projection import project_to_render_scene
 from app.services.analysis.planning.goal_planner import build_goal_execution_plan
 from app.workflow import analyze_nodes
+from app.workflow import academic_nodes
 
 
 async def _fake_run_vocabulary_span(*args, **kwargs):
@@ -88,6 +96,55 @@ async def _usage_translation_span(*args, **kwargs):
     }
 
 
+async def _fake_run_term_span(*args, **kwargs):
+    return {
+        "output": TermDraft(
+            term_notes=[],
+        ),
+        "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+    }
+
+
+async def _fake_run_logic_span(*args, **kwargs):
+    return {
+        "output": LogicDraft(
+            logic_notes=[],
+        ),
+        "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+    }
+
+
+async def _fake_run_interpretation_span(*args, **kwargs):
+    return {
+        "output": InterpretationDraft(
+            interpretation_notes=[],
+        ),
+        "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+    }
+
+
+async def _fake_run_structure_span(*args, **kwargs):
+    return {
+        "output": StructureDraft(
+            paragraph_roles=[],
+            document_summary=None,
+        ),
+        "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
+    }
+
+
+async def _fake_run_academic_translation_span(*args, **kwargs):
+    return {
+        "output": AcademicTranslationDraft(
+            title="学术论文示例",
+            sentence_translations=[
+                SentenceTranslation(sentence_id="s1", translation_zh="本文研究了稀疏环境中的表示学习。"),
+            ]
+        ),
+        "usage": {"input_tokens": 40, "output_tokens": 20, "total_tokens": 60},
+    }
+
+
 def test_analyze_route_returns_v30_payload(monkeypatch) -> None:
     monkeypatch.setattr(analyze_nodes, "_run_vocabulary_llm_span", _fake_run_vocabulary_span)
     monkeypatch.setattr(analyze_nodes, "_run_grammar_llm_span", _fake_run_grammar_span)
@@ -116,6 +173,36 @@ def test_analyze_route_returns_v30_payload(monkeypatch) -> None:
     assert len(body["translations"]) == 2
 
 
+def test_analyze_route_returns_v30_payload_for_academic(monkeypatch) -> None:
+    monkeypatch.setattr(academic_nodes, "_run_term_llm_span", _fake_run_term_span)
+    monkeypatch.setattr(academic_nodes, "_run_logic_llm_span", _fake_run_logic_span)
+    monkeypatch.setattr(academic_nodes, "_run_interpretation_llm_span", _fake_run_interpretation_span)
+    monkeypatch.setattr(academic_nodes, "_run_structure_llm_span", _fake_run_structure_span)
+    monkeypatch.setattr(academic_nodes, "_run_academic_translation_llm_span", _fake_run_academic_translation_span)
+
+    client = TestClient(app)
+    response = client.post(
+        "/analyze",
+        json={
+            "text": "This paper investigates representation learning in sparse settings.",
+            "reading_goal": "academic",
+            "reading_variant": "academic_general",
+            "source_type": "user_input",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    RenderSceneModel.model_validate(body)
+    assert body["schema_version"] == "3.0.0"
+    assert body["request"]["profile_id"] == "academic_general"
+    assert "term_notes" in body
+    assert "logic_notes" in body
+    assert "interpretation_notes" in body
+    assert "paragraph_roles" in body
+    assert "document_summary" in body
+    assert len(body["translations"]) == 1
+
+
 def test_analyze_route_returns_empty_result_when_all_agents_fail(monkeypatch) -> None:
     monkeypatch.setattr(analyze_nodes, "_run_vocabulary_llm_span", _raise_span)
     monkeypatch.setattr(analyze_nodes, "_run_grammar_llm_span", _raise_span)
@@ -137,20 +224,6 @@ def test_analyze_route_returns_empty_result_when_all_agents_fail(monkeypatch) ->
     assert "NORMALIZE_AND_GROUND_FAILED" in warning_codes
     assert body["inline_marks"] == []
     assert body["sentence_entries"] == []
-
-def test_analyze_route_returns_controlled_error_for_academic_placeholder() -> None:
-    client = TestClient(app)
-    response = client.post(
-        "/analyze",
-        json={
-            "text": "This paper investigates representation learning in sparse settings.",
-            "reading_goal": "academic",
-            "reading_variant": "academic_general",
-            "source_type": "user_input",
-        },
-    )
-    assert response.status_code == 501
-    assert response.json()["detail"] == "Academic topology mode is not yet implemented."
 
 
 def test_analyze_route_surfaces_draft_validation_warnings(monkeypatch) -> None:
