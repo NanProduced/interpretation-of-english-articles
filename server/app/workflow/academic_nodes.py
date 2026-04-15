@@ -379,11 +379,6 @@ async def _run_parallel_academic_agents(
     term_usage = term_result.get("usage") if term_result else None
     logic_usage = logic_result.get("usage") if logic_result else None
     interpretation_usage = interpretation_result.get("usage") if interpretation_result else None
-    usage_summary = _aggregate_usage_summary({
-        "term": term_usage,
-        "logic": logic_usage,
-        "interpretation": interpretation_usage,
-    })
 
     return {
         "term_draft": term_output,
@@ -392,7 +387,6 @@ async def _run_parallel_academic_agents(
         "term_usage": term_usage,
         "logic_usage": logic_usage,
         "interpretation_usage": interpretation_usage,
-        "usage_summary": usage_summary,
         "agent_errors": errors,
     }
 
@@ -410,7 +404,6 @@ async def parallel_academic_agents_node(state: AcademicState, config: RunnableCo
         "term_usage": result.get("term_usage"),
         "logic_usage": result.get("logic_usage"),
         "interpretation_usage": result.get("interpretation_usage"),
-        "usage_summary": result.get("usage_summary"),
         "warnings": [*state.get("warnings", []), *errors],
     }
 
@@ -443,17 +436,9 @@ async def structure_agent_node(state: AcademicState, config: RunnableConfig) -> 
         structure_output = result.get("output")
         structure_usage = result.get("usage")
 
-        existing_usage = state.get("usage_summary") or {}
-        if existing_usage.get("available"):
-            per_agent = {**existing_usage.get("per_agent", {}), "structure": structure_usage}
-            usage_summary = _aggregate_usage_summary(per_agent)
-        else:
-            usage_summary = _aggregate_usage_summary({"structure": structure_usage})
-
         return {
             "structure_draft": structure_output,
             "structure_usage": structure_usage,
-            "usage_summary": usage_summary,
         }
     except Exception:
         logger.exception("structure_agent 调用失败")
@@ -493,17 +478,9 @@ async def academic_translation_agent_node(state: AcademicState, config: Runnable
         translation_output = result.get("output")
         translation_usage = result.get("usage")
 
-        existing_usage = state.get("usage_summary") or {}
-        if existing_usage.get("available"):
-            per_agent = {**existing_usage.get("per_agent", {}), "academic_translation": translation_usage}
-            usage_summary = _aggregate_usage_summary(per_agent)
-        else:
-            usage_summary = _aggregate_usage_summary({"academic_translation": translation_usage})
-
         return {
             "translation_draft": translation_output,
             "translation_usage": translation_usage,
-            "usage_summary": usage_summary,
         }
     except Exception:
         logger.exception("academic_translation_agent 调用失败")
@@ -618,6 +595,20 @@ async def normalize_academic_node(state: AcademicState) -> AcademicState:
         sentence_translations=sentence_translations,
     )
 
+    term_usage = state.get("term_usage")
+    logic_usage = state.get("logic_usage")
+    interpretation_usage = state.get("interpretation_usage")
+    structure_usage = state.get("structure_usage")
+    translation_usage = state.get("translation_usage")
+
+    usage_summary = _aggregate_usage_summary({
+        "term": term_usage,
+        "logic": logic_usage,
+        "interpretation": interpretation_usage,
+        "structure": structure_usage,
+        "academic_translation": translation_usage,
+    })
+
     current_run = get_current_run_tree()
     if current_run is not None:
         current_run.set(
@@ -636,6 +627,7 @@ async def normalize_academic_node(state: AcademicState) -> AcademicState:
 
     return {
         "academic_output": academic_output,
+        "usage_summary": usage_summary,
         "warnings": [*state.get("warnings", []), *warnings],
     }
 
