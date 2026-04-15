@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useConfigStore, UserPurpose } from '../../stores/config'
@@ -10,7 +10,22 @@ export default function Onboarding() {
   const [isReady, setIsReady] = useState(false)
   const { purpose, setPurpose, level, setLevel } = useConfigStore()
 
-  // 记忆逻辑：如果已有配置且不是从 Profile 进来，直达首页
+  const skip = useCallback(() => {
+    Taro.setStorageSync('user_configured', true)
+    Taro.reLaunch({ url: '/pages/home/index' })
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        skip()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [skip])
+
   useEffect(() => {
     const fromProfile = router.params.from === 'profile'
     const hasConfig = Taro.getStorageSync('user_configured')
@@ -31,11 +46,6 @@ export default function Onboarding() {
     setTimeout(() => {
       Taro.reLaunch({ url: '/pages/home/index' })
     }, 1000)
-  }
-
-  const skip = () => {
-    Taro.setStorageSync('user_configured', true)
-    Taro.reLaunch({ url: '/pages/home/index' })
   }
 
   if (!isReady) return null

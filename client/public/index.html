@@ -24,6 +24,9 @@
       -moz-osx-font-smoothing: grayscale;
       background-color: #FAF9F9;
     }
+    :root {
+      --safe-area-inset-bottom: 0px;
+    }
     @media (max-width: 768px) {
       #app {
         max-width: 100%;
@@ -38,6 +41,8 @@
         box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
         border-radius: 12px;
         overflow: hidden;
+        height: 100vh;
+        max-height: 800px;
       }
       body {
         display: flex;
@@ -52,5 +57,11 @@
 </head>
 <body>
   <div id="app"></div>
+  <script>
+    var TARO_APP_ENV = 'local';
+  </script>
+  <link rel="stylesheet" href="./css/app.css">
+  <script src="./js/315.js"></script>
+  <script src="./js/app.js"></script>
 </body>
 </html>

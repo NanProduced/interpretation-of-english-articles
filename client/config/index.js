@@ -17,6 +17,7 @@ const config = {
   },
   copy: {
     patterns: [
+      { from: 'public/index.html', to: 'dist/index.html' }
     ],
     options: {
     }

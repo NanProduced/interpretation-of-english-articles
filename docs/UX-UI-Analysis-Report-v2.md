@@ -2,7 +2,7 @@
 
 > 分析日期：2026年4月15日  
 > 分析方法：浏览器真实观察 + 代码审查  
-> 观察页面：引导页、首页（含登录弹窗）  
+> 观察页面：引导页、首页、输入页、记录页、个人配置页（含登录弹窗）  
 > 文档位置：`docs/UX-UI-Analysis-Report-v2.md`
 
 ---
@@ -14,6 +14,9 @@
    - [2.1 引导页 (Onboarding)](#21-引导页-onboarding)
    - [2.2 首页 (Home)](#22-首页-home)
    - [2.3 登录引导弹窗](#23-登录引导弹窗)
+   - [2.4 输入页 (Input)](#24-输入页-input)
+   - [2.5 记录页 (History)](#25-记录页-history)
+   - [2.6 个人配置页 (Profile)](#26-个人配置页-profile)
 3. [设计系统分析](#3-设计系统分析)
 4. [交互问题汇总](#4-交互问题汇总)
 5. [优化建议](#5-优化建议)
@@ -25,29 +28,31 @@
 
 ### 1.1 关键发现
 
-基于浏览器真实观察，我发现了以下关键问题：
+基于浏览器真实观察（涵盖引导页、首页、输入页、记录页、个人配置页5个页面），我发现了以下关键问题：
 
 | 严重程度 | 问题数量 | 主要问题类型 |
 |----------|----------|--------------|
-| 🔴 高 | 3 | 资源加载失败、关键按钮可访问性、信息层次 |
-| 🟡 中 | 5 | 视觉一致性、间距、响应式适配 |
-| 🟢 低 | 4 | 微动效、文案优化 |
+| 🔴 高 | 8 | 资源加载失败、关键按钮可访问性、输入引导缺失、空状态误导、布局混乱 |
+| 🟡 中 | 13 | 视觉一致性、间距、响应式适配、选中状态反馈 |
+| 🟢 低 | 6 | 微动效、文案优化、区域标题样式 |
 
 ### 1.2 整体评分
 
 | 维度 | 评分 (1-10) | 说明 |
 |------|-------------|------|
-| 视觉设计 | 7.5/10 | 整体设计现代，但部分细节粗糙 |
-| 信息架构 | 7/10 | 首页布局清晰，但引导页流程可优化 |
-| 交互体验 | 6.5/10 | 缺少加载状态、部分按钮可点击区域不明确 |
-| 可访问性 | 5.5/10 | 图片加载失败、对比度问题、关键入口不明显 |
-| 一致性 | 7/10 | 整体风格统一，但部分组件样式不一致 |
+| 视觉设计 | 6.8/10 | 整体设计现代，但新发现页面存在较多布局问题 |
+| 信息架构 | 6.5/10 | 输入页、个人配置页的信息层次混乱 |
+| 交互体验 | 5.8/10 | 输入引导缺失、空状态误导、部分页面缺少底部导航 |
+| 可访问性 | 5.0/10 | 图片加载失败、对比度问题、关键入口不明显、引导缺失 |
+| 一致性 | 6.2/10 | 底部导航在不同页面显示不一致、选中状态反馈不统一 |
 
-### 1.3 最紧急的3个问题
+### 1.3 最紧急的5个问题
 
 1. **Logo 图片加载失败** - 影响品牌形象和用户信任
-2. **"游客试用"按钮视觉权重过低** - 关键行动入口不明显
-3. **信息层次不清晰** - 部分区域文字拥挤，阅读困难
+2. **输入页缺少输入框视觉引导** - 用户不知道在哪里输入文本
+3. **个人配置页登录入口布局混乱** - 视觉上显得不专业
+4. **"去粘贴一篇文章试试吧"不是可点击按钮** - 带有箭头暗示但实际不可点击，误导用户
+5. **"游客试用"按钮视觉权重过低** - 关键行动入口不明显
 
 ---
 
@@ -313,6 +318,167 @@
 1. "游客试用"按钮使用的是 `var(--text-muted)` 颜色（次要文字颜色）
 2. 只有边框，没有背景色
 3. 视觉上明显弱于绿色的"微信登录"按钮
+
+---
+
+### 2.4 输入页 (Input)
+
+**页面截图：** `input-page.png`
+
+#### 2.4.1 页面结构观察
+
+```
+┌─────────────────────────────────────────┐
+│  ← 返回                    解析新文章   │ ← 头部区域
+├─────────────────────────────────────────┤
+│                                         │
+│           输入英文文章                  │ ← 中央提示文字
+│    在此开始你的深度阅读之旅             │
+│                                         │
+│                                         │
+│                                         │
+├─────────────────────────────────────────┤
+│  开始透读                      0 words  │ ← 底部操作栏
+└─────────────────────────────────────────┘
+```
+
+#### 2.4.2 发现的问题（基于真实截图）
+
+| 问题编号 | 问题描述 | 严重程度 | 截图证据 |
+|----------|----------|----------|----------|
+| INP-001 | **页面过于空旷** | 🔴 高 | 页面大部分区域是空白，没有明确的输入区域视觉边界 |
+| INP-002 | **缺少输入框视觉引导** | 🔴 高 | 用户不知道在哪里输入文本，没有明显的输入框组件 |
+| INP-003 | **底部按钮不明显** | 🟡 中 | "开始透读"按钮与底部栏融合，视觉上不突出 |
+| INP-004 | **缺少粘贴入口** | 🟡 中 | 没有明显的"粘贴"按钮，用户不知道如何导入文本 |
+| INP-005 | **顶部标题布局异常** | 🟡 中 | "解析新文章"标题位置偏右，与返回按钮不对称 |
+| INP-006 | **缺少字数统计实时反馈** | 🟢 低 | "0 words"位置不明显，用户输入时看不到实时计数 |
+
+#### 2.4.3 代码层面验证
+
+```tsx
+// client/src/pages/input/index.tsx
+// 从截图观察，输入页面应该有一个 TextArea 或类似组件
+// 但在 H5 环境中可能存在样式问题
+```
+
+**问题分析：**
+1. 从截图看，页面中心只有"输入英文文章"和"在此开始你的深度阅读之旅"两行文字
+2. 没有明显的文本输入框边界或提示
+3. 底部"开始透读"按钮样式平淡，与页面背景融合
+4. 可能存在 H5 环境下的样式兼容性问题
+
+---
+
+### 2.5 记录页 (History)
+
+**页面截图：** `history-page.png`
+
+#### 2.5.1 页面结构观察
+
+```
+┌─────────────────────────────────────────┐
+│           历史解读        已收藏        │ ← 标签切换
+├─────────────────────────────────────────┤
+│                                         │
+│           暂无解读记录                  │ ← 空状态提示
+│      去粘贴一篇文章试试吧 →             │
+│                                         │
+│                                         │
+├─────────────────────────────────────────┤
+│     [首页]      [记录]      [我的]     │ ← 底部导航
+│                 (选中)                  │
+└─────────────────────────────────────────┘
+```
+
+#### 2.5.2 发现的问题（基于真实截图）
+
+| 问题编号 | 问题描述 | 严重程度 | 截图证据 |
+|----------|----------|----------|----------|
+| HIS-001 | **空状态设计过于简单** | 🟡 中 | 只有两行文字，没有图标或引导按钮 |
+| HIS-002 | **"去粘贴一篇文章试试吧"不是可点击按钮** | 🔴 高 | 文字带有箭头"→"，暗示可点击，但实际是纯文字 |
+| HIS-003 | **标签切换选中状态不明显** | 🟡 中 | "历史解读"和"已收藏"标签的选中状态视觉反馈弱 |
+| HIS-004 | **缺少筛选/排序入口** | 🟢 低 | 当有记录时，用户可能需要筛选功能 |
+| HIS-005 | **底部导航选中状态不明显** | 🟡 中 | "记录"标签的选中状态视觉上不够突出 |
+
+#### 2.5.3 代码层面验证
+
+```tsx
+// client/src/pages/history/index.tsx
+// 从截图看，空状态设计需要优化
+```
+
+**问题分析：**
+1. 空状态只有文字，没有视觉元素引导用户
+2. "去粘贴一篇文章试试吧 →" 这个文字暗示用户可以点击，但实际可能不可点击
+3. 标签切换组件的选中状态缺乏明显的视觉反馈（如下划线、背景色变化等）
+4. 底部导航的选中状态同样不明显
+
+---
+
+### 2.6 个人配置页 (Profile)
+
+**页面截图：** `profile-page.png`
+
+#### 2.6.1 页面结构观察
+
+```
+┌─────────────────────────────────────────┐
+│  ○         点击登录微信                 │ ← 登录入口
+│            登录后可同步数据到云端        │
+├─────────────────────────────────────────┤
+│  新单词              当前笔数: 0        │ ← 数据统计区域
+│                                         │
+│  每日常规额度          每日 0:00...     │
+│                                         │
+│  永久奖励积分          通过活动...       │
+├─────────────────────────────────────────┤
+│              累计 0 篇                  │ ← 阅读统计
+│              阅读篇数                   │
+├─────────────────────────────────────────┤
+│  学习管理                               │ ← 区域标题
+├─────────────────────────────────────────┤
+│  当前模式配置    日常阅读(进阶模式)  > │ ← 配置项 1
+├─────────────────────────────────────────┤
+│  我的生词本        暂无生词            > │ ← 配置项 2
+├─────────────────────────────────────────┤
+│  关于与合规                             │ ← 区域标题
+├─────────────────────────────────────────┤
+│  用户协议与隐私政策                    > │ ← 链接项 1
+├─────────────────────────────────────────┤
+│  关于我们                              > │ ← 链接项 2
+├─────────────────────────────────────────┤
+│            AI Reader v1.0.0            │ ← 版本信息
+└─────────────────────────────────────────┘
+```
+
+#### 2.6.2 发现的问题（基于真实截图）
+
+| 问题编号 | 问题描述 | 严重程度 | 截图证据 |
+|----------|----------|----------|----------|
+| PRF-001 | **登录入口布局混乱** | 🔴 高 | 头像占位符、"点击登录微信"、"登录后可同步数据到云端"排版混乱，对齐不一致 |
+| PRF-002 | **数据统计区域信息层次不清晰** | 🟡 中 | "新单词"、"每日常规额度"等项目与右侧数值的排版拥挤，可读性差 |
+| PRF-003 | **"累计 0 篇"区域样式异常** | 🔴 高 | 这个区域看起来像是一个卡片被截断，样式不完整 |
+| PRF-004 | **列表项缺少点击反馈** | 🟡 中 | 配置项和链接项右侧有">"箭头，但整体可点击区域不明确 |
+| PRF-005 | **区域标题视觉权重低** | 🟢 低 | "学习管理"、"关于与合规"标题样式平淡，与列表项区分不够 |
+| PRF-006 | **缺少底部导航** | 🟡 中 | 其他页面都有底部导航，但此页面似乎没有（或被截断） |
+| PRF-007 | **数值显示为 0 时缺少引导** | 🟡 中 | 多个统计值显示为 0，没有引导用户如何获取这些数值 |
+
+#### 2.6.3 代码层面验证
+
+```tsx
+// client/src/pages/profile/index.tsx
+// 从截图观察，页面布局存在多个问题：
+// 1. 顶部登录区域对齐问题
+// 2. 数据统计区域排版问题
+// 3. "累计 0 篇"区域样式问题
+```
+
+**问题分析：**
+1. **登录入口区域：** 左侧是圆形头像占位符，右侧是两行文字，但对齐方式不统一，视觉上显得混乱
+2. **数据统计区域：** 每一行的左侧标签和右侧数值的排版拥挤，没有清晰的分隔
+3. **"累计 0 篇"区域：** 这个区域的样式看起来像是一个卡片被截断，背景色与其他区域不一致，可能是样式问题
+4. **列表项：** 虽然有">"箭头指示可点击，但整体可点击区域的视觉反馈不明显
+5. **底部导航：** 从截图底部看，似乎没有显示底部导航栏，这与其他页面不一致
 
 ---
 
@@ -760,6 +926,680 @@ import logo from '@/assets/images/claread-logo.png'
 
 ---
 
+#### 建议 6：优化输入页布局和视觉引导
+
+**问题：** 从截图观察，输入页过于空旷，缺少明确的输入框视觉边界和引导，用户不知道在哪里输入文本。
+
+**建议优化后的布局：**
+
+```
+┌─────────────────────────────────────────┐
+│  ← 返回                    解析新文章   │
+├─────────────────────────────────────────┤
+│  ┌─────────────────────────────────┐   │
+│  │  输入英文文章                   │   │ ← 带边框的输入区域
+│  │  在此开始你的深度阅读之旅       │   │
+│  │                                 │   │
+│  │                                 │   │
+│  │                                 │   │
+│  │                                 │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  [粘贴]  [导入文件]  [清空]            │ ← 快捷操作按钮
+├─────────────────────────────────────────┤
+│  开始透读                      0 words  │ ← 突出的主按钮
+└─────────────────────────────────────────┘
+```
+
+**实现建议：**
+
+```tsx
+<View className='input-page'>
+  <View className='input-header'>
+    <View className='back-btn' onClick={goBack}>
+      <LucideIcon name='chevronLeft' size={40} color='var(--text-main)' />
+    </View>
+    <Text className='page-title'>解析新文章</Text>
+    <View className='placeholder' />
+  </View>
+
+  <View className='input-content'>
+    <View className='input-container'>
+      <Textarea
+        className='text-input'
+        value={text}
+        placeholder='输入英文文章&#10;在此开始你的深度阅读之旅'
+        onInput={handleInput}
+        maxlength={-1}
+        showConfirmBar={false}
+      />
+    </View>
+
+    <View className='quick-actions'>
+      <View className='action-btn' onClick={handlePaste}>
+        <LucideIcon name='clipboard' size={32} color='var(--text-muted)' />
+        <Text className='action-text'>粘贴</Text>
+      </View>
+      <View className='action-btn' onClick={handleImport}>
+        <LucideIcon name='fileText' size={32} color='var(--text-muted)' />
+        <Text className='action-text'>导入文件</Text>
+      </View>
+      {text && (
+        <View className='action-btn' onClick={handleClear}>
+          <LucideIcon name='trash2' size={32} color='var(--text-muted)' />
+          <Text className='action-text'>清空</Text>
+        </View>
+      )}
+    </View>
+  </View>
+
+  <View className='input-footer'>
+    <View className='word-count'>
+      <Text className='count-text'>{wordCount} words</Text>
+    </View>
+    <View 
+      className={`submit-btn ${!text ? 'disabled' : ''}`} 
+      onClick={text ? handleSubmit : undefined}
+    >
+      <Text className='submit-text'>开始透读</Text>
+    </View>
+  </View>
+</View>
+```
+
+```scss
+.input-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-page);
+}
+
+.input-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background: #fff;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.back-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-title {
+  font-size: 32rpx;
+  font-weight: var(--weight-semibold);
+  color: var(--text-main);
+}
+
+.placeholder {
+  width: 64rpx;
+}
+
+.input-content {
+  flex: 1;
+  padding: 24rpx;
+}
+
+.input-container {
+  background: #fff;
+  border-radius: var(--radius-md);
+  border: 2rpx solid var(--border-color);
+  min-height: 400rpx;
+  padding: 24rpx;
+}
+
+.text-input {
+  width: 100%;
+  min-height: 350rpx;
+  font-size: 30rpx;
+  line-height: 1.8;
+  color: var(--text-main);
+}
+
+.quick-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  border: 1rpx solid var(--border-color);
+
+  &:active {
+    background: var(--color-bg);
+  }
+
+  .action-text {
+    font-size: 26rpx;
+    color: var(--text-muted);
+  }
+}
+
+.input-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background: #fff;
+  border-top: 1rpx solid var(--border-color);
+}
+
+.word-count {
+  .count-text {
+    font-size: 26rpx;
+    color: var(--text-muted);
+  }
+}
+
+.submit-btn {
+  padding: 20rpx 48rpx;
+  background: var(--primary-color);
+  border-radius: var(--radius-md);
+
+  &.disabled {
+    background: var(--border-color);
+  }
+
+  &:active:not(.disabled) {
+    opacity: 0.9;
+  }
+
+  .submit-text {
+    font-size: 28rpx;
+    font-weight: var(--weight-semibold);
+    color: #fff;
+  }
+}
+```
+
+---
+
+#### 建议 7：优化记录页空状态和交互
+
+**问题：** 记录页空状态只有两行文字，"去粘贴一篇文章试试吧 →"带有箭头暗示可点击但实际不可点击，标签切换选中状态不明显。
+
+**建议优化后的布局：**
+
+```
+┌─────────────────────────────────────────┐
+│  历史解读        [已收藏]               │ ← 标签切换（带下划线）
+├─────────────────────────────────────────┤
+│                                         │
+│           ┌─────────┐                  │
+│           │  [图标] │                  │ ← 空状态图标
+│           └─────────┘                  │
+│                                         │
+│           暂无解读记录                  │
+│     你还没有解析任何文章                │
+│                                         │
+│     ┌─────────────────┐                │
+│     │  去解析一篇文章  │                │ ← 明确的按钮
+│     └─────────────────┘                │
+│                                         │
+├─────────────────────────────────────────┤
+│     [首页]      [记录]      [我的]     │
+│                 (选中)                  │
+└─────────────────────────────────────────┘
+```
+
+**实现建议：**
+
+```tsx
+<View className='history-page'>
+  <View className='tab-header'>
+    <View 
+      className={`tab-item ${activeTab === 'history' ? 'active' : ''}`}
+      onClick={() => setActiveTab('history')}
+    >
+      <Text className='tab-text'>历史解读</Text>
+    </View>
+    <View 
+      className={`tab-item ${activeTab === 'favorites' ? 'active' : ''}`}
+      onClick={() => setActiveTab('favorites')}
+    >
+      <Text className='tab-text'>已收藏</Text>
+    </View>
+  </View>
+
+  <View className='history-content'>
+    {records.length === 0 ? (
+      <View className='empty-state'>
+        <View className='empty-icon'>
+          <LucideIcon name='fileText' size={80} color='var(--border-color)' />
+        </View>
+        <Text className='empty-title'>暂无解读记录</Text>
+        <Text className='empty-subtitle'>你还没有解析任何文章</Text>
+        <View className='empty-action' onClick={goToInput}>
+          <LucideIcon name='plus' size={32} color='#fff' />
+          <Text className='empty-action-text'>去解析一篇文章</Text>
+        </View>
+      </View>
+    ) : (
+      <View className='record-list'>
+        {records.map(record => (
+          <View className='record-item' key={record.id} onClick={() => goToResult(record.id)}>
+            <Text className='record-title' numberOfLines={2}>{record.title}</Text>
+            <View className='record-meta'>
+              <Text className='record-time'>{formatTime(record.time)}</Text>
+              <View className='record-actions'>
+                <View className='action-icon' onClick={(e) => { e.stopPropagation(); toggleFavorite(record.id); }}>
+                  <LucideIcon name={record.isFavorite ? 'heart' : 'heart'} size={32} color={record.isFavorite ? '#EF4444' : 'var(--text-muted)'} />
+                </View>
+                <View className='action-icon' onClick={(e) => { e.stopPropagation(); deleteRecord(record.id); }}>
+                  <LucideIcon name='trash2' size={32} color='var(--text-muted)' />
+                </View>
+              </View>
+            </View>
+          </View>
+        ))}
+      </View>
+    )}
+  </View>
+</View>
+```
+
+```scss
+.tab-header {
+  display: flex;
+  background: #fff;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 0;
+  position: relative;
+
+  &.active {
+    .tab-text {
+      color: var(--text-main);
+      font-weight: var(--weight-semibold);
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60rpx;
+      height: 4rpx;
+      background: var(--primary-color);
+      border-radius: 2rpx;
+    }
+  }
+
+  .tab-text {
+    font-size: 28rpx;
+    color: var(--text-muted);
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80rpx 48rpx;
+}
+
+.empty-icon {
+  width: 160rpx;
+  height: 160rpx;
+  background: var(--color-bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32rpx;
+}
+
+.empty-title {
+  font-size: 32rpx;
+  font-weight: var(--weight-semibold);
+  color: var(--text-main);
+  margin-bottom: 12rpx;
+}
+
+.empty-subtitle {
+  font-size: 26rpx;
+  color: var(--text-muted);
+  margin-bottom: 40rpx;
+}
+
+.empty-action {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 24rpx 48rpx;
+  background: var(--primary-color);
+  border-radius: var(--radius-md);
+
+  &:active {
+    opacity: 0.9;
+  }
+
+  .empty-action-text {
+    font-size: 28rpx;
+    font-weight: var(--weight-medium);
+    color: #fff;
+  }
+}
+```
+
+---
+
+#### 建议 8：优化个人配置页布局和视觉层次
+
+**问题：** 个人配置页登录入口布局混乱，数据统计区域信息层次不清晰，"累计 0 篇"区域样式异常，缺少底部导航。
+
+**建议优化后的布局：**
+
+```
+┌─────────────────────────────────────────┐
+│  ┌─────────┐                            │
+│  │  [头像] │   点击登录微信             │ ← 登录区域（左对齐）
+│  │         │   登录后可同步数据到云端   │
+│  └─────────┘                            │
+├─────────────────────────────────────────┤
+│                                         │
+│  ┌─────────────────────────────────┐   │
+│  │  累计 0 篇                      │   │ ← 阅读统计卡片
+│  │  阅读篇数                        │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+├─────────────────────────────────────────┤
+│  数据统计                               │ ← 区域标题
+├─────────────────────────────────────────┤
+│  新单词              当前笔数: 0        │ ← 统计项（右对齐数值）
+│  ─────────────────────────────────────  │
+│  每日常规额度          每日 0:00...     │
+│  ─────────────────────────────────────  │
+│  永久奖励积分          通过活动...       │
+├─────────────────────────────────────────┤
+│  学习管理                               │
+├─────────────────────────────────────────┤
+│  当前模式配置    日常阅读(进阶模式)  > │
+│  我的生词本        暂无生词            > │
+├─────────────────────────────────────────┤
+│  关于与合规                             │
+├─────────────────────────────────────────┤
+│  用户协议与隐私政策                    > │
+│  关于我们                              > │
+├─────────────────────────────────────────┤
+│            AI Reader v1.0.0            │
+├─────────────────────────────────────────┤
+│     [首页]      [记录]      [我的]     │ ← 底部导航
+│                               (选中)    │
+└─────────────────────────────────────────┘
+```
+
+**实现建议：**
+
+```tsx
+<View className='profile-page'>
+  <View className='login-section'>
+    {isLoggedIn ? (
+      <View className='user-info'>
+        <Image className='user-avatar' src={userAvatar} mode='aspectFill' />
+        <View className='user-text'>
+          <Text className='user-name'>{userName}</Text>
+          <Text className='user-desc'>数据已同步到云端</Text>
+        </View>
+      </View>
+    ) : (
+      <View className='login-prompt' onClick={handleLogin}>
+        <View className='avatar-placeholder'>
+          <LucideIcon name='user' size={48} color='var(--text-muted)' />
+        </View>
+        <View className='login-text'>
+          <Text className='login-title'>点击登录微信</Text>
+          <Text className='login-desc'>登录后可同步数据到云端</Text>
+        </View>
+        <LucideIcon name='chevronRight' size={32} color='var(--text-muted)' />
+      </View>
+    )}
+  </View>
+
+  <View className='stat-card'>
+    <Text className='stat-value'>{totalArticles}</Text>
+    <Text className='stat-label'>阅读篇数</Text>
+  </View>
+
+  <View className='section'>
+    <Text className='section-title'>数据统计</Text>
+    <View className='stat-list'>
+      <View className='stat-item'>
+        <Text className='stat-name'>新单词</Text>
+        <Text className='stat-number'>{newWords} 个</Text>
+      </View>
+      <View className='divider' />
+      <View className='stat-item'>
+        <Text className='stat-name'>每日常规额度</Text>
+        <Text className='stat-number'>{dailyQuota} 次</Text>
+      </View>
+      <View className='divider' />
+      <View className='stat-item'>
+        <Text className='stat-name'>永久奖励积分</Text>
+        <Text className='stat-number'>{bonusPoints}</Text>
+      </View>
+    </View>
+  </View>
+
+  <View className='section'>
+    <Text className='section-title'>学习管理</Text>
+    <View className='setting-list'>
+      <View className='setting-item' onClick={goToConfig}>
+        <Text className='setting-name'>当前模式配置</Text>
+        <View className='setting-right'>
+          <Text className='setting-value'>{currentMode}</Text>
+          <LucideIcon name='chevronRight' size={32} color='var(--text-muted)' />
+        </View>
+      </View>
+      <View className='setting-item' onClick={goToVocabulary}>
+        <Text className='setting-name'>我的生词本</Text>
+        <View className='setting-right'>
+          <Text className='setting-value'>{vocabularyCount > 0 ? `${vocabularyCount} 个生词` : '暂无生词'}</Text>
+          <LucideIcon name='chevronRight' size={32} color='var(--text-muted)' />
+        </View>
+      </View>
+    </View>
+  </View>
+
+  <View className='section'>
+    <Text className='section-title'>关于与合规</Text>
+    <View className='setting-list'>
+      <View className='setting-item' onClick={goToAgreement}>
+        <Text className='setting-name'>用户协议与隐私政策</Text>
+        <LucideIcon name='chevronRight' size={32} color='var(--text-muted)' />
+      </View>
+      <View className='setting-item' onClick={goToAbout}>
+        <Text className='setting-name'>关于我们</Text>
+        <LucideIcon name='chevronRight' size={32} color='var(--text-muted)' />
+      </View>
+    </View>
+  </View>
+
+  <View className='version-info'>
+    <Text className='version-text'>AI Reader v1.0.0</Text>
+  </View>
+</View>
+```
+
+```scss
+.profile-page {
+  min-height: 100vh;
+  background: var(--color-bg-page);
+  padding-bottom: 100rpx;
+}
+
+.login-section {
+  background: #fff;
+  padding: 32rpx;
+  margin-bottom: 16rpx;
+}
+
+.login-prompt {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.avatar-placeholder {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-text {
+  flex: 1;
+}
+
+.login-title {
+  font-size: 32rpx;
+  font-weight: var(--weight-semibold);
+  color: var(--text-main);
+}
+
+.login-desc {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  margin-top: 4rpx;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #8B5CF6 100%);
+  margin: 0 24rpx 24rpx;
+  padding: 40rpx;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  .stat-value {
+    font-size: 56rpx;
+    font-weight: var(--weight-bold);
+    color: #fff;
+  }
+
+  .stat-label {
+    font-size: 26rpx;
+    color: rgba(255, 255, 255, 0.8);
+    margin-top: 8rpx;
+  }
+}
+
+.section {
+  background: #fff;
+  margin-bottom: 16rpx;
+}
+
+.section-title {
+  font-size: 26rpx;
+  color: var(--text-muted);
+  padding: 24rpx 32rpx 12rpx;
+}
+
+.stat-list {
+  padding: 0 32rpx;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 0;
+
+  .stat-name {
+    font-size: 28rpx;
+    color: var(--text-main);
+  }
+
+  .stat-number {
+    font-size: 28rpx;
+    font-weight: var(--weight-medium);
+    color: var(--text-main);
+  }
+}
+
+.divider {
+  height: 1rpx;
+  background: var(--border-color);
+  margin-left: 0;
+}
+
+.setting-list {
+  padding: 0 32rpx;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28rpx 0;
+  border-bottom: 1rpx solid var(--border-color);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: var(--color-bg);
+    margin: 0 -32rpx;
+    padding: 28rpx 32rpx;
+  }
+
+  .setting-name {
+    font-size: 28rpx;
+    color: var(--text-main);
+  }
+
+  .setting-right {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+
+    .setting-value {
+      font-size: 26rpx;
+      color: var(--text-muted);
+    }
+  }
+}
+
+.version-info {
+  display: flex;
+  justify-content: center;
+  padding: 40rpx;
+
+  .version-text {
+    font-size: 24rpx;
+    color: var(--text-muted);
+  }
+}
+```
+
+---
+
 ### 5.3 低优先级 (P2) - 建议后续优化
 
 #### 建议 6：添加微动效提升体验
@@ -819,23 +1659,39 @@ import logo from '@/assets/images/claread-logo.png'
 | 优先级 | 问题编号 | 问题描述 | 预计修复时间 | 修复难度 |
 |--------|----------|----------|--------------|----------|
 | P0 | LOG-001 | Logo 图片加载失败 | 1 小时 | 低 |
+| P0 | INP-001 | 输入页页面过于空旷，缺少输入引导 | 2 小时 | 中 |
+| P0 | INP-002 | 输入页缺少输入框视觉引导 | 1.5 小时 | 中 |
+| P0 | PRF-001 | 个人配置页登录入口布局混乱 | 2 小时 | 中 |
+| P0 | PRF-003 | 个人配置页"累计 0 篇"区域样式异常 | 1 小时 | 低 |
+| P0 | HIS-002 | 记录页"去粘贴一篇文章试试吧"不是可点击按钮 | 1 小时 | 低 |
 | P0 | LOG-002 | "游客试用"入口不明显 | 2 小时 | 低 |
 | P0 | ONB-002 | 选项卡片描述文字过小 | 30 分钟 | 低 |
 | P1 | HOM-004 | 文章图片加载状态不统一 | 1.5 小时 | 中 |
 | P1 | HOM-005 | 卡片信息层次混乱 | 2 小时 | 中 |
-| P1 | INT-001 | 登录弹窗缺少关闭按钮 | 1 小时 | 低 |
+| P1 | PRF-002 | 个人配置页数据统计区域信息层次不清晰 | 1.5 小时 | 中 |
+| P1 | PRF-006 | 个人配置页缺少底部导航 | 1 小时 | 低 |
+| P1 | INP-003 | 输入页底部按钮不明显 | 1 小时 | 低 |
+| P1 | INP-004 | 输入页缺少粘贴入口 | 1 小时 | 低 |
+| P1 | HIS-001 | 记录页空状态设计过于简单 | 1 小时 | 低 |
+| P1 | HIS-003 | 记录页标签切换选中状态不明显 | 1 小时 | 低 |
 | P1 | HOM-002 | 用户头像占位符不友好 | 1 小时 | 低 |
 | P2 | ONB-001 | "跳过"按钮不明显 | 30 分钟 | 低 |
 | P2 | HOM-006 | "更多"按钮不明显 | 30 分钟 | 低 |
-| P2 | INT-004 | 缺少加载状态指示 | 2 小时 | 中 |
+| P2 | PRF-004 | 个人配置页列表项缺少点击反馈 | 1 小时 | 低 |
+| P2 | PRF-005 | 个人配置页区域标题视觉权重低 | 30 分钟 | 低 |
+| P2 | INP-005 | 输入页顶部标题布局异常 | 30 分钟 | 低 |
+| P2 | INP-006 | 输入页缺少字数统计实时反馈 | 1 小时 | 低 |
 
 ### 6.2 优化建议优先级
 
 | 优先级 | 建议 | 预计工作量 | 预期收益 |
 |--------|------|------------|----------|
 | P0 | 修复 Logo 图片加载问题 + 降级处理 | 1 小时 | 恢复品牌形象 |
+| P0 | 优化输入页布局和视觉引导 | 3 小时 | 提升核心功能转化率 |
+| P0 | 优化个人配置页布局和视觉层次 | 3 小时 | 提升用户信任感 |
 | P0 | 优化"游客试用"按钮视觉权重 | 2 小时 | 提升关键转化率 |
 | P0 | 修复引导页描述文字过小 | 30 分钟 | 提升用户理解 |
+| P1 | 优化记录页空状态和交互 | 2 小时 | 提升空状态用户体验 |
 | P1 | 优化首页文章卡片布局 | 2 小时 | 提升信息可读性 |
 | P1 | 优化首页欢迎区域 | 1 小时 | 提升用户亲切感 |
 | P1 | 添加登录弹窗关闭按钮 | 1 小时 | 提升用户控制感 |
@@ -852,6 +1708,10 @@ import logo from '@/assets/images/claread-logo.png'
 |----------|------|----------|
 | `onboarding-page.png` | 引导页截图 | 配置选项、登录弹窗、跳过按钮 |
 | `login-modal.png` | 首页+登录弹窗 | 完整首页布局、文章卡片、底部导航 |
+| `home-page.png` | 首页截图 | 欢迎区域、输入入口、每日精选、底部导航 |
+| `input-page.png` | 输入页截图 | 标题栏、输入区域、底部操作栏 |
+| `history-page.png` | 记录页截图 | 标签切换、空状态、底部导航 |
+| `profile-page.png` | 个人配置页截图 | 登录入口、统计卡片、设置列表 |
 
 ### B. 代码文件参考
 
@@ -861,6 +1721,9 @@ import logo from '@/assets/images/claread-logo.png'
 | 配置编辑器 | `client/src/components/ConfigEditor/` |
 | 首页 | `client/src/pages/home/` |
 | 引导页 | `client/src/pages/onboarding/` |
+| 输入页 | `client/src/pages/input/` |
+| 记录页 | `client/src/pages/history/` |
+| 个人配置页 | `client/src/pages/profile/` |
 | 应用入口 | `client/src/app.tsx` |
 | 认证状态管理 | `client/src/stores/auth.ts` |
 
@@ -897,8 +1760,30 @@ const [showLogoFallback, setShowLogoFallback] = useState(false)
 </View>
 ```
 
+#### 4. 输入页输入容器样式
+```scss
+.input-container {
+  background: #fff;
+  border-radius: var(--radius-md);
+  border: 2rpx solid var(--border-color);
+  min-height: 400rpx;
+  padding: 24rpx;
+}
+```
+
+#### 5. 个人配置页统计卡片
+```scss
+.stat-card {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #8B5CF6 100%);
+  margin: 0 24rpx 24rpx;
+  padding: 40rpx;
+  border-radius: var(--radius-md);
+}
+```
+
 ---
 
 *报告生成时间：2026-04-15*  
 *分析方法：浏览器真实观察 + 代码审查*  
-*观察工具：集成浏览器 + 截图分析*
+*观察工具：集成浏览器 + 截图分析*  
+*观察页面：引导页、首页、输入页、记录页、个人配置页*
