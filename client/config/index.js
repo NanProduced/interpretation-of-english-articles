@@ -1,7 +1,6 @@
-const path = require('path')
 const config = {
   projectName: 'interpretation-of-english-articles-client',
-  date: '2026-3-29',
+  date: '2026-4-15',
   designWidth: 750,
   deviceRatio: {
     640: 2.34 / 2,
@@ -10,9 +9,11 @@ const config = {
   },
   sourceRoot: 'src',
   outputRoot: 'dist',
-  plugins: [],
+  plugins: [
+    '@tarojs/plugin-framework-react'
+  ],
   defineConstants: {
-    TARO_APP_ENV: JSON.stringify(process.env.TARO_APP_ENV || 'local'),
+    TARO_APP_ENV: '"local"'
   },
   copy: {
     patterns: [
@@ -23,18 +24,9 @@ const config = {
   framework: 'react',
   compiler: 'webpack5',
   cache: {
-    enable: false // Webpack5 cache 有 bug，暂时禁用
+    enable: false
   },
   mini: {
-    webpackChain: (chain, webpack) => {
-      chain.resolve.alias
-        .set('@/config', path.resolve(__dirname, '../src/config'))
-        .set('@/components', path.resolve(__dirname, '../src/components'))
-        .set('@/utils', path.resolve(__dirname, '../src/utils'))
-        .set('@/services', path.resolve(__dirname, '../src/services'))
-        .set('@/stores', path.resolve(__dirname, '../src/stores'))
-        .set('@/types', path.resolve(__dirname, '../src/types'))
-    },
     postcss: {
       pxtransform: {
         enable: true,
@@ -45,13 +37,13 @@ const config = {
       url: {
         enable: true,
         config: {
-          limit: 1024 // 设定转换尺寸上限
+          limit: 1024
         }
       },
       cssModules: {
-        enable: false, // 默认为 false，如需使用 css modules，配置为 true
+        enable: false,
         config: {
-          namingPattern: 'module', // 转换模式，取值为 global/module
+          namingPattern: 'module',
           generateScopedName: '[name]__[local]___[hash:base64:5]'
         }
       }
@@ -60,29 +52,15 @@ const config = {
   h5: {
     publicPath: '/',
     staticDirectory: 'static',
-    resolve: {
-      alias: {
-        '@/config': path.resolve(__dirname, '../src/config'),
-        '@/components': path.resolve(__dirname, '../src/components'),
-        '@/utils': path.resolve(__dirname, '../src/utils'),
-        '@/services': path.resolve(__dirname, '../src/services'),
-        '@/stores': path.resolve(__dirname, '../src/stores'),
-        '@/types': path.resolve(__dirname, '../src/types'),
-      },
+    devServer: {
+      port: 10086,
+      host: 'localhost',
+      open: false,
+      hot: true,
+      historyApiFallback: true
     },
-    postcss: {
-      autoprefixer: {
-        enable: true,
-        config: {
-        }
-      },
-      cssModules: {
-        enable: false, // 默认为 false，如需使用 css modules，配置为 true
-        config: {
-          namingPattern: 'module', // 转换模式，取值为 global/module
-          generateScopedName: '[name]__[local]___[hash:base64:5]'
-        }
-      }
+    router: {
+      mode: 'hash'
     }
   }
 }
