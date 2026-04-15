@@ -37,3 +37,6 @@ class AcademicState(TypedDict, total=False):
     render_scene: dict[str, object]
 
     warnings: list[Warning]
+    parallel_agent_errors: list[Warning]
+    structure_agent_errors: list[Warning]
+    translation_agent_errors: list[Warning]

@@ -404,7 +404,7 @@ async def parallel_academic_agents_node(state: AcademicState, config: RunnableCo
         "term_usage": result.get("term_usage"),
         "logic_usage": result.get("logic_usage"),
         "interpretation_usage": result.get("interpretation_usage"),
-        "warnings": [*state.get("warnings", []), *errors],
+        "parallel_agent_errors": errors,
     }
 
 
@@ -444,8 +444,7 @@ async def structure_agent_node(state: AcademicState, config: RunnableConfig) -> 
         logger.exception("structure_agent 调用失败")
         return {
             "structure_draft": None,
-            "warnings": [
-                *state.get("warnings", []),
+            "structure_agent_errors": [
                 Warning(code="STRUCTURE_AGENT_FAILED", level="warning", message="structure agent 调用失败，继续使用其他结果"),
             ],
         }
@@ -486,8 +485,7 @@ async def academic_translation_agent_node(state: AcademicState, config: Runnable
         logger.exception("academic_translation_agent 调用失败")
         return {
             "translation_draft": None,
-            "warnings": [
-                *state.get("warnings", []),
+            "translation_agent_errors": [
                 Warning(code="ACADEMIC_TRANSLATION_AGENT_FAILED", level="warning", message="academic translation agent 调用失败，继续使用其他结果"),
             ],
         }
@@ -609,6 +607,18 @@ async def normalize_academic_node(state: AcademicState) -> AcademicState:
         "academic_translation": translation_usage,
     })
 
+    parallel_agent_errors = state.get("parallel_agent_errors", [])
+    structure_agent_errors = state.get("structure_agent_errors", [])
+    translation_agent_errors = state.get("translation_agent_errors", [])
+
+    all_warnings = [
+        *state.get("warnings", []),
+        *parallel_agent_errors,
+        *structure_agent_errors,
+        *translation_agent_errors,
+        *warnings,
+    ]
+
     current_run = get_current_run_tree()
     if current_run is not None:
         current_run.set(
@@ -628,7 +638,7 @@ async def normalize_academic_node(state: AcademicState) -> AcademicState:
     return {
         "academic_output": academic_output,
         "usage_summary": usage_summary,
-        "warnings": [*state.get("warnings", []), *warnings],
+        "warnings": all_warnings,
     }
 
 
