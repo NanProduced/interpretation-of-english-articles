@@ -201,3 +201,98 @@ export interface DictionaryDisambiguationResult extends DictionaryResultBase {
 }
 
 export type DictionaryResult = DictionaryEntryResult | DictionaryDisambiguationResult
+
+export type TermCategory =
+  | 'technical_term'
+  | 'abbreviation'
+  | 'variable'
+  | 'method_name'
+  | 'concept'
+  | 'concept_opposition'
+  | 'proper_noun'
+
+export type LogicRelation =
+  | 'contrast'
+  | 'concession'
+  | 'qualification'
+  | 'causation'
+  | 'comparison'
+  | 'hypothesis'
+  | 'conclusion'
+  | 'condition'
+  | 'addition'
+  | 'sequence'
+
+export type ParagraphRoleType =
+  | 'definition'
+  | 'background'
+  | 'problem_statement'
+  | 'methodology'
+  | 'evidence'
+  | 'result'
+  | 'limitation'
+  | 'transition'
+  | 'discussion'
+  | 'conclusion'
+
+export interface TermNoteModel {
+  type: 'term_note'
+  sentenceId: string
+  text: string
+  occurrence?: number
+  category: TermCategory
+  termZh: string
+  definition?: string
+  contextHint?: string
+}
+
+export interface LogicNoteModel {
+  type: 'logic_note'
+  sentenceId: string
+  spans: SpanRef[]
+  relation: LogicRelation
+  label: string
+  explanationZh: string
+}
+
+export interface InterpretationNoteModel {
+  type: 'interpretation_note'
+  sentenceId: string
+  spans?: SpanRef[]
+  literalTranslation?: string
+  intendedMeaningZh: string
+  whyNotLiteral?: string
+  rhetoricalPurpose?: string
+}
+
+export interface ParagraphRoleModel {
+  type: 'paragraph_role'
+  paragraphId: string
+  role: ParagraphRoleType
+  label: string
+  summaryZh: string
+  keyClaim?: string
+}
+
+export interface DocumentSummaryModel {
+  type: 'document_summary'
+  researchProblemZh?: string
+  methodologyZh?: string
+  keyFindingsZh?: string
+  limitationsZh?: string
+  overallSignificanceZh?: string
+}
+
+export interface AcademicRenderSceneVm extends RenderSceneVmBase {
+  termNotes: TermNoteModel[]
+  logicNotes: LogicNoteModel[]
+  interpretationNotes: InterpretationNoteModel[]
+  paragraphRoles: ParagraphRoleModel[]
+  documentSummary?: DocumentSummaryModel
+}
+
+export type RenderSceneVm = RenderSceneVmBase | AcademicRenderSceneVm
+
+export function isAcademicScene(scene: RenderSceneVm): scene is AcademicRenderSceneVm {
+  return 'termNotes' in scene || 'logicNotes' in scene || 'interpretationNotes' in scene
+}

@@ -22,10 +22,16 @@ import type {
   SentenceEntry,
   Warning,
   AnalyzeRequestMeta,
+  TermNoteDto,
+  LogicNoteDto,
+  InterpretationNoteDto,
+  ParagraphRoleDto,
+  DocumentSummaryDto,
 } from '@/types/api/analyze-response.dto'
 
 import type {
   RenderSceneVmBase,
+  AcademicRenderSceneVm,
   InlineMarkModel,
   TextAnchor as VmTextAnchor,
   MultiTextAnchor as VmMultiTextAnchor,
@@ -37,6 +43,11 @@ import type {
   SentenceEntryModel,
   WarningModel,
   RequestMeta,
+  TermNoteModel,
+  LogicNoteModel,
+  InterpretationNoteModel,
+  ParagraphRoleModel,
+  DocumentSummaryModel,
 } from '@/types/view/render-scene.vm'
 
 /**
@@ -171,12 +182,94 @@ function transformRequestMeta(meta: AnalyzeRequestMeta): RequestMeta {
 }
 
 /**
+ * 转换 TermNote
+ */
+function transformTermNote(note: TermNoteDto): TermNoteModel {
+  return {
+    type: note.type,
+    sentenceId: note.sentence_id,
+    text: note.text,
+    occurrence: note.occurrence,
+    category: note.category,
+    termZh: note.term_zh,
+    definition: note.definition,
+    contextHint: note.context_hint,
+  }
+}
+
+/**
+ * 转换 LogicNote
+ */
+function transformLogicNote(note: LogicNoteDto): LogicNoteModel {
+  return {
+    type: note.type,
+    sentenceId: note.sentence_id,
+    spans: note.spans.map((s: SpanRefPart) => ({
+      anchorText: s.anchor_text,
+      occurrence: s.occurrence,
+      role: s.role,
+    })),
+    relation: note.relation,
+    label: note.label,
+    explanationZh: note.explanation_zh,
+  }
+}
+
+/**
+ * 转换 InterpretationNote
+ */
+function transformInterpretationNote(note: InterpretationNoteDto): InterpretationNoteModel {
+  return {
+    type: note.type,
+    sentenceId: note.sentence_id,
+    spans: note.spans?.map((s: SpanRefPart) => ({
+      anchorText: s.anchor_text,
+      occurrence: s.occurrence,
+      role: s.role,
+    })),
+    literalTranslation: note.literal_translation,
+    intendedMeaningZh: note.intended_meaning_zh,
+    whyNotLiteral: note.why_not_literal,
+    rhetoricalPurpose: note.rhetorical_purpose,
+  }
+}
+
+/**
+ * 转换 ParagraphRole
+ */
+function transformParagraphRole(role: ParagraphRoleDto): ParagraphRoleModel {
+  return {
+    type: role.type,
+    paragraphId: role.paragraph_id,
+    role: role.role,
+    label: role.label,
+    summaryZh: role.summary_zh,
+    keyClaim: role.key_claim,
+  }
+}
+
+/**
+ * 转换 DocumentSummary
+ */
+function transformDocumentSummary(summary: DocumentSummaryDto | undefined): DocumentSummaryModel | undefined {
+  if (!summary) return undefined
+  return {
+    type: summary.type,
+    researchProblemZh: summary.research_problem_zh,
+    methodologyZh: summary.methodology_zh,
+    keyFindingsZh: summary.key_findings_zh,
+    limitationsZh: summary.limitations_zh,
+    overallSignificanceZh: summary.overall_significance_zh,
+  }
+}
+
+/**
  * 转换完整响应
  * 唯一转换点，snake_case -> camelCase
- * 返回 RenderSceneVmBase
+ * 返回 RenderSceneVm 或 AcademicRenderSceneVm
  */
-export function analyzeResponseDtoToVm(dto: AnalyzeResponseDto): RenderSceneVmBase {
-  return {
+export function analyzeResponseDtoToVm(dto: AnalyzeResponseDto): RenderSceneVmBase | AcademicRenderSceneVm {
+  const base = {
     schemaVersion: dto.schema_version as RenderSceneVmBase['schemaVersion'],
     request: transformRequestMeta(dto.request),
     article: transformArticle(dto.article),
@@ -186,6 +279,26 @@ export function analyzeResponseDtoToVm(dto: AnalyzeResponseDto): RenderSceneVmBa
     sentenceEntries: (dto.sentence_entries ?? []).map(transformSentenceEntry),
     warnings: (dto.warnings ?? []).map(transformWarning),
   }
+
+  const hasAcademicFields = 
+    (dto.term_notes && dto.term_notes.length > 0) ||
+    (dto.logic_notes && dto.logic_notes.length > 0) ||
+    (dto.interpretation_notes && dto.interpretation_notes.length > 0) ||
+    (dto.paragraph_roles && dto.paragraph_roles.length > 0) ||
+    dto.document_summary
+
+  if (hasAcademicFields) {
+    return {
+      ...base,
+      termNotes: (dto.term_notes ?? []).map(transformTermNote),
+      logicNotes: (dto.logic_notes ?? []).map(transformLogicNote),
+      interpretationNotes: (dto.interpretation_notes ?? []).map(transformInterpretationNote),
+      paragraphRoles: (dto.paragraph_roles ?? []).map(transformParagraphRole),
+      documentSummary: transformDocumentSummary(dto.document_summary),
+    }
+  }
+
+  return base
 }
 
 /**

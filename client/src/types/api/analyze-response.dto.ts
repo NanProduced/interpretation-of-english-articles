@@ -140,6 +140,89 @@ export interface TranslationItem {
 
 export type UserFacingState = 'normal' | 'degraded_light' | 'degraded_heavy'
 
+// ============ Academic 场景类型 ============
+
+export type TermCategory =
+  | 'technical_term'
+  | 'abbreviation'
+  | 'variable'
+  | 'method_name'
+  | 'concept'
+  | 'concept_opposition'
+  | 'proper_noun'
+
+export type LogicRelation =
+  | 'contrast'
+  | 'concession'
+  | 'qualification'
+  | 'causation'
+  | 'comparison'
+  | 'hypothesis'
+  | 'conclusion'
+  | 'condition'
+  | 'addition'
+  | 'sequence'
+
+export type ParagraphRoleType =
+  | 'definition'
+  | 'background'
+  | 'problem_statement'
+  | 'methodology'
+  | 'evidence'
+  | 'result'
+  | 'limitation'
+  | 'transition'
+  | 'discussion'
+  | 'conclusion'
+
+export interface TermNoteDto {
+  type: 'term_note'
+  sentence_id: string
+  text: string
+  occurrence?: number
+  category: TermCategory
+  term_zh: string
+  definition?: string
+  context_hint?: string
+}
+
+export interface LogicNoteDto {
+  type: 'logic_note'
+  sentence_id: string
+  spans: SpanRefPart[]
+  relation: LogicRelation
+  label: string
+  explanation_zh: string
+}
+
+export interface InterpretationNoteDto {
+  type: 'interpretation_note'
+  sentence_id: string
+  spans?: SpanRefPart[]
+  literal_translation?: string
+  intended_meaning_zh: string
+  why_not_literal?: string
+  rhetorical_purpose?: string
+}
+
+export interface ParagraphRoleDto {
+  type: 'paragraph_role'
+  paragraph_id: string
+  role: ParagraphRoleType
+  label: string
+  summary_zh: string
+  key_claim?: string
+}
+
+export interface DocumentSummaryDto {
+  type: 'document_summary'
+  research_problem_zh?: string
+  methodology_zh?: string
+  key_findings_zh?: string
+  limitations_zh?: string
+  overall_significance_zh?: string
+}
+
 // ============ 完整响应 ============
 
 export interface AnalyzeResponseDto {
@@ -151,4 +234,9 @@ export interface AnalyzeResponseDto {
   inline_marks: InlineMark[]
   sentence_entries: SentenceEntry[]
   warnings: Warning[]
+  term_notes?: TermNoteDto[]
+  logic_notes?: LogicNoteDto[]
+  interpretation_notes?: InterpretationNoteDto[]
+  paragraph_roles?: ParagraphRoleDto[]
+  document_summary?: DocumentSummaryDto
 }

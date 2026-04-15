@@ -235,6 +235,187 @@ class SentenceAnalysis(BaseModel):
     )
 
 
+TermCategory = Literal[
+    "technical_term",
+    "abbreviation",
+    "variable",
+    "method_name",
+    "concept",
+    "concept_opposition",
+    "proper_noun",
+]
+
+LogicRelation = Literal[
+    "contrast",
+    "concession",
+    "qualification",
+    "causation",
+    "comparison",
+    "hypothesis",
+    "conclusion",
+    "condition",
+    "addition",
+    "sequence",
+]
+
+ParagraphRoleType = Literal[
+    "definition",
+    "background",
+    "problem_statement",
+    "methodology",
+    "evidence",
+    "result",
+    "limitation",
+    "transition",
+    "discussion",
+    "conclusion",
+]
+
+
+class TermNote(BaseModel):
+    """术语/概念标注。
+
+    用于标注学术文本中的专业术语、缩写、变量、方法名、概念等。
+    帮助用户快速理解专业词汇的含义。
+    """
+
+    model_config = BASE_MODEL_CONFIG
+
+    type: Literal["term_note"] = "term_note"
+    sentence_id: str = Field(description="句子ID")
+    text: str = Field(
+        min_length=1,
+        description="原文中的术语/概念文本。可以是单个词或多词表达。",
+    )
+    occurrence: int | None = Field(default=None, ge=1, description="同一句中该文本第几次出现")
+    category: TermCategory = Field(description="术语类别")
+    term_zh: str = Field(min_length=1, description="术语的中文翻译/解释")
+    definition: str | None = Field(
+        default=None,
+        description="术语的详细定义（可选）。如果是缩写，这里可以展开全称。",
+    )
+    context_hint: str | None = Field(
+        default=None,
+        description="在当前语境下的特殊含义提示（可选）。",
+    )
+
+
+class LogicNote(BaseModel):
+    """逻辑关系标注。
+
+    用于标注句子中的逻辑关系，如转折、让步、限定、因果、对比、假设、结论等。
+    帮助用户理解论证结构和推理过程。
+    """
+
+    model_config = BASE_MODEL_CONFIG
+
+    type: Literal["logic_note"] = "logic_note"
+    sentence_id: str = Field(description="句子ID")
+    spans: list[SpanRef] = Field(
+        min_length=1, max_length=6,
+        description="逻辑关系涉及的文本片段。可以是连接词、短语或从句。",
+    )
+    relation: LogicRelation = Field(description="逻辑关系类型")
+    label: str = Field(min_length=1, description="逻辑关系的简短标签，如'转折关系'、'因果关系'")
+    explanation_zh: str = Field(
+        min_length=1,
+        description="中文解释，说明这个逻辑关系如何连接前后内容，以及对理解论证的重要性。",
+    )
+
+
+class InterpretationNote(BaseModel):
+    """解释性理解标注。
+
+    用于解释"这句话真正想表达什么"，以及"为什么不能只按字面直译理解"。
+    这是 academic 模式的核心输出之一，帮助用户理解作者的真实意图。
+    """
+
+    model_config = BASE_MODEL_CONFIG
+
+    type: Literal["interpretation_note"] = "interpretation_note"
+    sentence_id: str = Field(description="句子ID")
+    spans: list[SpanRef] | None = Field(
+        default=None,
+        description="需要特别解释的文本片段（可选）。如果为空，表示对整句的解释。",
+    )
+    literal_translation: str | None = Field(
+        default=None,
+        description="字面翻译（可选）。用于对比说明为什么字面翻译会带来理解偏差。",
+    )
+    intended_meaning_zh: str = Field(
+        min_length=1,
+        description="作者真正想表达的意思。用自然的中文解释这句话的真实意图。",
+    )
+    why_not_literal: str | None = Field(
+        default=None,
+        description="为什么不能只按字面理解。解释学术写作中的委婉表达、间接说法、专业约定等。",
+    )
+    rhetorical_purpose: str | None = Field(
+        default=None,
+        description="修辞目的。说明作者使用这种表达方式的策略性意图（如谨慎、客观、留有余地等）。",
+    )
+
+
+class ParagraphRole(BaseModel):
+    """段落功能标注。
+
+    用于标注整个段落在论文结构中的功能，如定义、背景、问题提出、方法、证据、结果、限制、过渡等。
+    帮助用户快速把握论文结构和论证脉络。
+    """
+
+    model_config = BASE_MODEL_CONFIG
+
+    type: Literal["paragraph_role"] = "paragraph_role"
+    paragraph_id: str = Field(description="段落ID")
+    role: ParagraphRoleType = Field(description="段落功能类型")
+    label: str = Field(min_length=1, description="段落功能的简短标签，如'问题提出'、'方法介绍'")
+    summary_zh: str = Field(
+        min_length=1,
+        description="该段落的内容摘要。用中文概括这个段落的主要内容和在论证中的作用。",
+    )
+    key_claim: str | None = Field(
+        default=None,
+        description="该段落的核心主张或发现（可选）。",
+    )
+
+
+class DocumentSummary(BaseModel):
+    """全文综合摘要。
+
+    提供整篇文章的综合理解，包括研究问题、方法、核心结论、限制等。
+    这是 academic 模式的高级输出，帮助用户快速把握整篇论文的贡献。
+    """
+
+    model_config = BASE_MODEL_CONFIG
+
+    type: Literal["document_summary"] = "document_summary"
+    research_problem_zh: str | None = Field(
+        default=None,
+        description="研究问题。用中文概括本文要解决的核心问题。",
+    )
+    methodology_zh: str | None = Field(
+        default=None,
+        description="研究方法。用中文概括本文采用的主要方法或实验设计。",
+    )
+    key_findings_zh: str | None = Field(
+        default=None,
+        description="核心发现。用中文概括本文的主要实验结果或理论贡献。",
+    )
+    limitations_zh: str | None = Field(
+        default=None,
+        description="研究限制。用中文概括作者明确提到的或隐含的研究局限性。",
+    )
+    overall_significance_zh: str | None = Field(
+        default=None,
+        description="整体意义。用中文概括这项工作在该领域的位置和贡献。",
+    )
+
+
+AcademicAnnotation = Annotated[
+    TermNote | LogicNote | InterpretationNote | ParagraphRole,
+    Field(discriminator="type"),
+]
+
 Annotation = Annotated[
     VocabHighlight | PhraseGloss | ContextGloss | GrammarNote | SentenceAnalysis,
     Field(discriminator="type"),
@@ -248,3 +429,19 @@ class AnnotationOutput(BaseModel):
 
     annotations: list[Annotation] = Field(description="结构化标注列表")
     sentence_translations: list[SentenceTranslation] = Field(description="全量逐句翻译")
+
+
+class AcademicAnnotationOutput(BaseModel):
+    """Academic 模式的 LLM 生成结果。
+
+    包含学术特有的标注类型和全文摘要。
+    """
+
+    model_config = BASE_MODEL_CONFIG
+
+    term_notes: list[TermNote] = Field(default_factory=list, description="术语/概念标注列表")
+    logic_notes: list[LogicNote] = Field(default_factory=list, description="逻辑关系标注列表")
+    interpretation_notes: list[InterpretationNote] = Field(default_factory=list, description="解释性理解标注列表")
+    paragraph_roles: list[ParagraphRole] = Field(default_factory=list, description="段落功能标注列表")
+    document_summary: DocumentSummary | None = Field(default=None, description="全文综合摘要")
+    sentence_translations: list[SentenceTranslation] = Field(default_factory=list, description="全量逐句翻译")

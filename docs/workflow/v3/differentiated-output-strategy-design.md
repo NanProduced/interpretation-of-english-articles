@@ -102,18 +102,18 @@
 当前代码状态：
 
 - planner 明确产出 `topology_mode="academic"`
-- workflow router 已预留 academic 分支
-- 但 academic graph 仍未实现
-- 未登录直连 `/analyze` 时，academic 受控返回 `501`
-- 登录后走 `/analysis-tasks` 时，academic 会在任务执行阶段失败，当前表现为 `422 TASK_TERMINATED`
-- example strategy 还没有 academic 专属 baseline，会默认落回非 academic 示例集合
-- `output_mode="academic_scene"` 已进入 execution plan，但当前 projection 仍只产出统一的 `RenderSceneModel`
+- workflow router 已实现 academic 分支
+- academic graph 已实现完整拓扑
+- 未登录直连 `/analyze` 时，academic 已可正常返回结果
+- 登录后走 `/analysis-tasks` 时，academic 已可正常执行
+- example strategy 复用现有 vocabulary/grammar/translation 示例集合
+- `output_mode="academic_scene"` 已进入 execution plan，projection 已产出包含 academic 字段的 `RenderSceneModel`
 
 当前文档口径应明确为：
 
 - academic 在架构上已经单独建模
-- academic 已进入当前主开发路线，不再是“最后再做”的事项
-- 但在业务能力上仍未完成闭环，当前不能视为已稳定支持或可交付模式
+- academic 已进入当前主开发路线，不再是"最后再做"的事项
+- academic v1 已完成最小可联调闭环，可在微信小程序开发工具中选择 academic 模式进行解析并看到完整的 academic 结果页
 
 academic 的大致产品方向应明确为：
 
@@ -362,24 +362,24 @@ server/app/workflow/
 6. baseline few-shot 已移出 agent 内联指令。
 7. workflow 已按 topology 具备分流入口。
 8. `kaoyan` 与 `tem` 已与当前前端配置、planner、prompt policy 对齐为正式 exam variant。
+9. `academic` graph 本体已实现。
+10. academic 专属 draft schema / agent node 设计已完成。
+11. `academic_scene` projection 已实现。
+12. academic 前后端统一错误语义已实现。
 
 ### academic v1 待实现
 
-1. `academic` graph 本体
-2. academic 专属 draft schema / agent node 设计
-3. `academic_scene` projection
-4. academic 专属 example strategy
-5. academic 前后端统一错误语义
-6. `manual` few-shot provider
-7. `rag` few-shot provider
+1. academic 专属 example strategy（当前复用 vocabulary/grammar/translation 示例集合）
+2. `manual` few-shot provider
+3. `rag` few-shot provider
 
 ### 当前明确约束
 
-1. academic 是当前主开发能力，但还不是已稳定支持能力
+1. academic 是当前主开发能力，已完成最小可联调闭环
 2. academic 请求当前不走 learning fallback
-3. `/analyze` 与 `/analysis-tasks` 对 academic 的失败语义仍未统一
-4. `daily_reading + intermediate_reading` baseline 调优不再是唯一主线，需给 academic v1 闭环让位
-5. academic v1 不能被实现成“只改 prompt、不改 workflow / schema / projection”的伪独立模式
+3. `/analyze` 与 `/analysis-tasks` 对 academic 的失败语义已统一
+4. `daily_reading + intermediate_reading` baseline 调优不再是唯一主线，需给 academic v1 质量调优让位
+5. academic v1 已实现为独立 workflow / schema / projection 模式，不是学习型标注协议的小改版
 
 ## 12. Academic v1 开发阶段的起点
 
@@ -419,14 +419,9 @@ server/app/workflow/
 
 建议严格按下面顺序推进：
 
-1. 统一 `/analyze` 与 `/analysis-tasks` 的 academic 入口与失败语义
-2. 明确 academic v1 的主输出语义：术语 / 逻辑 / 段落功能 / 解释性理解 / 全文综合
-3. 定义 academic 专属 draft schema 与 normalized schema
-4. 明确 academic v1 是否继续复用 `RenderSceneModel` 外壳，或引入独立 `academic_scene`
-5. 落地 academic graph 与 academic agent nodes
-6. 增加 academic prompt baseline 与 example strategy
-7. 建 academic v1 评测集并稳定输出
-8. academic v1 稳定后，再恢复 `daily_reading` 与 `exam` 的扩展节奏
+1. 增加 academic prompt baseline 与 example strategy
+2. 建 academic v1 评测集并稳定输出
+3. academic v1 稳定后，再恢复 `daily_reading` 与 `exam` 的扩展节奏
 
 `daily_reading` 与 `exam` 后续建议顺序：
 
@@ -434,7 +429,7 @@ server/app/workflow/
 2. 扩 `daily_reading` 的 `beginner_reading`
 3. 扩 `daily_reading` 的 `intensive_reading`
 4. 再做 `exam`
-5. 最后再决定是否引入独立 `academic_scene` 与更重的 few-shot 能力
+5. 最后再决定是否引入更重的 few-shot 能力（manual / rag）
 
 ## 14. 最终结论
 
@@ -445,5 +440,6 @@ server/app/workflow/
 - policy 驱动 normalize
 - topology 可分流
 - academic 已进入主开发阶段，且方向已明确为独立内容理解模式
+- academic v1 已完成最小可联调闭环，可在微信小程序开发工具中选择 academic 模式进行解析并看到完整的 academic 结果页
 
-因此这份文档现在应表达的不是“academic 以后再做”，也不是“academic 只是 learning 的学术版 prompt”，而是“academic 已经进入 v1 落地阶段，且需要以独立 workflow、独立语义产物、独立 projection 方向来实现最小闭环”。后续工作应先补齐 academic 的链路一致性与最小实现闭环，再进入 academic 场景质量调优；`daily_reading` 与 `exam` 的扩展则顺延到 academic v1 稳定之后。
+因此这份文档现在应表达的不是"academic 以后再做"，也不是"academic 只是 learning 的学术版 prompt"，而是"academic 已经进入 v1 落地阶段，且已经以独立 workflow、独立语义产物、独立 projection 方向实现了最小闭环"。后续工作应先补齐 academic 的 prompt baseline 与 example strategy，再进入 academic 场景质量调优；`daily_reading` 与 `exam` 的扩展则顺延到 academic v1 稳定之后。
