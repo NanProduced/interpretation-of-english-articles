@@ -70,9 +70,9 @@ def build_goal_execution_plan(reading_goal: ReadingGoal, reading_variant: Readin
             )
         if reading_variant == "ielts_toefl":
             policy = GoalPolicy(
-                annotation_density=4,
-                vocabulary_focus="exam_priority",
-                grammar_focus="balanced",
+                annotation_density=6,
+                vocabulary_focus="academic_strategy",
+                grammar_focus="info_extraction",
                 translation_focus="natural",
             )
             return GoalExecutionPlan(

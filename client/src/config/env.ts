@@ -21,7 +21,7 @@ const env: Env = (TARO_APP_ENV as Env) || 'local'
 const envConfigs: Record<Env, EnvConfig> = {
   local: {
     env: 'local',
-    apiBaseUrl: 'http://127.0.0.1:8000',
+    apiBaseUrl: 'http://192.168.1.222:8000',
   },
   dev: {
     env: 'dev',

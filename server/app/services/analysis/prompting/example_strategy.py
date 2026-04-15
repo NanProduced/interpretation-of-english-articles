@@ -391,6 +391,62 @@ TEM_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
 ]
 
 
+# --- IELTS/TOEFL EXAMPLES ---
+IELTS_TOEFL_VOCABULARY_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="The decline in biodiversity has been attributed to habitat loss and climate change.",
+        output_fragment='{"type": "phrase_gloss", "text": "has been attributed to", "phrase_type": "collocation", "zh": "被归因于。学术高频搭配，用于说明因果关系。同义表达: result from, stem from, arise from, be caused by"}',
+    ),
+    ExampleEntry(
+        example_type="phrase",
+        sentence_text="The new policy gave rise to widespread criticism.",
+        output_fragment='{"type": "phrase_gloss", "text": "gave rise to", "phrase_type": "collocation", "zh": "引起；导致。学术论证常用搭配，用于引出结果。同义表达: lead to, result in, bring about, trigger"}',
+    ),
+    ExampleEntry(
+        example_type="context",
+        sentence_text="The Chicago school of economics dominated policy-making in the 1980s.",
+        output_fragment='{"type": "context_gloss", "text": "school", "gloss": "学派；流派", "reason": "school 常见义为\"学校\"，此处指学术流派。雅思/托福常利用学术义与日常义的差异设置考点，需根据上下文判断：此处后面接了 of economics，说明是\"经济学派\""}',
+    ),
+    ExampleEntry(
+        example_type="vocab",
+        sentence_text="The findings facilitate a deeper understanding of the mechanism.",
+        output_fragment='{"type": "vocab_highlight", "text": "facilitate"}',
+    ),
+]
+
+IELTS_TOEFL_GRAMMAR_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="The factor that contributed most significantly to the decline was habitat loss.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "that"}, {"text": "contributed"}], "label": "限制性定语从句", "note_zh": "that 引导限制性定语从句，限定了是\"哪个\" factor——是导致衰退最显著的那个因素。这类限定信息在雅思 T/F/NG 题中常被改写为判断对象，如果题目说\"Habitat loss was the primary factor\"，答案取决于原文的限定是否精确"}',
+    ),
+    ExampleEntry(
+        example_type="grammar",
+        sentence_text="The mechanism by which the drug operates has not been fully elucidated.",
+        output_fragment='{"type": "grammar_note", "spans": [{"text": "by which"}, {"text": "has not been"}], "label": "介词+关系代词 + 被动语态", "note_zh": "by which 引导定语从句修饰 mechanism，说明药物\"通过什么机制\"起作用。has not been fully elucidated 是被动语态，动作执行者被省略（学术界惯例）。被动语态在学术文本中极常见（约 30-40% 的句子），需注意动作执行者是被省略了还是在 by 后面"}',
+    ),
+    ExampleEntry(
+        example_type="sentence_analysis",
+        sentence_text="Although traditional methods have proven effective in certain contexts, the emerging approach offers significant advantages, particularly in terms of efficiency and scalability.",
+        output_fragment='{"type": "sentence_analysis", "label": "让步（承认传统方法价值）+ 转折（提出新方法优势）+ 限定（适用范围）", "analysis_zh": "主干：the emerging approach offers significant advantages（新方法具有显著优势）。although 引导让步从句，承认传统方法的价值，为转折做铺垫。particularly in terms of... 限定了优势的适用范围——效率和可扩展性。这句在段落中的功能是提出核心论点并限定适用范围。TOEFL 可能考\"为什么作者提到传统方法的优势？\"（答案：让步，为转折做铺垫）。IELTS 的 T/F/NG 可能将\"新方法在所有方面都优于传统方法\"设为 False（因为原文有 particularly 限定）", "chunks": [{"order": 1, "label": "让步从句", "text": "Although traditional methods have proven effective in certain contexts"}, {"order": 2, "label": "核心主张", "text": "the emerging approach offers significant advantages"}, {"order": 3, "label": "限定范围", "text": "particularly in terms of efficiency and scalability"}]}',
+    ),
+]
+
+IELTS_TOEFL_TRANSLATION_EXAMPLES: list[ExampleEntry] = [
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="The decline in biodiversity has been attributed to habitat loss and climate change.",
+        output_fragment='{"sentence_id": "s1", "translation_zh": "生物多样性的下降被归因于栖息地丧失和气候变化。（此处 has been attributed to 在题目中常被改写为 result from 或 is caused by）"}',
+    ),
+    ExampleEntry(
+        example_type="translation",
+        sentence_text="Although traditional methods have proven effective in certain contexts, the emerging approach offers significant advantages.",
+        output_fragment='{"sentence_id": "s2", "translation_zh": "尽管传统方法在某些情境下已被证明有效，但新兴方法具有显著优势。"}',
+    ),
+]
+
+
 def get_vocabulary_example_strategy(
     plan: GoalExecutionPlan,
 ) -> ExampleStrategy:
@@ -410,6 +466,8 @@ def get_vocabulary_example_strategy(
         examples = KAOYAN_VOCABULARY_EXAMPLES
     elif plan.variant_id == "tem":
         examples = TEM_VOCABULARY_EXAMPLES
+    elif plan.variant_id == "ielts_toefl":
+        examples = IELTS_TOEFL_VOCABULARY_EXAMPLES
     else:
         examples = INTERMEDIATE_VOCABULARY_EXAMPLES
         
@@ -435,6 +493,8 @@ def get_grammar_example_strategy(
         examples = KAOYAN_GRAMMAR_EXAMPLES
     elif plan.variant_id == "tem":
         examples = TEM_GRAMMAR_EXAMPLES
+    elif plan.variant_id == "ielts_toefl":
+        examples = IELTS_TOEFL_GRAMMAR_EXAMPLES
     else:
         examples = INTERMEDIATE_GRAMMAR_EXAMPLES
         
@@ -460,6 +520,8 @@ def get_translation_example_strategy(
         examples = KAOYAN_TRANSLATION_EXAMPLES
     elif plan.variant_id == "tem":
         examples = TEM_TRANSLATION_EXAMPLES
+    elif plan.variant_id == "ielts_toefl":
+        examples = IELTS_TOEFL_TRANSLATION_EXAMPLES
     else:
         examples = INTERMEDIATE_TRANSLATION_EXAMPLES
         

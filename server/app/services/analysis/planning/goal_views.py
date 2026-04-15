@@ -52,7 +52,15 @@ _PROFILE_BASELINES: dict[str, str] = {
         "词汇标注应侧重文学性词汇、修辞术语和文化特定表达，而不是基础词义覆盖。"
         "注意：用户可能上传非文学性文本。只对文本中确实存在的修辞手法和文学特征做分析，不要对普通说明文强行做修辞解读。标注质量优先于数量。"
     ),
-    "exam_ielts_toefl": "[Placeholder] 雅思/托福模式风格待定。",
+    "exam_ielts_toefl": (
+        "用户是雅思/托福备考学生，词汇量约 6,000–10,000 词。"
+        "他们英语水平较高，读学术文本时大部分内容能理解，但会在同义替换识别和段落结构分析上遇到困难。"
+        "雅思的核心考察机制是同义替换——题目几乎不用原文原词，而是改写表达。托福的核心是段落结构理解和修辞目的识别。"
+        "语法完全不是考点，但某些结构会影响信息提取效率。"
+        "PhraseGloss 是最高优先级——同义替换表达和学术搭配是雅思托福阅读的核心能力。"
+        "SentenceAnalysis 不仅拆句法，还要分析句子在段落论证中的功能（举例/反驳/定义/过渡）。"
+        "注意：用户可能上传非学术性文本。只标注文本中确实存在的学术表达和信息提取相关结构，不要强行做学术分析。标注质量优先于数量。"
+    ),
 }
 
 
@@ -66,7 +74,9 @@ def get_annotation_style(plan: GoalExecutionPlan) -> str:
             return "exam_kaoyan"
         if plan.variant_id == "tem":
             return "exam_tem"
-        return "structural_and_academic" if plan.variant_id in ("tem",) else "exam_oriented"
+        if plan.variant_id == "ielts_toefl":
+            return "exam_ielts_toefl"
+        return "exam_oriented"
     elif plan.goal_id == "academic":
         return "structural_and_academic"
     return "plain_and_supportive"
