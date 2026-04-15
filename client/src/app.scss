@@ -42,6 +42,51 @@ page {
   --highlight-shadow:  rgba(255, 231, 105, 0.2);
   --highlight-soft:    rgba(255, 231, 105, 0.25);
 
+  // --- Category: Academic (Term/Logic/Interpretation) ---
+  // Term (Blue/Cyan) - 术语理解
+  --term-surface: #EFF6FF;
+  --term-border:  #DBEAFE;
+  --term-accent:  #3B82F6;
+  --term-label:   #2563EB;
+  --term-content: #1E40AF;
+
+  // Logic (Teal/Cyan) - 逻辑关系
+  --logic-surface: #ECFDF5;
+  --logic-border:  #D1FAE5;
+  --logic-accent:  #14B8A6;
+  --logic-label:   #0D9488;
+  --logic-content: #0F766E;
+
+  // Interpretation (Violet/Purple) - 解释性理解
+  --interpretation-surface: #F5F3FF;
+  --interpretation-border:  #EDE9FE;
+  --interpretation-accent:  #8B5CF6;
+  --interpretation-label:   #7C3AED;
+  --interpretation-content: #6D28D9;
+
+  // --- Category: Document Summary ---
+  --summary-header-accent: #4B5563;
+  --summary-header-accent-rgb: 75, 85, 99;
+  --summary-research-accent: #3B82F6;
+  --summary-method-accent: #10B981;
+  --summary-finding-accent: #8B5CF6;
+  --summary-limit-accent: #F59E0B;
+  --summary-significance-accent: #EC4899;
+
+  // --- Category: Paragraph Role ---
+  --role-definition-accent: #3B82F6;
+  --role-background-accent: #6B7280;
+  --role-problem-accent: #EF4444;
+  --role-method-accent: #10B981;
+  --role-evidence-accent: #8B5CF6;
+  --role-result-accent: #06B6D4;
+  --role-limit-accent: #F59E0B;
+  --role-transition-accent: #6B7280;
+  --role-discussion-accent: #8B5CF6;
+  --role-conclusion-accent: #10B981;
+  --role-claim-accent: #EF4444;
+  --role-claim-accent-rgb: 239, 68, 68;
+
   // 文字层级
   --text-main: #1A1A1A;
   --text-sub:  #646470;           // 略带冷调的灰，增加高级感
