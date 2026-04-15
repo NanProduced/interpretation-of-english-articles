@@ -1,4 +1,4 @@
-import { PropsWithChildren, useEffect, useState } from 'react'
+import { PropsWithChildren, useEffect, useState, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { useAuthStore } from './stores/auth'
 import { useArticleStore } from './stores/article'
@@ -14,7 +14,22 @@ const GUEST_DISMISSED_KEY = 'guest_dismissed'
 function App({ children }: PropsWithChildren<any>) {
   const [showLoginGuide, setShowLoginGuide] = useState(false)
 
-  // 启动时恢复认证状态
+  const handleGuestDismiss = useCallback(() => {
+    Taro.setStorageSync(GUEST_DISMISSED_KEY, new Date().toDateString())
+    setShowLoginGuide(false)
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showLoginGuide) {
+        handleGuestDismiss()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showLoginGuide, handleGuestDismiss])
+
   useEffect(() => {
     const restoreState = async () => {
       await useAuthStore.getState().restore()
@@ -24,10 +39,8 @@ function App({ children }: PropsWithChildren<any>) {
       const { isLoggedIn } = useAuthStore.getState()
 
       if (isLoggedIn && !Taro.getStorageSync('user_configured')) {
-        // 已登录但未设置过用户配置 → 跳转 onboarding
         Taro.navigateTo({ url: '/pages/onboarding/index' })
       } else if (!isLoggedIn) {
-        // 未登录：检查是否已选择过游客模式（当天不重复弹窗）
         const dismissed = Taro.getStorageSync(GUEST_DISMISSED_KEY)
         const today = new Date().toDateString()
         if (dismissed !== today) {
@@ -40,18 +53,10 @@ function App({ children }: PropsWithChildren<any>) {
 
   const handleLogin = async () => {
     setShowLoginGuide(false)
-    // LoginGuideModal 已提供确认 UI，跳过 ensureLoggedIn 中的重复弹窗
     const result = await ensureLoggedIn(true)
     if (result.success && result.isFirstLogin) {
-      // 首次登录 → 跳转到 Profile 引导填写头像昵称
       Taro.navigateTo({ url: '/pages/profile/index' })
     }
-  }
-
-  const handleGuestDismiss = () => {
-    // 记录当天已选择游客模式，明天再弹
-    Taro.setStorageSync(GUEST_DISMISSED_KEY, new Date().toDateString())
-    setShowLoginGuide(false)
   }
 
   // 处理小程序切前台/后台事件

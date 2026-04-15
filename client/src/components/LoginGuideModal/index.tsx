@@ -6,7 +6,7 @@
  * 但登录本身（wx.login）用于获取 openId 实现身份识别是必须的。
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
@@ -36,7 +36,6 @@ export default function LoginGuideModal({ visible, onClose, onLogin }: LoginGuid
   }
 
   const handleGuest = () => {
-    // 生成 anonymous_id 并存储（用于追踪试用次数）
     let anonymousId = Taro.getStorageSync('anonymous_id')
     if (!anonymousId) {
       anonymousId = `anon_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -46,9 +45,12 @@ export default function LoginGuideModal({ visible, onClose, onLogin }: LoginGuid
   }
 
   return (
-    <View className='login-guide-overlay'>
-      <View className='login-guide-modal'>
-        {/* 顶部图标 */}
+    <View className='login-guide-overlay' onClick={handleGuest}>
+      <View className='login-guide-modal' onClick={e => e.stopPropagation()}>
+        <View className='modal-close-btn' onClick={handleGuest}>
+          <Text className='close-icon'>×</Text>
+        </View>
+
         <View className='login-guide-icon'>
           <Image
             className='icon-image'
@@ -56,17 +58,14 @@ export default function LoginGuideModal({ visible, onClose, onLogin }: LoginGuid
             mode='aspectFit'
             fadeIn={300}
             onError={() => {
-              // Fallback: 纯色图标
             }}
           />
         </View>
 
-        {/* 标题 */}
         <Text className='login-guide-title'>欢迎使用 Claread 透读</Text>
 
-        {/* 积分说明 */}
         <View className='login-guide-cards'>
-          <View className='guide-card guest-card'>
+          <View className='guide-card guest-card' onClick={handleGuest}>
             <View className='guide-card-header'>
               <Text className='guide-card-label'>游客试用</Text>
             </View>
@@ -84,7 +83,6 @@ export default function LoginGuideModal({ visible, onClose, onLogin }: LoginGuid
           </View>
         </View>
 
-        {/* 按钮 */}
         <View className='login-guide-actions'>
           <View
             className='btn-wechat-login'
@@ -97,7 +95,6 @@ export default function LoginGuideModal({ visible, onClose, onLogin }: LoginGuid
           </View>
         </View>
 
-        {/* 底部说明 */}
         <Text className='login-guide-footer'>
           登录即表示同意《用户协议》和《隐私政策》
         </Text>
