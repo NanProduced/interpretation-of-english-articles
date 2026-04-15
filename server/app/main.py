@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from logging import getLogger
 
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
@@ -109,6 +110,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title=active_settings.app_name,
         lifespan=lifespan,
     )
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
     app.include_router(api_router)
 
     # --- 全局异常处理器 ---
