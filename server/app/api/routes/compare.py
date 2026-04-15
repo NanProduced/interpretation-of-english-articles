@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass
@@ -56,11 +57,17 @@ class JudgeResult(BaseModel):
     summary: str = Field(description="总体评价")
 
 
+class AgentTokenUsage(BaseModel):
+    input_tokens: int | None = Field(default=None)
+    output_tokens: int | None = Field(default=None)
+    total_tokens: int | None = Field(default=None)
+
+
 class TokenUsage(BaseModel):
     input_tokens: int | None = Field(default=None, description="输入 token 数")
     output_tokens: int | None = Field(default=None, description="输出 token 数")
     total_tokens: int | None = Field(default=None, description="总 token 数")
-    per_agent: dict[str, dict[str, Any] | None] | None = Field(default=None, description="各 agent 的 token 使用")
+    per_agent: dict[str, AgentTokenUsage] | None = Field(default=None, description="各 agent 的 token 使用")
 
 
 class CompareMetrics(BaseModel):
@@ -113,22 +120,94 @@ class JudgeAgentDeps:
     left_result: dict[str, Any]
     right_result: dict[str, Any]
     original_text: str
+    reading_goal: ReadingGoal
+    reading_variant: ReadingVariant
 
 
-JUDGE_INSTRUCTIONS = """你是一位专业的英语阅读批注质量评测专家。你的任务是对比两个不同模型在英语文章分析任务中的输出质量，并根据 Rubric 进行公平、客观的评分。
+READING_GOAL_DESCRIPTIONS = {
+    "daily_reading": {
+        "name": "日常阅读",
+        "description": "适用于休闲阅读、新闻、小说等日常场景。重点在于流畅阅读体验，标注应该帮助理解而不干扰阅读。",
+        "annotation_guideline": "标注重点词汇、常用短语，解释主要语法点。不需要过度标注生僻词或复杂语法，保持阅读流畅性优先。",
+        "expected_density": "适中密度，每段 2-5 个标注比较合适",
+    },
+    "exam": {
+        "name": "考试",
+        "description": "适用于高考、四六级、考研、专四专八、雅思托福等考试备考场景。重点在于考点覆盖和准确理解。",
+        "annotation_guideline": "全面标注考点词汇、高频短语、复杂语法结构、长难句分析。需要覆盖考试常考的语言点。",
+        "expected_density": "较高密度，关键考点必须全部标注",
+    },
+    "academic": {
+        "name": "学术",
+        "description": "适用于学术论文、专业文献阅读场景。重点在于专业术语准确理解和逻辑结构把握。",
+        "annotation_guideline": "标注专业术语、学术常用表达、复杂句式结构、逻辑连接词。需要准确理解专业语境。",
+        "expected_density": "根据专业程度调整，术语必须准确标注",
+    },
+}
+
+
+def _get_reading_variant_name(goal: ReadingGoal, variant: ReadingVariant) -> str:
+    variant_names = {
+        "daily_reading": {
+            "beginner_reading": "初级阅读",
+            "intermediate_reading": "中级阅读",
+            "intensive_reading": "精读",
+        },
+        "exam": {
+            "gaokao": "高考",
+            "cet": "四六级",
+            "kaoyan": "考研",
+            "tem": "专四专八",
+            "ielts_toefl": "雅思托福",
+        },
+        "academic": {
+            "academic_general": "通用学术",
+        },
+    }
+    return variant_names.get(goal, {}).get(variant, variant)
+
+
+def _build_judge_instructions_for_goal(goal: ReadingGoal, variant: ReadingVariant) -> str:
+    goal_desc = READING_GOAL_DESCRIPTIONS.get(goal, READING_GOAL_DESCRIPTIONS["daily_reading"])
+    variant_name = _get_reading_variant_name(goal, variant)
+    
+    return f"""你是一位专业的英语阅读批注质量评测专家。你的任务是对比两个不同模型在英语文章分析任务中的输出质量，并根据 Rubric 进行公平、客观的评分。
+
+## 当前评测场景
+- 阅读目标（Reading Goal）：{goal_desc['name']}
+- 细分场景（Reading Variant）：{variant_name}
+
+## 场景说明
+{goal_desc['description']}
+
+## 场景评分指导
+在本次评测中，请特别考虑以下场景特点：
+
+1. **标注完整性评估**：
+   {goal_desc['annotation_guideline']}
+   - 预期标注密度：{goal_desc['expected_density']}
+   - 重要提示：不是标注越多越好，而是要符合场景需求。过度标注（如标注简单常用词）会影响阅读体验，应该扣分。
+
+2. **标注准确性评估**：
+   - 释义必须符合当前场景语境
+   - {goal_desc['name']}场景下，术语和表达的理解要准确
+
+3. **用户体验评估**：
+   - 标注分布是否合理，是否影响阅读流畅性
+   - 警告数量是否在合理范围内
 
 ## Rubric 评分维度（每个维度 0-10 分）
 
 ### 1. 标注完整性 (annotation_completeness)
-评估模型是否覆盖了文章中所有值得标注的重点词汇、短语、语法点。
-- 10分：覆盖所有重点，无明显遗漏，关键难点都有解释
-- 7-9分：覆盖大部分重点，少数非关键内容遗漏
-- 4-6分：部分覆盖，有较多重要内容遗漏
-- 0-3分：严重遗漏，无法满足基本阅读需求
+评估模型是否覆盖了当前场景下值得标注的重点内容。
+- 10分：完全符合场景需求，覆盖所有重点，无明显遗漏，关键难点都有解释，没有过度标注简单内容
+- 7-9分：基本符合场景需求，覆盖大部分重点，少数非关键内容遗漏，标注密度基本合理
+- 4-6分：部分覆盖，有较多重要内容遗漏，或者标注密度不合理（过多或过少）
+- 0-3分：严重遗漏，无法满足基本阅读需求，或者标注严重干扰阅读
 
 ### 2. 标注准确性 (annotation_accuracy)
 评估模型给出的释义、解释是否准确、符合语境。
-- 10分：所有释义完全准确，符合上下文，解释清晰
+- 10分：所有释义完全准确，符合上下文，解释清晰，术语理解正确
 - 7-9分：基本准确，个别细节有误但不影响理解
 - 4-6分：存在较多错误，部分解释误导读者
 - 0-3分：大量错误，严重影响理解
@@ -149,7 +228,7 @@ JUDGE_INSTRUCTIONS = """你是一位专业的英语阅读批注质量评测专�
 
 ### 5. 用户体验 (user_experience)
 综合评估标注密度、警告数量、整体阅读体验。
-- 10分：标注分布合理，不过度也不遗漏，无警告或极少
+- 10分：标注分布合理，符合场景需求，不过度也不遗漏，无警告或极少
 - 7-9分：整体体验良好，少量警告或标注密度稍欠理想
 - 4-6分：体验一般，较多警告或标注分布不合理
 - 0-3分：体验很差，大量警告或标注严重干扰阅读
@@ -157,66 +236,68 @@ JUDGE_INSTRUCTIONS = """你是一位专业的英语阅读批注质量评测专�
 ## 输出格式
 请以严格的 JSON 格式输出评测结果：
 
-{
+{{
     "winner": "left" | "right" | "tie",
     "total_score_left": <float>,
     "total_score_right": <float>,
     "dimensions": [
-        {
+        {{
             "dimension": "annotation_completeness",
             "score_left": <float 0-10>,
             "score_right": <float 0-10>,
-            "reason": "<详细评分理由，对比两个模型在该维度的表现>"
-        },
-        {
+            "reason": "<详细评分理由，对比两个模型在该维度的表现，特别考虑场景需求>"
+        }},
+        {{
             "dimension": "annotation_accuracy",
             "score_left": <float 0-10>,
             "score_right": <float 0-10>,
             "reason": "<详细评分理由>"
-        },
-        {
+        }},
+        {{
             "dimension": "translation_quality",
             "score_left": <float 0-10>,
             "score_right": <float 0-10>,
             "reason": "<详细评分理由>"
-        },
-        {
+        }},
+        {{
             "dimension": "structure_rationality",
             "score_left": <float 0-10>,
             "score_right": <float 0-10>,
             "reason": "<详细评分理由>"
-        },
-        {
+        }},
+        {{
             "dimension": "user_experience",
             "score_left": <float 0-10>,
             "score_right": <float 0-10>,
             "reason": "<详细评分理由>"
-        }
+        }}
     ],
-    "summary": "<200字以内的总体评价，说明为什么某个模型更优或平局，给出具体的优缺点对比>"
-}
+    "summary": "<200字以内的总体评价，说明为什么某个模型更优或平局，给出具体的优缺点对比，结合场景需求分析>"
+}}
 
 ## 评测原则
 1. 公平客观：基于事实，不偏袒任何模型
 2. 具体详细：每个评分都要有具体的理由和依据，对比两个模型的实际输出
-3. 独立判断：每个维度独立评分，不受其他维度影响
-4. 综合考量：winner 基于总分，但也要考虑各维度的均衡性
+3. 场景适配：必须考虑当前的 reading_goal 和 reading_variant，不是标注越多越好
+4. 独立判断：每个维度独立评分，不受其他维度影响
+5. 综合考量：winner 基于总分，但也要考虑各维度的均衡性
 
-## 提示
+## 重要提示
 - 仔细对比两个模型的实际标注内容，不要只看数量
 - 注意标注的质量：一个准确的标注比多个不准确的标注更有价值
-- 考虑阅读场景：不同的 reading_goal 可能有不同的标注重点
-- 警告信息很重要：大量警告可能意味着模型处理有问题"""
+- 考虑场景需求：{goal_desc['name']}场景下，{goal_desc['expected_density']}
+- 警告信息很重要：大量警告可能意味着模型处理有问题
+- 特别注意：过度标注简单词汇会影响用户体验，应该扣分"""
 
 
-@lru_cache(maxsize=1)
-def get_judge_agent() -> Agent[JudgeAgentDeps, JudgeResult]:
+def _get_judge_agent(goal: ReadingGoal, variant: ReadingVariant) -> Agent[JudgeAgentDeps, JudgeResult]:
+    instructions = _build_judge_instructions_for_goal(goal, variant)
     return Agent[JudgeAgentDeps, JudgeResult](
         model=None,
         output_type=JudgeResult,
         deps_type=JudgeAgentDeps,
-        instructions=JUDGE_INSTRUCTIONS,
-        name="judge_agent",
+        instructions=instructions,
+        name=f"judge_agent_{goal}_{variant}",
         retries=2,
         output_retries=3,
         instrument=False,
@@ -239,7 +320,21 @@ def _build_judge_prompt(deps: JudgeAgentDeps) -> str:
     left_warnings = left.get("warnings", [])
     right_warnings = right.get("warnings", [])
     
+    goal_desc = READING_GOAL_DESCRIPTIONS.get(deps.reading_goal, READING_GOAL_DESCRIPTIONS["daily_reading"])
+    variant_name = _get_reading_variant_name(deps.reading_goal, deps.reading_variant)
+    
     return f"""请对比以下两个模型的英语文章分析输出，根据 Rubric 进行评测。
+
+## 评测场景
+- 阅读目标：{goal_desc['name']}
+- 细分场景：{variant_name}
+
+## 场景说明
+{goal_desc['description']}
+
+## 场景评分要点
+{goal_desc['annotation_guideline']}
+- 预期标注密度：{goal_desc['expected_density']}
 
 ## 原始文本
 {deps.original_text}
@@ -297,6 +392,12 @@ def _build_judge_prompt(deps: JudgeAgentDeps) -> str:
 ============================================================================
 
 请根据以上两个模型的完整输出（包括抽样的详细数据），按照 Rubric 的五个维度进行评分。
+
+重要提示：
+1. 请结合当前场景（{goal_desc['name']} - {variant_name}）进行评估
+2. 不是标注越多越好，要考虑场景需求和用户体验
+3. 过度标注简单词汇会影响阅读流畅性，应该扣分
+4. 标注准确性比数量更重要
 
 评分要求：
 1. 每个维度 0-10 分
@@ -480,12 +581,25 @@ def _extract_metrics(
     token_usage: TokenUsage | None = None
     if usage_summary and isinstance(usage_summary, dict):
         aggregate = usage_summary.get("aggregate", {})
+        per_agent_raw = usage_summary.get("per_agent", {})
+        
+        per_agent: dict[str, AgentTokenUsage] | None = None
+        if per_agent_raw and isinstance(per_agent_raw, dict):
+            per_agent = {}
+            for agent_name, agent_data in per_agent_raw.items():
+                if agent_data and isinstance(agent_data, dict):
+                    per_agent[agent_name] = AgentTokenUsage(
+                        input_tokens=agent_data.get("input_tokens"),
+                        output_tokens=agent_data.get("output_tokens"),
+                        total_tokens=agent_data.get("total_tokens"),
+                    )
+        
         if aggregate:
             token_usage = TokenUsage(
                 input_tokens=aggregate.get("input_tokens"),
                 output_tokens=aggregate.get("output_tokens"),
                 total_tokens=aggregate.get("total_tokens"),
-                per_agent=usage_summary.get("per_agent"),
+                per_agent=per_agent,
             )
     
     return CompareMetrics(
@@ -550,6 +664,8 @@ async def _run_llm_judge(
     left_result: CompareResultItem,
     right_result: CompareResultItem,
     original_text: str,
+    reading_goal: ReadingGoal,
+    reading_variant: ReadingVariant,
 ) -> JudgeResult:
     from app.llm.router import build_model_for_route
     from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
@@ -568,12 +684,14 @@ async def _run_llm_judge(
         left_result=left_dict,
         right_result=right_dict,
         original_text=original_text,
+        reading_goal=reading_goal,
+        reading_variant=reading_variant,
     )
     
     prompt = _build_judge_prompt(deps)
+    agent = _get_judge_agent(reading_goal, reading_variant)
     
     try:
-        agent = get_judge_agent()
         result = await agent.run(prompt, deps=deps, model=model)
         
         usage = extract_run_usage(result)
@@ -609,18 +727,32 @@ async def run_compare(payload: CompareRequest) -> CompareResponse:
     if payload.run_judge and payload.model_judge and payload.model_judge not in available_ids:
         raise HTTPException(status_code=422, detail=f"Judge model {payload.model_judge} not available")
     
-    left_state, left_duration, left_model_name = await _run_analysis_with_profile(
+    logger.info(
+        "Starting comparison: left=%s, right=%s, judge=%s, goal=%s, variant=%s",
+        payload.model_left,
+        payload.model_right,
+        payload.model_judge if payload.run_judge else "none",
+        payload.reading_goal,
+        payload.reading_variant,
+    )
+    
+    left_task = _run_analysis_with_profile(
         text=payload.text,
         profile_id=payload.model_left,
         reading_goal=payload.reading_goal,
         reading_variant=payload.reading_variant,
     )
     
-    right_state, right_duration, right_model_name = await _run_analysis_with_profile(
+    right_task = _run_analysis_with_profile(
         text=payload.text,
         profile_id=payload.model_right,
         reading_goal=payload.reading_goal,
         reading_variant=payload.reading_variant,
+    )
+    
+    (left_state, left_duration, left_model_name), (right_state, right_duration, right_model_name) = await asyncio.gather(
+        left_task,
+        right_task,
     )
     
     left_render_scene = left_state.get("render_scene")
@@ -652,6 +784,8 @@ async def run_compare(payload: CompareRequest) -> CompareResponse:
             left_result=left_result,
             right_result=right_result,
             original_text=payload.text,
+            reading_goal=payload.reading_goal,
+            reading_variant=payload.reading_variant,
         )
     
     return CompareResponse(
