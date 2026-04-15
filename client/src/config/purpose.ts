@@ -72,7 +72,6 @@ const LEGACY_VARIANT_ALIASES: Record<string, ReadingVariant> = {
   cet4: 'cet',
   cet6: 'cet',
   kaoyan: 'kaoyan',
-  gre: 'kaoyan',
   tem: 'tem',
   ielts: 'ielts_toefl',
   toefl: 'ielts_toefl',

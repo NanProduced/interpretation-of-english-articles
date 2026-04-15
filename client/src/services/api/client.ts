@@ -298,7 +298,7 @@ export async function checkAnonymousQuota(anonymousId: string): Promise<QuotaChe
  * 对齐后端 AnalyzeRequest (analysis.py)
  * - reading_goal: exam | daily_reading | academic
  * - reading_variant: 按 reading_goal 分组
- *   - exam: gaokao | cet | gre | ielts_toefl
+ *   - exam: gaokao | cet | kaoyan | tem | ielts_toefl
  *   - daily_reading: beginner_reading | intermediate_reading | intensive_reading
  *   - academic: academic_general
  *
@@ -308,7 +308,7 @@ export async function checkAnonymousQuota(anonymousId: string): Promise<QuotaChe
 export interface AnalyzeRequest {
   text: string
   reading_goal: 'exam' | 'daily_reading' | 'academic'
-  reading_variant: 'gaokao' | 'cet' | 'gre' | 'ielts_toefl' | 'beginner_reading' | 'intermediate_reading' | 'intensive_reading' | 'academic_general'
+  reading_variant: 'gaokao' | 'cet' | 'kaoyan' | 'tem' | 'ielts_toefl' | 'beginner_reading' | 'intermediate_reading' | 'intensive_reading' | 'academic_general'
   /** 当前联调范围: 仅限 user_input */
   source_type: 'user_input'
   /** 是否开启深度篇章分析 */

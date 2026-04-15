@@ -1,7 +1,7 @@
 # 差异化输出执行架构设计
 
 > 文档定位：定义 Workflow V3 下差异化输出的当前执行架构、已实现边界和后续推进顺序。  
-> 当前阶段：执行架构已收口，`daily_reading + intermediate_reading` 进入 baseline prompt 调优阶段。  
+> 当前阶段：`daily_reading + intermediate_reading` 仍是唯一稳定调优主线；`academic` 已完成执行计划建模，但真实业务链路仍处于占位状态。  
 > 本文只描述代码级执行设计，不展开具体 prompt 文案和最终 few-shot 内容。
 
 ## 1. 当前结论
@@ -14,6 +14,7 @@
 4. `academic` 单独建模为 `academic` 拓扑，但当前仍是占位，不参与真实解析。
 5. agent 的静态 `instructions` 只保留长期稳定的角色约束与硬规则。
 6. prompt 差异、few-shot 差异、密度差异统一通过 runtime 计划注入。
+7. `kaoyan` 与 `tem` 已是当前 exam 场景的正式后端枚举，exam variant 集合已按现行产品定义收敛。
 
 这意味着系统已经从“旧的场景规则包 + 大 prompt 分叉”收敛为“单一执行计划 + 分层 prompt 注入”。
 
@@ -33,6 +34,12 @@
 2. RAG few-shot 注入。
 3. 新 projection contract。
 4. exam_tag 参与筛选或排序。
+
+当前已确认但尚未补齐的一致性问题：
+
+1. `/analyze` 对 academic 返回受控 `501`。
+2. 登录态主链路走 `/analysis-tasks`，academic 当前会在 worker 内失败，并以 `422 TASK_TERMINATED` 返回。
+3. 前端仍暴露 academic 入口，因此 academic 目前属于“可选但不可用”的占位模式。
 
 ## 3. 三类 reading_goal 的执行差异
 
@@ -96,12 +103,16 @@
 - planner 明确产出 `topology_mode="academic"`
 - workflow router 已预留 academic 分支
 - 但 academic graph 仍未实现
-- 当前请求 academic 时，API 受控返回 `501`
+- 未登录直连 `/analyze` 时，academic 受控返回 `501`
+- 登录后走 `/analysis-tasks` 时，academic 会在任务执行阶段失败，当前表现为 `422 TASK_TERMINATED`
+- example strategy 还没有 academic 专属 baseline，会默认落回非 academic 示例集合
+- `output_mode="academic_scene"` 已进入 execution plan，但当前 projection 仍只产出统一的 `RenderSceneModel`
 
 这表示：
 
 - academic 在架构上已经单独建模
 - 但在业务能力上仍是占位，不应被视为已支持
+- 当前只能视为“academic 开发入口已建立”，不能视为“academic 模式已可联调”
 
 ## 4. 当前核心执行模型
 
@@ -274,7 +285,7 @@ flowchart TD
 
 额外说明：
 
-- 数据库内部 `kaoyan` 已替换原 `gre` 作为考研英语标签
+- 数据库内部考研英语标签已统一为 `kaoyan`
 - 前端展示文案：`kaoyan` 渲染为”考研英语”，`tem` 渲染为”专业英语 (TEM4/8)”
 
 ## 10. 当前代码结构
@@ -325,6 +336,7 @@ server/app/workflow/
 5. agent 静态 instructions 已完成瘦身。
 6. baseline few-shot 已移出 agent 内联指令。
 7. workflow 已按 topology 具备分流入口。
+8. `kaoyan` 与 `tem` 已与当前前端配置、planner、prompt policy 对齐为正式 exam variant。
 
 ### 仍是占位
 
@@ -332,12 +344,15 @@ server/app/workflow/
 2. `manual` few-shot provider
 3. `rag` few-shot provider
 4. `academic_scene` projection
+5. academic 专属 example strategy
+6. academic 前后端统一错误语义
 
 ### 当前明确约束
 
 1. academic 不是已支持能力
-2. academic 请求当前应受控返回，不走 learning fallback
-3. baseline prompt 调优只能先针对 `daily_reading + intermediate_reading`
+2. academic 请求当前不走 learning fallback
+3. `/analyze` 与 `/analysis-tasks` 对 academic 的失败语义仍未统一
+4. baseline prompt 调优只能先针对 `daily_reading + intermediate_reading`
 
 ## 12. Prompt 调优阶段的起点
 
@@ -357,7 +372,7 @@ server/app/workflow/
 ### 当前不允许调整的内容
 
 1. workflow 拓扑
-2. academic 相关代码
+2. 把 academic 误判为已可用并直接开放
 3. projection 协议
 4. 前端展示协议
 5. exam 变体策略
@@ -373,6 +388,14 @@ server/app/workflow/
 5. 再做 `exam`
 6. 最后实现 `academic`
 
+当 academic 进入真实开发时，建议先按下面顺序补齐：
+
+1. 统一 `/analyze` 与 `/analysis-tasks` 对 academic 的失败/占位语义
+2. 明确 academic v1 是否继续复用 `RenderSceneModel`
+3. 落地 academic graph
+4. 增加 academic prompt baseline 与 example strategy
+5. 最后再决定是否引入独立 `academic_scene`
+
 ## 14. 最终结论
 
 这次重构之后，差异化输出架构已经收口到一个稳定状态：
@@ -383,4 +406,4 @@ server/app/workflow/
 - topology 可分流
 - academic 明确占位
 
-因此系统现在已经满足进入 baseline prompt 调优阶段的前置条件。后续工作重点不再是继续改架构，而是开始用这套架构稳定 `daily_reading + intermediate_reading` 的实际输出质量。
+因此系统当前仍然满足继续推进 `daily_reading + intermediate_reading` baseline 调优的前置条件；但 `academic` 只完成了“执行计划与路由占位”这一层，还没有达到模式可用或可联调状态。后续若进入 academic 开发，应先补齐链路一致性与最小实现闭环，再谈场景质量调优。

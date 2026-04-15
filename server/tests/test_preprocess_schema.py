@@ -16,6 +16,32 @@ def test_analyze_request_rejects_goal_variant_mismatch() -> None:
         raise AssertionError("expected goal/variant validation error")
 
 
+def test_analyze_request_accepts_kaoyan_variant() -> None:
+    result = AnalyzeRequest.model_validate(
+        {
+            "text": "This is a test article.",
+            "reading_goal": "exam",
+            "reading_variant": "kaoyan",
+        }
+    )
+
+    assert result.reading_goal == "exam"
+    assert result.reading_variant == "kaoyan"
+
+
+def test_analyze_request_accepts_tem_variant() -> None:
+    result = AnalyzeRequest.model_validate(
+        {
+            "text": "This is a test article.",
+            "reading_goal": "exam",
+            "reading_variant": "tem",
+        }
+    )
+
+    assert result.reading_goal == "exam"
+    assert result.reading_variant == "tem"
+
+
 def test_render_scene_model_schema_accepts_minimal_valid_payload() -> None:
     payload = {
         "schema_version": "3.0.0",

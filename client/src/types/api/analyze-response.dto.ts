@@ -22,7 +22,7 @@ export interface TextSpan {
 export type SourceType = 'user_input' | 'daily_article' | 'ocr'
 export type ReadingGoal = 'exam' | 'daily_reading' | 'academic'
 export type ReadingVariant =
-  | 'gaokao' | 'cet' | 'gre' | 'ielts_toefl'
+  | 'gaokao' | 'cet' | 'kaoyan' | 'tem' | 'ielts_toefl'
   | 'beginner_reading' | 'intermediate_reading' | 'intensive_reading'
   | 'academic_general'
 

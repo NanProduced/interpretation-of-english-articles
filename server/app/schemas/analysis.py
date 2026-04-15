@@ -11,7 +11,7 @@ from app.schemas.internal.analysis import ReadingGoal, ReadingVariant
 ANALYSIS_SCHEMA_VERSION = "3.0.0"
 
 GOAL_VARIANT_MAP: dict[ReadingGoal, set[ReadingVariant]] = {
-    "exam": {"gaokao", "cet", "gre", "ielts_toefl"},
+    "exam": {"gaokao", "cet", "kaoyan", "tem", "ielts_toefl"},
     "daily_reading": {"beginner_reading", "intermediate_reading", "intensive_reading"},
     "academic": {"academic_general"},
 }
