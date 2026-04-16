@@ -107,6 +107,37 @@ FRAGMENT_HTML = """
 """
 
 
+FRAGMENT_NO_MEANING_HTML = """
+<html><body>
+  <div class="mdict-fragment-header">
+    <div class="mdict-fragment-title">chronically</div>
+    <div class="mdict-fragment-parent">主词条：<a class="mdict-parent-link" href="entry://chronic">chronic</a></div>
+  </div>
+  <div class="mdict-fragment-body">
+  </div>
+</body></html>
+"""
+
+
+FRAGMENT_DERIVED_FORM_HTML = """
+<html><body>
+  <div class="mdict-fragment-header">
+    <div class="mdict-fragment-title">quickly</div>
+    <div class="mdict-fragment-parent">主词条：<a class="mdict-parent-link" href="entry://quick">quick</a></div>
+  </div>
+  <div class="mdict-fragment-body">
+    <div class="phrasediv">
+      <ol class="se2g se2gOne">
+        <li class="se2">
+          <span class="corrSe2FirstLine"><span class="df">quick的副词形式</span><br/></span>
+        </li>
+      </ol>
+    </div>
+  </div>
+</body></html>
+"""
+
+
 WBR_HEADWORD_HTML = """
 <html><body>
   <div class="eDiv" id="rose-water">
@@ -831,3 +862,32 @@ def test_normalize_query_and_service_normalize_align() -> None:
     assert normalize_query("anth- 2") == "anth-2"
     assert service._normalize("“World’s”") == "world's"
     assert service._normalize("(state-owned)") == "state-owned"
+
+
+def test_parse_entry_html_fragment_with_parent_link_no_meaning_extracts_redirect() -> None:
+    parsed = parse_entry_html("chronically", FRAGMENT_NO_MEANING_HTML)
+
+    assert parsed is not None
+    assert parsed.entry_kind == "fragment"
+    assert parsed.display_headword == "chronically"
+    assert parsed.redirect_target_entry_key == "chronic"
+    assert parsed.meanings_json == []
+
+
+def test_parse_entry_html_fragment_with_parent_link_with_meaning_no_redirect() -> None:
+    parsed = parse_entry_html("each and all", FRAGMENT_HTML)
+
+    assert parsed is not None
+    assert parsed.entry_kind == "fragment"
+    assert parsed.display_headword == "each and all"
+    assert parsed.redirect_target_entry_key is None
+    assert parsed.meanings_json[0]["definitions"][0]["meaning"] == "人人；各个；全部"
+
+
+def test_parse_entry_html_fragment_with_parent_link_derived_form_extracts_redirect() -> None:
+    parsed = parse_entry_html("quickly", FRAGMENT_DERIVED_FORM_HTML)
+
+    assert parsed is not None
+    assert parsed.entry_kind == "fragment"
+    assert parsed.display_headword == "quickly"
+    assert parsed.redirect_target_entry_key == "quick"

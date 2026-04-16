@@ -584,6 +584,48 @@ def _extract_headword_parts(
 
 
 def _extract_redirect_target_entry_key(soup: BeautifulSoup) -> str | None:
+    parent_links = soup.select(".mdict-fragment-header .mdict-parent-link[href^='entry://']")
+    if len(parent_links) == 1:
+        href = str(parent_links[0].get("href") or "").strip()
+        if href.startswith("entry://"):
+            target = href.removeprefix("entry://").strip() or None
+            if target:
+                definitions = [
+                    _normalize_meaning_text(_inline_node_text(node))
+                    for node in soup.select(".corrSe2FirstLine .df")
+                ]
+                definitions = [item for item in definitions if item]
+
+                if not definitions:
+                    return target
+
+                if len(definitions) == 1:
+                    def_text = definitions[0]
+                    inflection_pattern = re.compile(
+                        rf"^{re.escape(target)}的(复数|过去式|过去分词|现在分词|第三人称单数)$"
+                    )
+                    if inflection_pattern.match(def_text):
+                        return target
+
+                    derived_pattern = re.compile(
+                        rf"^{re.escape(target)}的(副词|形容词|名词|动词)形式$"
+                    )
+                    if derived_pattern.match(def_text):
+                        return target
+
+                    see_pattern = re.compile(rf"^见\s*{re.escape(target)}$")
+                    if see_pattern.match(def_text):
+                        return target
+
+                    cf_pattern = re.compile(rf"^cf\.\s*{re.escape(target)}$", re.IGNORECASE)
+                    if cf_pattern.match(def_text):
+                        return target
+
+                    if def_text == target or def_text.strip() == "=":
+                        return target
+
+                return None
+
     xr_links = soup.select(".corrSe2FirstLine xrg a.xr[href^='entry://']")
     if len(xr_links) != 1:
         return None
