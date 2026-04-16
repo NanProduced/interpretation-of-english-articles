@@ -41,6 +41,10 @@ def get_lemma_candidates(word: str) -> list[str]:
 
     策略：对名词、动词、形容词和副词分别调用 getAllLemmas，
     合并结果并去重，保持稳定优先顺序。
+
+    特殊处理：
+    - 对于以 -ly 结尾的副词，lemminflect 通常返回副词本身（如 quickly → quickly），
+      而不是形容词形式（quick）。因此需要额外处理：去掉 -ly 后缀后作为候选。
     """
     getAllLemmas = _get_getAllLemmas()
     if getAllLemmas is None:
@@ -60,5 +64,14 @@ def get_lemma_candidates(word: str) -> list[str]:
             if lemma and lemma not in seen and lemma != word:
                 seen.add(lemma)
                 candidates.append(lemma)
+
+    # 特殊处理：对于以 -ly 结尾的副词，添加去掉 -ly 后缀的形式作为候选
+    # 例如：quickly → quick, chronically → chronic
+    # 这是因为 lemminflect 对副词的处理是返回副词本身，而不是形容词形式
+    if len(word) > 3 and word.endswith("ly"):
+        adj_form = word[:-2]
+        if adj_form and adj_form not in seen and adj_form != word:
+            candidates.append(adj_form)
+            seen.add(adj_form)
 
     return candidates
