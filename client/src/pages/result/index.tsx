@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useArticleStore } from '../../stores/article'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
@@ -6,6 +6,7 @@ import { InlineMarkModel, PageMode, RenderSceneVm, ResultPageState } from '../..
 import NavBar from '../../components/NavBar'
 import ParagraphBlock, { type WordClickPayload } from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
+import FeedbackModal from '../../components/FeedbackModal'
 import LucideIcon from '../../components/LucideIcon'
 import { LoadingIllustration, ErrorIllustration, EmptyIllustration } from '../../components/ResultIllustrations'
 import ActiveLoading from '../../components/ActiveLoading'
@@ -15,6 +16,11 @@ import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry
 import { CloudSyncService } from '../../services/cloudSync.service'
 import { ensureLoggedIn } from '../../services/auth'
 import { track } from '../../services/analytics'
+import {
+  ResultOverallContext,
+  AnnotationContext,
+  VocabContext,
+} from '../../services/api/feedbacks.client'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { getSafeDisplayLabel } from '../../config/purpose'
@@ -104,6 +110,18 @@ export default function Result() {
     purpose: 'daily_reading',
     level: 'intermediate_reading'
   })
+
+  // 反馈弹窗状态
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [feedbackContext, setFeedbackContext] = useState<ResultOverallContext>({})
+  const [feedbackType, setFeedbackType] = useState<'result_overall' | 'grammar_note' | 'sentence_analysis' | 'vocab_entry'>('result_overall')
+  const [annotationFeedbackContext, setAnnotationFeedbackContext] = useState<AnnotationContext | null>(null)
+  const [vocabFeedbackContext, setVocabFeedbackContext] = useState<VocabContext | null>(null)
+
+  // 用于存储上次检查反馈触发的时间（避免重复检查）
+  const lastFeedbackCheckRef = useRef<number>(0)
+  // 用于标记是否已经弹出过本次解析的反馈
+  const hasShownFeedbackRef = useRef(false)
 
 
 
@@ -204,6 +222,34 @@ export default function Result() {
 
   const handleSentenceClick = (sentenceId: string) => {
     setActiveSentenceId(prev => prev === sentenceId ? null : sentenceId)
+  }
+
+  const handleAnnotationFeedback = (entry: any, sentenceText: string) => {
+    const feedbackType = entry.entryType === 'grammar_note' ? 'grammar_note' : 'sentence_analysis'
+    const context: AnnotationContext = {
+      sentence_text_preview: sentenceText.slice(0, 200),
+      sentence_text_length: sentenceText.length,
+      annotation_type: feedbackType,
+      annotation_title_preview: entry.title || entry.label || '',
+      annotation_content_preview: (entry.content || '').slice(0, 300),
+    }
+    setFeedbackType(feedbackType)
+    setAnnotationFeedbackContext(context)
+    setShowFeedbackModal(true)
+    track('feedback_open', { type: feedbackType })
+  }
+
+  const handleVocabFeedback = () => {
+    const context: VocabContext = {
+      vocab_preview: wordPopup.word.slice(0, 50),
+      vocab_source: wordPopup.mark?.visualTone || 'dict_lookup',
+      context_sentence_preview: (wordPopup.contextSentence || '').slice(0, 200),
+      is_ai_annotated: !!wordPopup.mark?.glossary,
+    }
+    setFeedbackType('vocab_entry')
+    setVocabFeedbackContext(context)
+    setShowFeedbackModal(true)
+    track('feedback_open', { type: 'vocab_entry' })
   }
 
   const handleClosePopup = () => {
@@ -499,6 +545,7 @@ export default function Result() {
           activeSentenceId={activeSentenceId}
           onWordClick={handleWordClick}
           onSentenceClick={handleSentenceClick}
+          onAnnotationFeedback={handleAnnotationFeedback}
         />
       )
     })
@@ -544,6 +591,29 @@ export default function Result() {
               >
                 <LucideIcon name='bookmark' size={18} color={favorited ? 'var(--color-warn)' : 'var(--text-main)'} />
                 <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏'}</Text>
+              </View>
+              <View 
+                className='end-btn-secondary feedback-btn'
+                onClick={() => {
+                  const context: ResultOverallContext = {
+                    source_text_preview: (requestParams?.text || '').slice(0, 200),
+                    source_text_length: (requestParams?.text || '').length,
+                    reading_goal: sceneData?.request?.readingGoal,
+                    reading_variant: sceneData?.request?.readingVariant,
+                    extended: requestParams?.extended,
+                    user_facing_state: pageState,
+                    sentence_count: sceneData?.article?.sentences?.length || 0,
+                    vocab_count: sceneData?.inlineMarks?.filter(m => m.annotationType === 'vocab_highlight')?.length || 0,
+                  }
+                  setFeedbackContext(context)
+                  setShowFeedbackModal(true)
+                  track('feedback_open', { type: 'result_overall' })
+                }}
+                role='button'
+                aria-label='反馈'
+              >
+                <LucideIcon name='messageSquare' size={18} color='var(--text-main)' />
+                <Text>反馈</Text>
               </View>
               <View 
                 className='end-btn-primary' 
@@ -626,6 +696,7 @@ export default function Result() {
           }
         }}
         onFavorite={(w) => { track('favorite_word', { word: w }) }}
+        onFeedback={handleVocabFeedback}
       />
 
       <BottomSheetSelect
@@ -634,6 +705,37 @@ export default function Result() {
         currentLevel={tempConfig.level}
         onClose={() => setShowModeSheet(false)}
         onSelect={handleModeSelect}
+      />
+
+      <FeedbackModal
+        visible={showFeedbackModal}
+        mode={feedbackType}
+        title={
+          feedbackType === 'result_overall' 
+            ? '本次解析' 
+            : feedbackType === 'grammar_note' 
+              ? '语法要点' 
+              : feedbackType === 'sentence_analysis'
+                ? '句式解析'
+                : '词汇释义'
+        }
+        analysisRecordId={cloudId || undefined}
+        context={
+          feedbackType === 'result_overall' 
+            ? feedbackContext 
+            : feedbackType === 'vocab_entry'
+              ? vocabFeedbackContext
+              : annotationFeedbackContext
+        }
+        onClose={() => {
+          setShowFeedbackModal(false)
+          setFeedbackType('result_overall')
+          setAnnotationFeedbackContext(null)
+          setVocabFeedbackContext(null)
+        }}
+        onSubmitSuccess={() => {
+          track('feedback_submit', { type: feedbackType })
+        }}
       />
     </>
   )

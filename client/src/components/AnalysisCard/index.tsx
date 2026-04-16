@@ -20,6 +20,10 @@ export interface AnalysisCardProps {
   isExpanded?: boolean
   onToggle?: (expanded: boolean) => void
   structuredData?: any
+  sentenceId?: string
+  sentenceText?: string
+  annotationId?: string
+  onFeedback?: () => void
 }
 
 const TYPE_CONFIG = {
@@ -69,6 +73,10 @@ export default function AnalysisCard({
   isExpanded: controlledIsExpanded,
   onToggle,
   structuredData: externalStructuredData,
+  sentenceId,
+  sentenceText,
+  annotationId,
+  onFeedback,
 }: AnalysisCardProps) {
   const globalDefaultExpanded = useConfigStore((s) => s.defaultCardExpanded)
   const [internalIsExpanded, setInternalIsExpanded] = useState(initiallyExpanded ?? globalDefaultExpanded)
@@ -172,11 +180,24 @@ export default function AnalysisCard({
             )}
           </View>
           
-          {/* 语法要点标识移至右下角 */}
+          {/* 语法要点标识和反馈按钮 */}
           <View className='card-footer'>
             <View className={`type-indicator-badge type-${type}`}>
               <Text className='indicator-text'>{label || config.defaultLabel}</Text>
             </View>
+            {/* 语法标注和句式解析显示反馈按钮 */}
+            {(type === 'grammar' || type === 'sentence') && onFeedback && (
+              <View 
+                className='feedback-btn-small'
+                onClick={(e) => {
+                  e?.stopPropagation?.()
+                  onFeedback()
+                }}
+              >
+                <LucideIcon name='messageSquare' size={14} color='var(--text-muted)' />
+                <Text className='feedback-btn-text'>反馈</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>

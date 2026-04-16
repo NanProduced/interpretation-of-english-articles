@@ -153,7 +153,8 @@
 
     .card-footer {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       margin-top: 16rpx;
       
       .type-indicator-badge {
@@ -161,13 +162,31 @@
         align-items: center;
         gap: 8rpx;
         padding: 6rpx 16rpx;
-        border-radius: 6rpx; // 稍微硬朗一点的倒角
+        border-radius: 6rpx;
         
-        // 我们会通过嵌套在最外层 card 的 .type-* 来赋予实体颜色
         .indicator-text {
           font-size: 20rpx;
           font-weight: var(--weight-bold);
-          color: var(--color-white); // 实体填充，白字
+          color: var(--color-white);
+        }
+      }
+
+      .feedback-btn-small {
+        display: flex;
+        align-items: center;
+        gap: 6rpx;
+        padding: 6rpx 12rpx;
+        border-radius: 6rpx;
+        background: rgba(0, 0, 0, 0.03);
+        transition: background 0.2s ease;
+
+        &:active {
+          background: rgba(0, 0, 0, 0.06);
+        }
+
+        .feedback-btn-text {
+          font-size: 20rpx;
+          color: var(--text-muted);
         }
       }
     }

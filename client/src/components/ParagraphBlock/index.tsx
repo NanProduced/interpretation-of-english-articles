@@ -36,6 +36,7 @@ interface ParagraphBlockProps {
   vocabList?: string[]
   onWordClick?: (payload: WordClickPayload) => void
   onSentenceClick?: (sentenceId: string) => void
+  onAnnotationFeedback?: (entry: SentenceEntryModel, sentenceText: string) => void
 }
 
 function findTextAnchorPosition(text: string, anchorText: string, occurrence = 1): number {
@@ -279,6 +280,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   activeSentenceId,
   onWordClick,
   onSentenceClick,
+  onAnnotationFeedback,
 }: ParagraphBlockProps) {
   const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null)
   const containerClass = `paragraph-block ${pageMode} ${activeAnalysisId ? 'has-active-analysis' : ''}`
@@ -357,7 +359,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
     const sentenceEntries = entriesBySentenceId.get(sentence.sentenceId) || []
     const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
 
-    const analysisCards: (AnalysisCardProps & { id: string })[] = [
+    const analysisCards: (AnalysisCardProps & { id: string; originalEntry: SentenceEntryModel })[] = [
       ...sentenceEntries
         .filter(e => e.entryType === 'grammar_note')
         .map(e => ({
@@ -366,6 +368,10 @@ const ParagraphBlock = memo(function ParagraphBlock({
           title: e.title || e.label,
           label: '语法要点',
           content: e.content,
+          sentenceId: sentence.sentenceId,
+          sentenceText: sentence.text,
+          annotationId: e.id,
+          originalEntry: e,
         })),
         ...sentenceEntries
           .filter(e => e.entryType === 'sentence_analysis')
@@ -379,7 +385,11 @@ const ParagraphBlock = memo(function ParagraphBlock({
               content: e.content,
               structuredData: parsed,
               isExpanded: activeAnalysisId === e.id,
-              onToggle: (expanded: boolean) => handleAnalysisToggle(e.id, expanded)
+              onToggle: (expanded: boolean) => handleAnalysisToggle(e.id, expanded),
+              sentenceId: sentence.sentenceId,
+              sentenceText: sentence.text,
+              annotationId: e.id,
+              originalEntry: e,
             }
           }),
     ]
@@ -456,6 +466,14 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       structuredData={card.structuredData}
                       isExpanded={card.isExpanded}
                       onToggle={card.onToggle}
+                      sentenceId={card.sentenceId}
+                      sentenceText={card.sentenceText}
+                      annotationId={card.annotationId}
+                      onFeedback={
+                        onAnnotationFeedback 
+                          ? () => onAnnotationFeedback(card.originalEntry, item.sentence.text)
+                          : undefined
+                      }
                     />
                   ))}
                 </View>

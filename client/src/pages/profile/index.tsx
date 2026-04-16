@@ -15,11 +15,13 @@ import { getAllRecords, getVocabulary } from '../../services/storage'
 import { fetchCloudRecords } from '../../services/api/records.client'
 import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
 import { fetchUserQuota, updateProfile } from '../../services/api/client'
+import { GeneralContext } from '../../services/api/feedbacks.client'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
 import CenterModal from '../../components/CenterModal'
 import ConfigEditor from '../../components/ConfigEditor'
+import FeedbackModal from '../../components/FeedbackModal'
 import { useLayoutStore } from '../../stores/layout'
 import { getDisplayLabel, ReadingGoal } from '../../config/purpose'
 import { getReadingTier, getAllTiers } from '../../utils/achievement'
@@ -39,6 +41,8 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const [loadingStats, setLoadingStats] = useState(false)
   const [showModeSheet, setShowModeSheet] = useState(false)
   const [showAchievementSheet, setShowAchievementSheet] = useState(false)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [feedbackContext, setFeedbackContext] = useState<GeneralContext>({})
   
   const allTiers = getAllTiers()
   const tier = getReadingTier(articleCount)
@@ -164,6 +168,18 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     {
       title: "关于与合规",
       items: [
+        { 
+          label: "反馈建议", 
+          icon: 'messageSquare', 
+          color: 'purple',
+          onClick: () => {
+            setFeedbackContext({
+              user_id: userInfo?.user_id || undefined,
+              is_logged_in: isLoggedIn,
+            })
+            setShowFeedbackModal(true)
+          },
+        },
         { label: "用户协议与隐私政策", icon: 'file', color: 'gray' },
         { label: "关于我们", icon: 'info', color: 'gray' },
       ]
@@ -397,6 +413,17 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           </View>
         </View>
       </CenterModal>
+
+      <FeedbackModal
+        visible={showFeedbackModal}
+        mode='general'
+        title='反馈建议'
+        context={feedbackContext}
+        onClose={() => setShowFeedbackModal(false)}
+        onSubmitSuccess={() => {
+          Taro.showToast({ title: '感谢您的反馈', icon: 'success', duration: 1500 })
+        }}
+      />
     </View>
   )
 }
