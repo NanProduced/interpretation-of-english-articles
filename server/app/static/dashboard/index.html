@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Usage Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        header h1 {
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        header .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .select-wrapper {
+            position: relative;
+        }
+        
+        .select-wrapper select {
+            padding: 10px 35px 10px 15px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            appearance: none;
+            backdrop-filter: blur(10px);
+        }
+        
+        .select-wrapper select option {
+            color: #1a1a1a;
+        }
+        
+        .select-wrapper::after {
+            content: '▼';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 10px;
+            pointer-events: none;
+        }
+        
+        .refresh-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            color: #667eea;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card.warning {
+            border-left: 4px solid #ff6b6b;
+            background: linear-gradient(to right, #fff5f5, white);
+        }
+        
+        .stat-card .label {
+            font-size: 13px;
+            color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        
+        .stat-card .trend {
+            font-size: 12px;
+            margin-top: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .trend.up {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .trend.down {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .trend.warning {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        
+        .chart-card.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .chart-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .chart-container-large {
+            height: 400px;
+        }
+        
+        .agent-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .agent-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        
+        .agent-card h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #4b5563;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .agent-card .percentage-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .agent-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .agent-stat {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .agent-stat .stat-label {
+            font-size: 11px;
+            color: #9ca3af;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        .agent-stat .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        
+        .table-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            margin-bottom: 30px;
+        }
+        
+        .table-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-section h3 .subtitle {
+            font-size: 12px;
+            font-weight: 400;
+            color: #9ca3af;
+        }
+        
+        .slow-call-badge {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        th, td {
+            padding: 14px 12px;
+            text-align: left;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        tr:hover {
+            background: #f9fafb;
+        }
+        
+        tr.slow-row {
+            background: #fef2f2;
+        }
+        
+        tr.slow-row:hover {
+            background: #fee2e2;
+        }
+        
+        .token-badge {
+            display: inline-flex;
+            gap: 4px;
+            font-size: 12px;
+        }
+        
+        .token-badge .input {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .token-badge .output {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        
+        .pagination button {
+            padding: 8px 14px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: #9ca3af;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .timestamp {
+            font-size: 11px;
+            color: #9ca3af;
+        }
+        
+        .goal-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-right: 4px;
+        }
+        
+        .goal-tag.exam { background: #fef3c7; color: #92400e; }
+        .goal-tag.daily_reading { background: #dbeafe; color: #1e40af; }
+        .goal-tag.academic { background: #fce7f3; color: #9d174d; }
+        
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            header .controls {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>LLM Usage Dashboard</h1>
+            <div class="controls">
+                <div class="select-wrapper">
+                    <select id="timeRange">
+                        <option value="1">最近 1 小时</option>
+                        <option value="6">最近 6 小时</option>
+                        <option value="24" selected>最近 24 小时</option>
+                        <option value="48">最近 48 小时</option>
+                        <option value="72">最近 3 天</option>
+                        <option value="168">最近 7 天</option>
+                    </select>
+                </div>
+                <div class="select-wrapper">
+                    <select id="granularity">
+                        <option value="hour" selected>按小时</option>
+                        <option value="day">按天</option>
+                    </select>
+                </div>
+                <button class="refresh-btn" onclick="refreshData()">刷新数据</button>
+            </div>
+        </header>
+        
+        <div id="errorContainer"></div>
+        
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="label">总调用次数</div>
+                <div class="value" id="totalCalls">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">总 Token 消耗</div>
+                <div class="value" id="totalTokens">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">平均每次 Token</div>
+                <div class="value" id="avgTokens">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">总消耗积分</div>
+                <div class="value" id="totalCost">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">平均耗时 (ms)</div>
+                <div class="value" id="avgLatency">-</div>
+            </div>
+            <div class="stat-card warning" id="slowCallsCard">
+                <div class="label">慢调用 (>30s)</div>
+                <div class="value" id="slowCalls">-</div>
+                <div class="trend warning" id="slowCallsRatio">-</div>
+            </div>
+        </div>
+        
+        <div class="charts-grid">
+            <div class="chart-card full-width">
+                <h3>Token 消耗趋势</h3>
+                <div class="chart-container-large">
+                    <canvas id="tokenTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>调用次数趋势</h3>
+                <div class="chart-container">
+                    <canvas id="callCountChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Agent Token 分布</h3>
+                <div class="chart-container">
+                    <canvas id="agentTokenChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>输入/输出 Token 对比</h3>
+                <div class="chart-container">
+                    <canvas id="inputOutputChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>耗时趋势</h3>
+                <div class="chart-container">
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-section" id="agentBreakdownSection">
+            <h3>各 Agent 详细统计 <span class="subtitle">按时间段聚合</span></h3>
+            <div class="agent-grid" id="agentGrid">
+            </div>
+        </div>
+        
+        <div class="table-section">
+            <h3>最近调用记录 <span class="subtitle" id="recentCallsSubtitle">显示最近 100 条</span></h3>
+            <table id="callsTable">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>User ID</th>
+                        <th>阅读目标</th>
+                        <th>Token 消耗</th>
+                        <th>积分</th>
+                        <th>耗时</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="callsTableBody">
+                </tbody>
+            </table>
+            <div class="pagination" id="pagination">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tokenTrendChart = null;
+        let callCountChart = null;
+        let agentTokenChart = null;
+        let inputOutputChart = null;
+        let latencyChart = null;
+        let currentPage = 1;
+        const pageSize = 50;
+
+        const API_BASE = '';
+
+        async function fetchAPI(endpoint) {
+            const response = await fetch(`${API_BASE}${endpoint}`);
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status}`);
+            }
+            return response.json();
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(2) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+
+        function formatDuration(ms) {
+            if (ms >= 60000) {
+                return (ms / 60000).toFixed(1) + ' min';
+            } else if (ms >= 1000) {
+                return (ms / 1000).toFixed(1) + ' s';
+            }
+            return ms + ' ms';
+        }
+
+        function showError(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+
+        function hideError() {
+            document.getElementById('errorContainer').innerHTML = '';
+        }
+
+        async function loadSummary() {
+            const hours = parseInt(document.getElementById('timeRange').value);
+            const data = await fetchAPI(`/dashboard/summary?hours=${hours}`);
+            
+            const summary = data.summary;
+            document.getElementById('totalCalls').textContent = formatNumber(summary.total_calls);
+            document.getElementById('totalTokens').textContent = formatNumber(summary.total_tokens);
+            document.getElementById('avgTokens').textContent = formatNumber(summary.avg_tokens_per_call);
+            document.getElementById('totalCost').textContent = formatNumber(summary.total_cost_points);
+            document.getElementById('avgLatency').textContent = formatDuration(summary.avg_processing_ms);
+            document.getElementById('slowCalls').textContent = summary.slow_calls_count;
+            document.getElementById('slowCallsRatio').textContent = `${summary.slow_calls_ratio}% 占比`;
+
+            const slowCard = document.getElementById('slowCallsCard');
+            if (summary.slow_calls_ratio > 10) {
+                slowCard.style.display = 'block';
+            } else if (summary.slow_calls_count > 0) {
+                slowCard.style.display = 'block';
+            }
+        }
+
+        async function loadTrends() {
+            const hours = parseInt(document.getElementById('timeRange').value);
+            const granularity = document.getElementById('granularity').value;
+            const data = await fetchAPI(`/dashboard/trends?hours=${hours}&granularity=${granularity}`);
+            
+            const series = granularity === 'hour' ? data.hourly : data.daily;
+            
+            const labels = series.map(item => granularity === 'hour' ? item.time : item.date);
+            const totalTokens = series.map(item => item.total_tokens);
+            const inputTokens = series.map(item => item.input_tokens);
+            const outputTokens = series.map(item => item.output_tokens);
+            const callCounts = series.map(item => item.call_count);
+            const avgLatency = series.map(item => item.avg_processing_ms);
+            const slowCalls = series.map(item => item.slow_calls);
+
+            if (tokenTrendChart) tokenTrendChart.destroy();
+            if (callCountChart) callCountChart.destroy();
+            if (inputOutputChart) inputOutputChart.destroy();
+            if (latencyChart) latencyChart.destroy();
+
+            const tokenCtx = document.getElementById('tokenTrendChart').getContext('2d');
+            tokenTrendChart = new Chart(tokenCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Total Tokens',
+                            data: totalTokens,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Input Tokens',
+                            data: inputTokens,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 5],
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Output Tokens',
+                            data: outputTokens,
+                            borderColor: '#10b981',
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 5],
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatNumber(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const callCtx = document.getElementById('callCountChart').getContext('2d');
+            callCountChart = new Chart(callCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '调用次数',
+                            data: callCounts,
+                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: '慢调用 (>30s)',
+                            data: slowCalls,
+                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+
+            const ioCtx = document.getElementById('inputOutputChart').getContext('2d');
+            inputOutputChart = new Chart(ioCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Input Tokens',
+                            data: inputTokens,
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Output Tokens',
+                            data: outputTokens,
+                            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            stacked: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatNumber(value);
+                                }
+                            }
+                        },
+                        x: {
+                            stacked: true
+                        }
+                    }
+                }
+            });
+
+            const latencyCtx = document.getElementById('latencyChart').getContext('2d');
+            latencyChart = new Chart(latencyCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '平均耗时 (ms)',
+                            data: avgLatency,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatDuration(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadAgentBreakdown() {
+            const hours = parseInt(document.getElementById('timeRange').value);
+            const data = await fetchAPI(`/dashboard/agent-breakdown?hours=${hours}`);
+            
+            const agents = data.agents;
+            const agentNames = Object.keys(agents);
+            const agentTokens = agentNames.map(name => agents[name].total_tokens);
+
+            if (agentTokenChart) agentTokenChart.destroy();
+
+            const agentCtx = document.getElementById('agentTokenChart').getContext('2d');
+            agentTokenChart = new Chart(agentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: agentNames,
+                    datasets: [{
+                        data: agentTokens,
+                        backgroundColor: [
+                            '#667eea',
+                            '#764ba2',
+                            '#f093fb',
+                            '#f5576c',
+                            '#4facfe',
+                            '#00f2fe'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+
+            const agentGrid = document.getElementById('agentGrid');
+            agentGrid.innerHTML = '';
+
+            const colors = {
+                'vocabulary': '#667eea',
+                'grammar': '#764ba2',
+                'translation': '#f093fb',
+                'repair': '#f5576c'
+            };
+
+            for (const [name, stats] of Object.entries(agents)) {
+                const card = document.createElement('div');
+                card.className = 'agent-card';
+                card.innerHTML = `
+                    <h4>
+                        <span style="color: ${colors[name] || '#667eea'}">${name}</span>
+                        <span class="percentage-badge">${stats.token_percentage}%</span>
+                    </h4>
+                    <div class="agent-stats">
+                        <div class="agent-stat">
+                            <div class="stat-label">调用次数</div>
+                            <div class="stat-value">${formatNumber(stats.total_calls)}</div>
+                        </div>
+                        <div class="agent-stat">
+                            <div class="stat-label">总 Token</div>
+                            <div class="stat-value">${formatNumber(stats.total_tokens)}</div>
+                        </div>
+                        <div class="agent-stat">
+                            <div class="stat-label">输入 Token</div>
+                            <div class="stat-value">${formatNumber(stats.input_tokens)}</div>
+                        </div>
+                        <div class="agent-stat">
+                            <div class="stat-label">输出 Token</div>
+                            <div class="stat-value">${formatNumber(stats.output_tokens)}</div>
+                        </div>
+                        <div class="agent-stat" style="grid-column: 1 / -1;">
+                            <div class="stat-label">平均每次 Token</div>
+                            <div class="stat-value">${formatNumber(stats.avg_tokens_per_call)}</div>
+                        </div>
+                    </div>
+                `;
+                agentGrid.appendChild(card);
+            }
+        }
+
+        async function loadRecentCalls(page = 1) {
+            currentPage = page;
+            const offset = (page - 1) * pageSize;
+            const data = await fetchAPI(`/dashboard/recent-calls?limit=${pageSize}&offset=${offset}`);
+            
+            const tbody = document.getElementById('callsTableBody');
+            tbody.innerHTML = '';
+
+            for (const call of data.calls) {
+                const row = document.createElement('tr');
+                row.className = call.is_slow ? 'slow-row' : '';
+                
+                const goalClass = call.reading_goal ? call.reading_goal.replace(/[^a-z]/gi, '').toLowerCase() : '';
+                const goalHtml = call.reading_goal 
+                    ? `<span class="goal-tag ${goalClass}">${call.reading_goal}</span>` 
+                    : '-';
+
+                row.innerHTML = `
+                    <td>
+                        <div>${new Date(call.created_at).toLocaleString('zh-CN')}</div>
+                        <div class="timestamp">${call.task_id || 'N/A'}</div>
+                    </td>
+                    <td>${call.user_id.substring(0, 8)}...</td>
+                    <td>${goalHtml} ${call.reading_variant || ''}</td>
+                    <td>
+                        <div class="token-badge">
+                            <span class="input">in: ${formatNumber(call.input_tokens)}</span>
+                            <span class="output">out: ${formatNumber(call.output_tokens)}</span>
+                        </div>
+                    </td>
+                    <td>${call.cost_points}</td>
+                    <td>
+                        <strong>${formatDuration(call.processing_ms)}</strong>
+                        ${call.is_slow ? '<span class="slow-call-badge">慢调用</span>' : ''}
+                    </td>
+                    <td>${call.is_slow ? '⚠️ 慢' : '✓ 正常'}</td>
+                `;
+                tbody.appendChild(row);
+            }
+
+            const totalPages = Math.ceil(data.total / pageSize);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            if (totalPages > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '上一页';
+                prevBtn.disabled = page <= 1;
+                prevBtn.onclick = () => loadRecentCalls(page - 1);
+                pagination.appendChild(prevBtn);
+
+                const startPage = Math.max(1, page - 2);
+                const endPage = Math.min(totalPages, page + 2);
+
+                for (let i = startPage; i <= endPage; i++) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.textContent = i;
+                    pageBtn.className = i === page ? 'active' : '';
+                    pageBtn.onclick = () => loadRecentCalls(i);
+                    pagination.appendChild(pageBtn);
+                }
+
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = '下一页';
+                nextBtn.disabled = page >= totalPages;
+                nextBtn.onclick = () => loadRecentCalls(page + 1);
+                pagination.appendChild(nextBtn);
+            }
+
+            document.getElementById('recentCallsSubtitle').textContent = 
+                `共 ${data.total} 条，显示 ${offset + 1}-${Math.min(offset + pageSize, data.total)}`;
+        }
+
+        async function refreshData() {
+            hideError();
+            try {
+                await Promise.all([
+                    loadSummary(),
+                    loadTrends(),
+                    loadAgentBreakdown(),
+                    loadRecentCalls(currentPage)
+                ]);
+            } catch (error) {
+                showError(`加载数据失败: ${error.message}。请确保后端服务已启动，并且 API 可访问。`);
+                console.error(error);
+            }
+        }
+
+        document.getElementById('timeRange').addEventListener('change', refreshData);
+        document.getElementById('granularity').addEventListener('change', loadTrends);
+
+        refreshData();
+
+        setInterval(refreshData, 60000);
+    </script>
+</body>
+</html>

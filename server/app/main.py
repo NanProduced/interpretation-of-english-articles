@@ -9,9 +9,11 @@ import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from logging import getLogger
+from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.config.logging_config import setup_logging
@@ -24,6 +26,9 @@ from app.database.connection import close_db, close_redis, init_db, init_redis
 from app.observability.langsmith import setup_langsmith
 
 logger = getLogger(__name__)
+
+STATIC_DIR = Path(__file__).parent / "static"
+DASHBOARD_INDEX = STATIC_DIR / "dashboard" / "index.html"
 
 
 @asynccontextmanager
@@ -110,6 +115,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(api_router)
+
+    if STATIC_DIR.exists():
+        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+    @app.get("/dashboard", tags=["dashboard"])
+    async def dashboard_page() -> FileResponse:
+        if not DASHBOARD_INDEX.exists():
+            raise HTTPException(status_code=404, detail="Dashboard page not found")
+        return FileResponse(str(DASHBOARD_INDEX))
 
     # --- 全局异常处理器 ---
     @app.exception_handler(HTTPException)
