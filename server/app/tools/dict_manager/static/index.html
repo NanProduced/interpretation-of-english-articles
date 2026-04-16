@@ -1172,7 +1172,7 @@
             const pos = document.getElementById('quick-pos').value;
             const meaning = document.getElementById('quick-meaning').value.trim();
             const example = document.getElementById('quick-example').value.trim() || null;
-            const exampleTranslation = document.getElementById('quick-example-translation').value.trim() || null;
+            const example_translation = document.getElementById('quick-example-translation').value.trim() || null;
             if (!meaning) { showToast('请输入释义内容', 'error'); return; }
             try {
                 await api(`/entries/${currentEntryId}/quick-meaning`, {
