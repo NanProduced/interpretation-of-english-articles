@@ -39,13 +39,6 @@ def get_service() -> DictManagerService:
 STATIC_DIR = Path(__file__).parent / "static"
 
 
-@router.on_event("startup")
-async def on_startup() -> None:
-    """启动时确保日志表存在。"""
-    service = get_service()
-    await service.ensure_operation_log_table()
-
-
 @router.get("", response_class=HTMLResponse)
 async def index_page() -> FileResponse:
     """返回词典管理工具主页。"""
