@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
+from app.tools.dict_manager.router import router as dict_manager_router
 from app.config.logging_config import setup_logging
 from app.config.settings import Settings, get_settings
 from app.services.dictionary.nlp import preload_dict_nlp
@@ -120,6 +121,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     
     app.include_router(api_router)
+    app.include_router(dict_manager_router)
 
     # --- 全局异常处理器 ---
     @app.exception_handler(HTTPException)
