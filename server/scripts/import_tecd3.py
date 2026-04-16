@@ -594,22 +594,51 @@ def _extract_redirect_target_entry_key(soup: BeautifulSoup) -> str | None:
     if not target:
         return None
 
-    if soup.select_one(".sgPosDiv .pos") is not None:
-        return None
+    has_pos_marker = soup.select_one(".sgPosDiv .pos") is not None
 
     definitions = [
         _normalize_meaning_text(_inline_node_text(node))
         for node in soup.select(".corrSe2FirstLine .df")
     ]
     definitions = [item for item in definitions if item]
+
     if not definitions:
         return target
 
-    inflection_pattern = re.compile(
-        rf"^{re.escape(target)}的(复数|过去式|过去分词|现在分词|第三人称单数)$"
-    )
-    if len(definitions) == 1 and inflection_pattern.match(definitions[0]):
-        return target
+    if len(definitions) == 1:
+        def_text = definitions[0]
+
+        inflection_pattern = re.compile(
+            rf"^{re.escape(target)}的(复数|过去式|过去分词|现在分词|第三人称单数)$"
+        )
+        if inflection_pattern.match(def_text):
+            return target
+
+        derived_pattern = re.compile(
+            rf"^{re.escape(target)}的(副词|形容词|名词|动词)形式$"
+        )
+        if derived_pattern.match(def_text):
+            return target
+
+        see_pattern = re.compile(rf"^见\s*{re.escape(target)}$")
+        if see_pattern.match(def_text):
+            return target
+
+        cf_pattern = re.compile(rf"^cf\.\s*{re.escape(target)}$", re.IGNORECASE)
+        if cf_pattern.match(def_text):
+            return target
+
+        if has_pos_marker:
+            is_derived_indicator = (
+                derived_pattern.match(def_text)
+                or see_pattern.match(def_text)
+                or cf_pattern.match(def_text)
+                or def_text == target
+                or def_text.strip() == "="
+            )
+            if is_derived_indicator:
+                return target
+
     return None
 
 
