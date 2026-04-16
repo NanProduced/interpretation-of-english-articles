@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from app.database.connection import DB_POOL
+from app.database import connection as db_connection
 
 from .schemas import (
     DashboardStats,
@@ -30,13 +30,6 @@ SOURCE = "tecd3"
 
 class DictManagerService:
     """词典数据管理服务类。"""
-
-    @staticmethod
-    async def _get_connection():
-        """获取数据库连接。"""
-        if DB_POOL is None:
-            raise RuntimeError("Database pool not initialized")
-        return DB_POOL
 
     @staticmethod
     def _normalize_query(word: str) -> str:
@@ -80,8 +73,9 @@ class DictManagerService:
         note: str | None = None,
     ) -> int:
         """记录操作日志。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return 0
+        async with db_connection.DB_POOL.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO dict_operation_logs (
@@ -101,8 +95,20 @@ class DictManagerService:
 
     async def get_dashboard_stats(self) -> DashboardStats:
         """获取仪表盘统计数据。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return DashboardStats(
+                total_entries=0,
+                total_fragments=0,
+                entries_with_meanings=0,
+                entries_without_meanings=0,
+                total_lookup_targets=0,
+                total_redirects=0,
+                entries_without_lookup_targets=0,
+                duplicate_lookup_keys=0,
+                orphan_redirects=0,
+            )
+
+        async with db_connection.DB_POOL.acquire() as conn:
             total_entries = await conn.fetchval(
                 "SELECT COUNT(*) FROM dict_entries WHERE entry_kind = 'entry' AND source = $1", SOURCE
             )
@@ -169,10 +175,12 @@ class DictManagerService:
         self, page: int = 1, page_size: int = 50
     ) -> PaginatedResult:
         """获取缺失 meanings_json 的词条列表。"""
-        pool = await self._get_connection()
+        if db_connection.DB_POOL is None:
+            return PaginatedResult(total=0, page=page, page_size=page_size, items=[])
+
         offset = (page - 1) * page_size
 
-        async with pool.acquire() as conn:
+        async with db_connection.DB_POOL.acquire() as conn:
             total = await conn.fetchval(
                 """
                 SELECT COUNT(*) FROM dict_entries
@@ -236,7 +244,9 @@ class DictManagerService:
         has_meanings: bool | None = None,
     ) -> PaginatedResult:
         """搜索词条。"""
-        pool = await self._get_connection()
+        if db_connection.DB_POOL is None:
+            return PaginatedResult(total=0, page=page, page_size=page_size, items=[])
+
         offset = (page - 1) * page_size
 
         conditions = ["source = $1"]
@@ -266,7 +276,7 @@ class DictManagerService:
 
         where_clause = " AND ".join(conditions)
 
-        async with pool.acquire() as conn:
+        async with db_connection.DB_POOL.acquire() as conn:
             total = await conn.fetchval(
                 f"SELECT COUNT(*) FROM dict_entries WHERE {where_clause}",
                 *params,
@@ -320,8 +330,10 @@ class DictManagerService:
 
     async def get_entry_detail(self, entry_id: int) -> DictionaryEntryDetail | None:
         """获取词条详情。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return None
+
+        async with db_connection.DB_POOL.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 SELECT * FROM dict_entries WHERE id = $1 AND source = $2
@@ -368,8 +380,10 @@ class DictManagerService:
         update_note: str | None = None,
     ) -> bool:
         """更新词条，记录操作日志并维护关联表。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return False
+
+        async with db_connection.DB_POOL.acquire() as conn:
             old_row = await conn.fetchrow(
                 """
                 SELECT * FROM dict_entries WHERE id = $1 AND source = $2
@@ -490,8 +504,10 @@ class DictManagerService:
 
     async def get_entry_lookup_targets(self, entry_id: int) -> list[LookupTargetRow]:
         """获取词条的查询目标关联记录。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return []
+
+        async with db_connection.DB_POOL.acquire() as conn:
             rows = await conn.fetch(
                 """
                 SELECT * FROM dict_lookup_targets
@@ -520,8 +536,10 @@ class DictManagerService:
 
     async def get_entry_redirects(self, entry_id: int) -> list[RedirectRow]:
         """获取指向该词条的重定向记录。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return []
+
+        async with db_connection.DB_POOL.acquire() as conn:
             entry = await conn.fetchrow(
                 "SELECT source_entry_key FROM dict_entries WHERE id = $1 AND source = $2",
                 entry_id,
@@ -564,8 +582,10 @@ class DictManagerService:
         update_note: str | None = None,
     ) -> int | None:
         """添加查询目标关联，记录日志。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return None
+
+        async with db_connection.DB_POOL.acquire() as conn:
             entry = await conn.fetchrow(
                 "SELECT display_headword, meanings_json FROM dict_entries WHERE id = $1 AND source = $2",
                 entry_id,
@@ -640,8 +660,10 @@ class DictManagerService:
         update_note: str | None = None,
     ) -> int | None:
         """添加重定向记录，记录日志。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return None
+
+        async with db_connection.DB_POOL.acquire() as conn:
             entry = await conn.fetchrow(
                 "SELECT id, display_headword FROM dict_entries WHERE source_entry_key = $1 AND source = $2",
                 target_entry_key,
@@ -685,8 +707,10 @@ class DictManagerService:
 
     async def delete_lookup_target(self, target_id: int, update_note: str | None = None) -> bool:
         """删除查询目标关联（软删除通过日志记录）。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return False
+
+        async with db_connection.DB_POOL.acquire() as conn:
             old_row = await conn.fetchrow(
                 "SELECT * FROM dict_lookup_targets WHERE id = $1 AND source = $2",
                 target_id,
@@ -718,8 +742,10 @@ class DictManagerService:
 
     async def delete_redirect(self, redirect_id: int, update_note: str | None = None) -> bool:
         """删除重定向记录。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return False
+
+        async with db_connection.DB_POOL.acquire() as conn:
             old_row = await conn.fetchrow(
                 "SELECT * FROM dict_redirects WHERE id = $1 AND source = $2",
                 redirect_id,
@@ -760,10 +786,12 @@ class DictManagerService:
         self, entry_id: int | None = None, page: int = 1, page_size: int = 50
     ) -> PaginatedResult:
         """获取操作日志。"""
-        pool = await self._get_connection()
+        if db_connection.DB_POOL is None:
+            return PaginatedResult(total=0, page=page, page_size=page_size, items=[])
+
         offset = (page - 1) * page_size
 
-        async with pool.acquire() as conn:
+        async with db_connection.DB_POOL.acquire() as conn:
             if entry_id:
                 total = await conn.fetchval(
                     "SELECT COUNT(*) FROM dict_operation_logs WHERE entry_id = $1",
@@ -816,11 +844,13 @@ class DictManagerService:
 
     async def check_data_quality(self) -> DataQualityReport:
         """检查数据质量问题。"""
-        pool = await self._get_connection()
+        if db_connection.DB_POOL is None:
+            return DataQualityReport(summary={}, issues=[])
+
         issues: list[DataQualityIssue] = []
         summary: dict[str, int] = {}
 
-        async with pool.acquire() as conn:
+        async with db_connection.DB_POOL.acquire() as conn:
             entries_without_meanings = await conn.fetchval(
                 """
                 SELECT COUNT(*) FROM dict_entries
@@ -988,8 +1018,10 @@ class DictManagerService:
 
     async def ensure_operation_log_table(self) -> None:
         """确保操作日志表存在。"""
-        pool = await self._get_connection()
-        async with pool.acquire() as conn:
+        if db_connection.DB_POOL is None:
+            return
+
+        async with db_connection.DB_POOL.acquire() as conn:
             await conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS dict_operation_logs (
