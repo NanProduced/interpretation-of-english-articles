@@ -20,6 +20,7 @@ interface WordPopupProps {
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
   onFavorite?: (word: string) => void
+  onFeedback?: () => void
 }
 
 function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): string {
@@ -63,7 +64,7 @@ const MINI_LABEL_MAP: Record<string, string> = {
 
 export default function WordPopup({
   visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0,
-  onClose, onExpand, onAddVocab, onFavorite,
+  onClose, onExpand, onAddVocab, onFavorite, onFeedback,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -349,6 +350,12 @@ export default function WordPopup({
         </ScrollView>
 
         <View className='popup-footer-actions safe-area-bottom'>
+          {onFeedback && (
+            <View className='footer-action-btn secondary' onClick={onFeedback}>
+              <LucideIcon name='messageSquare' size={18} color='var(--text-sub)' />
+              <Text>反馈</Text>
+            </View>
+          )}
           <View className='footer-action-btn secondary' onClick={() => { onFavorite?.(entry?.word || lookupText); Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 }); }}>
             <LucideIcon name='star' size={18} color='var(--text-sub)' />
             <Text>收藏</Text>
