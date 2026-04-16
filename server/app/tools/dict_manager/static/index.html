@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>词典数据管理工具</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 1.5rem; font-weight: 600; }
+        .header p { opacity: 0.9; font-size: 0.9rem; margin-top: 0.25rem; }
+        .nav {
+            background: white;
+            padding: 0 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .nav-btn {
+            padding: 1rem 1.5rem;
+            border: none;
+            background: none;
+            font-size: 0.95rem;
+            cursor: pointer;
+            color: #64748b;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { color: #667eea; background: #f8fafc; }
+        .nav-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+        .container { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        .stat-card.warning { border-left-color: #f59e0b; }
+        .stat-card.danger { border-left-color: #ef4444; }
+        .stat-card.success { border-left-color: #10b981; }
+        .stat-value { font-size: 2rem; font-weight: 700; color: #1e293b; }
+        .stat-label { font-size: 0.9rem; color: #64748b; margin-top: 0.5rem; }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .card-title { font-size: 1.1rem; font-weight: 600; color: #1e293b; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #475569;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        tr:hover { background: #f8fafc; }
+        .table-wrapper { overflow-x: auto; }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5a67d8; }
+        .btn-secondary { background: #f1f5f9; color: #475569; }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .form-textarea { min-height: 100px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .search-box {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+        }
+        .pagination-info { color: #64748b; font-size: 0.9rem; }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 12px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-large { max-width: 1200px; }
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title { font-size: 1.25rem; font-weight: 600; color: #1e293b; }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0.25rem;
+        }
+        .modal-close:hover { color: #1e293b; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+        .meaning-group {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .meaning-group-header {
+            background: #f8fafc;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .meaning-group-pos {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 0.95rem;
+        }
+        .meaning-item {
+            padding: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .meaning-item:last-child { border-bottom: none; }
+        .meaning-text {
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .example-text {
+            color: #64748b;
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+        .example-translation {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+        }
+        .add-section {
+            display: flex;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .btn-add {
+            background: #f8fafc;
+            color: #64748b;
+            border: 2px dashed #cbd5e1;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-add:hover {
+            border-color: #667eea;
+            color: #667eea;
+            background: #f0f4ff;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+        .badge-secondary { background: #f1f5f9; color: #475569; }
+        .modal-tabs {
+            display: flex;
+            gap: 0.25rem;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 1rem;
+        }
+        .modal-tab {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #64748b;
+            font-size: 0.9rem;
+            border-bottom: 2px solid transparent;
+        }
+        .modal-tab:hover { color: #667eea; }
+        .modal-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+        .modal-tab-content { display: none; }
+        .modal-tab-content.active { display: block; }
+        .issue-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid;
+        }
+        .issue-card.high { border-left-color: #ef4444; }
+        .issue-card.medium { border-left-color: #f59e0b; }
+        .issue-card.low { border-left-color: #3b82f6; }
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .issue-title { font-weight: 600; color: #1e293b; }
+        .issue-count { font-size: 0.9rem; color: #64748b; }
+        .issue-samples {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f1f5f9;
+        }
+        .issue-sample {
+            display: inline-block;
+            background: #f8fafc;
+            padding: 0.35rem 0.75rem;
+            border-radius: 4px;
+            margin: 0.25rem;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+        .loading {
+            display: inline-block;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .toast {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
+        .toast.info { background: #3b82f6; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .detail-section { margin-bottom: 1.5rem; }
+        .detail-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+        .detail-value { font-size: 1rem; color: #1e293b; }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+        .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+        .link {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .link:hover { text-decoration: underline; }
+        pre {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+        }
+        code {
+            background: #f1f5f9;
+            padding: 0.1rem 0.3rem;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>📖 词典数据管理工具</h1>
+        <p>管理 PostgreSQL 中的词典数据，支持补录、编辑和质量检查</p>
+    </header>
+    <nav class="nav">
+        <button class="nav-btn active" data-page="dashboard">📊 仪表盘</button>
+        <button class="nav-btn" data-page="missing">⚠️ 缺失释义</button>
+        <button class="nav-btn" data-page="browse">🔍 词条浏览</button>
+        <button class="nav-btn" data-page="quality">✅ 数据质量</button>
+        <button class="nav-btn" data-page="logs">📝 操作日志</button>
+    </nav>
+    <main class="container">
+        <div id="page-dashboard" class="page active">
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card"><div class="loading"></div></div>
+                <div class="stat-card"><div class="loading"></div></div>
+                <div class="stat-card"><div class="loading"></div></div>
+                <div class="stat-card"><div class="loading"></div></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><span class="card-title">快速操作</span></div>
+                <div class="modal-body">
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="showPage('missing')">🔧 补录缺失释义</button>
+                        <button class="btn btn-secondary" onclick="showPage('browse'); setTimeout(loadBrowseEntries, 100)">🔍 浏览所有词条</button>
+                        <button class="btn btn-secondary" onclick="showPage('quality'); setTimeout(loadQualityReport, 100)">✅ 检查数据质量</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="page-missing" class="page">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">⚠️ 缺失 meanings_json 的词条</span>
+                    <div class="search-box">
+                        <input type="text" class="search-input" id="missing-search" placeholder="搜索词条...">
+                        <button class="btn btn-secondary" onclick="searchMissingEntries()">搜索</button>
+                        <button class="btn btn-secondary" onclick="loadMissingEntries()">刷新</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th>ID</th><th>词头</th><th>类型</th><th>音标</th><th>状态</th><th>操作</th></tr></thead>
+                        <tbody id="missing-table-body">
+                            <tr><td colspan="6" style="text-align: center; padding: 2rem;"><div class="loading"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="missing-pagination"></div>
+            </div>
+        </div>
+        <div id="page-browse" class="page">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🔍 词条浏览</span>
+                    <div class="search-box">
+                        <input type="text" class="search-input" id="browse-search" placeholder="搜索词头或词条键...">
+                        <select class="form-select" id="browse-kind" style="width: auto;">
+                            <option value="all">全部类型</option>
+                            <option value="entry">正式词条</option>
+                            <option value="fragment">片段词条</option>
+                        </select>
+                        <select class="form-select" id="browse-meanings" style="width: auto;">
+                            <option value="all">全部状态</option>
+                            <option value="yes">有释义</option>
+                            <option value="no">无释义</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="searchBrowseEntries()">搜索</button>
+                        <button class="btn btn-secondary" onclick="loadBrowseEntries()">刷新</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th>ID</th><th>词头</th><th>类型</th><th>音标</th><th>预览</th><th>状态</th><th>操作</th></tr></thead>
+                        <tbody id="browse-table-body">
+                            <tr><td colspan="7" style="text-align: center; padding: 2rem;"><div class="loading"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="browse-pagination"></div>
+            </div>
+        </div>
+        <div id="page-quality" class="page">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">✅ 数据质量检查</span>
+                    <button class="btn btn-primary" onclick="loadQualityReport()">重新检查</button>
+                </div>
+                <div id="quality-content"><div class="empty-state"><div class="loading"></div><p>正在检查数据质量...</p></div></div>
+            </div>
+        </div>
+        <div id="page-logs" class="page">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">📝 操作日志</span>
+                    <button class="btn btn-secondary" onclick="loadLogs()">刷新</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th>时间</th><th>操作</th><th>表名</th><th>词条ID</th><th>记录ID</th><th>说明</th></tr></thead>
+                        <tbody id="logs-table-body">
+                            <tr><td colspan="6" style="text-align: center; padding: 2rem;"><div class="loading"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="logs-pagination"></div>
+            </div>
+        </div>
+    </main>
+    <div class="modal-overlay" id="entry-modal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <span class="modal-title" id="entry-modal-title">词条详情</span>
+                <button class="modal-close" onclick="closeEntryModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="entry-modal-body"><div class="loading" style="margin: 2rem auto; display: block;"></div></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <span class="modal-title">编辑词条释义</span>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">词头 (display_headword)</label>
+                        <input type="text" class="form-input" id="edit-display-headword" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">基础词头 (base_headword)</label>
+                        <input type="text" class="form-input" id="edit-base-headword">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">音标 (phonetic)</label>
+                        <input type="text" class="form-input" id="edit-phonetic" placeholder="例如: /hed/">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">同形编号 (homograph_no)</label>
+                        <input type="number" class="form-input" id="edit-homograph-no" placeholder="留空表示无">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">更新说明（用于日志）</label>
+                    <input type="text" class="form-input" id="edit-note" placeholder="简要描述本次修改...">
+                </div>
+                <div class="detail-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <label class="form-label" style="margin: 0;">📚 释义列表 (meanings_json)</label>
+                    </div>
+                    <div id="edit-meanings-container"></div>
+                    <div class="add-section">
+                        <button type="button" class="btn-add" onclick="addMeaningGroup()">+ 添加词性分组</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveEntry()">保存修改</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="quick-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">⚡ 快速补录释义</span>
+                <button class="modal-close" onclick="closeQuickModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-section">
+                    <div class="detail-label">当前词条</div>
+                    <div class="detail-value" id="quick-word-display">-</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">词性 *</label>
+                    <select class="form-select" id="quick-pos">
+                        <option value="n.">n. (名词)</option>
+                        <option value="v.">v. (动词)</option>
+                        <option value="vt.">vt. (及物动词)</option>
+                        <option value="vi.">vi. (不及物动词)</option>
+                        <option value="adj.">adj. (形容词)</option>
+                        <option value="adv.">adv. (副词)</option>
+                        <option value="prep.">prep. (介词)</option>
+                        <option value="conj.">conj. (连词)</option>
+                        <option value="pron.">pron. (代词)</option>
+                        <option value="int.">int. (感叹词)</option>
+                        <option value="abbr.">abbr. (缩略词)</option>
+                        <option value="art.">art. (冠词)</option>
+                        <option value="aux. v.">aux. v. (助动词)</option>
+                        <option value="modal v.">modal v. (情态动词)</option>
+                        <option value="pref.">pref. (前缀)</option>
+                        <option value="suf.">suf. (后缀)</option>
+                        <option value="comb. form">comb. form (组合语素)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">释义内容 *</label>
+                    <textarea class="form-textarea" id="quick-meaning" placeholder="例如: 头，头部；顶端，上端..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">英文例句</label>
+                    <textarea class="form-textarea" id="quick-example" placeholder="例如: She nodded her head in agreement."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">例句中文翻译</label>
+                    <input type="text" class="form-input" id="quick-example-translation" placeholder="例如: 她点头表示同意。">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeQuickModal()">取消</button>
+                <button class="btn btn-success" onclick="saveQuickMeaning()">保存释义</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="lookup-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">添加查询目标关联</span>
+                <button class="modal-close" onclick="closeLookupModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">归一化查询词 (normalized_form)</label>
+                    <input type="text" class="form-input" id="lookup-normalized" placeholder="例如: word">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">查询标签 (lookup_label)</label>
+                        <input type="text" class="form-input" id="lookup-lookup-label" placeholder="显示在查询结果的标签">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">目标标签 (target_label)</label>
+                        <input type="text" class="form-input" id="lookup-target-label" placeholder="候选词条的显示标签">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">目标词性 (target_pos)</label>
+                        <input type="text" class="form-input" id="lookup-target-pos" placeholder="例如: n.">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">排序 (rank)</label>
+                        <input type="number" class="form-input" id="lookup-rank" value="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">匹配类型 (match_kind)</label>
+                        <select class="form-select" id="lookup-match-kind">
+                            <option value="headword">headword (词头)</option>
+                            <option value="alias">alias (别名)</option>
+                            <option value="disamb">disamb (消歧义)</option>
+                            <option value="redirect">redirect (重定向)</option>
+                            <option value="nlp">nlp (NLP变体)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">预览文本 (preview_text)</label>
+                    <textarea class="form-textarea" id="lookup-preview" placeholder="留空将自动从词条释义生成"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeLookupModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveLookupTarget()">添加</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="redirect-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">添加重定向记录</span>
+                <button class="modal-close" onclick="closeRedirectModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">重定向键 (redirect_key)</label>
+                    <input type="text" class="form-input" id="redirect-key" placeholder="例如: variant_word">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">目标词条键 (target_entry_key)</label>
+                    <input type="text" class="form-input" id="redirect-target-key" placeholder="留空使用当前词条">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">重定向类型 (redirect_kind)</label>
+                    <select class="form-select" id="redirect-kind">
+                        <option value="normalized_alias">normalized_alias (归一化别名)</option>
+                        <option value="mdx_link">mdx_link (MDX链接)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRedirectModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveRedirect()">添加</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
+    <script>
+        let currentEntryId = null;
+        let currentEntryData = null;
+        let editMeanings = [];
+        let missingPage = 1, missingPageSize = 50;
+        let browsePage = 1, browsePageSize = 50;
+        let logsPage = 1, logsPageSize = 50;
+        const API_BASE = '/tools/dict-manager/api';
+
+        async function api(endpoint, options = {}) {
+            const url = API_BASE + endpoint;
+            const response = await fetch(url, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...options.headers },
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || `HTTP ${response.status}`);
+            }
+            return response.json();
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatNumber(num) { return num.toLocaleString('zh-CN'); }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleString('zh-CN');
+        }
+
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => showPage(btn.dataset.page));
+        });
+
+        function showPage(pageName) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.page === pageName));
+            document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.id === `page-${pageName}`));
+            if (pageName === 'dashboard') loadDashboard();
+            else if (pageName === 'missing') loadMissingEntries();
+            else if (pageName === 'browse') loadBrowseEntries();
+            else if (pageName === 'quality') loadQualityReport();
+            else if (pageName === 'logs') loadLogs();
+        }
+
+        async function loadDashboard() {
+            try {
+                const stats = await api('/stats');
+                const grid = document.getElementById('stats-grid');
+                grid.innerHTML = `
+                    <div class="stat-card success">
+                        <div class="stat-value">${formatNumber(stats.total_entries)}</div>
+                        <div class="stat-label">正式词条总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${formatNumber(stats.total_fragments)}</div>
+                        <div class="stat-label">片段词条总数</div>
+                    </div>
+                    <div class="stat-card ${stats.entries_without_meanings > 0 ? 'warning' : 'success'}">
+                        <div class="stat-value">${formatNumber(stats.entries_without_meanings)}</div>
+                        <div class="stat-label">缺失释义的词条</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${formatNumber(stats.total_lookup_targets)}</div>
+                        <div class="stat-label">查询目标关联数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${formatNumber(stats.total_redirects)}</div>
+                        <div class="stat-label">重定向记录数</div>
+                    </div>
+                    <div class="stat-card ${stats.entries_without_lookup_targets > 0 ? 'warning' : ''}">
+                        <div class="stat-value">${formatNumber(stats.entries_without_lookup_targets)}</div>
+                        <div class="stat-label">无查询关联的词条</div>
+                    </div>
+                `;
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+                showToast('加载统计数据失败: ' + err.message, 'error');
+            }
+        }
+
+        async function loadMissingEntries() {
+            try {
+                const result = await api(`/entries/missing-meanings?page=${missingPage}&page_size=${missingPageSize}`);
+                renderMissingTable(result);
+            } catch (err) {
+                console.error('Failed to load missing entries:', err);
+                showToast('加载失败: ' + err.message, 'error');
+            }
+        }
+
+        async function searchMissingEntries() {
+            missingPage = 1;
+            const keyword = document.getElementById('missing-search').value.trim();
+            if (keyword) {
+                try {
+                    const result = await api(`/entries/search?q=${encodeURIComponent(keyword)}&has_meanings=no&page=${missingPage}&page_size=${missingPageSize}`);
+                    renderMissingTable(result);
+                } catch (err) { showToast('搜索失败: ' + err.message, 'error'); }
+            } else { loadMissingEntries(); }
+        }
+
+        function renderMissingTable(result) {
+            const tbody = document.getElementById('missing-table-body');
+            if (result.items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><div class="empty-state-icon">🎉</div><p>没有缺失释义的词条了！</p></td></tr>`;
+            } else {
+                tbody.innerHTML = result.items.map(item => `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td><strong>${escapeHtml(item.display_headword)}</strong></td>
+                        <td><span class="badge ${item.entry_kind === 'entry' ? 'badge-info' : 'badge-secondary'}">${item.entry_kind}</span></td>
+                        <td>${item.phonetic || '-'}</td>
+                        <td><span class="badge badge-danger">无释义</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-success" onclick="openQuickModal(${item.id}, '${escapeHtml(item.display_headword)}')">快速补录</button>
+                            <button class="btn btn-sm btn-primary" onclick="openEntryDetail(${item.id})">详情</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            renderPagination('missing-pagination', result, (page) => { missingPage = page; loadMissingEntries(); });
+        }
+
+        async function loadBrowseEntries() {
+            try {
+                const result = await api(`/entries/search?page=${browsePage}&page_size=${browsePageSize}`);
+                renderBrowseTable(result);
+            } catch (err) {
+                console.error('Failed to load browse entries:', err);
+                showToast('加载失败: ' + err.message, 'error');
+            }
+        }
+
+        async function searchBrowseEntries() {
+            browsePage = 1;
+            const keyword = document.getElementById('browse-search').value.trim();
+            const kind = document.getElementById('browse-kind').value;
+            const meanings = document.getElementById('browse-meanings').value;
+            let url = `/entries/search?page=${browsePage}&page_size=${browsePageSize}`;
+            if (keyword) url += `&q=${encodeURIComponent(keyword)}`;
+            if (kind !== 'all') url += `&entry_kind=${kind}`;
+            if (meanings !== 'all') url += `&has_meanings=${meanings}`;
+            try {
+                const result = await api(url);
+                renderBrowseTable(result);
+            } catch (err) { showToast('搜索失败: ' + err.message, 'error'); }
+        }
+
+        function renderBrowseTable(result) {
+            const tbody = document.getElementById('browse-table-body');
+            if (result.items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><div class="empty-state-icon">🔍</div><p>没有找到匹配的词条</p></td></tr>`;
+            } else {
+                tbody.innerHTML = result.items.map(item => `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td><strong>${escapeHtml(item.display_headword)}</strong></td>
+                        <td><span class="badge ${item.entry_kind === 'entry' ? 'badge-info' : 'badge-secondary'}">${item.entry_kind}</span></td>
+                        <td>${item.phonetic || '-'}</td>
+                        <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.preview ? escapeHtml(item.preview) : '-'}</td>
+                        <td><span class="badge ${item.has_meanings ? 'badge-success' : 'badge-warning'}">${item.has_meanings ? '有释义' : '无释义'}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="openEntryDetail(${item.id})">详情</button>
+                            ${!item.has_meanings ? `<button class="btn btn-sm btn-success" onclick="openQuickModal(${item.id}, '${escapeHtml(item.display_headword)}')">补录</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            renderPagination('browse-pagination', result, (page) => { browsePage = page; searchBrowseEntries(); });
+        }
+
+        async function loadLogs() {
+            try {
+                const result = await api(`/logs?page=${logsPage}&page_size=${logsPageSize}`);
+                renderLogsTable(result);
+            } catch (err) {
+                console.error('Failed to load logs:', err);
+                showToast('加载失败: ' + err.message, 'error');
+            }
+        }
+
+        function renderLogsTable(result) {
+            const tbody = document.getElementById('logs-table-body');
+            if (result.items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><div class="empty-state-icon">📝</div><p>暂无操作日志</p></td></tr>`;
+            } else {
+                tbody.innerHTML = result.items.map(item => `
+                    <tr>
+                        <td>${formatDate(item.created_at)}</td>
+                        <td><span class="badge ${item.operation === 'insert' ? 'badge-success' : item.operation === 'update' ? 'badge-info' : 'badge-danger'}">${item.operation}</span></td>
+                        <td><code>${item.table_name}</code></td>
+                        <td>${item.entry_id || '-'}</td>
+                        <td>${item.record_id || '-'}</td>
+                        <td>${item.note ? escapeHtml(item.note) : '-'}</td>
+                    </tr>
+                `).join('');
+            }
+            renderPagination('logs-pagination', result, (page) => { logsPage = page; loadLogs(); });
+        }
+
+        async function loadQualityReport() {
+            const content = document.getElementById('quality-content');
+            content.innerHTML = `<div class="empty-state"><div class="loading"></div><p>正在检查数据质量...</p></div>`;
+            try {
+                const report = await api('/quality');
+                const totalIssues = Object.values(report.summary).reduce((a, b) => a + b, 0);
+                if (totalIssues === 0) {
+                    content.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div><p style="font-size: 1.2rem; font-weight: 600; color: #10b981;">数据质量良好！</p><p>未检测到任何数据质量问题</p></div>`;
+                } else {
+                    content.innerHTML = `
+                        <div style="margin-bottom: 1.5rem;"><strong>检测到 ${totalIssues} 个数据质量问题</strong></div>
+                        ${report.issues.map(issue => `
+                            <div class="issue-card ${issue.severity}">
+                                <div class="issue-header">
+                                    <span class="issue-title">
+                                        <span class="badge ${issue.severity === 'high' ? 'badge-danger' : issue.severity === 'medium' ? 'badge-warning' : 'badge-info'}">${issue.severity.toUpperCase()}</span>
+                                        ${issue.issue_type}
+                                    </span>
+                                    <span class="issue-count"><strong>${issue.count}</strong> 条记录</span>
+                                </div>
+                                ${issue.sample_records && issue.sample_records.length > 0 ? `
+                                    <div class="issue-samples">
+                                        <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">示例:</div>
+                                        ${issue.sample_records.slice(0, 10).map(r => `<span class="issue-sample">${r.display_headword || r.redirect_key || r.normalized_form || r.id || JSON.stringify(r)}</span>`).join('')}
+                                        ${issue.sample_records.length > 10 ? `<span class="issue-sample">... 共 ${issue.sample_records.length} 个</span>` : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    `;
+                }
+            } catch (err) {
+                content.innerHTML = `<div class="empty-state"><div class="empty-state-icon">❌</div><p>检查失败: ${err.message}</p></div>`;
+            }
+        }
+
+        function renderPagination(containerId, result, onPageChange) {
+            const container = document.getElementById(containerId);
+            const totalPages = Math.ceil(result.total / result.page_size);
+            if (totalPages <= 1) {
+                container.innerHTML = `<span class="pagination-info">共 ${result.total} 条记录</span>`;
+                return;
+            }
+            let pages = [];
+            const current = result.page;
+            const start = Math.max(1, current - 2);
+            const end = Math.min(totalPages, current + 2);
+            if (start > 1) pages.push(1);
+            if (start > 2) pages.push('...');
+            for (let i = start; i <= end; i++) pages.push(i);
+            if (end < totalPages - 1) pages.push('...');
+            if (end < totalPages) pages.push(totalPages);
+            container.innerHTML = `
+                <button class="btn btn-sm btn-secondary" onclick="(${onPageChange})(${current - 1})" ${current <= 1 ? 'disabled' : ''}>上一页</button>
+                ${pages.map(p => p === '...' 
+                    ? '<span style="padding: 0 0.5rem;">...</span>'
+                    : `<button class="btn btn-sm ${p === current ? 'btn-primary' : 'btn-secondary'}" onclick="(${onPageChange})(${p})">${p}</button>`
+                ).join('')}
+                <button class="btn btn-sm btn-secondary" onclick="(${onPageChange})(${current + 1})" ${current >= totalPages ? 'disabled' : ''}>下一页</button>
+                <span class="pagination-info">第 ${current}/${totalPages} 页，共 ${result.total} 条</span>
+            `;
+        }
+
+        async function openEntryDetail(entryId) {
+            currentEntryId = entryId;
+            const modal = document.getElementById('entry-modal');
+            const body = document.getElementById('entry-modal-body');
+            const title = document.getElementById('entry-modal-title');
+            modal.classList.add('active');
+            body.innerHTML = `<div class="loading" style="margin: 2rem auto; display: block;"></div>`;
+            try {
+                const data = await api(`/entries/${entryId}`);
+                currentEntryData = data;
+                title.textContent = `词条详情: ${data.entry.display_headword}`;
+                renderEntryDetail(data);
+            } catch (err) {
+                body.innerHTML = `<div class="empty-state"><div class="empty-state-icon">❌</div><p>加载失败: ${err.message}</p></div>`;
+            }
+        }
+
+        function renderEntryDetail(data) {
+            const body = document.getElementById('entry-modal-body');
+            const entry = data.entry;
+            body.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2 style="font-size: 1.75rem; font-weight: 700; color: #1e293b;">${escapeHtml(entry.display_headword)}</h2>
+                        ${entry.phonetic ? `<p style="color: #64748b; font-size: 1.1rem; margin-top: 0.25rem;">${escapeHtml(entry.phonetic)}</p>` : ''}
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-sm btn-success" onclick="openQuickModal(${entry.id}, '${escapeHtml(entry.display_headword)}')">⚡ 快速补录</button>
+                        <button class="btn btn-sm btn-primary" onclick="openEditModal()">✏️ 完整编辑</button>
+                    </div>
+                </div>
+                <div class="modal-tabs">
+                    <button class="modal-tab active" onclick="switchEntryTab('info')">基本信息</button>
+                    <button class="modal-tab" onclick="switchEntryTab('meanings')">释义 (${entry.meanings.length})</button>
+                    <button class="modal-tab" onclick="switchEntryTab('lookup')">查询关联 (${data.lookup_targets.length})</button>
+                    <button class="modal-tab" onclick="switchEntryTab('redirects')">重定向 (${data.redirects.length})</button>
+                </div>
+                <div id="entry-tab-info" class="modal-tab-content active">
+                    <div class="detail-grid">
+                        <div class="detail-section"><div class="detail-label">ID</div><div class="detail-value">${entry.id}</div></div>
+                        <div class="detail-section"><div class="detail-label">词条键</div><div class="detail-value"><code>${escapeHtml(entry.source_entry_key)}</code></div></div>
+                        <div class="detail-section"><div class="detail-label">类型</div><div class="detail-value"><span class="badge ${entry.entry_kind === 'entry' ? 'badge-info' : 'badge-secondary'}">${entry.entry_kind}</span></div></div>
+                        <div class="detail-section"><div class="detail-label">基础词头</div><div class="detail-value">${entry.base_headword ? escapeHtml(entry.base_headword) : '-'}</div></div>
+                        <div class="detail-section"><div class="detail-label">同形编号</div><div class="detail-value">${entry.homograph_no || '-'}</div></div>
+                        <div class="detail-section"><div class="detail-label">解析版本</div><div class="detail-value">${entry.parse_version}</div></div>
+                        <div class="detail-section"><div class="detail-label">创建时间</div><div class="detail-value">${formatDate(entry.created_at)}</div></div>
+                        <div class="detail-section"><div class="detail-label">更新时间</div><div class="detail-value">${formatDate(entry.updated_at)}</div></div>
+                    </div>
+                    ${entry.meanings_json_raw ? `<div class="detail-section"><div class="detail-label">原始 meanings_json</div><pre>${escapeHtml(entry.meanings_json_raw)}</pre></div>` : ''}
+                </div>
+                <div id="entry-tab-meanings" class="modal-tab-content">
+                    ${entry.meanings.length === 0 ? `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">⚠️</div>
+                            <p>该词条暂无释义</p>
+                            <button class="btn btn-primary" onclick="openQuickModal(${entry.id}, '${escapeHtml(entry.display_headword)}')">快速补录释义</button>
+                        </div>
+                    ` : entry.meanings.map(group => `
+                        <div class="meaning-group">
+                            <div class="meaning-group-header">
+                                <span class="meaning-group-pos">${group.part_of_speech || '（未指定词性）'}</span>
+                                <span class="badge badge-secondary">${group.definitions.length} 个释义</span>
+                            </div>
+                            ${group.definitions.map((def, idx) => `
+                                <div class="meaning-item">
+                                    <div class="meaning-text">${idx + 1}. ${escapeHtml(def.meaning)}</div>
+                                    ${def.example ? `<div class="example-text">例: ${escapeHtml(def.example)}</div>` : ''}
+                                    ${def.example_translation ? `<div class="example-translation">译: ${escapeHtml(def.example_translation)}</div>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `).join('')}
+                </div>
+                <div id="entry-tab-lookup" class="modal-tab-content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <span style="font-weight: 600;">查询目标关联</span>
+                        <button class="btn btn-sm btn-primary" onclick="openLookupModal()">+ 添加关联</button>
+                    </div>
+                    ${data.lookup_targets.length === 0 ? `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">⚠️</div>
+                            <p>该词条暂无查询目标关联</p>
+                            <p style="font-size: 0.9rem; color: #64748b;">用户将无法通过搜索找到此词条</p>
+                        </div>
+                    ` : `
+                        <div class="table-wrapper">
+                            <table>
+                                <thead><tr><th>归一化词</th><th>查询标签</th><th>目标标签</th><th>词性</th><th>匹配类型</th><th>排序</th><th>操作</th></tr></thead>
+                                <tbody>
+                                    ${data.lookup_targets.map(t => `
+                                        <tr>
+                                            <td><code>${escapeHtml(t.normalized_form)}</code></td>
+                                            <td>${escapeHtml(t.lookup_label)}</td>
+                                            <td>${escapeHtml(t.target_label)}</td>
+                                            <td>${t.target_pos || '-'}</td>
+                                            <td><span class="badge badge-info">${t.match_kind}</span></td>
+                                            <td>${t.rank}</td>
+                                            <td><button class="btn btn-sm btn-danger" onclick="deleteLookupTarget(${t.id}, '${escapeHtml(t.normalized_form)}')">删除</button></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                </div>
+                <div id="entry-tab-redirects" class="modal-tab-content">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <span style="font-weight: 600;">指向该词条的重定向</span>
+                        <button class="btn btn-sm btn-primary" onclick="openRedirectModal()">+ 添加重定向</button>
+                    </div>
+                    ${data.redirects.length === 0 ? `
+                        <div class="empty-state"><div class="empty-state-icon">ℹ️</div><p>暂无指向该词条的重定向记录</p></div>
+                    ` : `
+                        <div class="table-wrapper">
+                            <table>
+                                <thead><tr><th>重定向键</th><th>目标词条键</th><th>类型</th><th>操作</th></tr></thead>
+                                <tbody>
+                                    ${data.redirects.map(r => `
+                                        <tr>
+                                            <td><code>${escapeHtml(r.redirect_key)}</code></td>
+                                            <td><code>${escapeHtml(r.target_entry_key)}</code></td>
+                                            <td><span class="badge badge-info">${r.redirect_kind}</span></td>
+                                            <td><button class="btn btn-sm btn-danger" onclick="deleteRedirect(${r.id}, '${escapeHtml(r.redirect_key)}')">删除</button></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function switchEntryTab(tabName) {
+            const tabMap = { 'info': '基本信息', 'meanings': '释义', 'lookup': '查询关联', 'redirects': '重定向' };
+            document.querySelectorAll('.modal-tab').forEach(tab => {
+                const text = tab.textContent.toLowerCase();
+                const isActive = (tabName === 'info' && text.includes('基本')) || 
+                                 (tabName === 'meanings' && text.includes('释义')) ||
+                                 (tabName === 'lookup' && text.includes('查询')) ||
+                                 (tabName === 'redirects' && text.includes('重定向'));
+                tab.classList.toggle('active', isActive);
+            });
+            document.querySelectorAll('.modal-tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === `entry-tab-${tabName}`);
+            });
+        }
+
+        function closeEntryModal() {
+            document.getElementById('entry-modal').classList.remove('active');
+        }
+
+        function openQuickModal(entryId, word) {
+            currentEntryId = entryId;
+            document.getElementById('quick-word-display').textContent = word;
+            document.getElementById('quick-pos').value = 'n.';
+            document.getElementById('quick-meaning').value = '';
+            document.getElementById('quick-example').value = '';
+            document.getElementById('quick-example-translation').value = '';
+            document.getElementById('quick-modal').classList.add('active');
+        }
+
+        function closeQuickModal() {
+            document.getElementById('quick-modal').classList.remove('active');
+        }
+
+        async function saveQuickMeaning() {
+            const pos = document.getElementById('quick-pos').value;
+            const meaning = document.getElementById('quick-meaning').value.trim();
+            const example = document.getElementById('quick-example').value.trim() || null;
+            const exampleTranslation = document.getElementById('quick-example-translation').value.trim() || null;
+            if (!meaning) { showToast('请输入释义内容', 'error'); return; }
+            try {
+                await api(`/entries/${currentEntryId}/quick-meaning`, {
+                    method: 'POST',
+                    body: JSON.stringify({ part_of_speech: pos, meaning, example, example_translation })
+                });
+                showToast('释义保存成功！', 'success');
+                closeQuickModal();
+                closeEntryModal();
+                if (document.getElementById('page-missing').classList.contains('active')) loadMissingEntries();
+                else if (document.getElementById('page-browse').classList.contains('active')) loadBrowseEntries();
+                loadDashboard();
+            } catch (err) {
+                showToast('保存失败: ' + err.message, 'error');
+            }
+        }
+
+        function openEditModal() {
+            if (!currentEntryData) return;
+            const entry = currentEntryData.entry;
+            document.getElementById('edit-display-headword').value = entry.display_headword;
+            document.getElementById('edit-base-headword').value = entry.base_headword || '';
+            document.getElementById('edit-phonetic').value = entry.phonetic || '';
+            document.getElementById('edit-homograph-no').value = entry.homograph_no || '';
+            document.getElementById('edit-note').value = '';
+            editMeanings = JSON.parse(JSON.stringify(entry.meanings || []));
+            renderEditMeanings();
+            document.getElementById('edit-modal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+        }
+
+        function renderEditMeanings() {
+            const container = document.getElementById('edit-meanings-container');
+            if (editMeanings.length === 0) {
+                container.innerHTML = `<div class="empty-state" style="padding: 1.5rem;"><div class="empty-state-icon">📝</div><p>暂无释义，点击下方按钮添加</p></div>`;
+                return;
+            }
+            container.innerHTML = editMeanings.map((group, groupIdx) => `
+                <div class="meaning-group">
+                    <div class="meaning-group-header">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span style="font-weight: 600;">词性:</span>
+                            <input type="text" class="form-input" style="width: 120px;" value="${escapeHtml(group.part_of_speech || '')}" 
+                                onchange="editMeanings[${groupIdx}].part_of_speech = this.value;">
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="removeMeaningGroup(${groupIdx})">删除</button>
+                    </div>
+                    <div style="padding: 1rem;">
+                        ${group.definitions.map((def, defIdx) => `
+                            <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 1rem; margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                    <span style="font-weight: 600;">释义 ${defIdx + 1}</span>
+                                    <button class="btn btn-sm btn-danger" onclick="removeDefinition(${groupIdx}, ${defIdx})">删除</button>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0.75rem;">
+                                    <label class="form-label">释义内容</label>
+                                    <textarea class="form-textarea" style="min-height: 60px;"
+                                        onchange="editMeanings[${groupIdx}].definitions[${defIdx}].meaning = this.value;">${escapeHtml(def.meaning || '')}</textarea>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="form-label">英文例句</label>
+                                        <input type="text" class="form-input" value="${escapeHtml(def.example || '')}"
+                                            onchange="editMeanings[${groupIdx}].definitions[${defIdx}].example = this.value || null;">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="form-label">中文翻译</label>
+                                        <input type="text" class="form-input" value="${escapeHtml(def.example_translation || '')}"
+                                            onchange="editMeanings[${groupIdx}].definitions[${defIdx}].example_translation = this.value || null;">
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                        <button type="button" class="btn-add" style="width: 100%;" onclick="addDefinition(${groupIdx})">+ 添加释义</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addMeaningGroup() {
+            editMeanings.push({ part_of_speech: 'n.', definitions: [{ meaning: '', example: null, example_translation: null }] });
+            renderEditMeanings();
+        }
+
+        function removeMeaningGroup(idx) {
+            editMeanings.splice(idx, 1);
+            renderEditMeanings();
+        }
+
+        function addDefinition(groupIdx) {
+            editMeanings[groupIdx].definitions.push({ meaning: '', example: null, example_translation: null });
+            renderEditMeanings();
+        }
+
+        function removeDefinition(groupIdx, defIdx) {
+            editMeanings[groupIdx].definitions.splice(defIdx, 1);
+            renderEditMeanings();
+        }
+
+        async function saveEntry() {
+            const baseHeadword = document.getElementById('edit-base-headword').value.trim() || null;
+            const phonetic = document.getElementById('edit-phonetic').value.trim() || null;
+            const homographNoStr = document.getElementById('edit-homograph-no').value.trim();
+            const homographNo = homographNoStr ? parseInt(homographNoStr) : null;
+            const note = document.getElementById('edit-note').value.trim() || null;
+
+            const validMeanings = editMeanings.filter(g => 
+                g.part_of_speech && g.definitions.some(d => d.meaning && d.meaning.trim())
+            ).map(g => ({
+                part_of_speech: g.part_of_speech,
+                definitions: g.definitions.filter(d => d.meaning && d.meaning.trim()).map(d => ({
+                    meaning: d.meaning,
+                    example: d.example || null,
+                    example_translation: d.example_translation || null
+                }))
+            }));
+
+            try {
+                await api(`/entries/${currentEntryId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        meanings: validMeanings,
+                        examples: currentEntryData.entry.examples || [],
+                        phrases: currentEntryData.entry.phrases || [],
+                        phonetic: phonetic,
+                        base_headword: baseHeadword,
+                        homograph_no: homographNo,
+                        entry_kind: null,
+                        update_note: note
+                    })
+                });
+                showToast('词条保存成功！', 'success');
+                closeEditModal();
+                closeEntryModal();
+                if (document.getElementById('page-missing').classList.contains('active')) loadMissingEntries();
+                else if (document.getElementById('page-browse').classList.contains('active')) loadBrowseEntries();
+                loadDashboard();
+            } catch (err) {
+                showToast('保存失败: ' + err.message, 'error');
+            }
+        }
+
+        function openLookupModal() {
+            if (!currentEntryData) return;
+            const entry = currentEntryData.entry;
+            const normalized = entry.display_headword.toLowerCase().replace(/[^a-z0-9]/g, '');
+            document.getElementById('lookup-normalized').value = normalized;
+            document.getElementById('lookup-lookup-label').value = entry.display_headword;
+            document.getElementById('lookup-target-label').value = entry.display_headword;
+            document.getElementById('lookup-target-pos').value = '';
+            document.getElementById('lookup-rank').value = '0';
+            document.getElementById('lookup-match-kind').value = 'headword';
+            document.getElementById('lookup-preview').value = '';
+            document.getElementById('lookup-modal').classList.add('active');
+        }
+
+        function closeLookupModal() {
+            document.getElementById('lookup-modal').classList.remove('active');
+        }
+
+        async function saveLookupTarget() {
+            const normalizedForm = document.getElementById('lookup-normalized').value.trim();
+            const lookupLabel = document.getElementById('lookup-lookup-label').value.trim();
+            const targetLabel = document.getElementById('lookup-target-label').value.trim();
+            const targetPos = document.getElementById('lookup-target-pos').value.trim() || null;
+            const rank = parseInt(document.getElementById('lookup-rank').value) || 0;
+            const matchKind = document.getElementById('lookup-match-kind').value;
+            const previewText = document.getElementById('lookup-preview').value.trim() || null;
+
+            if (!normalizedForm || !lookupLabel || !targetLabel) {
+                showToast('请填写必要字段', 'error');
+                return;
+            }
+
+            try {
+                await api(`/entries/${currentEntryId}/lookup-targets`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        normalized_form: normalizedForm,
+                        lookup_label: lookupLabel,
+                        target_label: targetLabel,
+                        target_pos: targetPos,
+                        preview_text: previewText,
+                        rank: rank,
+                        match_kind: matchKind
+                    })
+                });
+                showToast('查询目标关联添加成功！', 'success');
+                closeLookupModal();
+                openEntryDetail(currentEntryId);
+            } catch (err) {
+                showToast('添加失败: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteLookupTarget(id, normalizedForm) {
+            if (!confirm(`确定要删除查询目标关联 "${normalizedForm}" 吗？`)) return;
+            try {
+                await api(`/lookup-targets/${id}?note=用户手动删除`, { method: 'DELETE' });
+                showToast('删除成功！', 'success');
+                openEntryDetail(currentEntryId);
+            } catch (err) {
+                showToast('删除失败: ' + err.message, 'error');
+            }
+        }
+
+        function openRedirectModal() {
+            if (!currentEntryData) return;
+            const entry = currentEntryData.entry;
+            document.getElementById('redirect-key').value = '';
+            document.getElementById('redirect-target-key').value = entry.source_entry_key;
+            document.getElementById('redirect-kind').value = 'normalized_alias';
+            document.getElementById('redirect-modal').classList.add('active');
+        }
+
+        function closeRedirectModal() {
+            document.getElementById('redirect-modal').classList.remove('active');
+        }
+
+        async function saveRedirect() {
+            const redirectKey = document.getElementById('redirect-key').value.trim();
+            const targetEntryKey = document.getElementById('redirect-target-key').value.trim();
+            const redirectKind = document.getElementById('redirect-kind').value;
+
+            if (!redirectKey || !targetEntryKey) {
+                showToast('请填写必要字段', 'error');
+                return;
+            }
+
+            try {
+                await api(`/redirects`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        redirect_key: redirectKey,
+                        target_entry_key: targetEntryKey,
+                        redirect_kind: redirectKind
+                    })
+                });
+                showToast('重定向记录添加成功！', 'success');
+                closeRedirectModal();
+                openEntryDetail(currentEntryId);
+            } catch (err) {
+                showToast('添加失败: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteRedirect(id, redirectKey) {
+            if (!confirm(`确定要删除重定向 "${redirectKey}" 吗？`)) return;
+            try {
+                await api(`/redirects/${id}?note=用户手动删除`, { method: 'DELETE' });
+                showToast('删除成功！', 'success');
+                openEntryDetail(currentEntryId);
+            } catch (err) {
+                showToast('删除失败: ' + err.message, 'error');
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>
