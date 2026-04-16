@@ -103,11 +103,26 @@ class Tecd3Provider:
         candidates = await lookup_candidates_batch(all_forms, source=self.source)
         
         # 4. Lemma fallback
+        # 触发条件：
+        # 1. 没有候选（原有逻辑）
+        # 2. 有候选但所有候选都是 fragment 类型（新增逻辑，用于处理副词等派生形式）
         is_lemma_fallback = False
         lemma_context_forms_set: set[str] = set()
         lemma_direct_forms_set: set[str] = set()
         
-        if not candidates and request.query_type == "word" and " " not in request.query:
+        # 检查是否所有候选都是 fragment 类型
+        all_candidates_are_fragment = (
+            len(candidates) > 0
+            and all(c.entry_kind == "fragment" for c in candidates)
+        )
+        
+        should_try_lemma_fallback = (
+            (not candidates or all_candidates_are_fragment)
+            and request.query_type == "word"
+            and " " not in request.query
+        )
+        
+        if should_try_lemma_fallback:
             is_lemma_fallback = True
             lemma_candidates_forms = get_lemma_candidates(request.query)
             lemma_all_forms = []
@@ -123,7 +138,23 @@ class Tecd3Provider:
                     lemma_all_forms.append(lemma)
                 lemma_direct_forms_set.add(lemma)
                     
-            candidates = await lookup_candidates_batch(lemma_all_forms, source=self.source)
+            lemma_candidates = await lookup_candidates_batch(lemma_all_forms, source=self.source)
+            
+            # 合并候选：lemma fallback 的候选优先于原来的 fragment 候选
+            # 但如果 lemma fallback 没有找到任何候选，保留原来的 fragment 候选
+            if lemma_candidates:
+                # 检查 lemma 候选中是否有 entry 类型的
+                has_entry_in_lemma = any(c.entry_kind == "entry" for c in lemma_candidates)
+                if has_entry_in_lemma:
+                    # 如果 lemma 候选中有 entry 类型，只使用 lemma 候选
+                    candidates = lemma_candidates
+                else:
+                    # 如果 lemma 候选也都是 fragment，合并并让原来的候选排在后面
+                    # 去重：优先保留 lemma 候选
+                    seen_entry_ids = {c.entry_id for c in lemma_candidates}
+                    candidates = lemma_candidates + [
+                        c for c in candidates if c.entry_id not in seen_entry_ids
+                    ]
 
         if not candidates:
             raise ValueError(f"Word not found: {request.query}")
