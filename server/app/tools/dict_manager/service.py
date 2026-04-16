@@ -483,10 +483,13 @@ class DictManagerService:
                             update_params.append(value)
                             param_idx += 1
 
+                        id_param_idx = param_idx
+                        source_param_idx = param_idx + 1
+
                         update_params.extend([target["id"], SOURCE])
 
                         await conn.execute(
-                            f"UPDATE dict_lookup_targets SET {', '.join(set_clauses)} WHERE id = ${param_idx - 1} AND source = ${param_idx}",
+                            f"UPDATE dict_lookup_targets SET {', '.join(set_clauses)} WHERE id = ${id_param_idx} AND source = ${source_param_idx}",
                             *update_params,
                         )
 
