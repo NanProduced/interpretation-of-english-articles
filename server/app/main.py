@@ -48,6 +48,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             max_inactive_connection_lifetime=settings.database_max_inactive_connection_lifetime,
         )
         logger.info("PostgreSQL pool initialized")
+
+        from app.tools.dict_manager.service import DictManagerService
+        try:
+            await DictManagerService().ensure_operation_log_table()
+            logger.info("Dict manager operation log table ensured")
+        except Exception as e:
+            logger.warning("Failed to ensure dict manager operation log table: %s", e)
     except Exception as e:
         logger.error("Failed to initialize PostgreSQL pool: %s", e)
         raise
