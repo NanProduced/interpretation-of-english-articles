@@ -23,7 +23,15 @@ interface WordPopupProps {
 }
 
 function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): string {
-  if (!entry?.meanings?.length) return ''
+  if (!entry?.meanings?.length) {
+    if (entry?.phrases?.length) {
+      return `包含 ${entry.phrases.length} 个短语`
+    }
+    if (entry?.examples?.length) {
+      return `包含 ${entry.examples.length} 个例句`
+    }
+    return ''
+  }
   return entry.meanings
     .map((m) => {
       const firstDef = m.definitions?.[0]?.meaning
@@ -200,6 +208,12 @@ export default function WordPopup({
               <View className='mini-disambiguation-hint'>
                 <LucideIcon name='list' size={12} color='var(--color-primary)' />
                 <Text className='mini-def'>该词有多个义项，点击查看</Text>
+              </View>
+            ) : entry?.entryKind === 'fragment' ? (
+              <View className='mini-def-row'>
+                <Text className='mini-def' numberOfLines={2}>
+                  {entry.word} 是派生形式，点击查看详情
+                </Text>
               </View>
             ) : (
               <Text className='mini-loading'>未找到释义</Text>
