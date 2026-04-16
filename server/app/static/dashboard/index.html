@@ -3,1008 +3,751 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LLM Usage Dashboard</title>
+    <title>LLM Usage Dashboard - 监控面板</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #6366f1; --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --info: #3b82f6; --purple: #8b5cf6; --gray-50: #f9fafb; --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb; --gray-500: #6b7280; --gray-700: #374151; --gray-900: #111827;
         }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f0f2f5;
-            color: #1a1a1a;
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
-        }
-        
-        header h1 {
-            color: white;
-            font-size: 28px;
-            font-weight: 700;
-        }
-        
-        header .controls {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        
-        .select-wrapper {
-            position: relative;
-        }
-        
-        .select-wrapper select {
-            padding: 10px 35px 10px 15px;
-            border: none;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-            appearance: none;
-            backdrop-filter: blur(10px);
-        }
-        
-        .select-wrapper select option {
-            color: #1a1a1a;
-        }
-        
-        .select-wrapper::after {
-            content: '▼';
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 10px;
-            pointer-events: none;
-        }
-        
-        .refresh-btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.95);
-            color: #667eea;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .refresh-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-        }
-        
-        .stat-card.warning {
-            border-left: 4px solid #ff6b6b;
-            background: linear-gradient(to right, #fff5f5, white);
-        }
-        
-        .stat-card .label {
-            font-size: 13px;
-            color: #6b7280;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-        
-        .stat-card .value {
-            font-size: 32px;
-            font-weight: 700;
-            color: #1a1a1a;
-        }
-        
-        .stat-card .trend {
-            font-size: 12px;
-            margin-top: 8px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            display: inline-block;
-        }
-        
-        .trend.up {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        
-        .trend.down {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        
-        .trend.warning {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        
-        .charts-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .chart-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
-        
-        .chart-card.full-width {
-            grid-column: 1 / -1;
-        }
-        
-        .chart-card h3 {
-            font-size: 16px;
-            font-weight: 600;
-            color: #1a1a1a;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .chart-container {
-            position: relative;
-            height: 300px;
-        }
-        
-        .chart-container-large {
-            height: 400px;
-        }
-        
-        .agent-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        
-        .agent-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
-        
-        .agent-card h4 {
-            font-size: 14px;
-            font-weight: 600;
-            color: #4b5563;
-            margin-bottom: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .agent-card .percentage-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .agent-stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-        
-        .agent-stat {
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 12px;
-            text-align: center;
-        }
-        
-        .agent-stat .stat-label {
-            font-size: 11px;
-            color: #9ca3af;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-        
-        .agent-stat .stat-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1a1a1a;
-        }
-        
-        .table-section {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-            margin-bottom: 30px;
-        }
-        
-        .table-section h3 {
-            font-size: 16px;
-            font-weight: 600;
-            color: #1a1a1a;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .table-section h3 .subtitle {
-            font-size: 12px;
-            font-weight: 400;
-            color: #9ca3af;
-        }
-        
-        .slow-call-badge {
-            background: #fee2e2;
-            color: #dc2626;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-left: 10px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-        
-        th, td {
-            padding: 14px 12px;
-            text-align: left;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        
-        th {
-            background: #f9fafb;
-            font-weight: 600;
-            color: #374151;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        tr:hover {
-            background: #f9fafb;
-        }
-        
-        tr.slow-row {
-            background: #fef2f2;
-        }
-        
-        tr.slow-row:hover {
-            background: #fee2e2;
-        }
-        
-        .token-badge {
-            display: inline-flex;
-            gap: 4px;
-            font-size: 12px;
-        }
-        
-        .token-badge .input {
-            background: #dbeafe;
-            color: #1e40af;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        
-        .token-badge .output {
-            background: #d1fae5;
-            color: #065f46;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        
-        .pagination {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 20px;
-        }
-        
-        .pagination button {
-            padding: 8px 14px;
-            border: 1px solid #e5e7eb;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s ease;
-        }
-        
-        .pagination button:hover:not(:disabled) {
-            background: #f3f4f6;
-            border-color: #d1d5db;
-        }
-        
-        .pagination button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .pagination button.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: transparent;
-        }
-        
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 200px;
-            color: #9ca3af;
-        }
-        
-        .spinner {
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin-right: 15px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .error-message {
-            background: #fee2e2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        
-        .timestamp {
-            font-size: 11px;
-            color: #9ca3af;
-        }
-        
-        .goal-tag {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
-            margin-right: 4px;
-        }
-        
-        .goal-tag.exam { background: #fef3c7; color: #92400e; }
-        .goal-tag.daily_reading { background: #dbeafe; color: #1e40af; }
-        .goal-tag.academic { background: #fce7f3; color: #9d174d; }
-        
-        @media (max-width: 1200px) {
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            header {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            header .controls {
-                width: 100%;
-                flex-wrap: wrap;
-            }
-            
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gray-100); color: var(--gray-900); line-height: 1.5; }
+        .container { max-width: 1800px; margin: 0 auto; padding: 24px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 20px 28px; background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%); border-radius: 16px; box-shadow: 0 10px 40px rgba(99, 102, 241, 0.3); }
+        header h1 { color: white; font-size: 28px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+        header h1 .badge { font-size: 12px; font-weight: 500; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; color: rgba(255,255,255,0.9); }
+        header .controls { display: flex; gap: 16px; align-items: center; }
+        .control-group { display: flex; gap: 8px; align-items: center; }
+        .control-group label { color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 500; }
+        .select-wrapper { position: relative; }
+        .select-wrapper select { padding: 10px 40px 10px 16px; border: none; border-radius: 10px; background: rgba(255,255,255,0.15); color: white; font-size: 14px; cursor: pointer; appearance: none; font-weight: 500; }
+        .select-wrapper select option { color: var(--gray-900); }
+        .select-wrapper::after { content: '▼'; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.7); font-size: 10px; pointer-events: none; }
+        .btn { padding: 10px 20px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary { background: white; color: var(--primary); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .tabs { display: flex; gap: 8px; margin-bottom: 24px; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .tab-btn { padding: 12px 24px; border: none; background: transparent; color: var(--gray-500); font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.2s ease; }
+        .tab-btn:hover { background: var(--gray-100); color: var(--gray-700); }
+        .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 28px; }
+        .stat-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s ease; position: relative; overflow: hidden; border-left: 4px solid transparent; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .stat-card.warning { border-left-color: var(--danger); }
+        .stat-card.info { border-left-color: var(--info); }
+        .stat-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .stat-label { font-size: 13px; color: var(--gray-500); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .stat-icon.primary { background: rgba(99,102,241,0.1); }
+        .stat-icon.success { background: rgba(16,185,129,0.1); }
+        .stat-icon.warning { background: rgba(245,158,11,0.1); }
+        .stat-icon.danger { background: rgba(239,68,68,0.1); }
+        .stat-icon.info { background: rgba(59,130,246,0.1); }
+        .stat-value { font-size: 36px; font-weight: 700; color: var(--gray-900); line-height: 1.1; margin-bottom: 8px; }
+        .stat-footer { display: flex; justify-content: space-between; align-items: center; }
+        .stat-meta { font-size: 12px; color: var(--gray-400); }
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 24px; margin-bottom: 28px; }
+        .chart-grid .full { grid-column: 1 / -1; }
+        .chart-card { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .chart-title { font-size: 16px; font-weight: 600; color: var(--gray-900); }
+        .chart-subtitle { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+        .chart-container { position: relative; height: 280px; }
+        .chart-container-large { height: 350px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .alert { padding: 16px 20px; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .alert-warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: var(--warning); }
+        .alert-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: var(--info); }
+        .table-section { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
+        .table-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--gray-100); }
+        .table-title { font-size: 16px; font-weight: 600; color: var(--gray-900); }
+        .filter-checkbox { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--gray-600); cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 14px 20px; text-align: left; border-bottom: 1px solid var(--gray-100); }
+        th { background: var(--gray-50); font-weight: 600; color: var(--gray-600); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+        tr:hover { background: var(--gray-50); }
+        tr.slow-row { background: rgba(239,68,68,0.03); }
+        tr.slow-row:hover { background: rgba(239,68,68,0.06); }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-badge.success { background: rgba(16,185,129,0.1); color: var(--success); }
+        .status-badge.danger { background: rgba(239,68,68,0.1); color: var(--danger); }
+        .token-badge { display: inline-flex; gap: 8px; font-size: 12px; }
+        .token-badge .input { background: rgba(59,130,246,0.1); color: var(--info); padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+        .token-badge .output { background: rgba(16,185,129,0.1); color: var(--success); padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+        .pagination { display: flex; justify-content: center; gap: 6px; padding: 20px; border-top: 1px solid var(--gray-100); }
+        .pagination button { padding: 8px 14px; border: 1px solid var(--gray-200); background: white; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--gray-600); transition: all 0.2s ease; }
+        .pagination button:hover:not(:disabled) { background: var(--gray-50); border-color: var(--gray-300); }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .pagination button.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .loading { display: flex; justify-content: center; align-items: center; height: 200px; color: var(--gray-400); font-size: 14px; }
+        .spinner { border: 3px solid var(--gray-100); border-top: 3px solid var(--primary); border-radius: 50%; width: 36px; height: 36px; animation: spin 1s linear infinite; margin-right: 12px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .budget-card { background: linear-gradient(135deg, var(--primary) 0%, var(--purple) 100%); border-radius: 16px; padding: 24px; color: white; }
+        .budget-title { font-size: 14px; font-weight: 500; opacity: 0.9; margin-bottom: 12px; }
+        .budget-value { font-size: 36px; font-weight: 700; margin-bottom: 4px; }
+        .budget-unit { font-size: 14px; opacity: 0.8; }
+        .metric-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .metric-title { font-size: 12px; color: var(--gray-500); font-weight: 500; margin-bottom: 8px; }
+        .metric-value { font-size: 28px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
+        .metric-unit { font-size: 12px; color: var(--gray-400); }
+        @media (max-width: 1400px) { .grid-3 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 1200px) { .chart-grid { grid-template-columns: 1fr; } .grid-3 { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { header { flex-direction: column; gap: 16px; } header .controls { width: 100%; flex-wrap: wrap; } .stats-grid { grid-template-columns: repeat(2, 1fr); } .tabs { flex-wrap: wrap; } }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>LLM Usage Dashboard</h1>
+            <h1>LLM Usage Dashboard <span class="badge">实时监控</span></h1>
             <div class="controls">
-                <div class="select-wrapper">
-                    <select id="timeRange">
-                        <option value="1">最近 1 小时</option>
-                        <option value="6">最近 6 小时</option>
-                        <option value="24" selected>最近 24 小时</option>
-                        <option value="48">最近 48 小时</option>
-                        <option value="72">最近 3 天</option>
-                        <option value="168">最近 7 天</option>
-                    </select>
+                <div class="control-group"><label>时间范围:</label>
+                    <div class="select-wrapper"><select id="timeRange">
+                        <option value="1">最近 1 小时</option><option value="6">最近 6 小时</option>
+                        <option value="24" selected>最近 24 小时</option><option value="48">最近 48 小时</option>
+                        <option value="72">最近 3 天</option><option value="168">最近 7 天</option>
+                    </select></div>
                 </div>
-                <div class="select-wrapper">
-                    <select id="granularity">
-                        <option value="hour" selected>按小时</option>
-                        <option value="day">按天</option>
-                    </select>
+                <div class="control-group"><label>粒度:</label>
+                    <div class="select-wrapper"><select id="granularity">
+                        <option value="hour" selected>按小时</option><option value="day">按天</option>
+                    </select></div>
                 </div>
-                <button class="refresh-btn" onclick="refreshData()">刷新数据</button>
+                <button class="btn btn-primary" onclick="refreshData()">🔄 刷新数据</button>
             </div>
         </header>
+        <div id="alertContainer"></div>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="overview">📊 概览</button>
+            <button class="tab-btn" data-tab="trends">📈 趋势分析</button>
+            <button class="tab-btn" data-tab="agents">🤖 Agent分析</button>
+            <button class="tab-btn" data-tab="models">🧠 模型分析</button>
+            <button class="tab-btn" data-tab="cost">💰 成本预算</button>
+            <button class="tab-btn" data-tab="logs">📋 调用记录</button>
+        </div>
         
-        <div id="errorContainer"></div>
-        
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-card">
-                <div class="label">总调用次数</div>
-                <div class="value" id="totalCalls">-</div>
+        <div id="tab-overview" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card info">
+                    <div class="stat-header"><div><div class="stat-label">总调用次数</div><div class="stat-value" id="statTotalCalls">-</div></div><div class="stat-icon info">📊</div></div>
+                    <div class="stat-footer"><span class="stat-meta" id="statUniqueUsers">-</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header"><div><div class="stat-label">总 Token 消耗</div><div class="stat-value" id="statTotalTokens">-</div></div><div class="stat-icon primary">🔢</div></div>
+                    <div class="stat-footer"><span class="stat-meta">输入: <span id="statInputTokens">-</span> | 输出: <span id="statOutputTokens">-</span></span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header"><div><div class="stat-label">平均每次 Token</div><div class="stat-value" id="statAvgTokens">-</div></div><div class="stat-icon success">📈</div></div>
+                    <div class="stat-footer"><span class="stat-meta">每 1000 Token ≈ 1 积分</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header"><div><div class="stat-label">总消耗积分</div><div class="stat-value" id="statTotalCost">-</div></div><div class="stat-icon warning">💰</div></div>
+                    <div class="stat-footer"><span class="stat-meta">约等于: <span id="statEstimatedUSD">-</span> USD</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header"><div><div class="stat-label">平均耗时</div><div class="stat-value" id="statAvgLatency">-</div></div><div class="stat-icon info">⏱️</div></div>
+                    <div class="stat-footer"><span class="stat-meta">P50: <span id="statP50">-</span> | P95: <span id="statP95">-</span></span></div>
+                </div>
+                <div class="stat-card warning" id="statSlowCard" style="display: none;">
+                    <div class="stat-header"><div><div class="stat-label">慢调用 (>30s)</div><div class="stat-value" id="statSlowCalls">-</div></div><div class="stat-icon danger">⚠️</div></div>
+                    <div class="stat-footer"><span class="stat-meta" id="statSlowRatio">-</span><span class="stat-meta">未知耗时: <span id="statUnknownLatency">-</span></span></div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="label">总 Token 消耗</div>
-                <div class="value" id="totalTokens">-</div>
+            <div class="chart-grid">
+                <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Token 消耗趋势</div><div class="chart-subtitle">显示输入/输出 Token 的时间分布</div></div></div><div class="chart-container-large"><canvas id="tokenTrendChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><div><div class="chart-title">调用量与耗时分布</div><div class="chart-subtitle">显示总调用数和慢调用占比</div></div></div><div class="chart-container-large"><canvas id="callLatencyChart"></canvas></div></div>
             </div>
-            <div class="stat-card">
-                <div class="label">平均每次 Token</div>
-                <div class="value" id="avgTokens">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="label">总消耗积分</div>
-                <div class="value" id="totalCost">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="label">平均耗时 (ms)</div>
-                <div class="value" id="avgLatency">-</div>
-            </div>
-            <div class="stat-card warning" id="slowCallsCard">
-                <div class="label">慢调用 (>30s)</div>
-                <div class="value" id="slowCalls">-</div>
-                <div class="trend warning" id="slowCallsRatio">-</div>
+            <div class="chart-grid">
+                <div class="chart-card"><div class="chart-header"><div><div class="chart-title">Agent Token 分布</div><div class="chart-subtitle">各 Agent 的 Token 消耗占比</div></div></div><div class="chart-container"><canvas id="agentTokenChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><div><div class="chart-title">耗时分布</div><div class="chart-subtitle">快/中/慢 调用的分布情况</div></div></div><div class="chart-container"><canvas id="latencyDistributionChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><div><div class="chart-title">成本趋势</div><div class="chart-subtitle">按时间的积分消耗趋势</div></div></div><div class="chart-container"><canvas id="costTrendChart"></canvas></div></div>
             </div>
         </div>
         
-        <div class="charts-grid">
-            <div class="chart-card full-width">
-                <h3>Token 消耗趋势</h3>
-                <div class="chart-container-large">
-                    <canvas id="tokenTrendChart"></canvas>
-                </div>
+        <div id="tab-trends" class="tab-content">
+            <div class="chart-grid">
+                <div class="chart-card full"><div class="chart-header"><div><div class="chart-title">Token 消耗详细趋势</div><div class="chart-subtitle">显示输入、输出和总 Token 的详细趋势</div></div></div><div class="chart-container-large"><canvas id="tokenDetailChart"></canvas></div></div>
+            </div>
+            <div class="chart-grid">
+                <div class="chart-card"><div class="chart-header"><div><div class="chart-title">平均 Token 每次调用</div><div class="chart-subtitle">每次调用的平均 Token 消耗</div></div></div><div class="chart-container"><canvas id="avgTokenChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><div><div class="chart-title">平均耗时趋势</div><div class="chart-subtitle">P50 和 P95 延迟</div></div></div><div class="chart-container"><canvas id="latencyTrendChart"></canvas></div></div>
             </div>
         </div>
         
-        <div class="charts-grid">
-            <div class="chart-card">
-                <h3>调用次数趋势</h3>
-                <div class="chart-container">
-                    <canvas id="callCountChart"></canvas>
-                </div>
+        <div id="tab-agents" class="tab-content">
+            <div class="alert alert-info"><span class="alert-icon">ℹ️</span><span>以下是各 Agent 节点的详细 Token 消耗统计。每个分析调用会经过多个 Agent 节点（vocabulary, grammar, translation, repair）。</span></div>
+            <div class="chart-grid">
+                <div class="chart-card full"><div class="chart-header"><div><div class="chart-title">Agent Token 消耗对比</div><div class="chart-subtitle">各 Agent 的总 Token 消耗</div></div></div><div class="chart-container-large"><canvas id="agentCompareChart"></canvas></div></div>
             </div>
-            <div class="chart-card">
-                <h3>Agent Token 分布</h3>
-                <div class="chart-container">
-                    <canvas id="agentTokenChart"></canvas>
-                </div>
+            <div id="agentGrid" class="stats-grid"></div>
+        </div>
+        
+        <div id="tab-models" class="tab-content">
+            <div class="alert alert-info" id="modelInfoAvailable" style="display: none;"><span class="alert-icon">ℹ️</span><span>以下是按模型维度的详细统计。不同厂商和模型的价格不同，此页面可帮助您进行成本预算和优化。</span></div>
+            <div class="alert alert-warning" id="modelInfoUnavailable"><span class="alert-icon">⚠️</span><span>模型信息尚未收集。如需按模型维度进行成本分析，需要在数据采集时记录模型名称和厂商信息。当前所有数据聚合到 "unknown" 分类。</span></div>
+            <div class="chart-grid">
+                <div class="chart-card full"><div class="chart-header"><div><div class="chart-title">模型 Token 消耗对比</div><div class="chart-subtitle">各模型的总 Token 消耗</div></div></div><div class="chart-container-large"><canvas id="modelCompareChart"></canvas></div></div>
+            </div>
+            <div class="chart-grid">
+                <div class="chart-card"><div class="chart-header"><div><div class="chart-title">模型成本分布</div><div class="chart-subtitle">各模型的成本占比</div></div></div><div class="chart-container"><canvas id="modelCostChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-header"><div><div class="chart-title">模型调用分布</div><div class="chart-subtitle">各模型的调用次数占比</div></div></div><div class="chart-container"><canvas id="modelCallChart"></canvas></div></div>
+            </div>
+            <div id="modelGrid" class="stats-grid"></div>
+        </div>
+        
+        <div id="tab-cost" class="tab-content">
+            <div class="alert alert-info"><span class="alert-icon">ℹ️</span><span>成本预算基于历史消耗数据进行估算。实际成本可能因模型选择和使用模式而有所不同。</span></div>
+            <div class="grid-3">
+                <div class="budget-card"><div class="budget-title">日消耗估算</div><div class="budget-value" id="budgetDaily">-</div><div class="budget-unit">积分/天</div></div>
+                <div class="budget-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);"><div class="budget-title">周消耗估算</div><div class="budget-value" id="budgetWeekly">-</div><div class="budget-unit">积分/周</div></div>
+                <div class="budget-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);"><div class="budget-title">月消耗估算</div><div class="budget-value" id="budgetMonthly">-</div><div class="budget-unit">积分/月</div></div>
+            </div>
+            <div class="chart-grid" style="margin-top: 28px;">
+                <div class="chart-card full"><div class="chart-header"><div><div class="chart-title">成本消耗趋势</div><div class="chart-subtitle">按天的积分消耗</div></div></div><div class="chart-container-large"><canvas id="costAnalysisChart"></canvas></div></div>
+            </div>
+            <div class="stats-grid">
+                <div class="metric-card"><div class="metric-title">平均每次调用成本</div><div class="metric-value" id="metricAvgCostPerCall">-</div><div class="metric-unit">积分/调用</div></div>
+                <div class="metric-card"><div class="metric-title">每千 Token 成本</div><div class="metric-value" id="metricCostPerKToken">-</div><div class="metric-unit">积分/1000 Token</div></div>
+                <div class="metric-card"><div class="metric-title">单日最高消耗</div><div class="metric-value" id="metricMaxDailyCost">-</div><div class="metric-unit">积分</div></div>
+                <div class="metric-card"><div class="metric-title">单日最低消耗</div><div class="metric-value" id="metricMinDailyCost">-</div><div class="metric-unit">积分</div></div>
             </div>
         </div>
         
-        <div class="charts-grid">
-            <div class="chart-card">
-                <h3>输入/输出 Token 对比</h3>
-                <div class="chart-container">
-                    <canvas id="inputOutputChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-card">
-                <h3>耗时趋势</h3>
-                <div class="chart-container">
-                    <canvas id="latencyChart"></canvas>
-                </div>
-            </div>
-        </div>
-        
-        <div class="table-section" id="agentBreakdownSection">
-            <h3>各 Agent 详细统计 <span class="subtitle">按时间段聚合</span></h3>
-            <div class="agent-grid" id="agentGrid">
-            </div>
-        </div>
-        
-        <div class="table-section">
-            <h3>最近调用记录 <span class="subtitle" id="recentCallsSubtitle">显示最近 100 条</span></h3>
-            <table id="callsTable">
-                <thead>
-                    <tr>
-                        <th>时间</th>
-                        <th>User ID</th>
-                        <th>阅读目标</th>
-                        <th>Token 消耗</th>
-                        <th>积分</th>
-                        <th>耗时</th>
-                        <th>状态</th>
-                    </tr>
-                </thead>
-                <tbody id="callsTableBody">
-                </tbody>
-            </table>
-            <div class="pagination" id="pagination">
+        <div id="tab-logs" class="tab-content">
+            <div class="alert alert-warning" id="modelInfoAlert" style="display: none;"><span class="alert-icon">⚠️</span><span>模型信息尚未收集。如需按模型维度进行成本分析，需要在数据采集时记录模型名称和厂商信息。</span></div>
+            <div class="table-section">
+                <div class="table-header"><div class="table-title">调用记录</div><div class="filter-checkbox"><input type="checkbox" id="filterSlow" onchange="loadRecentCalls()"> 只显示慢调用</div></div>
+                <table>
+                    <thead><tr><th>时间</th><th>User ID</th><th>阅读目标</th><th>Token 消耗</th><th>积分</th><th>耗时</th><th>状态</th></tr></thead>
+                    <tbody id="callsTableBody"><tr><td colspan="7"><div class="loading"><div class="spinner"></div>加载中...</div></td></tr></tbody>
+                </table>
+                <div class="pagination" id="pagination"></div>
             </div>
         </div>
     </div>
 
     <script>
-        let tokenTrendChart = null;
-        let callCountChart = null;
-        let agentTokenChart = null;
-        let inputOutputChart = null;
-        let latencyChart = null;
-        let currentPage = 1;
-        const pageSize = 50;
-
         const API_BASE = '';
-
-        async function fetchAPI(endpoint) {
-            const response = await fetch(`${API_BASE}${endpoint}`);
-            if (!response.ok) {
-                throw new Error(`API Error: ${response.status}`);
-            }
-            return response.json();
-        }
-
+        let tokenTrendChart, callLatencyChart, agentTokenChart, latencyDistributionChart, costTrendChart;
+        let tokenDetailChart, avgTokenChart, latencyTrendChart, agentCompareChart, costAnalysisChart;
+        let modelCompareChart, modelCostChart, modelCallChart;
+        let currentPage = 1, pageSize = 50;
+        let currentSummaryData, currentTrendsData, currentAgentData, currentModelData, currentCostData;
+        
         function formatNumber(num) {
-            if (num >= 1000000) {
-                return (num / 1000000).toFixed(2) + 'M';
-            } else if (num >= 1000) {
-                return (num / 1000).toFixed(1) + 'K';
-            }
+            if (num === null || num === undefined) return '0';
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
             return num.toString();
         }
-
         function formatDuration(ms) {
-            if (ms >= 60000) {
-                return (ms / 60000).toFixed(1) + ' min';
-            } else if (ms >= 1000) {
-                return (ms / 1000).toFixed(1) + ' s';
-            }
+            if (ms === null || ms === undefined || ms === 0) return '-';
+            if (ms >= 60000) return (ms / 60000).toFixed(1) + ' min';
+            if (ms >= 1000) return (ms / 1000).toFixed(1) + ' s';
             return ms + ' ms';
         }
-
-        function showError(message) {
-            const container = document.getElementById('errorContainer');
-            container.innerHTML = `<div class="error-message">${message}</div>`;
+        function getTimeRange() { return parseInt(document.getElementById('timeRange').value); }
+        function getGranularity() { return document.getElementById('granularity').value; }
+        
+        async function fetchAPI(endpoint) {
+            const response = await fetch(`${API_BASE}${endpoint}`);
+            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            return response.json();
         }
-
-        function hideError() {
-            document.getElementById('errorContainer').innerHTML = '';
+        
+        function showAlert(message, type = 'warning') {
+            document.getElementById('alertContainer').innerHTML = `<div class="alert alert-${type}"><span class="alert-icon">${type === 'warning' ? '⚠️' : 'ℹ️'}</span><span>${message}</span></div>`;
         }
-
+        function hideAlert() { document.getElementById('alertContainer').innerHTML = ''; }
+        
         async function loadSummary() {
-            const hours = parseInt(document.getElementById('timeRange').value);
+            const hours = getTimeRange();
             const data = await fetchAPI(`/dashboard/summary?hours=${hours}`);
+            currentSummaryData = data;
+            const s = data.summary;
             
-            const summary = data.summary;
-            document.getElementById('totalCalls').textContent = formatNumber(summary.total_calls);
-            document.getElementById('totalTokens').textContent = formatNumber(summary.total_tokens);
-            document.getElementById('avgTokens').textContent = formatNumber(summary.avg_tokens_per_call);
-            document.getElementById('totalCost').textContent = formatNumber(summary.total_cost_points);
-            document.getElementById('avgLatency').textContent = formatDuration(summary.avg_processing_ms);
-            document.getElementById('slowCalls').textContent = summary.slow_calls_count;
-            document.getElementById('slowCallsRatio').textContent = `${summary.slow_calls_ratio}% 占比`;
-
-            const slowCard = document.getElementById('slowCallsCard');
-            if (summary.slow_calls_ratio > 10) {
+            document.getElementById('statTotalCalls').textContent = formatNumber(s.total_calls);
+            document.getElementById('statUniqueUsers').textContent = `${s.unique_users} 个活跃用户`;
+            document.getElementById('statTotalTokens').textContent = formatNumber(s.total_tokens);
+            document.getElementById('statInputTokens').textContent = formatNumber(s.total_input_tokens);
+            document.getElementById('statOutputTokens').textContent = formatNumber(s.total_output_tokens);
+            document.getElementById('statAvgTokens').textContent = formatNumber(s.avg_tokens_per_call);
+            document.getElementById('statTotalCost').textContent = formatNumber(s.total_cost_points);
+            document.getElementById('statEstimatedUSD').textContent = '~$' + (s.total_cost_points * 0.001).toFixed(4);
+            document.getElementById('statAvgLatency').textContent = formatDuration(s.avg_processing_ms);
+            document.getElementById('statP50').textContent = formatDuration(s.p50_latency_ms);
+            document.getElementById('statP95').textContent = formatDuration(s.p95_latency_ms);
+            
+            const slowCard = document.getElementById('statSlowCard');
+            if (s.slow_calls_count > 0 || s.unknown_latency_calls > 0) {
                 slowCard.style.display = 'block';
-            } else if (summary.slow_calls_count > 0) {
-                slowCard.style.display = 'block';
+                document.getElementById('statSlowCalls').textContent = s.slow_calls_count;
+                document.getElementById('statSlowRatio').textContent = `占比: ${s.slow_calls_ratio}%`;
+                document.getElementById('statUnknownLatency').textContent = s.unknown_latency_calls;
+            } else {
+                slowCard.style.display = 'none';
             }
+            
+            if (s.unknown_latency_calls > 0) {
+                const pct = Math.round(s.unknown_latency_calls / s.total_calls * 100);
+                showAlert(`有 ${s.unknown_latency_calls} 条记录 (${pct}%) 没有耗时数据，可能是任务执行失败或数据未完全采集。`, 'warning');
+            } else {
+                hideAlert();
+            }
+            
+            return data;
         }
-
+        
         async function loadTrends() {
-            const hours = parseInt(document.getElementById('timeRange').value);
-            const granularity = document.getElementById('granularity').value;
+            const hours = getTimeRange();
+            const granularity = getGranularity();
             const data = await fetchAPI(`/dashboard/trends?hours=${hours}&granularity=${granularity}`);
+            currentTrendsData = data;
             
             const series = granularity === 'hour' ? data.hourly : data.daily;
+            if (series.length === 0) return data;
             
             const labels = series.map(item => granularity === 'hour' ? item.time : item.date);
             const totalTokens = series.map(item => item.total_tokens);
             const inputTokens = series.map(item => item.input_tokens);
             const outputTokens = series.map(item => item.output_tokens);
             const callCounts = series.map(item => item.call_count);
-            const avgLatency = series.map(item => item.avg_processing_ms);
             const slowCalls = series.map(item => item.slow_calls);
-
-            if (tokenTrendChart) tokenTrendChart.destroy();
-            if (callCountChart) callCountChart.destroy();
-            if (inputOutputChart) inputOutputChart.destroy();
-            if (latencyChart) latencyChart.destroy();
-
-            const tokenCtx = document.getElementById('tokenTrendChart').getContext('2d');
-            tokenTrendChart = new Chart(tokenCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Total Tokens',
-                            data: totalTokens,
-                            borderColor: '#667eea',
-                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Input Tokens',
-                            data: inputTokens,
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'transparent',
-                            borderDash: [5, 5],
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Output Tokens',
-                            data: outputTokens,
-                            borderColor: '#10b981',
-                            backgroundColor: 'transparent',
-                            borderDash: [5, 5],
-                            tension: 0.4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return formatNumber(value);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            const callCtx = document.getElementById('callCountChart').getContext('2d');
-            callCountChart = new Chart(callCtx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: '调用次数',
-                            data: callCounts,
-                            backgroundColor: 'rgba(102, 126, 234, 0.8)',
-                            borderRadius: 4
-                        },
-                        {
-                            label: '慢调用 (>30s)',
-                            data: slowCalls,
-                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
-                            borderRadius: 4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top'
-                        }
-                    }
-                }
-            });
-
-            const ioCtx = document.getElementById('inputOutputChart').getContext('2d');
-            inputOutputChart = new Chart(ioCtx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Input Tokens',
-                            data: inputTokens,
-                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'Output Tokens',
-                            data: outputTokens,
-                            backgroundColor: 'rgba(16, 185, 129, 0.8)',
-                            borderRadius: 4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            stacked: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return formatNumber(value);
-                                }
-                            }
-                        },
-                        x: {
-                            stacked: true
-                        }
-                    }
-                }
-            });
-
-            const latencyCtx = document.getElementById('latencyChart').getContext('2d');
-            latencyChart = new Chart(latencyCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: '平均耗时 (ms)',
-                            data: avgLatency,
-                            borderColor: '#f59e0b',
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return formatDuration(value);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        async function loadAgentBreakdown() {
-            const hours = parseInt(document.getElementById('timeRange').value);
-            const data = await fetchAPI(`/dashboard/agent-breakdown?hours=${hours}`);
+            const avgTokens = series.map(item => item.avg_tokens);
+            const avgLatency = series.map(item => item.avg_processing_ms);
+            const p50Latency = series.map(item => item.p50_ms);
+            const p95Latency = series.map(item => item.p95_ms);
+            const costPoints = series.map(item => item.cost_points);
             
-            const agents = data.agents;
+            const fastCounts = series.map(item => item.latency_breakdown.fast);
+            const mediumCounts = series.map(item => item.latency_breakdown.medium);
+            const slowCounts = series.map(item => item.latency_breakdown.slow);
+            const totalFast = fastCounts.reduce((a, b) => a + b, 0);
+            const totalMedium = mediumCounts.reduce((a, b) => a + b, 0);
+            const totalSlow = slowCounts.reduce((a, b) => a + b, 0);
+            
+            const chartOpts = {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { backgroundColor: 'rgba(17,24,39,0.9)', titleColor: '#fff', bodyColor: '#fff' }
+                }
+            };
+            
+            [tokenTrendChart, callLatencyChart, agentTokenChart, latencyDistributionChart, costTrendChart,
+             tokenDetailChart, avgTokenChart, latencyTrendChart].forEach(c => c && c.destroy());
+            
+            const agents = currentSummaryData ? currentSummaryData.per_agent : {};
             const agentNames = Object.keys(agents);
             const agentTokens = agentNames.map(name => agents[name].total_tokens);
-
-            if (agentTokenChart) agentTokenChart.destroy();
-
-            const agentCtx = document.getElementById('agentTokenChart').getContext('2d');
-            agentTokenChart = new Chart(agentCtx, {
+            
+            tokenTrendChart = new Chart(document.getElementById('tokenTrendChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Total', data: totalTokens, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
+                        { label: 'Input', data: inputTokens, borderColor: '#3b82f6', borderDash: [5,5], tension: 0.4, borderWidth: 2 },
+                        { label: 'Output', data: outputTokens, borderColor: '#10b981', borderDash: [5,5], tension: 0.4, borderWidth: 2 }
+                    ]
+                },
+                options: { ...chartOpts, scales: { y: { beginAtZero: true, ticks: { callback: v => formatNumber(v) } } } }
+            });
+            
+            callLatencyChart = new Chart(document.getElementById('callLatencyChart').getContext('2d'), {
+                type: 'bar',
+                data: { labels, datasets: [
+                    { label: '总调用', data: callCounts, backgroundColor: 'rgba(99,102,241,0.8)', borderRadius: 4 },
+                    { label: '慢调用', data: slowCalls, backgroundColor: 'rgba(239,68,68,0.8)', borderRadius: 4 }
+                ] },
+                options: chartOpts
+            });
+            
+            agentTokenChart = new Chart(document.getElementById('agentTokenChart').getContext('2d'), {
                 type: 'doughnut',
                 data: {
-                    labels: agentNames,
-                    datasets: [{
-                        data: agentTokens,
-                        backgroundColor: [
-                            '#667eea',
-                            '#764ba2',
-                            '#f093fb',
-                            '#f5576c',
-                            '#4facfe',
-                            '#00f2fe'
-                        ],
-                        borderWidth: 0
-                    }]
+                    labels: agentNames.length ? agentNames : ['暂无数据'],
+                    datasets: [{ data: agentTokens.length ? agentTokens : [1], backgroundColor: ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6'], borderWidth: 0 }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right'
-                        }
-                    }
-                }
+                options: { ...chartOpts, plugins: { ...chartOpts.plugins, legend: { position: 'right' } } }
             });
-
+            
+            latencyDistributionChart = new Chart(document.getElementById('latencyDistributionChart').getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: ['快速(<15s)', '中等(15-30s)', '慢(>30s)'],
+                    datasets: [{ data: [totalFast, totalMedium, totalSlow].map(v => v || 0), backgroundColor: ['rgba(16,185,129,0.8)','rgba(245,158,11,0.8)','rgba(239,68,68,0.8)'], borderWidth: 0 }]
+                },
+                options: { ...chartOpts, plugins: { ...chartOpts.plugins, legend: { position: 'right' } } }
+            });
+            
+            costTrendChart = new Chart(document.getElementById('costTrendChart').getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets: [{ label: '积分消耗', data: costPoints, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', fill: true, tension: 0.4, borderWidth: 2 }] },
+                options: { ...chartOpts, scales: { y: { beginAtZero: true } } }
+            });
+            
+            tokenDetailChart = new Chart(document.getElementById('tokenDetailChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Input', data: inputTokens, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
+                        { label: 'Output', data: outputTokens, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
+                        { label: 'Total', data: totalTokens, borderColor: '#6366f1', borderWidth: 2, tension: 0.4 }
+                    ]
+                },
+                options: { ...chartOpts, scales: { y: { beginAtZero: true, ticks: { callback: v => formatNumber(v) } } } }
+            });
+            
+            avgTokenChart = new Chart(document.getElementById('avgTokenChart').getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets: [{ label: '平均每次 Token', data: avgTokens, borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)', fill: true, tension: 0.4, borderWidth: 2 }] },
+                options: { ...chartOpts, scales: { y: { beginAtZero: true } } }
+            });
+            
+            latencyTrendChart = new Chart(document.getElementById('latencyTrendChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: '平均', data: avgLatency, borderColor: '#f59e0b', borderWidth: 2, tension: 0.4 },
+                        { label: 'P50', data: p50Latency, borderColor: '#3b82f6', borderDash: [5,5], tension: 0.4 },
+                        { label: 'P95', data: p95Latency, borderColor: '#ef4444', borderDash: [5,5], tension: 0.4 }
+                    ]
+                },
+                options: { ...chartOpts, scales: { y: { beginAtZero: true, ticks: { callback: v => formatDuration(v) } } } }
+            });
+            
+            return data;
+        }
+        
+        async function loadAgentBreakdown() {
+            const hours = getTimeRange();
+            const data = await fetchAPI(`/dashboard/agent-breakdown?hours=${hours}`);
+            currentAgentData = data;
+            const agents = data.agents;
+            const agentNames = Object.keys(agents);
+            
             const agentGrid = document.getElementById('agentGrid');
             agentGrid.innerHTML = '';
-
-            const colors = {
-                'vocabulary': '#667eea',
-                'grammar': '#764ba2',
-                'translation': '#f093fb',
-                'repair': '#f5576c'
-            };
-
+            
+            if (!agentNames.length) {
+                agentGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">🤖</div><div class="empty-state-text">暂无 Agent 数据</div></div>';
+                return data;
+            }
+            
+            const colors = { vocabulary: '#6366f1', grammar: '#8b5cf6', translation: '#ec4899', repair: '#f59e0b' };
+            
             for (const [name, stats] of Object.entries(agents)) {
                 const card = document.createElement('div');
-                card.className = 'agent-card';
+                card.className = 'stat-card';
+                card.style.borderLeftColor = colors[name] || '#6366f1';
                 card.innerHTML = `
-                    <h4>
-                        <span style="color: ${colors[name] || '#667eea'}">${name}</span>
-                        <span class="percentage-badge">${stats.token_percentage}%</span>
-                    </h4>
-                    <div class="agent-stats">
-                        <div class="agent-stat">
-                            <div class="stat-label">调用次数</div>
-                            <div class="stat-value">${formatNumber(stats.total_calls)}</div>
-                        </div>
-                        <div class="agent-stat">
-                            <div class="stat-label">总 Token</div>
-                            <div class="stat-value">${formatNumber(stats.total_tokens)}</div>
-                        </div>
-                        <div class="agent-stat">
-                            <div class="stat-label">输入 Token</div>
-                            <div class="stat-value">${formatNumber(stats.input_tokens)}</div>
-                        </div>
-                        <div class="agent-stat">
-                            <div class="stat-label">输出 Token</div>
-                            <div class="stat-value">${formatNumber(stats.output_tokens)}</div>
-                        </div>
-                        <div class="agent-stat" style="grid-column: 1 / -1;">
-                            <div class="stat-label">平均每次 Token</div>
-                            <div class="stat-value">${formatNumber(stats.avg_tokens_per_call)}</div>
-                        </div>
+                    <div class="stat-header"><div><div class="stat-label">${name}</div><div class="stat-value" style="font-size:28px;">${formatNumber(stats.total_tokens)}</div></div>
+                    <div style="background:${colors[name]||'#6366f1'}; color:white; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600;">${stats.token_percentage}%</div></div>
+                    <div class="grid-3" style="margin-top:16px; gap:12px;">
+                        <div class="metric-card" style="padding:12px; margin:0;"><div class="metric-title">调用</div><div class="metric-value" style="font-size:18px;">${formatNumber(stats.total_calls)}</div></div>
+                        <div class="metric-card" style="padding:12px; margin:0;"><div class="metric-title">输入</div><div class="metric-value" style="font-size:18px;">${formatNumber(stats.input_tokens)}</div></div>
+                        <div class="metric-card" style="padding:12px; margin:0;"><div class="metric-title">输出</div><div class="metric-value" style="font-size:18px;">${formatNumber(stats.output_tokens)}</div></div>
                     </div>
                 `;
                 agentGrid.appendChild(card);
             }
+            
+            agentCompareChart && agentCompareChart.destroy();
+            agentCompareChart = new Chart(document.getElementById('agentCompareChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: agentNames,
+                    datasets: [
+                        { label: 'Input', data: agentNames.map(n => agents[n].input_tokens), backgroundColor: 'rgba(59,130,246,0.8)', borderRadius: 4 },
+                        { label: 'Output', data: agentNames.map(n => agents[n].output_tokens), backgroundColor: 'rgba(16,185,129,0.8)', borderRadius: 4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { callback: v => formatNumber(v) } } } }
+            });
+            
+            return data;
         }
-
+        
+        async function loadModelBreakdown() {
+            const hours = getTimeRange();
+            const data = await fetchAPI(`/dashboard/model-breakdown?hours=${hours}`);
+            currentModelData = data;
+            const models = data.models;
+            const modelNames = Object.keys(models);
+            
+            document.getElementById('modelInfoAvailable').style.display = 'none';
+            document.getElementById('modelInfoUnavailable').style.display = 'none';
+            
+            if (data.metadata && data.metadata.has_model_info) {
+                document.getElementById('modelInfoAvailable').style.display = 'flex';
+            } else {
+                document.getElementById('modelInfoUnavailable').style.display = 'flex';
+            }
+            
+            const modelGrid = document.getElementById('modelGrid');
+            modelGrid.innerHTML = '';
+            
+            if (!modelNames.length) {
+                modelGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="empty-state-icon">🧠</div><div class="empty-state-text">暂无模型数据</div></div>';
+                return data;
+            }
+            
+            const modelColors = {
+                'claude': '#6366f1',
+                'gpt': '#10b981',
+                'gemini': '#f59e0b',
+                'unknown': '#6b7280'
+            };
+            
+            function getModelColor(name) {
+                const lowerName = name.toLowerCase();
+                for (const [key, color] of Object.entries(modelColors)) {
+                    if (lowerName.includes(key)) return color;
+                }
+                return '#8b5cf6';
+            }
+            
+            for (const [name, stats] of Object.entries(models)) {
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                const color = getModelColor(name);
+                card.style.borderLeftColor = color;
+                card.innerHTML = `
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">${name === 'unknown' ? '未知模型' : name}</div>
+                            <div class="stat-value" style="font-size:28px;">${formatNumber(stats.total_tokens)}</div>
+                        </div>
+                        <div style="background:${color}; color:white; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:600;">
+                            ${stats.token_percentage}%
+                        </div>
+                    </div>
+                    <div class="stat-meta" style="margin-bottom:12px;">
+                        ${stats.model_provider === 'unknown' ? '' : '厂商: ' + stats.model_provider}
+                    </div>
+                    <div class="grid-3" style="margin-top:16px; gap:12px;">
+                        <div class="metric-card" style="padding:12px; margin:0;">
+                            <div class="metric-title">调用次数</div>
+                            <div class="metric-value" style="font-size:18px;">${formatNumber(stats.total_calls)}</div>
+                        </div>
+                        <div class="metric-card" style="padding:12px; margin:0;">
+                            <div class="metric-title">输入Token</div>
+                            <div class="metric-value" style="font-size:18px;">${formatNumber(stats.input_tokens)}</div>
+                        </div>
+                        <div class="metric-card" style="padding:12px; margin:0;">
+                            <div class="metric-title">输出Token</div>
+                            <div class="metric-value" style="font-size:18px;">${formatNumber(stats.output_tokens)}</div>
+                        </div>
+                    </div>
+                    <div class="grid-3" style="margin-top:12px; gap:12px;">
+                        <div class="metric-card" style="padding:12px; margin:0;">
+                            <div class="metric-title">总成本</div>
+                            <div class="metric-value" style="font-size:18px;">${formatNumber(stats.total_cost)}</div>
+                            <div class="metric-unit">积分</div>
+                        </div>
+                        <div class="metric-card" style="padding:12px; margin:0;">
+                            <div class="metric-title">每千Token成本</div>
+                            <div class="metric-value" style="font-size:18px;">${stats.cost_per_k_token}</div>
+                            <div class="metric-unit">积分</div>
+                        </div>
+                        <div class="metric-card" style="padding:12px; margin:0;">
+                            <div class="metric-title">平均每次成本</div>
+                            <div class="metric-value" style="font-size:18px;">${stats.avg_cost_per_call}</div>
+                            <div class="metric-unit">积分</div>
+                        </div>
+                    </div>
+                `;
+                modelGrid.appendChild(card);
+            }
+            
+            [modelCompareChart, modelCostChart, modelCallChart].forEach(c => c && c.destroy());
+            
+            const chartOpts = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } }
+            };
+            
+            modelCompareChart = new Chart(document.getElementById('modelCompareChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: modelNames.map(n => n === 'unknown' ? '未知模型' : n),
+                    datasets: [
+                        { label: 'Input', data: modelNames.map(n => models[n].input_tokens), backgroundColor: 'rgba(59,130,246,0.8)', borderRadius: 4 },
+                        { label: 'Output', data: modelNames.map(n => models[n].output_tokens), backgroundColor: 'rgba(16,185,129,0.8)', borderRadius: 4 }
+                    ]
+                },
+                options: { ...chartOpts, scales: { y: { beginAtZero: true, ticks: { callback: v => formatNumber(v) } } } }
+            });
+            
+            const totalCosts = modelNames.map(n => models[n].total_cost);
+            modelCostChart = new Chart(document.getElementById('modelCostChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: modelNames.map(n => n === 'unknown' ? '未知模型' : n),
+                    datasets: [{ 
+                        data: totalCosts.length ? totalCosts : [1], 
+                        backgroundColor: ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6'], 
+                        borderWidth: 0 
+                    }]
+                },
+                options: { ...chartOpts, plugins: { ...chartOpts.plugins, legend: { position: 'right' } } }
+            });
+            
+            const totalCalls = modelNames.map(n => models[n].total_calls);
+            modelCallChart = new Chart(document.getElementById('modelCallChart').getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: modelNames.map(n => n === 'unknown' ? '未知模型' : n),
+                    datasets: [{ 
+                        data: totalCalls.length ? totalCalls : [1], 
+                        backgroundColor: ['#10b981','#6366f1','#8b5cf6','#ec4899','#f59e0b','#3b82f6'], 
+                        borderWidth: 0 
+                    }]
+                },
+                options: { ...chartOpts, plugins: { ...chartOpts.plugins, legend: { position: 'right' } } }
+            });
+            
+            return data;
+        }
+        
+        async function loadCostAnalysis() {
+            const hours = Math.max(getTimeRange(), 168);
+            const data = await fetchAPI(`/dashboard/cost-analysis?hours=${hours}`);
+            currentCostData = data;
+            const s = data.summary;
+            
+            document.getElementById('budgetDaily').textContent = formatNumber(data.budget_projection.daily_budget_estimate);
+            document.getElementById('budgetWeekly').textContent = formatNumber(data.budget_projection.weekly_budget_estimate);
+            document.getElementById('budgetMonthly').textContent = formatNumber(data.budget_projection.monthly_budget_estimate);
+            document.getElementById('metricAvgCostPerCall').textContent = s.avg_cost_per_call;
+            document.getElementById('metricCostPerKToken').textContent = s.cost_per_k_token;
+            document.getElementById('metricMaxDailyCost').textContent = formatNumber(data.cost_trend.max_daily_cost);
+            document.getElementById('metricMinDailyCost').textContent = formatNumber(data.cost_trend.min_daily_cost);
+            
+            costAnalysisChart && costAnalysisChart.destroy();
+            const dailySeries = data.daily_series;
+            if (dailySeries.length) {
+                costAnalysisChart = new Chart(document.getElementById('costAnalysisChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: dailySeries.map(i => i.date),
+                        datasets: [
+                            { label: '积分', data: dailySeries.map(i => i.total_cost), backgroundColor: 'rgba(245,158,11,0.8)', borderRadius: 4, yAxisID: 'y' },
+                            { label: '调用', data: dailySeries.map(i => i.call_count), backgroundColor: 'rgba(99,102,241,0.3)', borderColor: 'rgba(99,102,241,0.8)', borderWidth: 2, borderRadius: 4, type: 'line', yAxisID: 'y1' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'top' } },
+                        scales: {
+                            y: { type: 'linear', position: 'left', beginAtZero: true, title: { display: true, text: '积分' } },
+                            y1: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: '调用次数' }, grid: { drawOnChartArea: false } }
+                        }
+                    }
+                });
+            }
+            return data;
+        }
+        
         async function loadRecentCalls(page = 1) {
             currentPage = page;
+            const hours = getTimeRange();
             const offset = (page - 1) * pageSize;
-            const data = await fetchAPI(`/dashboard/recent-calls?limit=${pageSize}&offset=${offset}`);
+            const filterSlow = document.getElementById('filterSlow').checked;
+            
+            let url = `/dashboard/recent-calls?hours=${hours}&limit=${pageSize}&offset=${offset}`;
+            if (filterSlow) url += '&filter_slow=true';
+            
+            const data = await fetchAPI(url);
             
             const tbody = document.getElementById('callsTableBody');
             tbody.innerHTML = '';
-
+            
+            if (!data.calls.length) {
+                tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无调用记录</div></div></td></tr>';
+                document.getElementById('pagination').innerHTML = '';
+                return data;
+            }
+            
             for (const call of data.calls) {
                 const row = document.createElement('tr');
                 row.className = call.is_slow ? 'slow-row' : '';
                 
-                const goalClass = call.reading_goal ? call.reading_goal.replace(/[^a-z]/gi, '').toLowerCase() : '';
-                const goalHtml = call.reading_goal 
-                    ? `<span class="goal-tag ${goalClass}">${call.reading_goal}</span>` 
-                    : '-';
-
+                const statusClass = call.is_slow ? 'danger' : 'success';
+                const statusText = call.is_slow ? '慢调用' : (call.processing_ms_available ? '正常' : '未知');
+                
                 row.innerHTML = `
-                    <td>
-                        <div>${new Date(call.created_at).toLocaleString('zh-CN')}</div>
-                        <div class="timestamp">${call.task_id || 'N/A'}</div>
-                    </td>
+                    <td><div>${new Date(call.created_at).toLocaleString('zh-CN')}</div><div style="font-size:11px; color:var(--gray-400);">${call.task_id || 'N/A'}</div></td>
                     <td>${call.user_id.substring(0, 8)}...</td>
-                    <td>${goalHtml} ${call.reading_variant || ''}</td>
-                    <td>
-                        <div class="token-badge">
-                            <span class="input">in: ${formatNumber(call.input_tokens)}</span>
-                            <span class="output">out: ${formatNumber(call.output_tokens)}</span>
-                        </div>
-                    </td>
+                    <td>${call.reading_goal || '-'}</td>
+                    <td><div class="token-badge"><span class="input">in:${formatNumber(call.input_tokens)}</span><span class="output">out:${formatNumber(call.output_tokens)}</span></div></td>
                     <td>${call.cost_points}</td>
-                    <td>
-                        <strong>${formatDuration(call.processing_ms)}</strong>
-                        ${call.is_slow ? '<span class="slow-call-badge">慢调用</span>' : ''}
-                    </td>
-                    <td>${call.is_slow ? '⚠️ 慢' : '✓ 正常'}</td>
+                    <td><strong>${call.processing_ms_available ? formatDuration(call.processing_ms) : '-'}</strong></td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                 `;
                 tbody.appendChild(row);
             }
-
+            
             const totalPages = Math.ceil(data.total / pageSize);
             const pagination = document.getElementById('pagination');
             pagination.innerHTML = '';
-
+            
             if (totalPages > 1) {
-                const prevBtn = document.createElement('button');
-                prevBtn.textContent = '上一页';
-                prevBtn.disabled = page <= 1;
-                prevBtn.onclick = () => loadRecentCalls(page - 1);
-                pagination.appendChild(prevBtn);
-
-                const startPage = Math.max(1, page - 2);
-                const endPage = Math.min(totalPages, page + 2);
-
-                for (let i = startPage; i <= endPage; i++) {
-                    const pageBtn = document.createElement('button');
-                    pageBtn.textContent = i;
-                    pageBtn.className = i === page ? 'active' : '';
-                    pageBtn.onclick = () => loadRecentCalls(i);
-                    pagination.appendChild(pageBtn);
+                const prev = document.createElement('button');
+                prev.textContent = '上一页';
+                prev.disabled = page <= 1;
+                prev.onclick = () => loadRecentCalls(page - 1);
+                pagination.appendChild(prev);
+                
+                const start = Math.max(1, page - 2);
+                const end = Math.min(totalPages, page + 2);
+                for (let i = start; i <= end; i++) {
+                    const btn = document.createElement('button');
+                    btn.textContent = i;
+                    btn.className = i === page ? 'active' : '';
+                    btn.onclick = () => loadRecentCalls(i);
+                    pagination.appendChild(btn);
                 }
-
-                const nextBtn = document.createElement('button');
-                nextBtn.textContent = '下一页';
-                nextBtn.disabled = page >= totalPages;
-                nextBtn.onclick = () => loadRecentCalls(page + 1);
-                pagination.appendChild(nextBtn);
+                
+                const next = document.createElement('button');
+                next.textContent = '下一页';
+                next.disabled = page >= totalPages;
+                next.onclick = () => loadRecentCalls(page + 1);
+                pagination.appendChild(next);
             }
-
-            document.getElementById('recentCallsSubtitle').textContent = 
-                `共 ${data.total} 条，显示 ${offset + 1}-${Math.min(offset + pageSize, data.total)}`;
+            
+            return data;
         }
-
+        
         async function refreshData() {
-            hideError();
+            hideAlert();
             try {
-                await Promise.all([
-                    loadSummary(),
-                    loadTrends(),
-                    loadAgentBreakdown(),
-                    loadRecentCalls(currentPage)
-                ]);
-            } catch (error) {
-                showError(`加载数据失败: ${error.message}。请确保后端服务已启动，并且 API 可访问。`);
-                console.error(error);
+                await Promise.all([loadSummary(), loadTrends(), loadAgentBreakdown(), loadModelBreakdown(), loadCostAnalysis(), loadRecentCalls(currentPage)]);
+            } catch (e) {
+                showAlert(`加载数据失败: ${e.message}。请确保后端服务已启动。`, 'warning');
+                console.error(e);
             }
         }
-
+        
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            });
+        });
+        
         document.getElementById('timeRange').addEventListener('change', refreshData);
         document.getElementById('granularity').addEventListener('change', loadTrends);
-
+        
         refreshData();
-
         setInterval(refreshData, 60000);
     </script>
 </body>
