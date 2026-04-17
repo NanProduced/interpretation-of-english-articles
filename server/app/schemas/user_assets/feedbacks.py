@@ -60,43 +60,55 @@ class FeedbackStatus(str, Enum):
 
 
 class ResultOverallContext(BaseModel):
-    """结果页整体反馈的上下文数据"""
-    source_text_preview: str | None = Field(default=None, max_length=500)
-    source_text_length: int | None = None
-    reading_goal: str | None = None
-    reading_variant: str | None = None
-    extended: bool | None = None
-    user_facing_state: str | None = None
+    """
+    结果页整体反馈的上下文数据
+    
+    【设计原则】
+    所有能通过 analysis_record_id 关联查询到的数据都不存储
+    只存储：关键 ID 引用、反馈特有元数据、无法通过关联查询的数据
+    
+    可通过 analysis_record_id 查询的数据（不存储）：
+    - source_text（原文）→ 可计算 preview、length
+    - reading_goal, reading_variant, extended, user_facing_state（来自 analysis_records 表）
+    - sentence_count, vocab_count（来自 render_scene_json）
+    """
+    source_text_hash: str | None = Field(default=None, max_length=64)
     processing_ms: int | None = None
-    task_status: str | None = None
-    sentence_count: int | None = None
-    vocab_count: int | None = None
 
 
 class AnnotationContext(BaseModel):
-    """标注（语法/句式）反馈的上下文数据"""
+    """
+    标注（语法/句式）反馈的上下文数据
+    
+    可通过 annotation_id + render_scene_json 查询的数据（不存储）：
+    - sentence_text（原文）
+    - annotation 具体内容（label, content 等）
+    """
     sentence_id: str | None = None
-    sentence_text: str | None = None
     annotation_id: str | None = None
     annotation_type: str | None = None
-    label: str | None = None
-    content_preview: str | None = Field(default=None, max_length=500)
-    source_text_preview: str | None = Field(default=None, max_length=500)
 
 
 class VocabContext(BaseModel):
-    """词汇卡片反馈的上下文数据"""
-    lemma: str | None = None
-    display_word: str | None = None
-    part_of_speech: str | None = None
-    short_meaning: str | None = None
-    phonetic: str | None = None
-    source_sentence: str | None = None
-    context_preview: str | None = Field(default=None, max_length=500)
+    """
+    词汇卡片反馈的上下文数据
+    
+    可通过 mark_id + render_scene_json 查询的数据（不存储）：
+    - lemma, part_of_speech, short_meaning, phonetic 等词汇信息
+    - source_sentence, context_preview 等上下文
+    """
+    mark_id: str | None = None
+    vocab_preview: str | None = Field(default=None, max_length=100)
+    vocab_source: str | None = None
+    is_ai_annotated: bool | None = None
 
 
 class GeneralContext(BaseModel):
-    """通用反馈的上下文数据"""
+    """
+    通用反馈的上下文数据
+    
+    通用反馈没有 analysis_record_id，所以需要存储一些元数据
+    """
     page: str | None = None
     app_version: str | None = None
     platform: str | None = None
