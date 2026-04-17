@@ -13,7 +13,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
-SourceProvider = Literal["spaceflight_news", "newsapi", "wikipedia", "other"]
+SourceProvider = Literal["spaceflight_news", "newsapi", "wikipedia", "other", "combined"]
 ArticleStatus = Literal["active", "archived", "hidden"]
 FetchStatus = Literal["success", "partial", "failed"]
 
