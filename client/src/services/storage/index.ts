@@ -9,6 +9,8 @@
  * - analysis_record_ids:     历史记录 ID 有序列表
  * - analysis_record_{id}:    单条分析快照（按需懒加载）
  * - user_preferences:       用户偏好、onboarding 状态
+ * - sync_queue:             同步队列（离线优先架构）
+ * - sync_metadata:          同步元数据（网络状态、最后同步时间等）
  */
 
 import Taro from '@tarojs/taro'
@@ -17,6 +19,7 @@ import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import type { AnalyzeRequest } from '../api'
 import type { RenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
+import type { SyncQueueItem, NetworkStatus } from '../../types/sync-queue.vm'
 
 // ============ Key 定义 ============
 
@@ -27,7 +30,146 @@ const KEYS = {
   FAVORITES: 'favorite_records',
   VOCABULARY: 'vocabulary_book',
   USER_PREF: 'user_preferences',
+  SYNC_QUEUE: 'sync_queue',
+  SYNC_METADATA: 'sync_metadata',
 } as const
+
+// ============ Sync Queue Metadata ============
+
+export interface SyncMetadata {
+  /** 网络状态 */
+  networkStatus: NetworkStatus
+  /** 最后一次成功同步的时间戳 */
+  lastSyncedAt?: number
+  /** 队列是否正在处理中 */
+  isProcessing: boolean
+  /** 当前处理中的操作 ID */
+  currentProcessingId?: string
+  /** 同步配置（覆盖默认配置） */
+  config?: {
+    maxRetries?: number
+    initialRetryDelay?: number
+    maxRetryDelay?: number
+    backoffFactor?: number
+    batchSize?: number
+  }
+}
+
+export function getSyncMetadata(): SyncMetadata {
+  try {
+    const raw = Taro.getStorageSync<SyncMetadata>(KEYS.SYNC_METADATA)
+    return raw || {
+      networkStatus: 'unknown',
+      isProcessing: false,
+    }
+  } catch (e) {
+    console.error('[storage] getSyncMetadata failed', e)
+    return {
+      networkStatus: 'unknown',
+      isProcessing: false,
+    }
+  }
+}
+
+export function saveSyncMetadata(metadata: Partial<SyncMetadata>): void {
+  try {
+    const current = getSyncMetadata()
+    const updated = { ...current, ...metadata }
+    Taro.setStorageSync(KEYS.SYNC_METADATA, updated)
+  } catch (e) {
+    console.error('[storage] saveSyncMetadata failed', e)
+  }
+}
+
+// ============ Sync Queue ============
+
+export function getSyncQueue(): SyncQueueItem[] {
+  try {
+    const raw = Taro.getStorageSync<SyncQueueItem[]>(KEYS.SYNC_QUEUE)
+    return raw || []
+  } catch (e) {
+    console.error('[storage] getSyncQueue failed', e)
+    return []
+  }
+}
+
+export function saveSyncQueue(queue: SyncQueueItem[]): void {
+  try {
+    Taro.setStorageSync(KEYS.SYNC_QUEUE, queue)
+  } catch (e) {
+    console.error('[storage] saveSyncQueue failed', e)
+  }
+}
+
+export function addToSyncQueue(item: SyncQueueItem): void {
+  try {
+    const queue = getSyncQueue()
+    queue.push(item)
+    saveSyncQueue(queue)
+  } catch (e) {
+    console.error('[storage] addToSyncQueue failed', e)
+  }
+}
+
+export function removeFromSyncQueue(operationId: string): void {
+  try {
+    const queue = getSyncQueue()
+    const filtered = queue.filter((item) => item.operationId !== operationId)
+    saveSyncQueue(filtered)
+  } catch (e) {
+    console.error('[storage] removeFromSyncQueue failed', e)
+  }
+}
+
+export function updateSyncQueueItem(operationId: string, patch: Partial<SyncQueueItem>): void {
+  try {
+    const queue = getSyncQueue()
+    const index = queue.findIndex((item) => item.operationId === operationId)
+    if (index === -1) return
+    queue[index] = { ...queue[index], ...patch }
+    saveSyncQueue(queue)
+  } catch (e) {
+    console.error('[storage] updateSyncQueueItem failed', e)
+  }
+}
+
+export function getSyncQueueItem(operationId: string): SyncQueueItem | null {
+  try {
+    const queue = getSyncQueue()
+    return queue.find((item) => item.operationId === operationId) || null
+  } catch (e) {
+    console.error('[storage] getSyncQueueItem failed', e)
+    return null
+  }
+}
+
+export function clearCompletedSyncQueue(): void {
+  try {
+    const queue = getSyncQueue()
+    const filtered = queue.filter((item) => item.status !== 'completed')
+    saveSyncQueue(filtered)
+  } catch (e) {
+    console.error('[storage] clearCompletedSyncQueue failed', e)
+  }
+}
+
+export function getPendingSyncQueue(): SyncQueueItem[] {
+  try {
+    const queue = getSyncQueue()
+    const now = Date.now()
+    return queue.filter((item) => {
+      if (item.status === 'completed' || item.status === 'cancelled') return false
+      if (item.retryAt && item.retryAt > now) return false
+      return true
+    }).sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority
+      return a.timestamp - b.timestamp
+    })
+  } catch (e) {
+    console.error('[storage] getPendingSyncQueue failed', e)
+    return []
+  }
+}
 
 // ============ Article Draft ============
 
