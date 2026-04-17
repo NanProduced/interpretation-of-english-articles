@@ -25,6 +25,7 @@ class FeedbackType(str, Enum):
 
 class FeedbackCategory(str, Enum):
     """反馈分类枚举（不满意时选择的类型）"""
+    
     DATA_ERROR = "data_error"
     POOR_QUALITY = "poor_quality"
     TRANSLATION_WRONG = "translation_wrong"
@@ -34,6 +35,15 @@ class FeedbackCategory(str, Enum):
     PERFORMANCE = "performance"
     UI_UX = "ui_ux"
     OTHER = "other"
+    
+    TOO_SLOW = "too_slow"
+    LAYOUT_MESS = "layout_mess"
+    INACCURATE_ANNOTATION = "inaccurate_annotation"
+    SPLIT_WRONG = "split_wrong"
+    WRONG_IN_CONTEXT = "wrong_in_context"
+    FEATURE_SUGGESTION = "feature_suggestion"
+    APP_CRASH = "app_crash"
+    EXPERIENCE_ISSUE = "experience_issue"
 
 
 class FeedbackStatus(str, Enum):
