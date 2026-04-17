@@ -30,7 +30,7 @@ interface FeedbackModalProps {
   onSubmitSuccess?: () => void
 }
 
-const FEEDBACK_CATEGORIES: { value: FeedbackCategory; label: string }[] = [
+const ALL_CATEGORIES: { value: FeedbackCategory; label: string }[] = [
   { value: 'data_error', label: '数据错误' },
   { value: 'poor_quality', label: '质量差' },
   { value: 'translation_wrong', label: '翻译错误' },
@@ -42,12 +42,55 @@ const FEEDBACK_CATEGORIES: { value: FeedbackCategory; label: string }[] = [
   { value: 'other', label: '其他' },
 ]
 
-const MODE_CONFIG: Record<FeedbackMode, { type: FeedbackType; title: string }> = {
-  result_overall: { type: 'result_overall', title: '本次解析' },
-  grammar_note: { type: 'grammar_note', title: '语法标注' },
-  sentence_analysis: { type: 'sentence_analysis', title: '句式解析' },
-  vocab_entry: { type: 'vocab_entry', title: '词汇释义' },
-  general: { type: 'general', title: '意见反馈' },
+const MODE_CATEGORY_CONFIG: Record<FeedbackMode, FeedbackCategory[]> = {
+  result_overall: ['data_error', 'poor_quality', 'translation_wrong', 'incomplete', 'unclear', 'performance', 'ui_ux', 'other'],
+  grammar_note: ['data_error', 'poor_quality', 'translation_wrong', 'incomplete', 'irrelevant', 'unclear', 'other'],
+  sentence_analysis: ['data_error', 'poor_quality', 'translation_wrong', 'incomplete', 'irrelevant', 'unclear', 'other'],
+  vocab_entry: ['data_error', 'poor_quality', 'translation_wrong', 'incomplete', 'irrelevant', 'unclear', 'other'],
+  general: ['data_error', 'unclear', 'ui_ux', 'other'],
+}
+
+const MODE_CONFIG: Record<FeedbackMode, { 
+  type: FeedbackType; 
+  title: string;
+  showSatisfaction: boolean;
+  satisfactionQuestion?: string;
+  categoryQuestion?: string;
+}> = {
+  result_overall: { 
+    type: 'result_overall', 
+    title: '本次解析',
+    showSatisfaction: true,
+    satisfactionQuestion: '您对本次解析是否满意？',
+    categoryQuestion: '请问哪里有问题？（可多选）',
+  },
+  grammar_note: { 
+    type: 'grammar_note', 
+    title: '语法标注',
+    showSatisfaction: true,
+    satisfactionQuestion: '这个语法标注对您有帮助吗？',
+    categoryQuestion: '请问有什么问题？（可多选）',
+  },
+  sentence_analysis: { 
+    type: 'sentence_analysis', 
+    title: '句式解析',
+    showSatisfaction: true,
+    satisfactionQuestion: '这个句式解析对您有帮助吗？',
+    categoryQuestion: '请问有什么问题？（可多选）',
+  },
+  vocab_entry: { 
+    type: 'vocab_entry', 
+    title: '词汇释义',
+    showSatisfaction: true,
+    satisfactionQuestion: '这个词汇释义对您有帮助吗？',
+    categoryQuestion: '请问有什么问题？（可多选）',
+  },
+  general: { 
+    type: 'general', 
+    title: '意见反馈',
+    showSatisfaction: false,
+    categoryQuestion: '请选择反馈类型（可多选）',
+  },
 }
 
 export default function FeedbackModal({
@@ -91,7 +134,7 @@ export default function FeedbackModal({
   }
 
   const handleSubmit = async () => {
-    if (satisfaction === null) {
+    if (config.showSatisfaction && satisfaction === null) {
       Taro.showToast({ title: '请选择是否满意', icon: 'none' })
       return
     }
@@ -100,7 +143,7 @@ export default function FeedbackModal({
     try {
       await submitFeedback({
         feedback_type: config.type,
-        satisfaction,
+        satisfaction: config.showSatisfaction ? satisfaction : null,
         category: selectedCategories.length > 0 ? selectedCategories[0] : null,
         detail_text: detailText || null,
         analysis_record_id: analysisRecordId || null,
@@ -125,6 +168,10 @@ export default function FeedbackModal({
       setSubmitting(false)
     }
   }
+
+  const availableCategories = MODE_CATEGORY_CONFIG[mode]
+    .map((cat) => ALL_CATEGORIES.find((c) => c.value === cat))
+    .filter((c): c is NonNullable<typeof c> => !!c)
 
   if (!visible) return null
 
@@ -157,51 +204,60 @@ export default function FeedbackModal({
 
         {/* Content */}
         <View className='feedback-modal-content'>
-          {/* 满意度选择 */}
-          <View className='feedback-section'>
-            <Text className='feedback-question'>您对{displayTitle}是否满意？</Text>
-            <View className='satisfaction-buttons'>
-              <View
-                className={`satisfaction-btn ${satisfaction === true ? 'active satisfied' : ''}`}
-                onClick={() => setSatisfaction(true)}
-              >
-                <LucideIcon
-                  name='smile'
-                  size={24}
-                  color={satisfaction === true ? '#22c55e' : 'var(--text-sub)'}
-                />
-                <Text
-                  className='satisfaction-label'
-                  style={{ color: satisfaction === true ? '#22c55e' : 'var(--text-sub)' }}
+          {/* 满意度选择（仅在需要时显示） */}
+          {config.showSatisfaction && (
+            <View className='feedback-section'>
+              <Text className='feedback-question'>
+                {config.satisfactionQuestion || `您对${displayTitle}是否满意？`}
+              </Text>
+              <View className='satisfaction-buttons'>
+                <View
+                  className={`satisfaction-btn ${satisfaction === true ? 'active satisfied' : ''}`}
+                  onClick={() => setSatisfaction(true)}
                 >
-                  满意
-                </Text>
-              </View>
-              <View
-                className={`satisfaction-btn ${satisfaction === false ? 'active dissatisfied' : ''}`}
-                onClick={() => setSatisfaction(false)}
-              >
-                <LucideIcon
-                  name='frown'
-                  size={24}
-                  color={satisfaction === false ? '#ef4444' : 'var(--text-sub)'}
-                />
-                <Text
-                  className='satisfaction-label'
-                  style={{ color: satisfaction === false ? '#ef4444' : 'var(--text-sub)' }}
+                  <LucideIcon
+                    name='smile'
+                    size={24}
+                    color={satisfaction === true ? '#22c55e' : 'var(--text-sub)'}
+                  />
+                  <Text
+                    className='satisfaction-label'
+                    style={{ color: satisfaction === true ? '#22c55e' : 'var(--text-sub)' }}
+                  >
+                    满意
+                  </Text>
+                </View>
+                <View
+                  className={`satisfaction-btn ${satisfaction === false ? 'active dissatisfied' : ''}`}
+                  onClick={() => setSatisfaction(false)}
                 >
-                  不满意
-                </Text>
+                  <LucideIcon
+                    name='frown'
+                    size={24}
+                    color={satisfaction === false ? '#ef4444' : 'var(--text-sub)'}
+                  />
+                  <Text
+                    className='satisfaction-label'
+                    style={{ color: satisfaction === false ? '#ef4444' : 'var(--text-sub)' }}
+                  >
+                    不满意
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
+          )}
 
-          {/* 不满意时显示问题类型 */}
-          {satisfaction === false && (
+          {/* 问题类型选择：
+              - 有满意度时：仅在不满意时显示
+              - 无满意度时（如 general）：直接显示
+          */}
+          {(!config.showSatisfaction || satisfaction === false) && availableCategories.length > 0 && (
             <View className='feedback-section'>
-              <Text className='feedback-question'>请问哪里有问题？（可多选）</Text>
+              <Text className='feedback-question'>
+                {config.categoryQuestion || '请问哪里有问题？（可多选）'}
+              </Text>
               <View className='category-grid'>
-                {FEEDBACK_CATEGORIES.map((cat) => (
+                {availableCategories.map((cat) => (
                   <View
                     key={cat.value}
                     className={`category-tag ${selectedCategories.includes(cat.value) ? 'selected' : ''}`}
