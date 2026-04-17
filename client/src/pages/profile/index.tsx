@@ -5,6 +5,7 @@
  * 以及学习统计和设置入口。
  */
 
+import { useDidShow, useShareAppMessage } from '@tarojs/taro'
 import { View, Text, ScrollView, Image, Button, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -14,7 +15,7 @@ import { ensureLoggedIn } from '../../services/auth'
 import { getAllRecords, getVocabulary } from '../../services/storage'
 import { fetchCloudRecords } from '../../services/api/records.client'
 import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
-import { fetchUserQuota, updateProfile } from '../../services/api/client'
+import { fetchUserQuota, updateProfile, fetchSessionUser } from '../../services/api/client'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
@@ -24,6 +25,9 @@ import { useLayoutStore } from '../../stores/layout'
 import { getDisplayLabel, ReadingGoal } from '../../config/purpose'
 import { getReadingTier, getAllTiers } from '../../utils/achievement'
 import './index.scss'
+
+const INVITE_REWARD_POINTS = 300
+const MAX_INVITE_COUNT = 10
 
 interface ProfilePageProps {
   isSubView?: boolean
@@ -39,11 +43,25 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const [loadingStats, setLoadingStats] = useState(false)
   const [showModeSheet, setShowModeSheet] = useState(false)
   const [showAchievementSheet, setShowAchievementSheet] = useState(false)
+  const [successfulInviteCount, setSuccessfulInviteCount] = useState<number | null>(null)
   
   const allTiers = getAllTiers()
   const tier = getReadingTier(articleCount)
-  // 昵称更新防抖定时器
   const nicknameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useShareAppMessage(() => {
+    const userId = userInfo?.user_id
+    if (!userId) {
+      return {
+        title: '一起来使用学术文章解读助手',
+        path: '/pages/home/index',
+      }
+    }
+    return {
+      title: '邀请你使用学术文章解读助手',
+      path: `/pages/home/index?inviter=${encodeURIComponent(userId)}`,
+    }
+  })
 
   /**
    * 加载统计数据。
@@ -98,6 +116,12 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     }
   }, [isLoggedIn])
 
+  useEffect(() => {
+    if (userInfo?.successfulInviteCount !== undefined) {
+      setSuccessfulInviteCount(userInfo.successfulInviteCount)
+    }
+  }, [userInfo])
+
   const handleLogin = async () => {
     ;(Taro as any)._navigatingToOnboarding = true
     const result = await ensureLoggedIn()
@@ -141,6 +165,24 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     Taro.showToast({ title: '默认配置已更新', icon: 'success' })
   }
 
+  const handleInviteFriend = async () => {
+    if (!isLoggedIn) {
+      const result = await ensureLoggedIn()
+      if (!result.success) return
+    }
+    Taro.showModal({
+      title: '邀请好友',
+      content: `每成功邀请一位好友注册，双方均可获得 ${INVITE_REWARD_POINTS} 积分奖励（最多可邀请 ${MAX_INVITE_COUNT} 人）。点击右上角菜单「转发」即可分享给好友。`,
+      showCancel: false,
+      confirmText: '知道了',
+    })
+  }
+
+  const getInviteDisplayValue = () => {
+    if (successfulInviteCount === null) return '去邀请'
+    return `已邀请 ${successfulInviteCount}/${MAX_INVITE_COUNT} 人`
+  }
+
   const menuGroups = [
     {
       title: "学习管理",
@@ -158,6 +200,18 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           icon: 'bookmark',
           url: '/pages/vocab/index',
           color: 'yellow',
+        },
+      ]
+    },
+    {
+      title: "活动奖励",
+      items: [
+        {
+          label: "邀请好友",
+          value: getInviteDisplayValue(),
+          icon: 'users',
+          onClick: handleInviteFriend,
+          color: 'purple',
         },
       ]
     },

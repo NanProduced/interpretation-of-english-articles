@@ -9,10 +9,36 @@ import { useAuthStore } from '../stores/auth'
 import { fetchWeChatLogin } from './api/client'
 import { getAllRecords, getFavorites, getVocabulary } from './storage'
 
+const INVITER_ID_KEY = 'pending_inviter_id'
+
 export interface LoginResult {
   success: boolean
   /** 登录成功时是否为首次登录（user_configured 未设置） */
   isFirstLogin: boolean
+  /** 邀请奖励是否成功发放 */
+  inviteRewardApplied?: boolean
+  /** 邀请奖励积分数 */
+  inviteRewardPoints?: number
+}
+
+function getPendingInviterId(): string | null {
+  try {
+    const inviterId = Taro.getStorageSync(INVITER_ID_KEY)
+    if (inviterId && typeof inviterId === 'string' && inviterId.trim()) {
+      return inviterId.trim()
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+function clearPendingInviterId(): void {
+  try {
+    Taro.removeStorageSync(INVITER_ID_KEY)
+  } catch {
+    // ignore
+  }
 }
 
 /**
@@ -57,14 +83,28 @@ export async function ensureLoggedIn(skipConfirmModal = false): Promise<LoginRes
       return { success: false, isFirstLogin: false }
     }
 
-    const res = await fetchWeChatLogin(loginResult.code)
+    const inviterId = getPendingInviterId()
+    const res = await fetchWeChatLogin(loginResult.code, inviterId || undefined)
+    
+    // 无论奖励是否成功，都清除 pending inviter（防止重复使用）
+    clearPendingInviterId()
+
     const authStore = useAuthStore.getState()
     authStore.login(res.session_token, { user_id: res.user_id })
     
     // 登录后立即获取完整用户信息（包含云端配置和成就）
     await authStore.fetchUserInfo()
     
-    Taro.showToast({ title: '登录成功', icon: 'success' })
+    // 显示邀请奖励提示
+    if (res.invite_reward_applied && res.invite_reward_points) {
+      Taro.showToast({ 
+        title: `获得 ${res.invite_reward_points} 积分奖励！`, 
+        icon: 'success',
+        duration: 2000
+      })
+    } else {
+      Taro.showToast({ title: '登录成功', icon: 'success' })
+    }
 
     // 检查是否首次登录（user_configured 未设置）
     const isFirstLogin = !Taro.getStorageSync('user_configured')
@@ -73,7 +113,12 @@ export async function ensureLoggedIn(skipConfirmModal = false): Promise<LoginRes
     // 注意：records 必须先于 favorites/vocab 同步，因为后端 favorites 表依赖 analysis_record_id
     syncLocalAssetsToCloud()
 
-    return { success: true, isFirstLogin }
+    return { 
+      success: true, 
+      isFirstLogin,
+      inviteRewardApplied: res.invite_reward_applied,
+      inviteRewardPoints: res.invite_reward_points
+    }
   } catch (err) {
     console.warn('[auth] ensureLoggedIn failed', err)
     Taro.showToast({ title: '登录失败，请重试', icon: 'none' })

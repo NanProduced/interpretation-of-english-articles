@@ -56,7 +56,8 @@ async def get_or_create_user_by_wechat(
     openid: str,
     unionid: str | None,
     auth_payload: dict[str, Any],
-) -> UUID:
+    inviter_id: str | None = None,
+) -> tuple[UUID, bool]:
     """
     根据微信 openid 查找或创建用户。
 
@@ -69,9 +70,10 @@ async def get_or_create_user_by_wechat(
         openid: 微信 openid
         unionid: 微信 unionid（可能为 None）
         auth_payload: 微信返回的原始 payload（session_key 等）
+        inviter_id: 邀请者用户ID（可选）
 
     Returns:
-        user_id UUID
+        (user_id UUID, is_new_user bool)
     """
     if db_connection.DB_POOL is None:
         raise RuntimeError("Database pool not initialized")
@@ -79,10 +81,8 @@ async def get_or_create_user_by_wechat(
     lock_key = _stable_lock_key(openid)
 
     async with db_connection.DB_POOL.acquire() as conn:
-        # 事务级 advisory lock，事务结束自动释放
         await conn.execute("SELECT pg_advisory_xact_lock($1)", lock_key)
 
-        # 查找现有 identity（已持有锁，不会有竞态）
         row = await conn.fetchrow(
             """
             SELECT user_id FROM user_identities
@@ -92,9 +92,8 @@ async def get_or_create_user_by_wechat(
         )
 
         if row is not None:
-            return row["user_id"]  # type: ignore[no-any-return]
+            return row["user_id"], False
 
-        # 创建新用户（注册时生成默认昵称 Claread_xxxx）
         default_name = _generate_default_display_name()
         user_id: UUID = await conn.fetchval(
             """
@@ -105,7 +104,6 @@ async def get_or_create_user_by_wechat(
             default_name,
         )
 
-        # 创建 identity（已持有锁，unique constraint 只起兜底作用）
         await conn.execute(
             """
             INSERT INTO user_identities
@@ -119,7 +117,7 @@ async def get_or_create_user_by_wechat(
             json.dumps(auth_payload),
         )
 
-        return user_id
+        return user_id, True
 
 
 async def create_session(

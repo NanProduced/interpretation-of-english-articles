@@ -15,8 +15,11 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.services.auth import (
+    INVITE_REWARD_POINTS,
+    apply_invite_reward,
     create_session,
     get_or_create_user_by_wechat,
+    get_successful_invite_count,
     revoke_session,
 )
 from app.services.auth.dependencies import AuthUserDep
@@ -29,16 +32,20 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 class WeChatLoginRequest(BaseModel):
     """微信登录请求"""
+
     code: str = Field(min_length=1)
+    inviter_id: str | None = Field(default=None, description="邀请者用户ID")
 
 
 class LogoutRequest(BaseModel):
     """登出请求"""
+
     session_token: str = Field(min_length=1)
 
 
 class ProfileUpdateRequest(BaseModel):
     """更新用户资料请求"""
+
     nickname: str | None = Field(default=None, max_length=50)
     avatar_url: str | None = Field(default=None, max_length=500)
     settings: dict[str, Any] | None = Field(default=None, description="用户设置 JSON")
@@ -56,12 +63,13 @@ async def wechat_login(
     1. 校验 code
     2. 调用微信 code2Session 获取 openid
     3. 查找或创建用户（新建用户时会生成默认昵称 Claread_xxxx）
-    4. 创建业务 session
-    5. 返回 session_token
+    4. 如果是新用户且有 inviter_id，尝试发放邀请奖励
+    5. 创建业务 session
+    6. 返回 session_token
     """
     code = body.code
+    inviter_id = body.inviter_id
 
-    # 微信 code2Session
     try:
         wechat_session = await code2session(code)
     except WeChatAPIError as e:
@@ -71,7 +79,6 @@ async def wechat_login(
             detail=f"WeChat service error: {e.errmsg}",
         ) from e
 
-    # 提取客户端信息
     client_ip: str | None = None
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
@@ -79,18 +86,58 @@ async def wechat_login(
     else:
         client_ip = request.client.host if request.client else None
 
-    # 查找或创建用户
     auth_payload = {
         "session_key": wechat_session.session_key,
         "unionid": wechat_session.unionid,
     }
-    user_id = await get_or_create_user_by_wechat(
+    user_id, is_new_user = await get_or_create_user_by_wechat(
         openid=wechat_session.openid,
         unionid=wechat_session.unionid,
         auth_payload=auth_payload,
     )
 
-    # 创建业务 session
+    invite_reward_applied = False
+    invite_reward_points = 0
+    invite_reward_reason: str | None = None
+
+    if is_new_user and inviter_id:
+        logger.info(
+            "New user login with inviter: user=%s, inviter=%s",
+            user_id,
+            inviter_id,
+        )
+        try:
+            reward_result = await apply_invite_reward(
+                invitee_id=user_id,
+                inviter_id=inviter_id,
+            )
+            invite_reward_applied = reward_result["applied"]
+            invite_reward_points = reward_result["reward_points"]
+            invite_reward_reason = reward_result["reason"]
+
+            if invite_reward_applied:
+                logger.info(
+                    "Invite reward applied: inviter=%s, invitee=%s, points=%s",
+                    inviter_id,
+                    user_id,
+                    invite_reward_points,
+                )
+            else:
+                logger.warning(
+                    "Invite reward not applied: inviter=%s, invitee=%s, reason=%s",
+                    inviter_id,
+                    user_id,
+                    invite_reward_reason,
+                )
+        except Exception as e:
+            logger.error(
+                "Invite reward failed: inviter=%s, invitee=%s, error=%s",
+                inviter_id,
+                user_id,
+                str(e),
+                exc_info=True,
+            )
+
     token, expires_at = await create_session(
         user_id=user_id,
         provider="wechat_miniprogram",
@@ -100,11 +147,21 @@ async def wechat_login(
         ip_address=client_ip,
     )
 
-    return {
+    result: dict[str, Any] = {
         "user_id": str(user_id),
         "session_token": token,
         "expires_at": expires_at.isoformat(),
     }
+
+    if invite_reward_applied:
+        result["invite_reward_applied"] = True
+        result["invite_reward_points"] = invite_reward_points
+    else:
+        result["invite_reward_applied"] = False
+        if invite_reward_reason:
+            result["invite_reward_reason"] = invite_reward_reason
+
+    return result
 
 
 @router.post("/session/logout")
@@ -130,7 +187,7 @@ async def get_current_session_info(
     获取当前登录用户信息。
 
     需要带有效的 Authorization: Bearer <session_token> header。
-    返回 user_id、session_id、nickname（display_name）、avatar_url。
+    返回 user_id、session_id、nickname（display_name）、avatar_url、邀请统计等。
     """
     from app.database import connection as db_connection
 
@@ -140,7 +197,7 @@ async def get_current_session_info(
     async with db_connection.DB_POOL.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT id, display_name, avatar_url, cumulative_article_count, settings_json 
+            SELECT id, display_name, avatar_url, cumulative_article_count, settings_json, successful_invite_count
             FROM users WHERE id = $1
             """,
             PyUUID(current_user.user_id),
@@ -154,6 +211,7 @@ async def get_current_session_info(
         "nickname": row["display_name"] or "",
         "avatar_url": row["avatar_url"] or "",
         "cumulative_article_count": row["cumulative_article_count"] or 0,
+        "successful_invite_count": row["successful_invite_count"] or 0,
         "settings": json.loads(row["settings_json"]) if row["settings_json"] else {},
     }
 

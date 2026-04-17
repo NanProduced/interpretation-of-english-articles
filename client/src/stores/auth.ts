@@ -17,6 +17,7 @@ export interface UserInfo {
   avatar_url?: string
   nickname?: string
   cumulativeArticleCount?: number
+  successfulInviteCount?: number
   settings?: Record<string, any>
 }
 
@@ -147,11 +148,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         avatar_url: data.avatar_url,
         nickname: data.nickname,
         cumulativeArticleCount: data.cumulative_article_count,
+        successfulInviteCount: data.successful_invite_count,
         settings: data.settings,
       }
       Taro.setStorageSync(AUTH_USER_KEY, JSON.stringify(userInfo))
       set({ userInfo })
-      // 同步云端配置到本地
       import('./config').then(({ useConfigStore }) => {
         useConfigStore.getState().initializeFromCloud()
       })

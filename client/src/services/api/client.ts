@@ -114,10 +114,17 @@ export async function request<T>(options: RequestOptions): Promise<T> {
 
 // ============ /auth API ============
 
+interface WeChatLoginRequest {
+  code: string
+  inviter_id?: string
+}
+
 interface WeChatLoginResponse {
   user_id: string
   session_token: string
   expires_at: string
+  invite_reward_applied?: boolean
+  invite_reward_points?: number
 }
 
 /**
@@ -125,11 +132,15 @@ interface WeChatLoginResponse {
  *
  * 流程: wx.login() → POST /auth/wechat/login → 存 token
  */
-export async function fetchWeChatLogin(code: string): Promise<WeChatLoginResponse> {
+export async function fetchWeChatLogin(code: string, inviterId?: string): Promise<WeChatLoginResponse> {
+  const body: WeChatLoginRequest = { code }
+  if (inviterId) {
+    body.inviter_id = inviterId
+  }
   return request<WeChatLoginResponse>({
     url: '/auth/wechat/login',
     method: 'POST',
-    data: { code },
+    data: body,
   })
 }
 
