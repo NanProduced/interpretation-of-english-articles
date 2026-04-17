@@ -12,6 +12,7 @@ from typing import Any
 from uuid import UUID
 
 from app.database import connection as db_connection
+from app.services.analysis.credit_service import grant_points
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,7 @@ async def apply_invite_reward(
        - 写入 user_invites 记录
        - 更新 users.inviter_id
        - 更新 inviter 的 successful_invite_count
-       - 给 inviter 添加 bonus_points
-       - 写入积分流水
+       - 调用 CreditService.grant_points 发放积分奖励
 
     Args:
         invitee_id: 被邀请者用户ID
@@ -172,62 +172,15 @@ async def apply_invite_reward(
                 now,
             )
 
-            credit_row = await conn.fetchrow(
-                """
-                SELECT user_id, bonus_points FROM user_credit_accounts
-                WHERE user_id = $1
-                FOR UPDATE
-                """,
-                inviter_uuid,
-            )
-
-            if credit_row is None:
-                await conn.execute(
-                    """
-                    INSERT INTO user_credit_accounts
-                        (user_id, bonus_points, created_at, updated_at)
-                    VALUES ($1, $2, $3, $4)
-                    """,
-                    inviter_uuid,
-                    INVITE_REWARD_POINTS,
-                    now,
-                    now,
-                )
-                new_bonus = INVITE_REWARD_POINTS
-            else:
-                new_bonus = (credit_row["bonus_points"] or 0) + INVITE_REWARD_POINTS
-                await conn.execute(
-                    """
-                    UPDATE user_credit_accounts
-                    SET bonus_points = $2, updated_at = $3
-                    WHERE user_id = $1
-                    """,
-                    inviter_uuid,
-                    new_bonus,
-                    now,
-                )
-
-            daily_remaining = await conn.fetchval(
-                """
-                SELECT (daily_free_points - daily_used_points) AS remaining
-                FROM user_credit_accounts
-                WHERE user_id = $1
-                """,
-                inviter_uuid,
-            )
-            balance_after = (daily_remaining or 0) + new_bonus
-
-            await conn.execute(
-                """
-                INSERT INTO user_credit_ledger
-                    (user_id, entry_type, points, bucket_type, balance_after, metadata_json, created_at)
-                VALUES ($1, 'bonus_grant', $2, 'bonus', $3, $4, $5)
-                """,
-                inviter_uuid,
-                INVITE_REWARD_POINTS,
-                balance_after,
-                '{"invite_reward": true, "invitee_id": "' + str(invitee_id) + '"}',
-                now,
+            await grant_points(
+                user_id=inviter_uuid,
+                points=INVITE_REWARD_POINTS,
+                entry_type="bonus_grant",
+                metadata={
+                    "invite_reward": True,
+                    "invitee_id": str(invitee_id),
+                },
+                conn=conn,
             )
 
             logger.info(

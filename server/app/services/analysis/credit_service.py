@@ -278,3 +278,97 @@ async def get_quota_info(user_id: UUID) -> dict[str, Any]:
         "bonus_points": row["bonus_points"],
         "remaining_points": remaining,
     }
+
+
+async def grant_points(
+    user_id: UUID,
+    points: int,
+    entry_type: str = "bonus_grant",
+    metadata: dict[str, Any] | None = None,
+    conn=None,
+) -> int:
+    """
+    Grant points to a user's bonus account.
+
+    Adds points to user_credit_accounts.bonus_points and writes a ledger entry.
+    This is the inverse of deduct_credits — used for rewards, promotions, etc.
+
+    Args:
+        user_id: User to grant points to
+        points: Points to grant (must be > 0)
+        entry_type: Type of ledger entry (e.g., 'bonus_grant', 'promo_reward')
+        metadata: Extra metadata (invite info, promo code, etc.)
+        conn: Optional existing database connection (for use in external transactions)
+
+    Returns:
+        New bonus_points balance after grant.
+    """
+    if points <= 0:
+        return 0
+
+    pool = db_connection.DB_POOL
+    if pool is None and conn is None:
+        raise RuntimeError("Database pool not initialized and no connection provided")
+
+    now = datetime.now(timezone.utc)
+
+    async def _do_grant(acquired_conn):
+        async with acquired_conn.transaction():
+            await ensure_credit_account(user_id)
+
+            row = await acquired_conn.fetchrow(
+                """
+                SELECT daily_free_points, daily_used_points, bonus_points
+                FROM user_credit_accounts
+                WHERE user_id = $1
+                FOR UPDATE
+                """,
+                user_id,
+            )
+
+            if row is None:
+                logger.error("Cannot grant points: no account for user %s", user_id)
+                return 0
+
+            daily_remaining = max(row["daily_free_points"] - row["daily_used_points"], 0)
+            current_bonus = row["bonus_points"] or 0
+            new_bonus = current_bonus + points
+            balance_after = daily_remaining + new_bonus
+
+            await acquired_conn.execute(
+                """
+                UPDATE user_credit_accounts
+                SET bonus_points = $2, updated_at = $3
+                WHERE user_id = $1
+                """,
+                user_id,
+                new_bonus,
+                now,
+            )
+
+            await acquired_conn.execute(
+                """
+                INSERT INTO user_credit_ledger
+                    (user_id, entry_type, points, bucket_type, balance_after, metadata_json, created_at)
+                VALUES ($1, $2, $3, 'bonus', $4, $5, $6)
+                """,
+                user_id,
+                entry_type,
+                points,
+                balance_after,
+                json.dumps(metadata or {}),
+                now,
+            )
+
+            logger.info(
+                "Granted %d points to user %s (type=%s, new_bonus=%d)",
+                points, user_id, entry_type, new_bonus
+            )
+
+            return new_bonus
+
+    if conn is not None:
+        return await _do_grant(conn)
+    else:
+        async with pool.acquire() as acquired_conn:
+            return await _do_grant(acquired_conn)
