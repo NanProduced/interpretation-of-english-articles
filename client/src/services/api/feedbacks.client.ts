@@ -28,6 +28,14 @@ export type FeedbackCategory =
   | 'performance'
   | 'ui_ux'
   | 'other'
+  | 'too_slow'
+  | 'layout_mess'
+  | 'inaccurate_annotation'
+  | 'split_wrong'
+  | 'wrong_in_context'
+  | 'feature_suggestion'
+  | 'app_crash'
+  | 'experience_issue'
 
 export type FeedbackStatus = 'pending' | 'reviewed' | 'used_for_rag' | 'dismissed'
 

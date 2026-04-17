@@ -40,14 +40,54 @@ const ALL_CATEGORIES: { value: FeedbackCategory; label: string }[] = [
   { value: 'performance', label: '太慢了' },
   { value: 'ui_ux', label: '体验不好' },
   { value: 'other', label: '其他' },
+  { value: 'too_slow', label: '响应太慢' },
+  { value: 'layout_mess', label: '排版混乱' },
+  { value: 'inaccurate_annotation', label: '标注不准确' },
+  { value: 'split_wrong', label: '拆分不准确' },
+  { value: 'wrong_in_context', label: '不符合语境' },
+  { value: 'feature_suggestion', label: '功能建议' },
+  { value: 'app_crash', label: '程序错误' },
+  { value: 'experience_issue', label: '体验问题' },
 ]
 
 const MODE_CATEGORY_CONFIG: Record<FeedbackMode, FeedbackCategory[]> = {
-  result_overall: ['data_error', 'poor_quality', 'translation_wrong', 'incomplete', 'unclear', 'performance', 'ui_ux', 'other'],
-  grammar_note: ['data_error', 'poor_quality', 'translation_wrong', 'incomplete', 'irrelevant', 'unclear', 'other'],
-  sentence_analysis: ['data_error', 'poor_quality', 'translation_wrong', 'incomplete', 'irrelevant', 'unclear', 'other'],
-  vocab_entry: ['data_error', 'poor_quality', 'translation_wrong', 'incomplete', 'irrelevant', 'unclear', 'other'],
-  general: ['data_error', 'unclear', 'ui_ux', 'other'],
+  result_overall: [
+    'too_slow',
+    'layout_mess',
+    'inaccurate_annotation',
+    'translation_wrong',
+    'incomplete',
+    'other',
+  ],
+  grammar_note: [
+    'inaccurate_annotation',
+    'translation_wrong',
+    'incomplete',
+    'irrelevant',
+    'unclear',
+    'other',
+  ],
+  sentence_analysis: [
+    'split_wrong',
+    'translation_wrong',
+    'incomplete',
+    'unclear',
+    'other',
+  ],
+  vocab_entry: [
+    'inaccurate_annotation',
+    'translation_wrong',
+    'wrong_in_context',
+    'incomplete',
+    'unclear',
+    'other',
+  ],
+  general: [
+    'feature_suggestion',
+    'app_crash',
+    'experience_issue',
+    'other',
+  ],
 }
 
 const MODE_CONFIG: Record<FeedbackMode, { 
@@ -56,6 +96,7 @@ const MODE_CONFIG: Record<FeedbackMode, {
   showSatisfaction: boolean;
   satisfactionQuestion?: string;
   categoryQuestion?: string;
+  inputPlaceholder?: string;
 }> = {
   result_overall: { 
     type: 'result_overall', 
@@ -63,6 +104,7 @@ const MODE_CONFIG: Record<FeedbackMode, {
     showSatisfaction: true,
     satisfactionQuestion: '您对本次解析是否满意？',
     categoryQuestion: '请问哪里有问题？（可多选）',
+    inputPlaceholder: '请描述您遇到的问题，比如解析时间太长、显示有问题等...',
   },
   grammar_note: { 
     type: 'grammar_note', 
@@ -70,6 +112,7 @@ const MODE_CONFIG: Record<FeedbackMode, {
     showSatisfaction: true,
     satisfactionQuestion: '这个语法标注对您有帮助吗？',
     categoryQuestion: '请问有什么问题？（可多选）',
+    inputPlaceholder: '请描述您对这个语法标注的疑问或建议...',
   },
   sentence_analysis: { 
     type: 'sentence_analysis', 
@@ -77,6 +120,7 @@ const MODE_CONFIG: Record<FeedbackMode, {
     showSatisfaction: true,
     satisfactionQuestion: '这个句式解析对您有帮助吗？',
     categoryQuestion: '请问有什么问题？（可多选）',
+    inputPlaceholder: '请描述您对这个句式解析的疑问或建议...',
   },
   vocab_entry: { 
     type: 'vocab_entry', 
@@ -84,12 +128,14 @@ const MODE_CONFIG: Record<FeedbackMode, {
     showSatisfaction: true,
     satisfactionQuestion: '这个词汇释义对您有帮助吗？',
     categoryQuestion: '请问有什么问题？（可多选）',
+    inputPlaceholder: '请描述您对这个词汇释义的疑问或建议...',
   },
   general: { 
     type: 'general', 
     title: '意见反馈',
     showSatisfaction: false,
     categoryQuestion: '请选择反馈类型（可多选）',
+    inputPlaceholder: '请详细描述您的建议或问题，帮助我们改进...',
   },
 }
 
@@ -279,7 +325,7 @@ export default function FeedbackModal({
               <Input
                 className='detail-input'
                 type='text'
-                placeholder='请输入您的问题或建议...'
+                placeholder={config.inputPlaceholder || '请输入您的问题或建议...'}
                 value={detailText}
                 onInput={(e) => setDetailText(e.detail.value)}
                 maxlength={500}
