@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.schemas.internal.analysis import ReadingGoal, ReadingVariant
-from app.schemas.internal.execution_plan import GoalExecutionPlan, GoalPolicy
+from app.schemas.internal.execution_plan import AcademicGoalPolicy, GoalExecutionPlan, GoalPolicy
 
 
 def build_goal_execution_plan(reading_goal: ReadingGoal, reading_variant: ReadingVariant) -> GoalExecutionPlan:
@@ -106,13 +106,21 @@ def build_goal_execution_plan(reading_goal: ReadingGoal, reading_variant: Readin
             grammar_focus="structural",
             translation_focus="academic",
         )
+        academic_policy = AcademicGoalPolicy(
+            term_density=5,
+            logic_density=2,
+            interpretation_density=1,
+            require_paragraph_role=False,
+            require_content_summary=False,
+        )
         return GoalExecutionPlan(
             goal_id=reading_goal,
             variant_id=reading_variant,
-            topology_mode="academic", # 分开建模，不再假装是 learning
+            topology_mode="academic",
             output_mode="academic_scene",
             prompt_profile="academic_general",
             policy=policy,
+            academic_policy=academic_policy,
         )
 
     variant_map: dict[str, tuple[str, str, str, str, int]] = {

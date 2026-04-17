@@ -13,7 +13,7 @@ from app.llm.router import resolve_model_config, validate_model_selection
 from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
 from app.llm.runtime import dump_model_selection
 from app.llm.types import ModelSelection, parse_model_selection
-from app.schemas.analysis import AnalyzeRequest, RenderSceneModel
+from app.schemas.analysis import AcademicRenderSceneModel, AnalyzeRequest, AnyRenderSceneModel, RenderSceneModel
 from app.services.analysis.planning.goal_planner import build_goal_execution_plan
 from app.workflow.academic_workflow import build_academic_graph
 from app.workflow.analyze_nodes import (
@@ -102,9 +102,9 @@ async def _invoke_article_analysis(payload: AnalyzeRequest) -> dict[str, Any]:
     return cast(dict[str, Any], result)
 
 
-async def run_article_analysis(payload: AnalyzeRequest) -> RenderSceneModel:
+async def run_article_analysis(payload: AnalyzeRequest) -> AnyRenderSceneModel:
     result = await _invoke_article_analysis(payload)
-    return cast(RenderSceneModel, result["render_scene"])
+    return cast(AnyRenderSceneModel, result["render_scene"])
 
 
 async def run_article_analysis_with_state(payload: AnalyzeRequest) -> dict[str, Any]:

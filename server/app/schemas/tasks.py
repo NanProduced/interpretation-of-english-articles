@@ -12,7 +12,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.schemas.analysis import RenderSceneModel
+from app.schemas.analysis import AnyRenderSceneModel
 from app.schemas.analysis import GOAL_VARIANT_MAP
 from app.schemas.internal.analysis import ReadingGoal, ReadingVariant
 
@@ -65,7 +65,7 @@ class TaskSubmitResponse(BaseModel):
     record_id: UUID
     status: TaskStatus
     created: bool = Field(description="当前实现恒为 True，保留该字段用于响应兼容。")
-    render_scene: RenderSceneModel | None = Field(
+    render_scene: AnyRenderSceneModel | None = Field(
         default=None,
         description="当 wait_for_result=true 且任务在超时前成功完成时返回。",
     )

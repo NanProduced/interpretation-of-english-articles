@@ -15,7 +15,7 @@ from starlette.responses import JSONResponse
 
 logger = getLogger("app.api")
 
-from app.schemas.analysis import RenderSceneModel
+from app.schemas.analysis import AcademicRenderSceneModel, AnyRenderSceneModel, RenderSceneModel
 from app.schemas.tasks import (
     ActiveTaskResponse,
     TaskStatusResponse,
@@ -66,14 +66,16 @@ async def _wait_task_until_terminal(
         await asyncio.sleep(1.0)
 
 
-def _parse_render_scene(record: dict | None) -> RenderSceneModel | None:
+def _parse_render_scene(record: dict | None) -> AnyRenderSceneModel | None:
     if not record:
         return None
     raw_scene = record.get("render_scene_json")
     if not isinstance(raw_scene, dict) or not raw_scene:
         return None
     try:
-        # 兼容性处理：如果后端返回的是旧版本或结构略有差异，尝试容错处理
+        schema_version = raw_scene.get("schema_version", "3.0.0")
+        if schema_version == "3.0.0-academic":
+            return AcademicRenderSceneModel.model_validate(raw_scene)
         if "schema_version" not in raw_scene:
             raw_scene["schema_version"] = "3.0.0"
         return RenderSceneModel.model_validate(raw_scene)

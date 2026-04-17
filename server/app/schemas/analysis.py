@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.llm.types import ModelSelection
 from app.schemas.common import TextSpan
+from app.schemas.internal.academic_drafts import ContentSummary
 from app.schemas.internal.analysis import ReadingGoal, ReadingVariant
 
 ANALYSIS_SCHEMA_VERSION = "3.0.0"
@@ -166,3 +167,54 @@ class RenderSceneModel(BaseModel):
     inline_marks: list[InlineMark] = Field(default_factory=list, description="行内标注。")
     sentence_entries: list[SentenceEntry] = Field(default_factory=list, description="句尾入口。")
     warnings: list[Warning] = Field(default_factory=list, description="渲染与校验告警。")
+
+
+AcademicVisualTone = Literal["term", "logic"]
+
+
+class AcademicInlineGlossary(BaseModel):
+    zh: str | None = None
+    context_definition: str | None = None
+    term_category: str | None = None
+    logic_type: str | None = None
+    hedging_detected: bool = False
+    hedging_words: list[str] = Field(default_factory=list)
+
+
+class AcademicInlineMark(BaseModel):
+    id: str = Field(description="稳定标注标识")
+    annotation_type: Literal["term_note", "logic_note"] = Field(description="语义来源")
+    anchor: InlineMarkAnchor = Field(description="锚点定位")
+    render_type: InlineMarkRenderType = Field(description="渲染类型")
+    visual_tone: AcademicVisualTone = Field(description="渲染语义")
+    clickable: bool = Field(description="是否可点击")
+    lookup_text: str | None = Field(default=None, description="词典查询文本")
+    glossary: AcademicInlineGlossary | None = Field(default=None, description="LLM 附加说明")
+
+
+class AcademicSentenceEntry(BaseModel):
+    id: str = Field(description="稳定入口标识")
+    sentence_id: str = Field(description="关联的句子标识")
+    entry_type: Literal["term_note", "logic_note", "interpretation_note", "content_summary"] = Field(description="入口类型")
+    label: str = Field(description="Chip 显示文案")
+    title: str | None = Field(default=None, description="详情面板标题")
+    content: str = Field(default="", description="详情内容")
+
+
+class AcademicRenderSceneModel(BaseModel):
+    schema_version: Literal["3.0.0-academic"] = Field(
+        default="3.0.0-academic", description="academic 模式 schema 版本。",
+    )
+    request: AnalyzeRequestMeta = Field(description="请求快照与规则包信息。")
+    article: ArticleStructure = Field(description="结果页渲染所依赖的正文结构。")
+    user_facing_state: UserFacingState = Field(
+        default="normal", description="面向用户的页面状态判定。",
+    )
+    translations: list[TranslationItem] = Field(default_factory=list, description="逐句翻译结果。")
+    inline_marks: list[AcademicInlineMark] = Field(default_factory=list, description="行内标注。")
+    sentence_entries: list[AcademicSentenceEntry] = Field(default_factory=list, description="句尾入口。")
+    content_summary: ContentSummary | None = Field(default=None, description="内容概要。P2 可选。")
+    warnings: list[Warning] = Field(default_factory=list, description="渲染与校验告警。")
+
+
+AnyRenderSceneModel = RenderSceneModel | AcademicRenderSceneModel

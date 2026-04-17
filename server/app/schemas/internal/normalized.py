@@ -20,7 +20,7 @@ class DropLogEntry(BaseModel):
 
     model_config = BASE_MODEL_CONFIG
 
-    source_agent: Literal["vocabulary", "grammar", "translation"] = Field(
+    source_agent: Literal["vocabulary", "grammar", "translation", "term", "understanding"] = Field(
         description="来源 agent"
     )
     annotation_type: str = Field(

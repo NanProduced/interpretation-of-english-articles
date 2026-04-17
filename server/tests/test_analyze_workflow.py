@@ -138,7 +138,7 @@ def test_analyze_route_returns_empty_result_when_all_agents_fail(monkeypatch) ->
     assert body["inline_marks"] == []
     assert body["sentence_entries"] == []
 
-def test_analyze_route_returns_controlled_error_for_academic_placeholder() -> None:
+def test_analyze_route_returns_academic_render_scene() -> None:
     client = TestClient(app)
     response = client.post(
         "/analyze",
@@ -149,8 +149,9 @@ def test_analyze_route_returns_controlled_error_for_academic_placeholder() -> No
             "source_type": "user_input",
         },
     )
-    assert response.status_code == 501
-    assert response.json()["detail"] == "Academic topology mode is not yet implemented."
+    assert response.status_code == 200
+    body = response.json()
+    assert body["schema_version"] == "3.0.0-academic"
 
 
 def test_analyze_route_surfaces_draft_validation_warnings(monkeypatch) -> None:
