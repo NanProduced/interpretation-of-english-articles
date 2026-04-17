@@ -150,6 +150,7 @@ interface SessionUserResponse {
   avatar_url?: string
   nickname?: string
   cumulative_article_count?: number
+  successful_invite_count?: number
   settings?: Record<string, any>
 }
 

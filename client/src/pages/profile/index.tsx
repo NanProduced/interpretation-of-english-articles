@@ -43,23 +43,26 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const [loadingStats, setLoadingStats] = useState(false)
   const [showModeSheet, setShowModeSheet] = useState(false)
   const [showAchievementSheet, setShowAchievementSheet] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const [successfulInviteCount, setSuccessfulInviteCount] = useState<number | null>(null)
   
   const allTiers = getAllTiers()
   const tier = getReadingTier(articleCount)
   const nicknameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useShareAppMessage(() => {
-    const userId = userInfo?.user_id
-    if (!userId) {
+  useShareAppMessage((res) => {
+    const isInviteShare = res.from === 'button'
+    
+    if (isInviteShare && userInfo?.user_id) {
       return {
-        title: '一起来使用学术文章解读助手',
-        path: '/pages/home/index',
+        title: '邀请你使用学术文章解读助手',
+        path: `/pages/home/index?inviter=${encodeURIComponent(userInfo.user_id)}`,
       }
     }
+    
     return {
-      title: '邀请你使用学术文章解读助手',
-      path: `/pages/home/index?inviter=${encodeURIComponent(userId)}`,
+      title: '一起来使用学术文章解读助手',
+      path: '/pages/home/index',
     }
   })
 
@@ -170,12 +173,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       const result = await ensureLoggedIn()
       if (!result.success) return
     }
-    Taro.showModal({
-      title: '邀请好友',
-      content: `每成功邀请一位好友注册，双方均可获得 ${INVITE_REWARD_POINTS} 积分奖励（最多可邀请 ${MAX_INVITE_COUNT} 人）。点击右上角菜单「转发」即可分享给好友。`,
-      showCancel: false,
-      confirmText: '知道了',
-    })
+    setShowInviteModal(true)
   }
 
   const getInviteDisplayValue = () => {
@@ -448,6 +446,68 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           
           <View className='guide-footer'>
             <Text className='footer-tips'>* 数据同步自云端，删除本地记录不影响等级</Text>
+          </View>
+        </View>
+      </CenterModal>
+
+      <CenterModal
+        visible={showInviteModal}
+        title='邀请好友'
+        onClose={() => setShowInviteModal(false)}
+      >
+        <View className='invite-modal-content'>
+          <View className='invite-icon-section'>
+            <View className='invite-icon-box'>
+              <LucideIcon name='users' size={64} color='var(--color-primary)' />
+            </View>
+          </View>
+
+          <View className='invite-info-section'>
+            <View className='invite-points-card'>
+              <View className='points-row'>
+                <Text className='points-label'>邀请奖励</Text>
+                <Text className='points-value'>+{INVITE_REWARD_POINTS}</Text>
+              </View>
+              <View className='points-divider' />
+              <View className='points-row'>
+                <Text className='points-label'>当前进度</Text>
+                <Text className='points-value'>{successfulInviteCount ?? 0}/{MAX_INVITE_COUNT}</Text>
+              </View>
+            </View>
+
+            <View className='invite-desc'>
+              <Text className='desc-title'>奖励规则</Text>
+              <View className='desc-list'>
+                <View className='desc-item'>
+                  <View className='dot' />
+                  <Text className='desc-text'>每成功邀请一位新用户注册，您将获得 {INVITE_REWARD_POINTS} 永久积分</Text>
+                </View>
+                <View className='desc-item'>
+                  <View className='dot' />
+                  <Text className='desc-text'>最多可邀请 {MAX_INVITE_COUNT} 人，共可获得 {INVITE_REWARD_POINTS * MAX_INVITE_COUNT} 积分</Text>
+                </View>
+                <View className='desc-item'>
+                  <View className='dot' />
+                  <Text className='desc-text'>新用户通过您的邀请链接首次登录后，奖励自动发放</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View className='invite-actions'>
+            <Button
+              className='invite-btn primary'
+              openType='share'
+            >
+              <LucideIcon name='user' size={36} color='#fff' />
+              <Text className='btn-text'>立即邀请好友</Text>
+            </Button>
+            <Button
+              className='invite-btn secondary'
+              onClick={() => setShowInviteModal(false)}
+            >
+              <Text className='btn-text'>稍后再说</Text>
+            </Button>
           </View>
         </View>
       </CenterModal>
