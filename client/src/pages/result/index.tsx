@@ -181,14 +181,7 @@ export default function Result() {
         hasShownFeedbackRef.current = true
         setFeedbackType('result_overall')
         setFeedbackContext({
-          source_text_preview: sourceText.slice(0, 200),
-          source_text_length: sourceText.length,
-          reading_goal: sceneData?.request?.readingGoal,
-          reading_variant: sceneData?.request?.readingVariant,
-          extended: requestParams?.extended,
-          user_facing_state: pageState,
-          sentence_count: sceneData?.article?.sentences?.length || 0,
-          vocab_count: sceneData?.inlineMarks?.filter(m => m.annotationType === 'vocab_highlight')?.length || 0,
+          processing_ms: undefined,
         })
         setShowFeedbackModal(true)
         track('feedback_popup_auto_trigger')
@@ -265,11 +258,9 @@ export default function Result() {
   const handleAnnotationFeedback = (entry: any, sentenceText: string) => {
     const feedbackType = entry.entryType === 'grammar_note' ? 'grammar_note' : 'sentence_analysis'
     const context: AnnotationContext = {
-      sentence_text_preview: sentenceText.slice(0, 200),
-      sentence_text_length: sentenceText.length,
+      sentence_id: entry.sentenceId,
+      annotation_id: entry.id,
       annotation_type: feedbackType,
-      annotation_title_preview: entry.title || entry.label || '',
-      annotation_content_preview: (entry.content || '').slice(0, 300),
     }
     setFeedbackType(feedbackType)
     setAnnotationFeedbackContext(context)
@@ -279,9 +270,9 @@ export default function Result() {
 
   const handleVocabFeedback = () => {
     const context: VocabContext = {
+      mark_id: wordPopup.mark?.id,
       vocab_preview: wordPopup.word.slice(0, 50),
       vocab_source: wordPopup.mark?.visualTone || 'dict_lookup',
-      context_sentence_preview: (wordPopup.contextSentence || '').slice(0, 200),
       is_ai_annotated: !!wordPopup.mark?.glossary,
     }
     setFeedbackType('vocab_entry')
@@ -634,14 +625,7 @@ export default function Result() {
                 className='end-btn-secondary feedback-btn'
                 onClick={() => {
                   const context: ResultOverallContext = {
-                    source_text_preview: (requestParams?.text || '').slice(0, 200),
-                    source_text_length: (requestParams?.text || '').length,
-                    reading_goal: sceneData?.request?.readingGoal,
-                    reading_variant: sceneData?.request?.readingVariant,
-                    extended: requestParams?.extended,
-                    user_facing_state: pageState,
-                    sentence_count: sceneData?.article?.sentences?.length || 0,
-                    vocab_count: sceneData?.inlineMarks?.filter(m => m.annotationType === 'vocab_highlight')?.length || 0,
+                    processing_ms: undefined,
                   }
                   setFeedbackContext(context)
                   setShowFeedbackModal(true)

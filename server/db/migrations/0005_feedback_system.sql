@@ -52,43 +52,36 @@ CREATE TABLE feedbacks (
   
   -- 上下文数据 JSON：根据不同 feedback_type 存储不同的上下文
   -- 
-  -- result_overall:
+  -- 【重要设计原则】
+  -- 所有能通过 analysis_record_id 关联查询到的数据（如原文、长度、解析结果）都不存储
+  -- 只存储：关键 ID 引用、反馈特有元数据、无法通过关联查询的数据
+  --
+  -- 可通过 analysis_record_id 查询的数据（不存储）：
+  -- - source_text（原文）→ 可计算 preview、length
+  -- - reading_goal, reading_variant, extended, user_facing_state（来自 analysis_records 表）
+  -- - render_scene_json（完整解析结果：句子、词汇、标注等）
+  --
+  -- result_overall：
   -- {
-  --   "source_text_preview": "前200字符...",
-  --   "source_text_length": 1500,
-  --   "reading_goal": "daily_reading",
-  --   "reading_variant": "intermediate_reading",
-  --   "extended": false,
-  --   "user_facing_state": "normal",
-  --   "processing_ms": 25000,
-  --   "task_status": "succeeded",
-  --   "sentence_count": 15,
-  --   "vocab_count": 25
+  --   "processing_ms": 25000   -- 反馈触发时的处理耗时（可能在 analysis_records 中未保存）
   -- }
   --
-  -- grammar_note / sentence_analysis:
+  -- grammar_note / sentence_analysis：
   -- {
   --   "sentence_id": "s_xxx",
-  --   "sentence_text": "原句文本",
   --   "annotation_id": "ann_xxx",
-  --   "annotation_type": "grammar_note",
-  --   "label": "虚拟语气",
-  --   "content_preview": "解析内容预览...",
-  --   "source_text_preview": "上下文文本..."
+  --   "annotation_type": "grammar_note"
   -- }
   --
-  -- vocab_entry:
+  -- vocab_entry：
   -- {
-  --   "lemma": "run",
-  --   "display_word": "running",
-  --   "part_of_speech": "verb",
-  --   "short_meaning": "跑",
-  --   "phonetic": "/rʌn/",
-  --   "source_sentence": "原句...",
-  --   "context_preview": "上下文..."
+  --   "mark_id": "m_xxx",
+  --   "vocab_preview": "running",
+  --   "vocab_source": "vocab_highlight",
+  --   "is_ai_annotated": true
   -- }
   --
-  -- general:
+  -- general：
   -- {
   --   "page": "profile",
   --   "app_version": "1.0.0",

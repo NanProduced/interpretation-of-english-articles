@@ -174,8 +174,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           color: 'purple',
           onClick: () => {
             setFeedbackContext({
-              user_id: userInfo?.user_id || undefined,
-              is_logged_in: isLoggedIn,
+              page: 'profile',
             })
             setShowFeedbackModal(true)
           },

@@ -78,45 +78,72 @@ interface ShouldTriggerResponse {
 
 // ---------------------------------------------------------------------------
 // 上下文数据类型定义
+// 
+// 【重要设计原则】
+// 所有能通过 analysis_record_id 关联查询到的数据（如原文、长度、解析结果）都不存储
+// 只存储：关键 ID 引用、反馈特有元数据、无法通过关联查询的数据
 // ---------------------------------------------------------------------------
 
-/** 结果页整体反馈的上下文数据 */
+/**
+ * 结果页整体反馈的上下文数据
+ * 
+ * 可通过 analysis_record_id 查询的数据（不存储）：
+ * - source_text（原文）→ 可计算 preview、length
+ * - reading_goal, reading_variant, extended, user_facing_state（来自 analysis_records 表）
+ * - sentence_count, vocab_count（来自 render_scene_json）
+ * 
+ * 必须存储的数据：
+ * - source_text_hash：如果没有 analysis_record_id，用这个关联
+ * - processing_ms：反馈触发时的处理耗时（可能在 analysis_records 中未保存）
+ */
 export interface ResultOverallContext {
-  source_text_preview?: string
-  source_text_length?: number
-  reading_goal?: string
-  reading_variant?: string
-  extended?: boolean
-  user_facing_state?: string
+  source_text_hash?: string
   processing_ms?: number
-  task_status?: string
-  sentence_count?: number
-  vocab_count?: number
 }
 
-/** 标注（语法/句式）反馈的上下文数据 */
+/**
+ * 标注（语法/句式）反馈的上下文数据
+ * 
+ * 可通过 annotation_id + render_scene_json 查询的数据（不存储）：
+ * - sentence_text（原文）
+ * - annotation 具体内容（label, content 等）
+ * 
+ * 必须存储的数据：
+ * - sentence_id：句子 ID（用于定位问题位置）
+ * - annotation_id：标注 ID（用于定位具体是哪个标注）
+ * - annotation_type：标注类型（grammar_note / sentence_analysis）
+ */
 export interface AnnotationContext {
   sentence_id?: string
-  sentence_text?: string
   annotation_id?: string
   annotation_type?: 'grammar_note' | 'sentence_analysis'
-  label?: string
-  content_preview?: string
-  source_text_preview?: string
 }
 
-/** 词汇卡片反馈的上下文数据 */
+/**
+ * 词汇卡片反馈的上下文数据
+ * 
+ * 可通过 mark_id + render_scene_json 查询的数据（不存储）：
+ * - lemma, part_of_speech, short_meaning, phonetic 等词汇信息
+ * - source_sentence, context_preview 等上下文
+ * 
+ * 必须存储的数据：
+ * - mark_id：词汇标记 ID（用于定位具体是哪个词汇）
+ * - vocab_preview：词汇预览（方便快速查看反馈内容）
+ * - vocab_source：词汇来源
+ * - is_ai_annotated：是否 AI 标注（这个可能在 render_scene_json 中没有明确标识）
+ */
 export interface VocabContext {
-  lemma?: string
-  display_word?: string
-  part_of_speech?: string
-  short_meaning?: string
-  phonetic?: string
-  source_sentence?: string
-  context_preview?: string
+  mark_id?: string
+  vocab_preview?: string
+  vocab_source?: string
+  is_ai_annotated?: boolean
 }
 
-/** 通用反馈的上下文数据 */
+/**
+ * 通用反馈的上下文数据
+ * 
+ * 通用反馈没有 analysis_record_id，所以需要存储一些元数据
+ */
 export interface GeneralContext {
   page?: string
   app_version?: string
