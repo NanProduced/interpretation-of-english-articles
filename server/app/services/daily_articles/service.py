@@ -25,14 +25,17 @@ from app.schemas.daily_articles import (
     FetchStatistics,
     FetchStatus,
 )
+from app.config.settings import get_settings
 from app.services.daily_articles.cleaner import ArticleCleaner, CleanedArticle
 from app.services.daily_articles.fetchers.base import ArticleFetcher, RawArticle
 from app.services.daily_articles.fetchers.spaceflight_news import SpaceflightNewsFetcher
+from app.services.daily_articles.web_scraper import WebContentScraper
 
 logger = getLogger(__name__)
 
 MIN_ARTICLES_PER_DAY = 5
 FETCH_BATCH_SIZE = 30
+MIN_WORDS_FOR_FULL_SCRAPE = 200
 
 
 @dataclass
@@ -55,11 +58,17 @@ class DailyArticleService:
         self,
         fetchers: list[ArticleFetcher] | None = None,
         cleaner: ArticleCleaner | None = None,
-        min_articles: int = MIN_ARTICLES_PER_DAY,
+        web_scraper: WebContentScraper | None = None,
+        min_articles: int | None = None,
     ):
+        settings = get_settings()
         self.fetchers = fetchers or [SpaceflightNewsFetcher()]
-        self.cleaner = cleaner or ArticleCleaner()
-        self.min_articles = min_articles
+        self.cleaner = cleaner or ArticleCleaner(
+            min_word_count=settings.article_min_word_count,
+            max_word_count=settings.article_max_word_count,
+        )
+        self.web_scraper = web_scraper or WebContentScraper()
+        self.min_articles = min_articles if min_articles is not None else settings.daily_fetch_min_articles
 
     async def get_today_articles(self) -> list[DailyArticleSummary]:
         """Get all active articles for today."""
@@ -302,28 +311,100 @@ class DailyArticleService:
                             break
 
                         if not raw_article.content:
+                            logger.debug(
+                                "Skipping article with empty content: provider=%s, id=%s",
+                                fetcher.provider_name,
+                                raw_article.source_id,
+                            )
                             continue
 
-                        cleaned = self.cleaner.clean_and_validate(
+                        content_to_use = raw_article.content
+                        used_scraper = False
+
+                        initial_cleaned = self.cleaner.clean_and_validate(
                             raw_article.title,
                             raw_article.content,
                         )
 
+                        if (
+                            not initial_cleaned.is_valid_length
+                            and initial_cleaned.word_count < MIN_WORDS_FOR_FULL_SCRAPE
+                            and raw_article.source_url
+                        ):
+                            logger.info(
+                                "Summary too short (%d words), trying to scrape full article: %s",
+                                initial_cleaned.word_count,
+                                raw_article.source_url,
+                            )
+                            try:
+                                full_content = await self.web_scraper.scrape_article(
+                                    raw_article.source_url
+                                )
+                                if full_content:
+                                    full_cleaned = self.cleaner.clean_and_validate(
+                                        raw_article.title,
+                                        full_content,
+                                    )
+                                    if full_cleaned.word_count > initial_cleaned.word_count:
+                                        content_to_use = full_content
+                                        used_scraper = True
+                                        logger.info(
+                                            "Successfully scraped full article: %d words (was %d)",
+                                            full_cleaned.word_count,
+                                            initial_cleaned.word_count,
+                                        )
+                            except Exception as e:
+                                logger.warning(
+                                    "Failed to scrape article %s: %s",
+                                    raw_article.source_url,
+                                    e,
+                                )
+
+                        cleaned = self.cleaner.clean_and_validate(
+                            raw_article.title,
+                            content_to_use,
+                        )
+
                         if not cleaned.is_valid:
-                            logger.debug(
-                                "Article invalid: provider=%s, id=%s, "
-                                "is_english=%s, word_count=%d",
+                            logger.info(
+                                "Article validation failed: provider=%s, id=%s, "
+                                "is_english=%s, word_count=%d (min=%d, max=%d), used_scraper=%s",
                                 fetcher.provider_name,
                                 raw_article.source_id,
                                 cleaned.is_english,
                                 cleaned.word_count,
+                                self.cleaner.min_word_count,
+                                self.cleaner.max_word_count,
+                                used_scraper,
                             )
                             continue
 
+                        logger.info(
+                            "Article validated: provider=%s, id=%s, word_count=%d",
+                            fetcher.provider_name,
+                            raw_article.source_id,
+                            cleaned.word_count,
+                        )
                         total_valid += 1
 
+                        raw_article_for_save = RawArticle(
+                            source_id=raw_article.source_id,
+                            title=cleaned.title,
+                            content=cleaned.content,
+                            source_url=raw_article.source_url,
+                            image_url=raw_article.image_url,
+                            publish_date=raw_article.publish_date,
+                            category=raw_article.category,
+                            tags=raw_article.tags,
+                            source_metadata={
+                                **raw_article.source_metadata,
+                                "used_web_scraper": used_scraper,
+                                "original_word_count": initial_cleaned.word_count,
+                            },
+                        )
+
                         saved = await self.save_article(
-                            raw_article,
+                            raw_article_for_save,
                             cleaned,
                             fetcher.provider_name,
                         )
