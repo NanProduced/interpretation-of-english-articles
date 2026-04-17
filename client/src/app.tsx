@@ -14,9 +14,11 @@ const GUEST_DISMISSED_KEY = 'guest_dismissed'
 function App({ children }: PropsWithChildren<any>) {
   const [showLoginGuide, setShowLoginGuide] = useState(false)
 
-  // 启动时恢复认证状态
+  // 启动时恢复认证状态和初始化同步服务
   useEffect(() => {
     const restoreState = async () => {
+      await CloudSyncService.initialize()
+
       await useAuthStore.getState().restore()
       if ((Taro as any)._navigatingToOnboarding) return
       ;(Taro as any)._navigatingToOnboarding = true
@@ -24,10 +26,8 @@ function App({ children }: PropsWithChildren<any>) {
       const { isLoggedIn } = useAuthStore.getState()
 
       if (isLoggedIn && !Taro.getStorageSync('user_configured')) {
-        // 已登录但未设置过用户配置 → 跳转 onboarding
         Taro.navigateTo({ url: '/pages/onboarding/index' })
       } else if (!isLoggedIn) {
-        // 未登录：检查是否已选择过游客模式（当天不重复弹窗）
         const dismissed = Taro.getStorageSync(GUEST_DISMISSED_KEY)
         const today = new Date().toDateString()
         if (dismissed !== today) {
@@ -71,18 +71,11 @@ function App({ children }: PropsWithChildren<any>) {
       }
     }
 
-    // 切前台：恢复状态 + 尝试同步 pending 数据
+    // 切前台：恢复状态 + 触发同步队列处理
     const showHandler = async (options: any) => {
-      // 尝试静默同步 pending 数据（未登录则跳过）
+      // 触发同步队列处理（离线优先架构会自动处理）
       if (useAuthStore.getState().isLoggedIn) {
-        const favorites = getFavorites()
-        const vocab = getVocabulary()
-        if (favorites.length > 0) {
-          CloudSyncService.syncAllFavorites(favorites)
-        }
-        if (vocab.length > 0) {
-          CloudSyncService.syncAllVocab(vocab)
-        }
+        CloudSyncService.triggerSync()
       }
 
       // 检查是否分析中断需要恢复
