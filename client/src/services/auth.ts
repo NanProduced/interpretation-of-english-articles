@@ -95,16 +95,8 @@ export async function ensureLoggedIn(skipConfirmModal = false): Promise<LoginRes
     // 登录后立即获取完整用户信息（包含云端配置和成就）
     await authStore.fetchUserInfo()
     
-    // 显示邀请奖励提示
-    if (res.invite_reward_applied && res.invite_reward_points) {
-      Taro.showToast({ 
-        title: `获得 ${res.invite_reward_points} 积分奖励！`, 
-        icon: 'success',
-        duration: 2000
-      })
-    } else {
-      Taro.showToast({ title: '登录成功', icon: 'success' })
-    }
+    // 登录成功提示（邀请奖励仅给邀请者，被邀请者不显示奖励提示）
+    Taro.showToast({ title: '登录成功', icon: 'success' })
 
     // 检查是否首次登录（user_configured 未设置）
     const isFirstLogin = !Taro.getStorageSync('user_configured')

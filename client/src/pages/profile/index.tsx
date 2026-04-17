@@ -456,41 +456,65 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
         onClose={() => setShowInviteModal(false)}
       >
         <View className='invite-modal-content'>
-          <View className='invite-icon-section'>
-            <View className='invite-icon-box'>
-              <LucideIcon name='users' size={64} color='var(--color-primary)' />
+          <View className='invite-intro-section'>
+            <View className='intro-icon-box'>
+              <LucideIcon name='sparkles' size={40} color='var(--color-warn)' />
+            </View>
+            <View className='intro-text-group'>
+              <Text className='intro-title'>邀请好友，共享积分</Text>
+              <Text className='intro-subtitle'>每成功邀请一位新用户，您将获得永久积分奖励</Text>
             </View>
           </View>
 
-          <View className='invite-info-section'>
-            <View className='invite-points-card'>
-              <View className='points-row'>
-                <Text className='points-label'>邀请奖励</Text>
-                <Text className='points-value'>+{INVITE_REWARD_POINTS}</Text>
+          <View className='invite-stats-card'>
+            <View className='stats-item'>
+              <View className='stats-icon-box'>
+                <LucideIcon name='gem' size={32} color='var(--color-warn)' />
               </View>
-              <View className='points-divider' />
-              <View className='points-row'>
-                <Text className='points-label'>当前进度</Text>
-                <Text className='points-value'>{successfulInviteCount ?? 0}/{MAX_INVITE_COUNT}</Text>
+              <View className='stats-text-group'>
+                <Text className='stats-label'>单次奖励</Text>
+                <Text className='stats-value'>{INVITE_REWARD_POINTS} 积分</Text>
               </View>
             </View>
-
-            <View className='invite-desc'>
-              <Text className='desc-title'>奖励规则</Text>
-              <View className='desc-list'>
-                <View className='desc-item'>
-                  <View className='dot' />
-                  <Text className='desc-text'>每成功邀请一位新用户注册，您将获得 {INVITE_REWARD_POINTS} 永久积分</Text>
-                </View>
-                <View className='desc-item'>
-                  <View className='dot' />
-                  <Text className='desc-text'>最多可邀请 {MAX_INVITE_COUNT} 人，共可获得 {INVITE_REWARD_POINTS * MAX_INVITE_COUNT} 积分</Text>
-                </View>
-                <View className='desc-item'>
-                  <View className='dot' />
-                  <Text className='desc-text'>新用户通过您的邀请链接首次登录后，奖励自动发放</Text>
-                </View>
+            <View className='stats-divider' />
+            <View className='stats-item'>
+              <View className='stats-icon-box'>
+                <LucideIcon name='users' size={32} color='var(--color-info)' />
               </View>
+              <View className='stats-text-group'>
+                <Text className='stats-label'>已邀请</Text>
+                <Text className='stats-value'>{successfulInviteCount ?? 0}/{MAX_INVITE_COUNT} 人</Text>
+              </View>
+            </View>
+          </View>
+
+          <View className='invite-rules-section'>
+            <View className='rules-header'>
+              <Text className='rules-title'>奖励规则</Text>
+            </View>
+            <View className='rules-list'>
+              <View className='rule-item'>
+                <View className='rule-bullet'>
+                  <Text className='bullet-number'>1</Text>
+                </View>
+                <Text className='rule-text'>点击下方「邀请好友」按钮，将小程序分享给微信好友</Text>
+              </View>
+              <View className='rule-item'>
+                <View className='rule-bullet'>
+                  <Text className='bullet-number'>2</Text>
+                </View>
+                <Text className='rule-text'>好友通过您的分享卡片进入小程序并完成首次登录</Text>
+              </View>
+              <View className='rule-item'>
+                <View className='rule-bullet'>
+                  <Text className='bullet-number'>3</Text>
+                </View>
+                <Text className='rule-text'>系统自动为您发放 {INVITE_REWARD_POINTS} 永久积分奖励</Text>
+              </View>
+            </View>
+            <View className='rules-note'>
+              <LucideIcon name='info' size={28} color='var(--text-muted)' />
+              <Text className='note-text'>最多可邀请 {MAX_INVITE_COUNT} 人，奖励积分永久有效</Text>
             </View>
           </View>
 
