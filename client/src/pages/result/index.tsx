@@ -20,6 +20,7 @@ import {
   ResultOverallContext,
   AnnotationContext,
   VocabContext,
+  checkShouldTriggerFeedback,
 } from '../../services/api/feedbacks.client'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
@@ -159,6 +160,43 @@ export default function Result() {
       .map((v: { word: string }) => v.word.toLowerCase())
     setVocabList(words)
   }, [recordId])
+
+  // === 自动触发结果页反馈弹窗 ===
+  useEffect(() => {
+    if (hasShownFeedbackRef.current) return
+    
+    const completedStates: string[] = ['normal', 'degraded_light', 'degraded_heavy', 'empty']
+    if (!completedStates.includes(pageState)) return
+    
+    if (!sceneData && !requestParams?.text) return
+
+    const tryTriggerFeedback = async () => {
+      const sourceText = requestParams?.text || ''
+      const shouldTrigger = await checkShouldTriggerFeedback({
+        source_text_length: sourceText.length,
+        user_facing_state: pageState,
+      }).catch(() => false)
+
+      if (shouldTrigger) {
+        hasShownFeedbackRef.current = true
+        setFeedbackType('result_overall')
+        setFeedbackContext({
+          source_text_preview: sourceText.slice(0, 200),
+          source_text_length: sourceText.length,
+          reading_goal: sceneData?.request?.readingGoal,
+          reading_variant: sceneData?.request?.readingVariant,
+          extended: requestParams?.extended,
+          user_facing_state: pageState,
+          sentence_count: sceneData?.article?.sentences?.length || 0,
+          vocab_count: sceneData?.inlineMarks?.filter(m => m.annotationType === 'vocab_highlight')?.length || 0,
+        })
+        setShowFeedbackModal(true)
+        track('feedback_popup_auto_trigger')
+      }
+    }
+
+    tryTriggerFeedback()
+  }, [pageState, sceneData, requestParams])
 
   Taro.useDidShow(() => {
     // 页面展示时，如果当前处于加载中或失败状态，且没有场景数据，尝试恢复活跃任务
