@@ -10,7 +10,7 @@ Endpoints for:
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from logging import getLogger
 from uuid import UUID
 
@@ -130,14 +130,14 @@ async def trigger_manual_fetch(
             fetch_log = DailyArticleFetchLog(
                 id=UUID(int=0),
                 fetch_date=date.today(),
-                source_provider="combined",
+                source_provider="combined" if len(get_daily_article_service().fetchers) > 1 else get_daily_article_service().fetchers[0].provider_name,
                 status=result.status,
                 articles_fetched=result.articles_fetched,
                 articles_valid=result.articles_valid,
                 articles_saved=result.articles_saved,
                 error_message=result.error_message,
                 duration_ms=result.duration_ms,
-                created_at=date.today(),
+                created_at=datetime.now(),
             )
 
         return ManualFetchTriggerResponse(
