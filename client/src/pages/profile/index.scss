@@ -580,4 +580,153 @@
     50% { transform: scale(1.05); box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06); }
     100% { transform: scale(1); box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03); }
   }
+
+  .invite-modal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16rpx 0 8rpx;
+
+    .invite-icon-section {
+      margin-bottom: 32rpx;
+
+      .invite-icon-box {
+        width: 140rpx;
+        height: 140rpx;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 4rpx solid rgba(56, 189, 248, 0.3);
+      }
+    }
+
+    .invite-info-section {
+      width: 100%;
+      margin-bottom: 40rpx;
+
+      .invite-points-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: var(--radius-lg);
+        padding: 32rpx;
+        margin-bottom: 32rpx;
+
+        .points-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          .points-label {
+            font-size: 26rpx;
+            color: #94a3b8;
+            font-weight: 500;
+          }
+
+          .points-value {
+            font-size: 40rpx;
+            font-weight: var(--weight-bold);
+            color: #38bdf8;
+            font-family: var(--font-english-sans);
+          }
+        }
+
+        .points-divider {
+          height: 1rpx;
+          background: linear-gradient(to right, transparent, #334155, transparent);
+          margin: 20rpx 0;
+        }
+      }
+
+      .invite-desc {
+        .desc-title {
+          display: block;
+          font-size: 28rpx;
+          font-weight: var(--weight-bold);
+          color: var(--color-ink);
+          margin-bottom: 20rpx;
+        }
+
+        .desc-list {
+          display: flex;
+          flex-direction: column;
+          gap: 16rpx;
+
+          .desc-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12rpx;
+
+            .dot {
+              width: 10rpx;
+              height: 10rpx;
+              border-radius: 50%;
+              background: var(--color-primary);
+              margin-top: 10rpx;
+              flex-shrink: 0;
+            }
+
+            .desc-text {
+              font-size: 24rpx;
+              color: var(--text-sub);
+              line-height: 1.7;
+            }
+          }
+        }
+      }
+    }
+
+    .invite-actions {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 16rpx;
+
+      .invite-btn {
+        width: 100%;
+        height: 88rpx;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12rpx;
+        border: none;
+        padding: 0;
+        margin: 0;
+
+        .btn-text {
+          font-size: 28rpx;
+          font-weight: var(--weight-bold);
+        }
+
+        &.primary {
+          background: linear-gradient(135deg, var(--color-ink) 0%, #374151 100%);
+
+          .btn-text {
+            color: #fff;
+          }
+
+          &:active {
+            opacity: 0.85;
+          }
+        }
+
+        &.secondary {
+          background: var(--color-bg);
+
+          .btn-text {
+            color: var(--text-sub);
+          }
+
+          &:active {
+            background: #f3f4f6;
+          }
+        }
+
+        &::after {
+          border: none;
+        }
+      }
+    }
+  }
 }
