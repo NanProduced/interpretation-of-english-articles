@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.dict
+
 try:
     import asyncpg  # noqa: F401
 except ModuleNotFoundError:

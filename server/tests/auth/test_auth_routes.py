@@ -9,6 +9,8 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+pytestmark = pytest.mark.auth
+
 from app.main import app
 from app.services.auth.session import SessionInfo
 from app.services.auth.wechat import WeChatAPIError

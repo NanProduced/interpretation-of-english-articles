@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.prompt
+
 from app.agents.grammar_agent import GrammarAgentDeps, build_grammar_prompt
 from app.agents.vocabulary_agent import (
     VocabularyAgentDeps,

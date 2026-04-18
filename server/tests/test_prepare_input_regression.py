@@ -13,6 +13,8 @@ Covers:
 
 import pytest
 
+pytestmark = pytest.mark.regression
+
 from app.schemas.common import TextSpan
 from app.services.analysis.preprocess.input_preparation import (
     _ABBREVIATION_RE,

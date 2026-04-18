@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.dict
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

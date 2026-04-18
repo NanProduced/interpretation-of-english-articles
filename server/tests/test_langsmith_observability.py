@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.infra
+
 from app.config.settings import Settings
 from app.observability import langsmith as langsmith_module
 
