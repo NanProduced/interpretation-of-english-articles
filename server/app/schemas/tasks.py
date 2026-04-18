@@ -43,6 +43,10 @@ class TaskSubmitRequest(BaseModel):
         le=120.0,
         description="当 wait_for_result=true 时，最长等待秒数。",
     )
+    client_record_id: str | None = Field(
+        default=None,
+        description="客户端侧生成的记录ID，用于关联回本地存储的记录。",
+    )
 
     def model_post_init(self, __context__: Any) -> None:
         allowed_variants = GOAL_VARIANT_MAP[self.reading_goal]

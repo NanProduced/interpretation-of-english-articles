@@ -99,9 +99,13 @@ async def submit_task(
     reading_variant: str,
     source_type: str,
     extended: bool,
+    client_record_id: str | None = None,
 ) -> TaskSubmitResult:
     """
     Submit an analysis task with single-active-task control.
+
+    If client_record_id is provided, it will be used instead of generating a new one.
+    This ensures consistency between frontend-local storage and backend records.
     """
     pool = db_connection.DB_POOL
     if pool is None:
@@ -130,7 +134,8 @@ async def submit_task(
                 )
 
             # 2. Create analysis_record (minimal metadata)
-            client_record_id = f"task-{uuid4()}"
+            # Use client-provided ID if available, otherwise generate one
+            final_client_record_id = client_record_id or f"task-{uuid4()}"
             record_row = await conn.fetchrow(
                 """
                 INSERT INTO analysis_records (
@@ -143,7 +148,7 @@ async def submit_task(
                 RETURNING id
                 """,
                 user_id,
-                client_record_id,
+                final_client_record_id,
                 source_type,
                 text,
                 source_text_hash,

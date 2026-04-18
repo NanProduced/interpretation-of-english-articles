@@ -234,6 +234,35 @@ export function removeVocabEntry(id: string): void {
   }
 }
 
+/**
+ * 当文章记录的 recordId 发生变更时，同步更新所有关联的生词本条目
+ * 这确保生词本始终能正确关联到对应的解析记录
+ */
+export function updateVocabularyRecordId(oldRecordId: string, newRecordId: string): void {
+  try {
+    const vocab = getVocabulary()
+    let updated = false
+
+    const newVocab = vocab.map((entry) => {
+      if (entry.recordId === oldRecordId) {
+        updated = true
+        return {
+          ...entry,
+          recordId: newRecordId,
+        }
+      }
+      return entry
+    })
+
+    if (updated) {
+      Taro.setStorageSync(KEYS.VOCABULARY, newVocab)
+      console.log(`[storage] Updated vocabulary recordId from ${oldRecordId} to ${newRecordId}`)
+    }
+  } catch (e) {
+    console.error('[storage] updateVocabularyRecordId failed', e)
+  }
+}
+
 // ============ User Preferences ============
 
 export interface UserPreferences {
