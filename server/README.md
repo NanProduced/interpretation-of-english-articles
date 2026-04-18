@@ -260,16 +260,18 @@ uv run pytest --enforce-markers  # 严格模式：无标记测试会导致退出
 
 ### Marker 说明
 
-| Marker | 覆盖范围 | 测试文件数 |
-|--------|----------|------------|
-| `dict` | TECD3词典、lemma fallback、查询优化、API代理、数据导入 | 5 |
-| `auth` | 微信登录、会话管理、认证路由 | 2 |
-| `tasks` | 任务提交、配额管理、worker状态、启动恢复 | 1 |
-| `workflow` | 主分析流程、学术阅读流程、预处理流程 | 3 |
-| `schema` | Pydantic模型、业务规则验证 | 2 |
-| `postprocess` | normalize_and_ground、锚点解析、渲染投影 | 2 |
-| `prompt` | prompt_composer、prompt_strategy、agent prompts | 1 |
-| `infra` | 健康检查、模型配置路由、LangSmith可观测性 | 3 |
-| `regression` | 回归测试专用 | 1 |
+| Marker | 覆盖范围 | 测试文件数 | 测试数 |
+|--------|----------|------------|--------|
+| `dict` | TECD3词典、lemma fallback、查询优化、API代理、数据导入 | 5 | 57 |
+| `regression` | 回归测试专用 | 1 | 46 |
+| `auth` | 微信登录、会话管理、认证路由 | 2 | 27 |
+| `tasks` | 任务提交、配额管理、worker状态、启动恢复 | 1 | 31 |
+| `workflow` | 主分析流程、学术阅读流程、预处理流程 | 3 | 23 |
+| `infra` | 健康检查、模型配置路由、LangSmith可观测性、任务中心健康路由 | 4 | 8 |
+| `schema` | Pydantic模型、业务规则验证 | 2 | 10 |
+| `postprocess` | normalize_and_ground、锚点解析、渲染投影 | 2 | 9 |
+| `prompt` | prompt_composer、prompt_strategy、agent prompts | 1 | 4 |
+
+> 注：`test_task_center.py` 中的 `TestHealthRoutes` 类（2 个测试）同时标记为 `tasks` 和 `infra`，因此总测试数去重后为 213。
 
 > 注意：新增测试文件必须添加至少一个主题 marker，否则会被防漏机制标记为 `unmarked`。
