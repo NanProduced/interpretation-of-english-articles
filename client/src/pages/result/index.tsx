@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useArticleStore } from '../../stores/article'
+import { useAssetsStore } from '../../stores/assets'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
 import { InlineMarkModel, PageMode, RenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
@@ -231,6 +232,8 @@ export default function Result() {
       saveFavorite({ recordId, createdAt: Date.now() } as FavoriteRecord)
       updateRecord(recordId, { isFavorited: true })
       setFavorited(true)
+      // 同步更新全局 store，实现跨页面状态同步
+      useAssetsStore.getState().setFavorite(recordId, true)
       track('favorite', { isFavorited: true })
       Taro.showToast({ title: '已收藏', icon: 'success', duration: 1500 })
 
@@ -251,6 +254,8 @@ export default function Result() {
       removeFavorite(recordId)
       updateRecord(recordId, { isFavorited: false })
       setFavorited(false)
+      // 同步更新全局 store，实现跨页面状态同步
+      useAssetsStore.getState().setFavorite(recordId, false)
       track('favorite', { isFavorited: false })
       Taro.showToast({ title: '已取消收藏', icon: 'none', duration: 1500 })
 
@@ -261,6 +266,7 @@ export default function Result() {
         saveFavorite({ recordId, createdAt: Date.now() } as FavoriteRecord)
         updateRecord(recordId, { isFavorited: true })
         setFavorited(true)
+        useAssetsStore.getState().setFavorite(recordId, true)
       }
     }
   }
@@ -594,6 +600,8 @@ export default function Result() {
             sentence: wordPopup.contextSentence,
           }
           saveVocabEntry(vocabEntry)
+          // 同步更新全局 store，实现跨页面状态同步
+          useAssetsStore.getState().addVocab(vocabEntry)
           // 立即刷新 vocabList，避免等 useEffect 导致体感延迟
           const allVocabAfter = getVocabulary()
           const wordsAfter = allVocabAfter

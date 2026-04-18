@@ -9,6 +9,7 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthStore } from '../../stores/auth'
+import { useAssetsStore } from '../../stores/assets'
 import { getVocabulary, removeVocabEntry, getRecord } from '../../services/storage'
 import { fetchCloudVocabulary, deleteCloudVocabulary } from '../../services/api/vocabulary.client'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
@@ -49,6 +50,8 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const [loading, setLoading] = useState(true)
   const { navBarHeight } = useLayoutStore()
   const loadVocabRef = useRef<() => Promise<void>>()
+  // 用于检测生词数量是否变化，避免不必要的全量刷新
+  const lastTotalVocabCountRef = useRef<number>(0)
 
   /** 加载生词本：云端优先，失败降级本地 */
   const loadVocab = useCallback(async () => {
@@ -59,6 +62,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
       try {
         const result = await fetchCloudVocabulary(1, 100)
         setVocabList(result.items)
+        lastTotalVocabCountRef.current = useAssetsStore.getState().totalVocabCount
         track('view_vocab', { count: result.total, source: 'cloud' })
         setLoading(false)
         return
@@ -70,6 +74,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     // 本地兜底
     const local = getVocabulary()
     setVocabList(local)
+    lastTotalVocabCountRef.current = useAssetsStore.getState().totalVocabCount
     track('view_vocab', { count: local.length, source: 'local' })
     setLoading(false)
   }, [])
@@ -83,8 +88,12 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     loadVocab()
   }, [loadVocab])
 
+  // 轻量级 useDidShow：只有当生词数量变化时才刷新，避免不必要的全量刷新
   Taro.useDidShow(() => {
-    loadVocab()
+    const currentTotal = useAssetsStore.getState().totalVocabCount
+    if (currentTotal !== lastTotalVocabCountRef.current) {
+      loadVocab()
+    }
   })
 
   // 下拉刷新
@@ -123,6 +132,8 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
         if (res.confirm) {
           // 本地一定删
           removeVocabEntry(entry.id)
+          // 同步更新全局 store，实现跨页面状态同步
+          useAssetsStore.getState().removeVocab(entry.id, entry.recordId)
           // 云端也同步删除（失败静默忽略）
           const { isLoggedIn } = useAuthStore.getState()
           if (isLoggedIn) {

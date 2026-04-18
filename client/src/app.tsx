@@ -2,6 +2,7 @@ import { PropsWithChildren, useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { useAuthStore } from './stores/auth'
 import { useArticleStore } from './stores/article'
+import { useAssetsStore } from './stores/assets'
 import { CloudSyncService } from './services/cloudSync.service'
 import { ensureLoggedIn } from './services/auth'
 import { getFavorites, getVocabulary } from './services/storage'
@@ -14,9 +15,10 @@ const GUEST_DISMISSED_KEY = 'guest_dismissed'
 function App({ children }: PropsWithChildren<any>) {
   const [showLoginGuide, setShowLoginGuide] = useState(false)
 
-  // 启动时恢复认证状态
+  // 启动时恢复认证状态和资产状态
   useEffect(() => {
     const restoreState = async () => {
+      useAssetsStore.getState().initialize()
       await useAuthStore.getState().restore()
       if ((Taro as any)._navigatingToOnboarding) return
       ;(Taro as any)._navigatingToOnboarding = true

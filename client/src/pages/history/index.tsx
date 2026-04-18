@@ -3,6 +3,7 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { getRecordIds, getRecord, deleteRecord, getVocabulary } from '../../services/storage'
 import { useAuthStore } from '../../stores/auth'
+import { useAssetsStore } from '../../stores/assets'
 import { fetchCloudRecords, deleteCloudRecord } from '../../services/api/records.client'
 import { fetchCloudFavorites } from '../../services/api/favorites.client'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
@@ -58,16 +59,42 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const { navBarHeight } = useLayoutStore()
 
+  // 从全局 store 订阅需要跨页面同步的状态
+  const favoriteRecordIds = useAssetsStore((s) => s.favoriteRecordIds)
+  const vocabCounts = useAssetsStore((s) => s.vocabCounts)
+  const totalArticleCount = useAssetsStore((s) => s.totalArticleCount)
+
+  // 用于检测是否需要刷新记录列表（只有当文章数量变化时才刷新）
+  const lastArticleCountRef = useRef<number>(0)
+
+  // 轻量级的 useDidShow：只有当文章数量变化时才刷新
+  // 这样可以避免每次返回页面都全量刷新，同时保证新创建的记录能够同步
+  Taro.useDidShow(() => {
+    const currentCount = totalArticleCount
+    if (currentCount !== lastArticleCountRef.current) {
+      loadRecords()
+      lastArticleCountRef.current = currentCount
+    }
+  })
+
   // --------------------------------------------------------------------------
   // 数据与状态管理
   // --------------------------------------------------------------------------
 
-  const filteredRecords = activeTab === 'favorites'
-    ? records.filter((r) => r.isFavorited)
-    : records
+  // 使用全局 store 中的状态来增量更新记录列表
+  // 这样当在其他页面修改收藏状态或添加生词时，历史记录页会自动更新
+  const filteredRecords = (() => {
+    const enrichedRecords = records.map((r) => ({
+      ...r,
+      isFavorited: favoriteRecordIds.has(r.recordId),
+      vocabCount: vocabCounts[r.recordId] || r.vocabCount || 0,
+    }))
+    return activeTab === 'favorites'
+      ? enrichedRecords.filter((r) => r.isFavorited)
+      : enrichedRecords
+  })()
 
   const loadRecords = useCallback(async () => {
-    // ... (现有代码逻辑保持不变)
     setLoading(true)
     const { isLoggedIn } = useAuthStore.getState()
     if (isLoggedIn) {
@@ -78,42 +105,40 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
         ])
         const favIds = new Set(favResult.items.map((f) => f.recordId))
         const allVocab = getVocabulary()
-        const vocabCounts: Record<string, number> = {}
+        const localVocabCounts: Record<string, number> = {}
         allVocab.forEach(v => {
-          if (v.recordId) vocabCounts[v.recordId] = (vocabCounts[v.recordId] || 0) + 1
+          if (v.recordId) localVocabCounts[v.recordId] = (localVocabCounts[v.recordId] || 0) + 1
         })
         const merged: AnalysisRecord[] = recordResult.items.map((r) => ({
           ...r,
           isFavorited: favIds.has(r.recordId),
-          vocabCount: vocabCounts[r.recordId] || 0,
+          vocabCount: localVocabCounts[r.recordId] || 0,
         }))
         setRecords(merged)
+        lastArticleCountRef.current = totalArticleCount
         setLoading(false)
         return
       } catch {}
     }
     const allVocab = getVocabulary()
-    const vocabCounts: Record<string, number> = {}
+    const localVocabCounts: Record<string, number> = {}
     allVocab.forEach(v => {
-      if (v.recordId) vocabCounts[v.recordId] = (vocabCounts[v.recordId] || 0) + 1
+      if (v.recordId) localVocabCounts[v.recordId] = (localVocabCounts[v.recordId] || 0) + 1
     })
     const ids = getRecordIds()
     const loaded: AnalysisRecord[] = []
     for (const id of ids) {
       const record = getRecord(id)
       if (record) {
-        loaded.push({ ...record, vocabCount: vocabCounts[id] || 0 })
+        loaded.push({ ...record, vocabCount: localVocabCounts[id] || 0 })
       }
     }
     setRecords(loaded)
+    lastArticleCountRef.current = totalArticleCount
     setLoading(false)
-  }, [])
+  }, [totalArticleCount])
 
   useEffect(() => { loadRecords() }, [loadRecords])
-
-  Taro.useDidShow(() => {
-    loadRecords()
-  })
 
   // --------------------------------------------------------------------------
   // 交互逻辑
@@ -163,9 +188,13 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
             if (isLoggedIn && record?.cloudId) {
               deleteCloudRecord(record.cloudId).catch(() => {})
             }
+            // 同步更新全局 store，实现跨页面状态同步
+            useAssetsStore.getState().removeRecord(id)
           })
-          loadRecords()
+          // 增量更新本地 state，而不是全量重新加载
+          setRecords((prev) => prev.filter((r) => !selectedIds.has(r.recordId)))
           setIsEditMode(false)
+          setSelectedIds(new Set())
         }
       }
     })
@@ -214,7 +243,10 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
           if (isLoggedIn && record.cloudId) {
             deleteCloudRecord(record.cloudId).catch(() => {})
           }
-          loadRecords()
+          // 同步更新全局 store，实现跨页面状态同步
+          useAssetsStore.getState().removeRecord(record.recordId)
+          // 增量更新本地 state，而不是全量重新加载
+          setRecords((prev) => prev.filter((r) => r.recordId !== record.recordId))
         }
       },
     })
