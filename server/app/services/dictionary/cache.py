@@ -49,16 +49,17 @@ def _l1_get(word: str) -> dict[str, Any] | None:
 def _l1_set(word: str, data: dict[str, Any]) -> None:
     """写入 L1 进程内缓存"""
     with _L1_LOCK:
-        if len(_L1_CACHE) >= _L1_MAX_SIZE:
-            expired = [k for k, (_, exp) in _L1_CACHE.items() if time.time() > exp]
-            
-            if expired:
-                to_remove = expired[: _L1_MAX_SIZE // 2]
-            else:
-                to_remove = list(_L1_CACHE.keys())[: _L1_MAX_SIZE // 2]
-            
-            for k in to_remove:
-                _L1_CACHE.pop(k, None)
+        if word not in _L1_CACHE:
+            if len(_L1_CACHE) >= _L1_MAX_SIZE:
+                expired = [k for k, (_, exp) in _L1_CACHE.items() if time.time() > exp]
+                
+                if expired:
+                    to_remove = expired[: _L1_MAX_SIZE // 2]
+                else:
+                    to_remove = list(_L1_CACHE.keys())[: _L1_MAX_SIZE // 2]
+                
+                for k in to_remove:
+                    _L1_CACHE.pop(k, None)
 
         _L1_CACHE[word] = (data, time.time() + _L1_TTL_SECONDS)
 
@@ -95,7 +96,7 @@ async def _l2_get_client() -> Any:
     
     自动恢复机制：
     - 如果 RedisPool 为 None 但 redis_enabled = True，尝试重新初始化连接
-    - 如果重新初始化失败，进入故障回退期（60秒内不再尝试）
+    - 如果重新初始化失败（包括返回 None 或抛出异常），进入故障回退期（60秒内不再尝试）
     
     返回 None 表示：
     1. Redis 未启用（redis_enabled=False）
@@ -121,9 +122,13 @@ async def _l2_get_client() -> Any:
             if client is not None:
                 logger.info("Redis reinitialized successfully")
                 _l2_mark_recovered()
+            else:
+                _l2_mark_failed()
+                logger.warning("Redis reinitialization failed: init_redis() returned None")
+                return None
         except Exception as e:
             _l2_mark_failed()
-            logger.warning("Redis reinitialization failed: %s", e)
+            logger.warning("Redis reinitialization failed with exception: %s", e)
             return None
     
     return client
