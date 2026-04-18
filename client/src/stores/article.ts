@@ -17,7 +17,7 @@ import {
   RenderSceneVm,
   ResultPageState,
 } from '../types/view/render-scene.vm'
-import { saveRecord, getRecord } from '../services/storage'
+import { saveRecord, getRecord, updateVocabularyRecordId } from '../services/storage'
 import type { AnalysisRecord } from '../types/view/analysis-record.vm'
 import { track } from '../services/analytics'
 
@@ -97,6 +97,13 @@ export const useArticleStore = create<ArticleState>((set, get) => {
       pageState = 'normal'
     }
 
+    const currentRecordId = get().recordId
+    const newRecordId = cloudRecord.recordId
+
+    if (currentRecordId && currentRecordId !== newRecordId) {
+      updateVocabularyRecordId(currentRecordId, newRecordId)
+    }
+
     const localRecord: AnalysisRecord = {
       ...cloudRecord,
       pageState,
@@ -109,7 +116,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         sceneData: vm,
         phase,
         pageState,
-        recordId: cloudRecord.recordId,
+        recordId: newRecordId,
         cloudId: fallbackCloudId,
       })
     }
@@ -250,6 +257,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           ...normalizedRequest,
           wait_for_result: true,
           wait_timeout_seconds: 40,
+          client_record_id: clientRecordId,
         })
         taskId = res.task_id
         serverRecordId = res.record_id
@@ -307,6 +315,11 @@ export const useArticleStore = create<ArticleState>((set, get) => {
              }
              
              const realClientRecordId = cloudRecord.recordId
+             
+             if (clientRecordId !== realClientRecordId) {
+               updateVocabularyRecordId(clientRecordId, realClientRecordId)
+             }
+             
              const recoveryPageState = derivePageState('polling', null, null)
              set({ phase: 'polling', pageState: recoveryPageState, recordId: realClientRecordId, cloudId: serverRecordId })
              await startPolling(taskId)
@@ -366,6 +379,12 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           }
 
           const realClientRecordId = cloudRecord.recordId
+          const currentRecordId = get().recordId
+
+          if (currentRecordId && currentRecordId !== realClientRecordId) {
+            updateVocabularyRecordId(currentRecordId, realClientRecordId)
+          }
+
           set({
             recordId: realClientRecordId,
             cloudId: serverRecordId,

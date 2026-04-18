@@ -195,6 +195,8 @@ export type TaskStatus = 'queued' | 'running' | 'finalizing' | 'succeeded' | 'fa
 export interface TaskSubmitRequest extends AnalyzeRequest {
   wait_for_result?: boolean
   wait_timeout_seconds?: number
+  /** 客户端侧生成的记录ID，用于关联回本地存储的记录 */
+  client_record_id?: string
 }
 
 export interface TaskSubmitResponse {

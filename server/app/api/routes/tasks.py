@@ -123,6 +123,7 @@ async def submit_analysis_task(
             reading_variant=body.reading_variant,
             source_type=body.source_type,
             extended=body.extended,
+            client_record_id=body.client_record_id,
         )
 
         response_status = 202
