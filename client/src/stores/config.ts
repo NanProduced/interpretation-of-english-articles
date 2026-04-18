@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import Taro from '@tarojs/taro'
 import { useAuthStore } from './auth'
-import { fetchUpdateProfile } from '../services/api/client'
+import { updateProfile } from '../services/api/client'
 
 export type UserPurpose = 'exam' | 'academic' | 'daily';
 
@@ -42,7 +42,7 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
     const { purpose, level } = get()
     try {
-      await fetchUpdateProfile({
+      await updateProfile({
         settings: {
           default_reading_goal: purpose,
           default_reading_variant: level
