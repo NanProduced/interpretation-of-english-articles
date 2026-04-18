@@ -3,6 +3,11 @@
  *
  * 负责消费同步队列中的操作
  * 保证顺序执行、并发控制、错误重试
+ *
+ * 错误处理策略：
+ * - 网络错误（连接超时、网络断开等）：重试，设置 retryAt
+ * - HTTP 错误（4xx、5xx）：直接标记为 failed，不重试
+ * - 超过最大重试次数：标记为 failed
  */
 
 import type {
@@ -26,6 +31,7 @@ import {
 import { networkMonitor } from './network-monitor.service'
 import { operationMerger } from './operation-merger.service'
 import { useAuthStore } from '../../stores/auth'
+import { ApiError } from '../api/client'
 
 /**
  * 操作执行器类型
@@ -297,21 +303,9 @@ export class QueueConsumer {
       const errorMessage = error instanceof Error ? error.message : String(error)
       const newFailureCount = item.failureCount + 1
 
-      if (newFailureCount >= this.config.maxRetries) {
-        updateSyncQueueItem(item.operationId, {
-          status: 'failed',
-          failureCount: newFailureCount,
-          lastError: errorMessage,
-        })
+      const isNetworkError = this.isNetworkError() || this.isRetriableError(error)
 
-        this.emit({
-          type: 'operation_failed',
-          timestamp: Date.now(),
-          operationId: item.operationId,
-          operationType: item.operationType,
-          error: errorMessage,
-        })
-      } else {
+      if (isNetworkError && newFailureCount < this.config.maxRetries) {
         const backoffDelay = calculateBackoffDelay(newFailureCount, this.config)
         const retryAt = Date.now() + backoffDelay
 
@@ -330,6 +324,20 @@ export class QueueConsumer {
           error: errorMessage,
           retryCount: newFailureCount,
         })
+      } else {
+        updateSyncQueueItem(item.operationId, {
+          status: 'failed',
+          failureCount: newFailureCount,
+          lastError: errorMessage,
+        })
+
+        this.emit({
+          type: 'operation_failed',
+          timestamp: Date.now(),
+          operationId: item.operationId,
+          operationType: item.operationType,
+          error: errorMessage,
+        })
       }
 
       saveSyncMetadata({ currentProcessingId: undefined })
@@ -343,6 +351,18 @@ export class QueueConsumer {
    */
   private isNetworkError(): boolean {
     return !networkMonitor.isOnline()
+  }
+
+  /**
+   * 检查是否为可重试的错误
+   * 只有网络错误（NETWORK_ERROR、TIMEOUT）才应该重试
+   * HTTP 错误（4xx、5xx）不应该重试
+   */
+  private isRetriableError(error: unknown): boolean {
+    if (error instanceof ApiError) {
+      return error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT'
+    }
+    return false
   }
 
   /**

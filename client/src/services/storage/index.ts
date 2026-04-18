@@ -158,7 +158,7 @@ export function getPendingSyncQueue(): SyncQueueItem[] {
     const queue = getSyncQueue()
     const now = Date.now()
     return queue.filter((item) => {
-      if (item.status === 'completed' || item.status === 'cancelled') return false
+      if (item.status === 'completed' || item.status === 'cancelled' || item.status === 'failed') return false
       if (item.retryAt && item.retryAt > now) return false
       return true
     }).sort((a, b) => {

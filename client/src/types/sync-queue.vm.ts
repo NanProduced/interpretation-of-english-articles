@@ -1,12 +1,3 @@
-/**
- * 同步队列类型定义
- *
- * 用于实现离线优先的云端同步架构
- * 支持操作持久化、网络恢复自动同步、智能操作合并
- */
-
-import type { VocabEntry } from './view/vocabulary.vm'
-
 export type SyncOperationType =
   | 'record_upsert'
   | 'favorite_add'
@@ -35,11 +26,7 @@ export interface RecordUpsertOperationData {
   title?: string | null
   sourceText: string
   sourceTextHash: string
-  requestPayload: {
-    reading_goal: string
-    reading_variant: string
-    source_type: 'user_input'
-  }
+  requestPayload: any
   renderScene: any
   pageState: string
   userFacingState?: string | null
@@ -54,7 +41,7 @@ export interface FavoriteOperationData {
 
 export interface VocabOperationData {
   vocabId?: string
-  entry: VocabEntry
+  entry: any
   patch?: {
     mastery_status?: string
     short_meaning?: string
@@ -103,7 +90,7 @@ export const DEFAULT_SYNC_CONFIG: SyncConfig = {
   maxRetryDelay: 60000,
   backoffFactor: 2,
   batchSize: 10,
-  syncTimeout: 30000,
+  syncTimeout: 30000
 }
 
 export interface OperationMergeRule {
@@ -118,60 +105,60 @@ export const DEFAULT_MERGE_RULES: OperationMergeRule[] = [
     sourceType: 'record_upsert',
     targetType: 'record_upsert',
     resultType: 'record_upsert',
-    strategy: 'replace',
+    strategy: 'replace'
   },
   {
     sourceType: 'favorite_add',
     targetType: 'favorite_remove',
     resultType: null,
-    strategy: 'cancel',
+    strategy: 'cancel'
   },
   {
     sourceType: 'favorite_remove',
     targetType: 'favorite_add',
     resultType: 'favorite_add',
-    strategy: 'replace',
+    strategy: 'replace'
   },
   {
     sourceType: 'favorite_add',
     targetType: 'favorite_add',
     resultType: 'favorite_add',
-    strategy: 'keep_both',
+    strategy: 'keep_both'
   },
   {
     sourceType: 'favorite_remove',
     targetType: 'favorite_remove',
     resultType: 'favorite_remove',
-    strategy: 'keep_both',
+    strategy: 'keep_both'
   },
   {
     sourceType: 'vocab_add',
     targetType: 'vocab_delete',
     resultType: null,
-    strategy: 'cancel',
+    strategy: 'cancel'
   },
   {
     sourceType: 'vocab_delete',
     targetType: 'vocab_add',
     resultType: 'vocab_add',
-    strategy: 'replace',
+    strategy: 'replace'
   },
   {
     sourceType: 'vocab_update',
     targetType: 'vocab_update',
     resultType: 'vocab_update',
-    strategy: 'merge',
+    strategy: 'merge'
   },
   {
     sourceType: 'vocab_add',
     targetType: 'vocab_update',
     resultType: 'vocab_add',
-    strategy: 'merge',
-  },
+    strategy: 'merge'
+  }
 ]
 
 export function generateOperationId(): string {
-  return `op_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+  return 'op_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11)
 }
 
 export function calculateBackoffDelay(
@@ -191,7 +178,7 @@ export function isSameEntity(a: SyncEntityKey, b: SyncEntityKey): boolean {
 
 export function entityKeyToString(key: SyncEntityKey): string {
   if (key.subId) {
-    return `${key.type}:${key.id}:${key.subId}`
+    return key.type + ':' + key.id + ':' + key.subId
   }
-  return `${key.type}:${key.id}`
+  return key.type + ':' + key.id
 }
