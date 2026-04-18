@@ -6,7 +6,25 @@
  */
 
 // Client
-export { fetchAnalyze, request, type AnalyzeRequest, ApiError } from './client'
+export {
+  fetchAnalyze,
+  request,
+  fetchDict,
+  fetchDictEntry,
+  type AnalyzeRequest,
+  ApiError,
+} from './client'
 
 // Adapter
 export { analyzeResponseDtoToVm } from './adapters/render-scene.adapter'
+
+// Dictionary Cache Utilities (for debugging and cache management)
+export {
+  getDictFromCache,
+  getDictEntryFromCache,
+  setDictToCache,
+  setDictEntryToCache,
+  clearL1Cache,
+  clearL2Cache,
+  getCacheStats,
+} from './dictCache'

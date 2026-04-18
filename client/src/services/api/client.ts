@@ -9,6 +9,12 @@ import Taro from '@tarojs/taro'
 import { apiConfig, getAuthHeaders } from '../../config/api.config'
 import type { AnalyzeResponseDto } from '../../types/api/analyze-response.dto'
 import type { DictEntryResultDto, DictResponseDto } from '../../types/api/dict-response.dto'
+import {
+  getDictFromCache,
+  getDictEntryFromCache,
+  setDictToCache,
+  setDictEntryToCache,
+} from './dictCache'
 
 /** API 错误类型 */
 export class ApiError extends Error {
@@ -333,6 +339,11 @@ export async function fetchAnalyze(dto: AnalyzeRequest): Promise<AnalyzeResponse
 
 /**
  * 调用 /dict 接口查询单词或短语释义
+ * 
+ * 多级缓存架构：
+ * - L1: 内存缓存 - 同一会话内极速响应
+ * - L2: Taro.getStorage 本地持久化缓存 - 重新打开小程序后无需联网
+ * - L3: 服务端 API 请求 - 前两级失效后才触发
  */
 export async function fetchDict(
   word: string, 
@@ -340,17 +351,43 @@ export async function fetchDict(
   contextSentence?: string,
   occurrence?: number,
 ): Promise<DictResponseDto> {
+  const cached = getDictFromCache(word, type, contextSentence, occurrence)
+  if (cached) {
+    return cached
+  }
+
   let url = `/dict?q=${encodeURIComponent(word)}&type=${type}`
   if (contextSentence) url += `&context_sentence=${encodeURIComponent(contextSentence)}`
   if (occurrence) url += `&occurrence=${occurrence}`
 
-  return request<DictResponseDto>({
+  const result = await request<DictResponseDto>({
     url,
   })
+
+  setDictToCache(word, type, result, contextSentence, occurrence)
+
+  return result
 }
 
+/**
+ * 调用 /dict/entry 接口查询词条详情
+ * 
+ * 多级缓存架构：
+ * - L1: 内存缓存
+ * - L2: Taro.getStorage 本地持久化缓存
+ * - L3: 服务端 API 请求
+ */
 export async function fetchDictEntry(entryId: number): Promise<DictEntryResultDto> {
-  return request<DictEntryResultDto>({
+  const cached = getDictEntryFromCache(entryId)
+  if (cached) {
+    return cached
+  }
+
+  const result = await request<DictEntryResultDto>({
     url: `/dict/entry?id=${entryId}`,
   })
+
+  setDictEntryToCache(entryId, result)
+
+  return result
 }
