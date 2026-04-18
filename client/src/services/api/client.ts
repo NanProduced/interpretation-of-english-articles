@@ -156,8 +156,8 @@ interface UpdateProfileRequest {
   settings?: Record<string, any>
 }
 
-/** 更新用户资料 */
-export async function fetchUpdateProfile(data: UpdateProfileRequest): Promise<{ ok: boolean }> {
+/** 更新用户资料（昵称、头像、设置） */
+export async function updateProfile(data: UpdateProfileRequest): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>({
     url: '/auth/profile',
     method: 'PATCH',
@@ -174,19 +174,8 @@ export async function fetchSessionLogout(sessionToken: string): Promise<void> {
   })
 }
 
-interface ProfileUpdateRequest {
-  nickname?: string
-  avatar_url?: string
-}
-
-/** 更新用户资料（昵称、头像） */
-export async function updateProfile(data: ProfileUpdateRequest): Promise<{ ok: boolean }> {
-  return request<{ ok: boolean }>({
-    url: '/auth/profile',
-    method: 'PATCH',
-    data,
-  })
-}
+/** 更新用户资料 - 与 updateProfile 功能相同，保持兼容性 */
+export const fetchUpdateProfile = updateProfile
 
 // ============ /analysis-tasks API ============
 
