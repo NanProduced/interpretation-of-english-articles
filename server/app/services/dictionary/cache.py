@@ -51,7 +51,13 @@ def _l1_set(word: str, data: dict[str, Any]) -> None:
     with _L1_LOCK:
         if len(_L1_CACHE) >= _L1_MAX_SIZE:
             expired = [k for k, (_, exp) in _L1_CACHE.items() if time.time() > exp]
-            for k in expired[: _L1_MAX_SIZE // 2]:
+            
+            if expired:
+                to_remove = expired[: _L1_MAX_SIZE // 2]
+            else:
+                to_remove = list(_L1_CACHE.keys())[: _L1_MAX_SIZE // 2]
+            
+            for k in to_remove:
                 _L1_CACHE.pop(k, None)
 
         _L1_CACHE[word] = (data, time.time() + _L1_TTL_SECONDS)
@@ -87,11 +93,17 @@ async def _l2_get_client() -> Any:
     """
     获取 Redis 客户端（使用项目全局连接池）。
     
+    自动恢复机制：
+    - 如果 RedisPool 为 None 但 redis_enabled = True，尝试重新初始化连接
+    - 如果重新初始化失败，进入故障回退期（60秒内不再尝试）
+    
     返回 None 表示：
     1. Redis 未启用（redis_enabled=False）
-    2. Redis 连接池未初始化（启动时连接失败）
+    2. Redis 连接池未初始化且重新初始化失败
     3. 处于故障回退期（最近操作失败，暂时不再尝试）
     """
+    from app.database.connection import init_redis
+    
     settings = get_settings()
     
     if not settings.redis_enabled:
@@ -100,7 +112,21 @@ async def _l2_get_client() -> Any:
     if _l2_should_skip():
         return None
     
-    return await get_redis()
+    client = await get_redis()
+    
+    if client is None:
+        logger.info("RedisPool is None, attempting to reinitialize...")
+        try:
+            client = await init_redis(settings.redis_url, enabled=True)
+            if client is not None:
+                logger.info("Redis reinitialized successfully")
+                _l2_mark_recovered()
+        except Exception as e:
+            _l2_mark_failed()
+            logger.warning("Redis reinitialization failed: %s", e)
+            return None
+    
+    return client
 
 
 async def _l2_get_async(word: str) -> dict[str, Any] | None:
