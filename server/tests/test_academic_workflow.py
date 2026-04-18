@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.workflow
+
 from app.schemas.common import TextSpan
 from app.schemas.internal.academic_drafts import (
     AcademicSentenceTranslation,

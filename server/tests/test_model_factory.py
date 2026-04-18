@@ -1,5 +1,9 @@
 import json
 
+import pytest
+
+pytestmark = pytest.mark.infra
+
 from app.config.settings import Settings
 from app.llm.router import ModelSelectionError, resolve_model_config
 from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION

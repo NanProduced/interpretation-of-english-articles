@@ -23,6 +23,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
+pytestmark = [pytest.mark.tasks, pytest.mark.infra]
+
 if "asyncpg" not in sys.modules:
     asyncpg_stub = types.ModuleType("asyncpg")
     asyncpg_stub.Pool = object

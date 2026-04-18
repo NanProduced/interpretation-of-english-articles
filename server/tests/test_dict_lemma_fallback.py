@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+pytestmark = pytest.mark.dict
+
 from app.services.dictionary.lemma import get_lemma_candidates
 
 

@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.infra
+
 from fastapi.testclient import TestClient
 from app.main import app
 from app.api.routes import health

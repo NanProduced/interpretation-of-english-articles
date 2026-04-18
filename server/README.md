@@ -227,3 +227,49 @@ v3 的目标形态将拆分为：
 - 教学型结构化输出
 - 本地锚点解析与前端渲染契约生成
 - LangSmith 可观测性与后续增强能力扩展
+
+## 测试分组运行
+
+后端测试已按功能主题分组，可通过 marker 选择性运行：
+
+```bash
+# 运行所有测试
+uv run pytest
+
+# 按主题分组运行
+uv run pytest -m dict       # 词典服务相关测试
+uv run pytest -m auth       # 认证相关测试
+uv run pytest -m tasks      # 任务中心与积分系统测试
+uv run pytest -m workflow   # 工作流引擎测试
+uv run pytest -m schema     # 数据模型与Schema验证测试
+uv run pytest -m postprocess # 后处理阶段测试
+uv run pytest -m prompt     # Prompt策略与组合测试
+uv run pytest -m infra      # 基础设施测试
+uv run pytest -m regression # 回归测试
+
+# 组合运行多个分组
+uv run pytest -m "dict or workflow"
+
+# 排除特定分组
+uv run pytest -m "not regression"
+
+# 检查无标记测试（防漏机制）
+uv run pytest -m unmarked
+uv run pytest --enforce-markers  # 严格模式：无标记测试会导致退出
+```
+
+### Marker 说明
+
+| Marker | 覆盖范围 | 测试文件数 |
+|--------|----------|------------|
+| `dict` | TECD3词典、lemma fallback、查询优化、API代理、数据导入 | 5 |
+| `auth` | 微信登录、会话管理、认证路由 | 2 |
+| `tasks` | 任务提交、配额管理、worker状态、启动恢复 | 1 |
+| `workflow` | 主分析流程、学术阅读流程、预处理流程 | 3 |
+| `schema` | Pydantic模型、业务规则验证 | 2 |
+| `postprocess` | normalize_and_ground、锚点解析、渲染投影 | 2 |
+| `prompt` | prompt_composer、prompt_strategy、agent prompts | 1 |
+| `infra` | 健康检查、模型配置路由、LangSmith可观测性 | 3 |
+| `regression` | 回归测试专用 | 1 |
+
+> 注意：新增测试文件必须添加至少一个主题 marker，否则会被防漏机制标记为 `unmarked`。

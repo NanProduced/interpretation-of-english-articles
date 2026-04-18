@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.postprocess
+
 from app.schemas.internal.analysis import (
     Chunk,
     ContextGloss,

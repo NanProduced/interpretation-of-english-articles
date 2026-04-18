@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.workflow
+
 from app.schemas.common import TextSpan
 from app.schemas.internal.analysis import PreparedSentence
 from app.services.analysis.postprocess.anchor_resolution import resolve_text_anchor

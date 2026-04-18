@@ -8,6 +8,8 @@ from uuid import UUID
 
 import pytest
 
+pytestmark = pytest.mark.auth
+
 from app.services.auth.session import (
     create_session,
     get_or_create_user_by_wechat,

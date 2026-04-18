@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.schema
+
 from app.schemas.analysis import AnalyzeRequest, RenderSceneModel
 
 

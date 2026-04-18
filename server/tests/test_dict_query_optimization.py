@@ -16,6 +16,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+pytestmark = pytest.mark.dict
+
 from app.services.dictionary.providers.tecd3 import Tecd3Provider
 from app.services.dictionary.schemas import DictionaryLookupRequest
 

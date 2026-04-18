@@ -1,6 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
+pytestmark = pytest.mark.schema
+
 from app.schemas.internal.analysis import (
     Chunk,
     ContextGloss,
