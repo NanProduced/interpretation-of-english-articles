@@ -78,8 +78,8 @@ function _l1Set(key: string, data: DictResponseDto | DictEntryResultDto): void {
       const entryB = _l1Cache[b]
       if (!entryA || !entryB) return 0
 
-      const scoreA = entryA.accessCount * 1000 + (now - entryA.accessedAt)
-      const scoreB = entryB.accessCount * 1000 + (now - entryB.accessedAt)
+      const scoreA = entryA.accessCount * 1000 - (now - entryA.accessedAt)
+      const scoreB = entryB.accessCount * 1000 - (now - entryB.accessedAt)
       return scoreA - scoreB
     })
 

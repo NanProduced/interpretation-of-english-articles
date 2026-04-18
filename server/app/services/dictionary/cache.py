@@ -3,22 +3,22 @@ TECD3 词典查询缓存。
 
 多级缓存架构：
 - L1: 进程内内存缓存（_L1_CACHE）- 极高频并发过滤
-- L2: Redis 缓存 - 分布式缓存，跨实例共享
+- L2: Redis 缓存 - 分布式缓存，跨实例共享（使用项目全局 RedisPool）
 - L3: PostgreSQL - 最终源
 
 故障降级：Redis 不可用时自动切换到 L1 + PostgreSQL 模式，不中断业务。
+运行时故障保护：Redis 操作失败后 60 秒内不再尝试，避免每次请求都等待超时。
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import time
-from dataclasses import dataclass, field
 from threading import Lock
 from typing import Any
 
 from app.config.settings import get_settings
+from app.database.connection import get_redis
 
 logger = logging.getLogger("app.cache")
 
@@ -28,55 +28,10 @@ _L1_TTL_SECONDS = 60 * 60 * 24  # 24 hours
 _L1_MAX_SIZE = 1000
 _L1_LOCK = Lock()
 
-# Redis 连接状态管理
-@dataclass
-class RedisState:
-    client: Any = None
-    initialized: bool = False
-    last_failure_time: float = 0
-    failure_backoff_seconds: int = 60
-    lock: Lock = field(default_factory=Lock)
-
-
-_REDIS_STATE = RedisState()
-
-
-def _get_redis_client() -> Any:
-    """
-    获取 Redis 客户端（延迟初始化 + 故障降级）。
-    
-    返回 None 表示 Redis 不可用，调用方应降级到 L1 + PostgreSQL。
-    """
-    settings = get_settings()
-    
-    if not settings.redis_enabled:
-        return None
-    
-    with _REDIS_STATE.lock:
-        if _REDIS_STATE.client is not None and _REDIS_STATE.initialized:
-            return _REDIS_STATE.client
-        
-        if time.time() - _REDIS_STATE.last_failure_time < _REDIS_STATE.failure_backoff_seconds:
-            return None
-        
-        try:
-            import redis.asyncio as redis
-            _REDIS_STATE.client = redis.from_url(
-                settings.redis_url,
-                decode_responses=False,
-                socket_connect_timeout=2,
-                socket_timeout=2,
-                retry_on_timeout=False,
-            )
-            _REDIS_STATE.initialized = True
-            logger.info("Redis cache initialized successfully")
-            return _REDIS_STATE.client
-        except Exception as e:
-            _REDIS_STATE.last_failure_time = time.time()
-            _REDIS_STATE.client = None
-            _REDIS_STATE.initialized = False
-            logger.warning("Redis connection failed, falling back to L1 cache only: %s", e)
-            return None
+# Redis 故障回退状态管理（不管理连接，只管理故障回退）
+_L2_FAILURE_LOCK = Lock()
+_L2_LAST_FAILURE_TIME: float = 0
+_L2_FAILURE_BACKOFF_SECONDS: int = 60
 
 
 def _l1_get(word: str) -> dict[str, Any] | None:
@@ -102,14 +57,55 @@ def _l1_set(word: str, data: dict[str, Any]) -> None:
         _L1_CACHE[word] = (data, time.time() + _L1_TTL_SECONDS)
 
 
-def _l2_get(word: str) -> dict[str, Any] | None:
-    """L2 Redis 缓存查询（异步版本）"""
-    return None
+def _l2_should_skip() -> bool:
+    """检查是否应该跳过 Redis 操作（故障回退期间）"""
+    with _L2_FAILURE_LOCK:
+        return time.time() - _L2_LAST_FAILURE_TIME < _L2_FAILURE_BACKOFF_SECONDS
+
+
+def _l2_mark_failed() -> None:
+    """标记 Redis 操作失败，进入故障回退期"""
+    global _L2_LAST_FAILURE_TIME
+    with _L2_FAILURE_LOCK:
+        _L2_LAST_FAILURE_TIME = time.time()
+    logger.warning(
+        "Redis operation failed, entering backoff period (%ds)",
+        _L2_FAILURE_BACKOFF_SECONDS,
+    )
+
+
+def _l2_mark_recovered() -> None:
+    """标记 Redis 恢复正常"""
+    global _L2_LAST_FAILURE_TIME
+    with _L2_FAILURE_LOCK:
+        if _L2_LAST_FAILURE_TIME > 0:
+            _L2_LAST_FAILURE_TIME = 0
+            logger.info("Redis operation succeeded, backoff period ended")
+
+
+async def _l2_get_client() -> Any:
+    """
+    获取 Redis 客户端（使用项目全局连接池）。
+    
+    返回 None 表示：
+    1. Redis 未启用（redis_enabled=False）
+    2. Redis 连接池未初始化（启动时连接失败）
+    3. 处于故障回退期（最近操作失败，暂时不再尝试）
+    """
+    settings = get_settings()
+    
+    if not settings.redis_enabled:
+        return None
+    
+    if _l2_should_skip():
+        return None
+    
+    return await get_redis()
 
 
 async def _l2_get_async(word: str) -> dict[str, Any] | None:
-    """L2 Redis 缓存查询（异步版本）"""
-    client = _get_redis_client()
+    """L2 Redis 缓存查询（使用项目全局连接池）"""
+    client = await _l2_get_client()
     if client is None:
         return None
     
@@ -118,26 +114,24 @@ async def _l2_get_async(word: str) -> dict[str, Any] | None:
         data_bytes = await client.get(f"dict:{word}")
         if data_bytes is None:
             return None
-        data = orjson.loads(data_bytes)
+        
+        if isinstance(data_bytes, bytes):
+            data = orjson.loads(data_bytes)
+        else:
+            data = orjson.loads(data_bytes.encode("utf-8"))
+        
+        _l2_mark_recovered()
         logger.debug("L2 Redis cache hit: %s", word)
         return data
     except Exception as e:
-        with _REDIS_STATE.lock:
-            _REDIS_STATE.last_failure_time = time.time()
-            _REDIS_STATE.client = None
-            _REDIS_STATE.initialized = False
-        logger.warning("Redis GET failed, marking as unavailable for %ds: %s", _REDIS_STATE.failure_backoff_seconds, e)
+        _l2_mark_failed()
+        logger.warning("Redis GET failed: %s", e)
         return None
 
 
-def _l2_set(word: str, data: dict[str, Any]) -> None:
-    """L2 Redis 缓存写入（异步版本）"""
-    pass
-
-
 async def _l2_set_async(word: str, data: dict[str, Any]) -> None:
-    """L2 Redis 缓存写入（异步版本）"""
-    client = _get_redis_client()
+    """L2 Redis 缓存写入（使用项目全局连接池）"""
+    client = await _l2_get_client()
     if client is None:
         return
     
@@ -147,13 +141,11 @@ async def _l2_set_async(word: str, data: dict[str, Any]) -> None:
         settings = get_settings()
         ttl = getattr(settings, "redis_cache_ttl", _L1_TTL_SECONDS)
         await client.setex(f"dict:{word}", ttl, data_bytes)
+        _l2_mark_recovered()
         logger.debug("L2 Redis cache set: %s", word)
     except Exception as e:
-        with _REDIS_STATE.lock:
-            _REDIS_STATE.last_failure_time = time.time()
-            _REDIS_STATE.client = None
-            _REDIS_STATE.initialized = False
-        logger.warning("Redis SET failed, marking as unavailable for %ds: %s", _REDIS_STATE.failure_backoff_seconds, e)
+        _l2_mark_failed()
+        logger.warning("Redis SET failed: %s", e)
 
 
 def get(word: str) -> dict[str, Any] | None:
@@ -216,15 +208,17 @@ def clear_l1() -> None:
 
 async def clear_l2() -> None:
     """清空 L2 Redis 缓存（用于测试或调试）"""
-    client = _get_redis_client()
+    client = await _l2_get_client()
     if client is None:
         return
     try:
         keys = await client.keys("dict:*")
         if keys:
             await client.delete(*keys)
+        _l2_mark_recovered()
         logger.info("L2 cache cleared, %d keys deleted", len(keys))
     except Exception as e:
+        _l2_mark_failed()
         logger.warning("Redis clear failed: %s", e)
 
 
@@ -234,6 +228,9 @@ def get_cache_stats() -> dict[str, Any]:
     with _L1_LOCK:
         l1_size = len(_L1_CACHE)
     
+    with _L2_FAILURE_LOCK:
+        in_backoff = time.time() - _L2_LAST_FAILURE_TIME < _L2_FAILURE_BACKOFF_SECONDS
+    
     return {
         "l1": {
             "size": l1_size,
@@ -242,8 +239,8 @@ def get_cache_stats() -> dict[str, Any]:
         },
         "l2": {
             "enabled": settings.redis_enabled,
-            "connected": _REDIS_STATE.client is not None and _REDIS_STATE.initialized,
-            "last_failure_time": _REDIS_STATE.last_failure_time,
-            "failure_backoff_seconds": _REDIS_STATE.failure_backoff_seconds,
+            "in_backoff": in_backoff,
+            "last_failure_time": _L2_LAST_FAILURE_TIME,
+            "failure_backoff_seconds": _L2_FAILURE_BACKOFF_SECONDS,
         },
     }
