@@ -10,6 +10,7 @@ import Taro from '@tarojs/taro'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useConfigStore } from '../../stores/config'
 import { useAuthStore } from '../../stores/auth'
+import { useAssetsStore } from '../../stores/assets'
 import { ensureLoggedIn } from '../../services/auth'
 import { getAllRecords, getVocabulary } from '../../services/storage'
 import { fetchCloudRecords } from '../../services/api/records.client'
@@ -33,6 +34,10 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const { purpose, level, setPurpose, setLevel } = useConfigStore()
   const { navBarHeight } = useLayoutStore()
   const { isLoggedIn, userInfo, logout, fetchUserInfo, updateUserInfo } = useAuthStore()
+  // 从全局 store 订阅需要实时更新的统计数据
+  const storeArticleCount = useAssetsStore((s) => s.totalArticleCount)
+  const storeWordCount = useAssetsStore((s) => s.totalVocabCount)
+  
   const [articleCount, setArticleCount] = useState(0)
   const [wordCount, setWordCount] = useState(0)
   const [quota, setQuota] = useState<{ remaining: number, dailyFree: number, bonus: number } | null>(null)
@@ -44,6 +49,8 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const tier = getReadingTier(articleCount)
   // 昵称更新防抖定时器
   const nicknameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 用于检测是否需要从云端刷新
+  const hasLoadedFromCloudRef = useRef(false)
 
   /**
    * 加载统计数据。
@@ -57,14 +64,17 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           fetchUserQuota().catch(() => null),
         ])
         
+        let cloudArticleCount = 0
         if (userInfo?.cumulativeArticleCount !== undefined) {
-          setArticleCount(userInfo.cumulativeArticleCount)
+          cloudArticleCount = userInfo.cumulativeArticleCount
         } else {
           const recordResult = await fetchCloudRecords(1, 1).catch(() => ({ total: 0 }))
-          setArticleCount(recordResult.total)
+          cloudArticleCount = recordResult.total
         }
 
+        setArticleCount(cloudArticleCount)
         setWordCount(vocabResult.total)
+        hasLoadedFromCloudRef.current = true
         if (quotaResult) {
           setQuota({ 
             remaining: quotaResult.remaining_points, 
@@ -73,20 +83,26 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           })
         }
       } catch {
-        const records = getAllRecords()
-        setArticleCount(records.length)
-        const vocab = getVocabulary()
-        setWordCount(vocab.length)
+        // 云端失败时，使用本地 store 中的值
+        setArticleCount(storeArticleCount)
+        setWordCount(storeWordCount)
       }
     } else {
-      const records = getAllRecords()
-      setArticleCount(records.length)
-      const vocab = getVocabulary()
-      setWordCount(vocab.length)
+      // 未登录用户，使用本地 store 中的值
+      setArticleCount(storeArticleCount)
+      setWordCount(storeWordCount)
       setQuota(null)
     }
     setLoadingStats(false)
-  }, [isLoggedIn, userInfo])
+  }, [isLoggedIn, userInfo, storeArticleCount, storeWordCount])
+
+  // 当全局 store 中的值变化时，更新显示（实现本地操作的实时同步）
+  useEffect(() => {
+    if (!isLoggedIn || !hasLoadedFromCloudRef.current) {
+      setArticleCount(storeArticleCount)
+      setWordCount(storeWordCount)
+    }
+  }, [storeArticleCount, storeWordCount, isLoggedIn])
 
   useEffect(() => {
     loadStats()
@@ -97,10 +113,6 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       fetchUserInfo()
     }
   }, [isLoggedIn])
-
-  Taro.useDidShow(() => {
-    loadStats()
-  })
 
   const handleLogin = async () => {
     ;(Taro as any)._navigatingToOnboarding = true
