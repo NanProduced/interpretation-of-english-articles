@@ -23,7 +23,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-pytestmark = [pytest.mark.tasks, pytest.mark.infra]
+pytestmark = pytest.mark.tasks
 
 if "asyncpg" not in sys.modules:
     asyncpg_stub = types.ModuleType("asyncpg")
@@ -750,6 +750,7 @@ class TestWorkerLoop:
         launch_mock.assert_called_once()
 
 
+@pytest.mark.infra
 class TestHealthRoutes:
     """Health endpoints should reflect DB + worker readiness."""
 
