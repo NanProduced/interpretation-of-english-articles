@@ -122,8 +122,11 @@ async def _l2_get_async(word: str) -> dict[str, Any] | None:
         logger.debug("L2 Redis cache hit: %s", word)
         return data
     except Exception as e:
-        _REDIS_STATE.last_failure_time = time.time()
-        logger.warning("Redis GET failed, marking as unavailable: %s", e)
+        with _REDIS_STATE.lock:
+            _REDIS_STATE.last_failure_time = time.time()
+            _REDIS_STATE.client = None
+            _REDIS_STATE.initialized = False
+        logger.warning("Redis GET failed, marking as unavailable for %ds: %s", _REDIS_STATE.failure_backoff_seconds, e)
         return None
 
 
@@ -146,8 +149,11 @@ async def _l2_set_async(word: str, data: dict[str, Any]) -> None:
         await client.setex(f"dict:{word}", ttl, data_bytes)
         logger.debug("L2 Redis cache set: %s", word)
     except Exception as e:
-        _REDIS_STATE.last_failure_time = time.time()
-        logger.warning("Redis SET failed, marking as unavailable: %s", e)
+        with _REDIS_STATE.lock:
+            _REDIS_STATE.last_failure_time = time.time()
+            _REDIS_STATE.client = None
+            _REDIS_STATE.initialized = False
+        logger.warning("Redis SET failed, marking as unavailable for %ds: %s", _REDIS_STATE.failure_backoff_seconds, e)
 
 
 def get(word: str) -> dict[str, Any] | None:
