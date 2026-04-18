@@ -216,6 +216,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                       maxlength={20}
                       onBlur={onNicknameChange}
                       onConfirm={onNicknameChange}
+                      onChange={onNicknameChange}
                     />
                     <View className='edit-icon-box' aria-label='修改昵称'>
                       <LucideIcon name='pencil' size={24} color='currentColor' />
