@@ -19,6 +19,7 @@ async def upsert_vocabulary(
     display_word: str,
     short_meaning: str,
     analysis_record_id: UUID | None,
+    client_record_id: str | None,
     phonetic: str | None,
     part_of_speech: str | None,
     meanings_json: list[dict[str, Any]],
@@ -47,10 +48,10 @@ async def upsert_vocabulary(
             INSERT INTO vocabulary_book (
                 user_id, lemma, display_word, phonetic, part_of_speech,
                 short_meaning, meanings_json, tags, exchange, source_provider,
-                analysis_record_id, source_sentence, source_context,
+                analysis_record_id, client_record_id, source_sentence, source_context,
                 mastery_status, payload_json, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $17)
             ON CONFLICT (user_id, LOWER(lemma)) DO UPDATE SET
                 display_word      = EXCLUDED.display_word,
                 phonetic          = EXCLUDED.phonetic,
@@ -61,10 +62,11 @@ async def upsert_vocabulary(
                 exchange          = EXCLUDED.exchange,
                 source_provider   = EXCLUDED.source_provider,
                 analysis_record_id = EXCLUDED.analysis_record_id,
+                client_record_id  = EXCLUDED.client_record_id,
                 source_sentence   = EXCLUDED.source_sentence,
                 source_context     = EXCLUDED.source_context,
                 payload_json      = EXCLUDED.payload_json,
-                updated_at        = $16
+                updated_at        = $17
             WHERE vocabulary_book.user_id = $1
             RETURNING id, updated_at,
                 (xmax = 0) AS created
@@ -80,6 +82,7 @@ async def upsert_vocabulary(
             exchange,
             source_provider,
             analysis_record_id,
+            client_record_id,
             source_sentence,
             source_context,
             mastery_status,
@@ -114,7 +117,7 @@ async def list_vocabulary(
                 """
                 SELECT id, user_id, lemma, display_word, phonetic, part_of_speech,
                        short_meaning, meanings_json, tags, exchange, source_provider,
-                       analysis_record_id, source_sentence, source_context,
+                       analysis_record_id, client_record_id, source_sentence, source_context,
                        mastery_status, review_count, last_reviewed_at,
                        payload_json, created_at, updated_at
                 FROM vocabulary_book
@@ -137,7 +140,7 @@ async def list_vocabulary(
                 """
                 SELECT id, user_id, lemma, display_word, phonetic, part_of_speech,
                        short_meaning, meanings_json, tags, exchange, source_provider,
-                       analysis_record_id, source_sentence, source_context,
+                       analysis_record_id, client_record_id, source_sentence, source_context,
                        mastery_status, review_count, last_reviewed_at,
                        payload_json, created_at, updated_at
                 FROM vocabulary_book
@@ -171,7 +174,7 @@ async def get_vocabulary_by_id(
             """
             SELECT id, user_id, lemma, display_word, phonetic, part_of_speech,
                    short_meaning, meanings_json, tags, exchange, source_provider,
-                   analysis_record_id, source_sentence, source_context,
+                   analysis_record_id, client_record_id, source_sentence, source_context,
                    mastery_status, review_count, last_reviewed_at,
                    payload_json, created_at, updated_at
             FROM vocabulary_book
@@ -221,7 +224,7 @@ async def update_vocabulary(
             WHERE id = ${len(values)} AND user_id = ${len(values) + 1}
             RETURNING id, user_id, lemma, display_word, phonetic, part_of_speech,
                       short_meaning, meanings_json, tags, exchange, source_provider,
-                      analysis_record_id, source_sentence, source_context,
+                      analysis_record_id, client_record_id, source_sentence, source_context,
                       mastery_status, review_count, last_reviewed_at,
                       payload_json, created_at, updated_at
             """,

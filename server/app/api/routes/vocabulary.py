@@ -39,6 +39,7 @@ async def add_vocabulary(
             display_word=body.display_word,
             short_meaning=body.short_meaning,
             analysis_record_id=body.analysis_record_id,
+            client_record_id=body.client_id,
             phonetic=body.phonetic,
             part_of_speech=body.part_of_speech,
             meanings_json=body.meanings_json,
