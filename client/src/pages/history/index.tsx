@@ -111,6 +111,10 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
 
   useEffect(() => { loadRecords() }, [loadRecords])
 
+  Taro.useDidShow(() => {
+    loadRecords()
+  })
+
   // --------------------------------------------------------------------------
   // 交互逻辑
   // --------------------------------------------------------------------------

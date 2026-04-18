@@ -98,6 +98,10 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     }
   }, [isLoggedIn])
 
+  Taro.useDidShow(() => {
+    loadStats()
+  })
+
   const handleLogin = async () => {
     ;(Taro as any)._navigatingToOnboarding = true
     const result = await ensureLoggedIn()

@@ -83,6 +83,10 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     loadVocab()
   }, [loadVocab])
 
+  Taro.useDidShow(() => {
+    loadVocab()
+  })
+
   // 下拉刷新
   useEffect(() => {
     if (isSubView) return
