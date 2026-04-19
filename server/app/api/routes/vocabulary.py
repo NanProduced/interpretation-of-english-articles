@@ -61,11 +61,12 @@ async def add_vocabulary(
 
 
 @router.get("", response_model=VocabularyListResponse)
-async def list_vocabulary(
+async def get_vocabulary_list(
     current_user: AuthUserDep,
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=50, ge=1, le=100),
     mastery_status: str | None = Query(default=None),
+    lite: bool = Query(default=False, description="是否仅返回轻量字段用于列表展示"),
 ) -> VocabularyListResponse:
     """List vocabulary entries for the current user."""
     try:
@@ -74,6 +75,7 @@ async def list_vocabulary(
             page=page,
             limit=limit,
             mastery_status=mastery_status,
+            lite=lite,
         )
         return VocabularyListResponse(
             items=[VocabularyResponse(**row) for row in items],

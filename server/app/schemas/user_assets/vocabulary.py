@@ -60,18 +60,18 @@ class VocabularyResponse(BaseModel):
     phonetic: str | None
     part_of_speech: str | None
     short_meaning: str
-    meanings_json: list[dict[str, Any]]
+    meanings_json: list[dict[str, Any]] | None = Field(default=None)
     tags: list[str]
     exchange: list[str]
     source_provider: str
     analysis_record_id: UUID | None
     client_record_id: str | None = None
-    source_sentence: str | None
-    source_context: str | None
+    source_sentence: str | None = Field(default=None)
+    source_context: str | None = Field(default=None)
     mastery_status: str
     review_count: int
     last_reviewed_at: datetime | None
-    payload_json: dict[str, Any]
+    payload_json: dict[str, Any] | None = Field(default=None)
     created_at: datetime
     updated_at: datetime
 

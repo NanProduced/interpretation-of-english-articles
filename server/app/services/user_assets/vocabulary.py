@@ -95,6 +95,7 @@ async def list_vocabulary(
     page: int = 1,
     limit: int = 50,
     mastery_status: str | None = None,
+    lite: bool = False,
 ) -> tuple[list[dict], int]:
     """
     List vocabulary entries for a user with optional filtering.
@@ -109,12 +110,17 @@ async def list_vocabulary(
     offset = (page - 1) * limit
 
     async with pool.acquire() as conn:
-        base_query = """
-            SELECT v.id, v.user_id, v.lemma, v.display_word, v.phonetic, v.part_of_speech,
-                   v.short_meaning, v.meanings_json, v.tags, v.exchange, v.source_provider,
-                   v.analysis_record_id, r.client_record_id, v.source_sentence, v.source_context,
-                   v.mastery_status, v.review_count, v.last_reviewed_at,
-                   v.payload_json, v.created_at, v.updated_at
+        fields = """
+            v.id, v.user_id, v.lemma, v.display_word, v.phonetic, v.part_of_speech,
+            v.short_meaning, v.tags, v.exchange, v.source_provider,
+            v.analysis_record_id, r.client_record_id, v.mastery_status, v.review_count, v.last_reviewed_at,
+            v.created_at, v.updated_at
+        """
+        if not lite:
+            fields += ", v.meanings_json, v.source_sentence, v.source_context, v.payload_json"
+
+        base_query = f"""
+            SELECT {fields}
             FROM vocabulary_book v
             LEFT JOIN analysis_records r ON v.analysis_record_id = r.id
             WHERE v.user_id = $1

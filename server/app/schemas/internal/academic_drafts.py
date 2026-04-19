@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Literal
+import json
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.internal.analysis import BASE_MODEL_CONFIG
 
@@ -196,6 +197,20 @@ class ContentSummary(BaseModel):
 
 class UnderstandingDraft(BaseModel):
     model_config = BASE_MODEL_CONFIG
+
+    @model_validator(mode='before')
+    @classmethod
+    def _coerce_json_string_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        for key in ('content_summary',):
+            val = data.get(key)
+            if isinstance(val, str):
+                try:
+                    data[key] = json.loads(val)
+                except (json.JSONDecodeError, ValueError):
+                    data[key] = None
+        return data
 
     logic_notes: list[LogicNote] = Field(
         default_factory=list,

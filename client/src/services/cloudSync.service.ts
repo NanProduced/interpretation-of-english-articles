@@ -42,20 +42,49 @@ function hashString(str: string): string {
 // CloudSyncService
 // ---------------------------------------------------------------------------
 
-/** 尝试从本地或后端找回云端 UUID */
+const resolveCloudIdCache = new Map<string, Promise<string | null>>()
+
+/** 尝试从本地或后端找回云端 UUID (带并发去重) */
 async function resolveCloudId(clientRecordId: string): Promise<string | null> {
-  // 1. 先看本地有没有内存中的新值（虽然 store 可能没更新完，但 storage 里可能有了）
+  // 1. 先看本地有没有内存中的新值
   const local = getRecord(clientRecordId)
   if (local?.cloudId) return local.cloudId
 
-  // 2. 本地没有，尝试从后端 Lookup
-  try {
-    const cloudRecord = await fetchCloudRecordByClientId(clientRecordId)
-    if (cloudRecord?.cloudId) return cloudRecord.cloudId
-  } catch {
-    // 忽略 Lookup 失败
+  if (resolveCloudIdCache.has(clientRecordId)) {
+    return resolveCloudIdCache.get(clientRecordId)!
   }
-  return null
+
+  const promise = (async () => {
+    try {
+      const cloudRecord = await fetchCloudRecordByClientId(clientRecordId)
+      if (cloudRecord?.cloudId) return cloudRecord.cloudId
+    } catch {
+      // 忽略 Lookup 失败
+    } finally {
+      // 一定时间后清理缓存，允许重试
+      setTimeout(() => resolveCloudIdCache.delete(clientRecordId), 5000)
+    }
+    return null
+  })()
+
+  resolveCloudIdCache.set(clientRecordId, promise)
+  return promise
+}
+
+// 简单队列机制，保证针对同一目标的云端同步请求有序执行
+const syncQueues = new Map<string, Promise<void>>()
+
+function enqueueSync(queueKey: string, task: () => Promise<void>): Promise<void> {
+  const prev = syncQueues.get(queueKey) || Promise.resolve()
+  const next = prev.then(task).catch(task) // 即便前一个失败，继续执行后一个
+  syncQueues.set(queueKey, next)
+  // 清理完成的队列
+  next.finally(() => {
+    if (syncQueues.get(queueKey) === next) {
+      syncQueues.delete(queueKey)
+    }
+  })
+  return next
 }
 
 export const CloudSyncService = {
@@ -94,25 +123,27 @@ export const CloudSyncService = {
   async syncFavorite(cloudId: string | undefined, clientRecordId: string, action: 'add' | 'remove'): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
     
-    let resolvedId = cloudId
-    if (!resolvedId) {
-      resolvedId = (await resolveCloudId(clientRecordId)) || undefined
-    }
-
-    if (!resolvedId) {
-      console.warn('[cloudSync] syncFavorite skipped: missing cloudId even after resolve', clientRecordId)
-      return
-    }
-
-    try {
-      if (action === 'add') {
-        await addFavoriteToCloud(resolvedId, clientRecordId)
-      } else {
-        await removeFavoriteFromCloud(resolvedId)
+    return enqueueSync(`fav_${clientRecordId}`, async () => {
+      let resolvedId = cloudId
+      if (!resolvedId) {
+        resolvedId = (await resolveCloudId(clientRecordId)) || undefined
       }
-    } catch (err) {
-      console.warn('[cloudSync] syncFavorite failed', clientRecordId, action, err)
-    }
+
+      if (!resolvedId) {
+        console.warn('[cloudSync] syncFavorite skipped: missing cloudId even after resolve', clientRecordId)
+        return
+      }
+
+      try {
+        if (action === 'add') {
+          await addFavoriteToCloud(resolvedId, clientRecordId)
+        } else {
+          await removeFavoriteFromCloud(resolvedId)
+        }
+      } catch (err) {
+        console.warn('[cloudSync] syncFavorite failed', clientRecordId, action, err)
+      }
+    })
   },
 
   /**
@@ -121,33 +152,38 @@ export const CloudSyncService = {
   async syncVocab(entry: VocabEntry): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
     
-    let resolvedRecordId = entry.cloudRecordId
-    if (!resolvedRecordId && entry.recordId) {
-      resolvedRecordId = (await resolveCloudId(entry.recordId)) || undefined
-    }
-
-    if (!resolvedRecordId) {
-       console.warn('[cloudSync] syncVocab skipped: missing cloudRecordId for word', entry.word)
-       return
-    }
-
-    try {
-      // 这里的 entry 是 clone 的或者是最新的，确保带上 resolvedRecordId
-      const res = await addVocabToCloud({ ...entry, cloudRecordId: resolvedRecordId })
-      
-      // 同步成功后，用云端返回的真正 UUID 替换本地的临时 ID，确保后续删除/更新操作能对准
-      if (res.id && res.id !== entry.id) {
-        const { getVocabulary, removeVocabEntry, saveVocabEntry } = await import('./storage')
-        const currentVocab = getVocabulary()
-        const target = currentVocab.find(v => v.id === entry.id)
-        if (target) {
-          removeVocabEntry(entry.id)
-          saveVocabEntry({ ...target, id: res.id })
-        }
+    // 使用 lemma 或 word 作为去重队列 key，保证同一个词的同步是有序的
+    const queueKey = `vocab_${entry.recordId}_${entry.lemma || entry.word}`
+    
+    return enqueueSync(queueKey, async () => {
+      let resolvedRecordId = entry.cloudRecordId
+      if (!resolvedRecordId && entry.recordId) {
+        resolvedRecordId = (await resolveCloudId(entry.recordId)) || undefined
       }
-    } catch (err) {
-      console.warn('[cloudSync] syncVocab failed', entry.word, err)
-    }
+
+      if (!resolvedRecordId) {
+         console.warn('[cloudSync] syncVocab skipped: missing cloudRecordId for word', entry.word)
+         return
+      }
+
+      try {
+        // 这里的 entry 是 clone 的或者是最新的，确保带上 resolvedRecordId
+        const res = await addVocabToCloud({ ...entry, cloudRecordId: resolvedRecordId })
+        
+        // 同步成功后，用云端返回的真正 UUID 替换本地的临时 ID，确保后续删除/更新操作能对准
+        if (res.id && res.id !== entry.id) {
+          const { getVocabulary, removeVocabEntry, saveVocabEntry } = await import('./storage')
+          const currentVocab = getVocabulary()
+          const target = currentVocab.find(v => v.id === entry.id)
+          if (target) {
+            removeVocabEntry(entry.id)
+            saveVocabEntry({ ...target, id: res.id })
+          }
+        }
+      } catch (err) {
+        console.warn('[cloudSync] syncVocab failed', entry.word, err)
+      }
+    })
   },
 
   /**

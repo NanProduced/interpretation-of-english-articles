@@ -5,7 +5,7 @@
  * 需要认证，自动附带 Authorization header
  */
 
-import { request } from './client'
+import { request, ApiError } from './client'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
 import type { AnalyzeRequest } from './client'
 import { analyzeResponseDtoToVm, vmToAnalyzeResponseDto } from './adapters/render-scene.adapter'
@@ -191,7 +191,7 @@ export async function fetchCloudRecord(recordId: string): Promise<AnalysisRecord
     })
     return dtoToVm(res)
   } catch (err: unknown) {
-    if ((err as any)?.statusCode === 404) return null
+    if (err instanceof ApiError && err.statusCode === 404) return null
     throw err
   }
 }
@@ -206,7 +206,7 @@ export async function fetchCloudRecordByClientId(clientRecordId: string): Promis
     })
     return dtoToVm(res)
   } catch (err: unknown) {
-    if ((err as any)?.statusCode === 404) return null
+    if (err instanceof ApiError && err.statusCode === 404) return null
     throw err
   }
 }

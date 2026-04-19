@@ -20,18 +20,18 @@ interface VocabularyResponseDto {
   phonetic: string | null
   part_of_speech: string | null
   short_meaning: string
-  meanings_json: Array<Record<string, unknown>>
+  meanings_json?: Array<Record<string, unknown>>
   tags: string[]
   exchange: string[]
   source_provider: string
   analysis_record_id: string | null
   client_record_id: string | null
-  source_sentence: string | null
-  source_context: string | null
+  source_sentence?: string | null
+  source_context?: string | null
   mastery_status: string
   review_count: number
   last_reviewed_at: string | null
-  payload_json: Record<string, unknown>
+  payload_json?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -92,7 +92,7 @@ export async function fetchCloudVocabulary(
   limit = 50,
   masteryStatus?: string
 ): Promise<{ items: VocabEntry[]; total: number }> {
-  let url = `/vocabulary?page=${page}&limit=${limit}`
+  let url = `/vocabulary?page=${page}&limit=${limit}&lite=true`
   if (masteryStatus) url += `&mastery_status=${masteryStatus}`
   const res = await request<VocabularyListDto>({ url })
   return {

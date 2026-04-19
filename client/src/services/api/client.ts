@@ -51,11 +51,20 @@ interface RequestOptions {
   timeout?: number
 }
 
+let isRefreshing = false
+let refreshSubscribers: ((success: boolean) => void)[] = []
+
+function onRefreshed(success: boolean) {
+  refreshSubscribers.forEach((cb) => cb(success))
+  refreshSubscribers = []
+}
+
 /**
  * 统一请求方法
  * - 自动添加 baseURL
  * - 自动注入认证头
  * - 统一错误处理
+ * - 自动拦截 401 并触发重新登录重试
  */
 export async function request<T>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, headers = {}, timeout = apiConfig.timeout } = options
@@ -75,6 +84,37 @@ export async function request<T>(options: RequestOptions): Promise<T> {
     })
 
     const { statusCode, data: responseData } = response
+
+    // 拦截 401 未授权
+    if (statusCode === 401 && !fullUrl.includes('/auth/wechat/login')) {
+      if (!isRefreshing) {
+        isRefreshing = true
+        // 使用动态 import 避免与 auth.ts 的循环依赖
+        import('../auth')
+          .then(({ ensureLoggedIn }) => ensureLoggedIn(true))
+          .then((res) => {
+            isRefreshing = false
+            onRefreshed(res.success)
+          })
+          .catch(() => {
+            isRefreshing = false
+            onRefreshed(false)
+          })
+      }
+
+      // 将当前请求挂起，等待登录完成
+      return new Promise<T>((resolve, reject) => {
+        refreshSubscribers.push((success: boolean) => {
+          if (success) {
+            // 登录成功，带上新的 header 重试
+            request<T>(options).then(resolve).catch(reject)
+          } else {
+            // 登录失败或取消，抛出原始 401 错误
+            reject(new ApiError('请先登录', 'UNAUTHORIZED', 401, responseData))
+          }
+        })
+      })
+    }
 
     if (statusCode >= 400) {
       throw new ApiError(
@@ -150,14 +190,14 @@ export async function fetchSessionUser(): Promise<SessionUserResponse> {
   })
 }
 
-interface UpdateProfileRequest {
+export interface UpdateProfileRequest {
   nickname?: string
   avatar_url?: string
   settings?: Record<string, any>
 }
 
-/** 更新用户资料 */
-export async function fetchUpdateProfile(data: UpdateProfileRequest): Promise<{ ok: boolean }> {
+/** 更新用户资料（昵称、头像、设置等） */
+export async function updateProfile(data: UpdateProfileRequest): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>({
     url: '/auth/profile',
     method: 'PATCH',
@@ -171,20 +211,6 @@ export async function fetchSessionLogout(sessionToken: string): Promise<void> {
     url: '/auth/session/logout',
     method: 'POST',
     data: { session_token: sessionToken },
-  })
-}
-
-interface ProfileUpdateRequest {
-  nickname?: string
-  avatar_url?: string
-}
-
-/** 更新用户资料（昵称、头像） */
-export async function updateProfile(data: ProfileUpdateRequest): Promise<{ ok: boolean }> {
-  return request<{ ok: boolean }>({
-    url: '/auth/profile',
-    method: 'PATCH',
-    data,
   })
 }
 
