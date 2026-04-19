@@ -16,7 +16,7 @@ import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry
 import { CloudSyncService } from '../../services/cloudSync.service'
 import { track } from '../../services/analytics'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
-import type { VocabEntry } from '../../types/view/vocabulary.vm'
+import type { VocabEntry, SaveVocabResult } from '../../types/view/vocabulary.vm'
 import { getSafeDisplayLabel, ReadingGoal, SERVER_GOAL_TO_UI_GOAL, getApiParams } from '../../config/purpose'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
 import './index.scss'
@@ -132,14 +132,19 @@ export default function Result() {
     }
   }, [loadRecord])
 
-  // === 加载生词本：提取当前文章的单词列表 ===
+  // === 加载生词本：提取当前文章关联的单词列表（含 lemma 和 collectedForms） ===
   useEffect(() => {
     if (!recordId) return
     const all = getVocabulary()
     const words = all
-      .filter((v: { recordId: string }) => v.recordId === recordId)
-      .map((v: { word: string }) => v.word.toLowerCase())
-    setVocabList(words)
+      .filter((v) => v.sourceRefs?.some(r => r.clientRecordId === recordId) || false)
+      .flatMap((v) => {
+        const forms = [v.word.toLowerCase()]
+        if (v.lemma) forms.push(v.lemma.toLowerCase())
+        if (v.collectedForms) forms.push(...v.collectedForms.map(f => f.toLowerCase()))
+        return forms
+      })
+    setVocabList([...new Set(words)])
   }, [recordId])
 
   Taro.useDidShow(() => {
@@ -594,16 +599,16 @@ export default function Result() {
             ?.map((d) => d.meaning)
             .filter(Boolean)
             .join('；') || ''
+          const lemma = detailEntry.baseWord ?? detailEntry.word
           const vocabEntry: VocabEntry = {
-            id: `${recordId}_${w}_${Date.now()}`,
-            recordId,
-            cloudRecordId: cloudId || undefined,
+            id: `${recordId}_${lemma.toLowerCase()}_${Date.now()}`,
+            lemma,
             word: w,
             partOfSpeech: detailMeanings[0]?.partOfSpeech || '',
             meaning: derivedMeaning.slice(0, 200),
             addedAt: Date.now(),
             mastered: false,
-            lemma: detailEntry.baseWord ?? detailEntry.word,
+            dictEntryId: detailEntry.id,
             phonetic: detailEntry.phonetic,
             provider: dictResult.provider || 'tecd3',
             sentence: wordPopup.contextSentence,
@@ -613,16 +618,41 @@ export default function Result() {
             })).filter(m => m.definitions.length > 0),
             exchange: detailEntry.exchange || [],
             tags: detailEntry.tags || [],
+            sourceRefs: [{
+              clientRecordId: recordId,
+              cloudRecordId: cloudId || undefined,
+              sourceSentence: wordPopup.contextSentence || undefined,
+              sourceAnchorText: w,
+              sourceOccurrence: wordPopup.occurrence,
+              collectedAt: new Date().toISOString(),
+            }],
           }
-          saveVocabEntry(vocabEntry)
+          const result: SaveVocabResult = saveVocabEntry(vocabEntry)
+          if (result.merged) {
+            Taro.showToast({
+              title: `${w} 已添加到 ${lemma}（第 ${result.totalSourceCount} 个语境）`,
+              icon: 'none',
+              duration: 2000,
+            })
+          } else {
+            Taro.showToast({ title: `${w} 已记入生词本`, icon: 'success' })
+          }
           const allVocabAfter = getVocabulary()
           const wordsAfter = allVocabAfter
-            .filter((v) => v.recordId === recordId)
-            .map((v) => v.word.toLowerCase())
-          setVocabList(wordsAfter)
-          track('add_vocab', { word: w })
+            .filter((v) => {
+              const vLemma = (v.lemma || v.word).toLowerCase()
+              return v.sourceRefs?.some(r => r.clientRecordId === recordId) || false
+            })
+            .flatMap((v) => {
+              const forms = [v.word.toLowerCase()]
+              if (v.lemma) forms.push(v.lemma.toLowerCase())
+              if (v.collectedForms) forms.push(...v.collectedForms.map(f => f.toLowerCase()))
+              return forms
+            })
+          setVocabList([...new Set(wordsAfter)])
+          track('add_vocab', { word: w, merged: result.merged })
 
-          CloudSyncService.syncVocab(vocabEntry)
+          CloudSyncService.syncVocab(result.entry)
         }}
         onFavorite={(w) => { track('favorite_word', { word: w }) }}
       />

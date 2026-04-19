@@ -14,7 +14,7 @@
 import Taro from '@tarojs/taro'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
-import type { VocabEntry } from '../../types/view/vocabulary.vm'
+import type { VocabEntry, SourceRef, SaveVocabResult } from '../../types/view/vocabulary.vm'
 import type { AnalyzeRequest } from '../api'
 import type { AnyRenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
 
@@ -197,6 +197,8 @@ export function isFavorited(recordId: string): boolean {
 
 // ============ Vocabulary ============
 
+const SOURCE_REFS_MAX = 20
+
 export function getVocabulary(): VocabEntry[] {
   try {
     const raw = Taro.getStorageSync<VocabEntry[]>(KEYS.VOCABULARY)
@@ -207,24 +209,98 @@ export function getVocabulary(): VocabEntry[] {
   }
 }
 
-export function saveVocabEntry(entry: VocabEntry): void {
+/**
+ * 保存生词条目，以 lemma 为唯一键去重。
+ *
+ * - 同 lemma 已存在时：合并 sourceRefs + collectedForms，更新词条信息
+ * - 同 lemma 不存在时：新增条目
+ * - 返回 SaveVocabResult 用于 toast 反馈
+ */
+export function saveVocabEntry(entry: VocabEntry): SaveVocabResult {
   try {
     const vocab = getVocabulary()
-    /**
-     * 去重策略：统一用 lemma（如果有）加 recordId 来判断，
-     * 如果没有 lemma 则用 word（统一小写）加 recordId。
-     * 确保同一篇文章中同一 lemma 的词不会重复。
-     */
-    const entryKey = (entry.lemma || entry.word).toLowerCase()
-    const exists = vocab.some((v) => {
+    const entryLemma = (entry.lemma || entry.word).toLowerCase()
+    const existingIdx = vocab.findIndex((v) => {
       const vKey = (v.lemma || v.word).toLowerCase()
-      return vKey === entryKey && v.recordId === entry.recordId
+      return vKey === entryLemma && !v.tombstone
     })
-    if (exists) return
-    Taro.setStorageSync(KEYS.VOCABULARY, [entry, ...vocab])
+
+    if (existingIdx > -1) {
+      const existing = vocab[existingIdx]
+      const mergedRefs = mergeSourceRefs(existing.sourceRefs || [], entry.sourceRefs || [])
+      const mergedForms = mergeCollectedForms(existing.collectedForms || [], entry.word)
+      const merged: VocabEntry = {
+        ...existing,
+        word: entry.word,
+        partOfSpeech: entry.partOfSpeech || existing.partOfSpeech,
+        meaning: entry.meaning || existing.meaning,
+        detailMeanings: entry.detailMeanings || existing.detailMeanings,
+        phonetic: entry.phonetic || existing.phonetic,
+        tags: entry.tags || existing.tags,
+        exchange: entry.exchange || existing.exchange,
+        dictEntryId: entry.dictEntryId ?? existing.dictEntryId,
+        sentence: entry.sentence ?? existing.sentence,
+        context: entry.context ?? existing.context,
+        sourceRefs: mergedRefs,
+        collectedForms: mergedForms,
+        audioUrl: entry.audioUrl || existing.audioUrl,
+        addedAt: existing.addedAt,
+      }
+      vocab[existingIdx] = merged
+      Taro.setStorageSync(KEYS.VOCABULARY, vocab)
+      return {
+        entry: merged,
+        merged: true,
+        totalSourceCount: mergedRefs.length,
+      }
+    }
+
+    const newEntry: VocabEntry = {
+      ...entry,
+      sourceRefs: entry.sourceRefs || [],
+      collectedForms: entry.collectedForms || (entry.word ? [entry.word] : []),
+    }
+    Taro.setStorageSync(KEYS.VOCABULARY, [newEntry, ...vocab])
+    return {
+      entry: newEntry,
+      merged: false,
+      totalSourceCount: newEntry.sourceRefs?.length || 0,
+    }
   } catch (e) {
     console.error('[storage] saveVocabEntry failed', e)
+    return { entry, merged: false, totalSourceCount: 0 }
   }
+}
+
+function mergeSourceRefs(
+  existing: SourceRef[],
+  incoming: SourceRef[]
+): SourceRef[] {
+  const map = new Map<string, SourceRef>()
+  for (const ref of existing) {
+    const key = `${ref.clientRecordId}|${ref.sourceSentenceId || ''}`
+    map.set(key, ref)
+  }
+  for (const ref of incoming) {
+    const key = `${ref.clientRecordId}|${ref.sourceSentenceId || ''}`
+    if (!map.has(key)) {
+      map.set(key, ref)
+    }
+  }
+  const all = Array.from(map.values())
+  if (all.length > SOURCE_REFS_MAX) {
+    return all.slice(-SOURCE_REFS_MAX)
+  }
+  return all
+}
+
+function mergeCollectedForms(existing: string[], incomingWord: string): string[] {
+  const set = new Set(existing.map(f => f.toLowerCase()))
+  const result = [...existing]
+  if (incomingWord && !set.has(incomingWord.toLowerCase())) {
+    result.push(incomingWord)
+  }
+  return result
 }
 
 export function removeVocabEntry(id: string): void {

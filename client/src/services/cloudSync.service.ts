@@ -245,22 +245,28 @@ async function executeUpsertVocab(item: SyncQueueItem): Promise<void> {
   const { vocabEntry } = item.payload as { vocabEntry: VocabEntry }
   const entry = vocabEntry
 
-  let resolvedRecordId = entry.cloudRecordId
-  if (!resolvedRecordId && entry.recordId) {
-    resolvedRecordId = (await resolveCloudId(entry.recordId)) || undefined
+  const primaryRef = entry.sourceRefs?.[0]
+  let resolvedRecordId = primaryRef?.cloudRecordId
+  if (!resolvedRecordId && primaryRef?.clientRecordId) {
+    resolvedRecordId = (await resolveCloudId(primaryRef.clientRecordId)) || undefined
   }
   if (!resolvedRecordId) {
     throw new Error(`Cannot resolve cloudRecordId for vocab upsert: ${entry.word}`)
   }
 
-  const res = await addVocabToCloud({ ...entry, cloudRecordId: resolvedRecordId })
+  const syncedRefs = (entry.sourceRefs || []).map(ref => ({
+    ...ref,
+    cloudRecordId: ref.cloudRecordId || resolvedRecordId,
+  }))
+
+  const res = await addVocabToCloud({ ...entry, sourceRefs: syncedRefs })
 
   if (res.id && res.id !== entry.id) {
     const currentVocab = getVocabulary()
     const target = currentVocab.find(v => v.id === entry.id)
     if (target) {
       removeVocabEntry(entry.id)
-      saveVocabEntry({ ...target, id: res.id, cloudRecordId: resolvedRecordId, syncState: 'synced' })
+      saveVocabEntry({ ...target, id: res.id, sourceRefs: syncedRefs, syncState: 'synced' })
     }
   } else {
     updateVocabEntry(entry.id, { syncState: 'synced' })

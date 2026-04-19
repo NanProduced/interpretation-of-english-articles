@@ -2,15 +2,74 @@
 Vocabulary Book Service.
 
 Handles CRUD operations for vocabulary_book table.
+Upsert merges source_refs and collected_forms on conflict instead of overwriting.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import json
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from app.database import connection as db_connection
+from app.schemas.user_assets.vocabulary import VocabularyPayload
+
+SOURCE_REFS_MAX = 20
+
+
+def _merge_payload_on_conflict(
+    existing_payload: dict[str, Any],
+    incoming_payload: dict[str, Any],
+    incoming_display_word: str,
+) -> dict[str, Any]:
+    """
+    合并 payload_json：追加 source_refs 和 collected_forms，保留已有扩展字段。
+
+    - source_refs: 追加 incoming 中的新条目，去重按 client_record_id + source_sentence_id，
+      上限 SOURCE_REFS_MAX 条，超出时保留最近条目
+    - collected_forms: 追加 incoming_display_word（去重）
+    - audio_url: 保留已有值，不覆盖
+    - 其他字段: 保留已有值
+    """
+    existing = (
+        VocabularyPayload.model_validate(existing_payload)
+        if existing_payload
+        else VocabularyPayload()
+    )
+    incoming = (
+        VocabularyPayload.model_validate(incoming_payload)
+        if incoming_payload
+        else VocabularyPayload()
+    )
+
+    existing_refs_map: dict[str, dict] = {}
+    for ref in existing.source_refs:
+        key = f"{ref.client_record_id}|{ref.source_sentence_id or ''}"
+        existing_refs_map[key] = ref.model_dump(exclude_none=True)
+
+    for ref in incoming.source_refs:
+        key = f"{ref.client_record_id}|{ref.source_sentence_id or ''}"
+        if key not in existing_refs_map:
+            existing_refs_map[key] = ref.model_dump(exclude_none=True)
+
+    all_refs = list(existing_refs_map.values())
+    if len(all_refs) > SOURCE_REFS_MAX:
+        all_refs = all_refs[-SOURCE_REFS_MAX:]
+
+    collected = list(dict.fromkeys(existing.collected_forms + incoming.collected_forms))
+    if incoming_display_word and incoming_display_word.lower() not in [
+        f.lower() for f in collected
+    ]:
+        collected.append(incoming_display_word)
+
+    merged = existing.model_dump(exclude_none=True)
+    merged["source_refs"] = all_refs
+    merged["collected_forms"] = collected
+    if incoming.audio_url and not existing.audio_url:
+        merged["audio_url"] = incoming.audio_url
+
+    return merged
 
 
 async def upsert_vocabulary(
@@ -18,7 +77,7 @@ async def upsert_vocabulary(
     lemma: str,
     display_word: str,
     short_meaning: str,
-    analysis_record_id: UUID | None,
+    dict_entry_id: int | None,
     phonetic: str | None,
     part_of_speech: str | None,
     meanings_json: list[dict[str, Any]],
@@ -33,6 +92,12 @@ async def upsert_vocabulary(
     """
     Upsert a vocabulary entry (by user_id + lemma).
 
+    On conflict (same user + lemma):
+    - source_refs / collected_forms are MERGED (appended, not overwritten)
+    - meanings_json / tags / exchange / short_meaning are updated to latest
+    - source_sentence / source_context are updated to latest (most recent context)
+    - dict_entry_id is updated if provided
+
     Returns:
         (id, created, updated_at)
     """
@@ -41,13 +106,38 @@ async def upsert_vocabulary(
         raise RuntimeError("Database pool not initialized")
 
     async with pool.acquire() as conn:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
+
+        existing_row = await conn.fetchrow(
+            """
+            SELECT payload_json
+            FROM vocabulary_book
+            WHERE user_id = $1 AND LOWER(lemma) = LOWER($2)
+            """,
+            user_id,
+            lemma,
+        )
+
+        if existing_row:
+            existing_payload = (
+                dict(existing_row["payload_json"])
+                if existing_row["payload_json"]
+                else {}
+            )
+            merged_payload = _merge_payload_on_conflict(
+                existing_payload=existing_payload,
+                incoming_payload=payload_json,
+                incoming_display_word=display_word,
+            )
+        else:
+            merged_payload = payload_json
+
         row = await conn.fetchrow(
             """
             INSERT INTO vocabulary_book (
                 user_id, lemma, display_word, phonetic, part_of_speech,
                 short_meaning, meanings_json, tags, exchange, source_provider,
-                analysis_record_id, source_sentence, source_context,
+                dict_entry_id, source_sentence, source_context,
                 mastery_status, payload_json, created_at, updated_at
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
@@ -60,9 +150,9 @@ async def upsert_vocabulary(
                 tags              = EXCLUDED.tags,
                 exchange          = EXCLUDED.exchange,
                 source_provider   = EXCLUDED.source_provider,
-                analysis_record_id = EXCLUDED.analysis_record_id,
+                dict_entry_id     = COALESCE(EXCLUDED.dict_entry_id, vocabulary_book.dict_entry_id),
                 source_sentence   = EXCLUDED.source_sentence,
-                source_context     = EXCLUDED.source_context,
+                source_context    = EXCLUDED.source_context,
                 payload_json      = EXCLUDED.payload_json,
                 updated_at        = $16
             WHERE vocabulary_book.user_id = $1
@@ -75,15 +165,15 @@ async def upsert_vocabulary(
             phonetic,
             part_of_speech,
             short_meaning,
-            meanings_json,
+            json.dumps(meanings_json),
             tags,
             exchange,
             source_provider,
-            analysis_record_id,
+            dict_entry_id,
             source_sentence,
             source_context,
             mastery_status,
-            payload_json,
+            json.dumps(merged_payload),
             now,
         )
         assert row is not None
@@ -113,7 +203,7 @@ async def list_vocabulary(
         fields = """
             v.id, v.user_id, v.lemma, v.display_word, v.phonetic, v.part_of_speech,
             v.short_meaning, v.tags, v.exchange, v.source_provider,
-            v.analysis_record_id, r.client_record_id, v.mastery_status, v.review_count, v.last_reviewed_at,
+            v.dict_entry_id, v.mastery_status, v.review_count, v.last_reviewed_at,
             v.created_at, v.updated_at
         """
         if not lite:
@@ -122,12 +212,13 @@ async def list_vocabulary(
         base_query = f"""
             SELECT {fields}
             FROM vocabulary_book v
-            LEFT JOIN analysis_records r ON v.analysis_record_id = r.id
             WHERE v.user_id = $1
         """
         if mastery_status:
             rows = await conn.fetch(
-                base_query + " AND v.mastery_status = $4 ORDER BY v.created_at DESC LIMIT $2 OFFSET $3",
+                base_query
+                + " AND v.mastery_status = $4"
+                + " ORDER BY v.created_at DESC LIMIT $2 OFFSET $3",
                 user_id,
                 limit,
                 offset,
@@ -167,11 +258,10 @@ async def get_vocabulary_by_id(
             """
             SELECT v.id, v.user_id, v.lemma, v.display_word, v.phonetic, v.part_of_speech,
                    v.short_meaning, v.meanings_json, v.tags, v.exchange, v.source_provider,
-                   v.analysis_record_id, r.client_record_id, v.source_sentence, v.source_context,
+                   v.dict_entry_id, v.source_sentence, v.source_context,
                    v.mastery_status, v.review_count, v.last_reviewed_at,
                    v.payload_json, v.created_at, v.updated_at
             FROM vocabulary_book v
-            LEFT JOIN analysis_records r ON v.analysis_record_id = r.id
             WHERE v.id = $1 AND v.user_id = $2
             """,
             vocab_id,
@@ -194,7 +284,7 @@ async def update_vocabulary(
     if pool is None:
         raise RuntimeError("Database pool not initialized")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     updates: dict[str, Any] = {"updated_at": now}
     if mastery_status is not None:
         updates["mastery_status"] = mastery_status
@@ -202,9 +292,9 @@ async def update_vocabulary(
     if short_meaning is not None:
         updates["short_meaning"] = short_meaning
     if payload_json is not None:
-        updates["payload_json"] = payload_json
+        updates["payload_json"] = json.dumps(payload_json)
 
-    if len(updates) == 1:  # only updated_at
+    if len(updates) == 1:
         return await get_vocabulary_by_id(user_id, vocab_id)
 
     set_clause = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates))

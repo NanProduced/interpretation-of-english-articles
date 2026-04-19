@@ -68,6 +68,23 @@
           margin-top: 8rpx;
         }
 
+        .source-count-badge {
+          flex-shrink: 0;
+          font-size: 18rpx;
+          background-color: rgba(var(--color-primary-rgb), 0.08);
+          color: var(--color-primary);
+          padding: 4rpx 12rpx;
+          border-radius: 8rpx;
+          font-weight: 600;
+          margin-top: 8rpx;
+        }
+
+        .card-header-right {
+          display: flex;
+          align-items: flex-start;
+          gap: 8rpx;
+        }
+
         .delete-btn {
           flex-shrink: 0;
           width: 60rpx;
@@ -123,6 +140,14 @@
             font-style: italic;
             border-left: 4rpx solid #e2e8f0;
             padding-left: 16rpx;
+          }
+
+          .more-context {
+            font-size: 22rpx;
+            color: var(--color-primary);
+            display: block;
+            margin-top: 8rpx;
+            font-weight: 500;
           }
         }
       }

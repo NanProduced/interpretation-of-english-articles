@@ -2,14 +2,14 @@
  * 生词本页面
  *
  * 展示用户收藏的单词列表，支持云端同步。
- * 点击单词可跳转回原文记录。
+ * 点击单词弹出详情视图。
  */
 
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthStore } from '../../stores/auth'
-import { getVocabulary, removeVocabEntry, getRecord, updateVocabEntry } from '../../services/storage'
+import { getVocabulary, removeVocabEntry, updateVocabEntry } from '../../services/storage'
 import { CloudSyncService } from '../../services/cloudSync.service'
 import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
@@ -25,7 +25,6 @@ interface VocabPageProps {
   isSubView?: boolean
 }
 
-/** 格式化日期 */
 function formatDate(timestamp: number): string {
   const now = Date.now()
   const diff = now - timestamp
@@ -68,14 +67,11 @@ function mergeVocabCloudWithLocal(cloudItems: VocabEntry[], localItems: VocabEnt
     }
 
     if (local.tombstone) continue
-
     if (local.pendingOp === 'delete') continue
-
     if (local.pendingOp === 'create' || local.pendingOp === 'update') {
       result.push(local)
       continue
     }
-
     if (local.syncState === 'local_only') {
       result.push(local)
       continue
@@ -102,7 +98,6 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const { navBarHeight } = useLayoutStore()
   const loadVocabRef = useRef<() => Promise<void>>()
 
-  /** 加载生词本：云端优先，merge 本地 pending mutation */
   const loadVocab = useCallback(async () => {
     setLoading(true)
     const { isLoggedIn } = useAuthStore.getState()
@@ -118,11 +113,10 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
         setLoading(false)
         return
       } catch {
-        // 云端读取失败，降级到本地
+        // fallback to local
       }
     }
 
-    // 本地兜底
     const local = getVocabulary()
     setVocabList(local)
     track('view_vocab', { count: local.length, source: 'local' })
@@ -133,14 +127,12 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     loadVocabRef.current = loadVocab
   }, [loadVocab])
 
-  // 启动时加载
   useEffect(() => {
     loadVocab()
   }, [loadVocab])
 
   useDidShow(loadVocab)
 
-  // 下拉刷新
   useEffect(() => {
     if (isSubView) return
     const handler = () => {
@@ -152,16 +144,15 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     ;(page as any).onPullDownRefresh(handler)
   }, [isSubView])
 
-  /** 跳转回原文记录 */
-  const goToResult = (recordId: string, e?: any) => {
+  const goToResult = (recordId: string, sentenceId?: string, e?: any) => {
     if (e) e.stopPropagation()
     if (!recordId) return
-    Taro.navigateTo({ url: `/pages/result/index?recordId=${recordId}&mode=replay` })
-    // 如果是从弹窗跳走，顺便关闭弹窗
+    let url = `/pages/result/index?recordId=${recordId}&mode=replay`
+    if (sentenceId) url += `&sentenceId=${sentenceId}`
+    Taro.navigateTo({ url })
     if (popupEntry) setPopupEntry(null)
   }
 
-  /** 删除生词 */
   const handleDelete = (entry: VocabEntry, e: any) => {
     e.stopPropagation()
     Taro.showModal({
@@ -180,20 +171,19 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     })
   }
 
-  /** 切换掌握状态 */
   const handleToggleMastery = (entry: VocabEntry) => {
     const newMastered = !entry.mastered
     const newStatus = newMastered ? 'mastered' : 'learning'
-    
+
     updateVocabEntry(entry.id, { mastered: newMastered })
-    
+
     setVocabList(prev => prev.map(v => v.id === entry.id ? { ...v, mastered: newMastered } : v))
     if (popupEntry && popupEntry.id === entry.id) {
       setPopupEntry({ ...popupEntry, mastered: newMastered })
     }
 
     CloudSyncService.syncVocabMastery(entry.id, newStatus, entry.lemma || entry.word)
-    
+
     Taro.showToast({ title: newMastered ? '已标记掌握' : '已取消掌握', icon: 'success' })
   }
 
@@ -219,64 +209,76 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
             </View>
           </View>
         ) : (
-          vocabList.map((entry, index) => (
-            <View
-              key={entry.id}
-              className='vocab-card'
-              style={{ 
-                animation: `slideInUp 0.6s var(--ease-spring) both`,
-                animationDelay: `${index * 0.05}s`
-              }}
-              onClick={() => setPopupEntry(entry)}
-            >
-              <View className='card-header'>
-                <View className='word-group'>
-                  <Text className='word-text'>{entry.word}</Text>
-                  {entry.phonetic && (
-                    <Text className='phonetic-text'>/{entry.phonetic}/</Text>
+          vocabList.map((entry, index) => {
+            const sourceCount = entry.sourceRefs?.length || 0
+            const primaryRef = entry.sourceRefs?.[0]
+
+            return (
+              <View
+                key={entry.id}
+                className='vocab-card'
+                style={{
+                  animation: `slideInUp 0.6s var(--ease-spring) both`,
+                  animationDelay: `${index * 0.05}s`
+                }}
+                onClick={() => setPopupEntry(entry)}
+              >
+                <View className='card-header'>
+                  <View className='word-group'>
+                    <Text className='word-text'>{entry.word}</Text>
+                    {entry.phonetic && (
+                      <Text className='phonetic-text'>/{entry.phonetic}/</Text>
+                    )}
+                  </View>
+                  <View className='card-header-right'>
+                    {sourceCount > 1 && (
+                      <Text className='source-count-badge'>{sourceCount} 篇</Text>
+                    )}
+                    {entry.mastered && (
+                      <Text className='mastered-tag'>已掌握</Text>
+                    )}
+                    <View
+                      className='delete-btn'
+                      onClick={(e) => handleDelete(entry, e)}
+                    >
+                      <LucideIcon name='trash2' size={18} color='var(--text-muted)' />
+                    </View>
+                  </View>
+                </View>
+                <View className='card-body'>
+                  <View className='meaning-row'>
+                    {entry.partOfSpeech && (
+                      <Text className='pos-tag'>{entry.partOfSpeech}</Text>
+                    )}
+                    <Text className='meaning-text'>{entry.meaning}</Text>
+                  </View>
+                  {(primaryRef?.sourceSentence || entry.sentence) && (
+                    <View className='context-box'>
+                      <Text className='context-text'>"{primaryRef?.sourceSentence || entry.sentence}"</Text>
+                      {sourceCount > 1 && (
+                        <Text className='more-context'>还有 {sourceCount - 1} 个语境</Text>
+                      )}
+                    </View>
                   )}
                 </View>
-                {entry.mastered && (
-                  <Text className='mastered-tag'>已掌握</Text>
-                )}
-                <View
-                  className='delete-btn'
-                  onClick={(e) => handleDelete(entry, e)}
-                >
-                  <LucideIcon name='trash2' size={18} color='var(--text-muted)' />
-                </View>
-              </View>
-              <View className='card-body'>
-                <View className='meaning-row'>
-                  {entry.partOfSpeech && (
-                    <Text className='pos-tag'>{entry.partOfSpeech}</Text>
+                <View className='card-footer'>
+                  <Text className='date-text'>收藏于 {formatDate(entry.addedAt)}</Text>
+                  {primaryRef?.clientRecordId && (
+                    <View className='source-link' onClick={(e) => goToResult(primaryRef.clientRecordId, primaryRef.sourceSentenceId, e)}>
+                      <Text>查看原文</Text>
+                      <LucideIcon name='chevronRight' size={14} color='currentColor' />
+                    </View>
                   )}
-                  <Text className='meaning-text'>{entry.meaning}</Text>
                 </View>
-                {entry.sentence && (
-                  <View className='context-box'>
-                    <Text className='context-text'>"{entry.sentence}"</Text>
-                  </View>
-                )}
               </View>
-              <View className='card-footer'>
-                <Text className='date-text'>收藏于 {formatDate(entry.addedAt)}</Text>
-                {entry.recordId && (
-                  <View className='source-link' onClick={(e) => goToResult(entry.recordId, e)}>
-                    <Text>查看原文</Text>
-                    <LucideIcon name='chevronRight' size={14} color='currentColor' />
-                  </View>
-                )}
-              </View>
-            </View>
-          ))
+            )
+          })
         )}
         <View style={{ height: '160rpx' }} />
       </ScrollView>
 
       {!isSubView && <TabBar current='profile' />}
 
-      {/* 沉浸式单词详情页 */}
       <VocabDetailView
         visible={!!popupEntry}
         entry={popupEntry}

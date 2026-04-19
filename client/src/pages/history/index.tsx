@@ -80,7 +80,9 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
         const allVocab = getVocabulary()
         const vocabCounts: Record<string, number> = {}
         allVocab.forEach(v => {
-          if (v.recordId) vocabCounts[v.recordId] = (vocabCounts[v.recordId] || 0) + 1
+          v.sourceRefs?.forEach(r => {
+            if (r.clientRecordId) vocabCounts[r.clientRecordId] = (vocabCounts[r.clientRecordId] || 0) + 1
+          })
         })
         const cloudRecords = recordResult.items.map((r) => ({
           ...r,
@@ -105,7 +107,9 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     const allVocab = getVocabulary()
     const vocabCounts: Record<string, number> = {}
     allVocab.forEach(v => {
-      if (v.recordId) vocabCounts[v.recordId] = (vocabCounts[v.recordId] || 0) + 1
+      v.sourceRefs?.forEach(r => {
+        if (r.clientRecordId) vocabCounts[r.clientRecordId] = (vocabCounts[r.clientRecordId] || 0) + 1
+      })
     })
     const ids = getRecordIds()
     const loaded: AnalysisRecord[] = []
