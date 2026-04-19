@@ -243,6 +243,8 @@ export interface DictionaryEntryPayload {
   examples: DictionaryExample[]
   phrases: DictionaryPhrase[]
   entryKind: 'entry' | 'fragment'
+  exchange?: string[]
+  tags?: string[]
 }
 
 export interface DictionaryCandidate {

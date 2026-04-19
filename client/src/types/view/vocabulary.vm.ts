@@ -21,14 +21,22 @@ export interface VocabEntry {
   addedAt: number
   /** 是否已掌握 */
   mastered: boolean
+  
   /** 词形还原后的原形 */
   lemma?: string
   /** 音标 */
   phonetic?: string
-  /** 标签列表 */
-  tags?: string[]
+  
+  /** 深度学习数据（从后端 meanings_json 等解析） */
+  detailMeanings?: Array<{
+    pos: string;
+    definitions: string[];
+  }>;
   /** 词形变换列表 */
-  exchange?: string[]
+  exchange?: string[];
+  /** 标签列表 */
+  tags?: string[];
+  
   /** 来源句子文本 */
   sentence?: string
   /** 来源上下文文本 */

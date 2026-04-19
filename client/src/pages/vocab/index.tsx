@@ -9,13 +9,13 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthStore } from '../../stores/auth'
-import { getVocabulary, removeVocabEntry, getRecord } from '../../services/storage'
-import { fetchCloudVocabulary, deleteCloudVocabulary } from '../../services/api/vocabulary.client'
+import { getVocabulary, removeVocabEntry, getRecord, updateVocabEntry } from '../../services/storage'
+import { fetchCloudVocabulary, deleteCloudVocabulary, updateCloudVocabulary } from '../../services/api/vocabulary.client'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
-import WordPopup from '../../components/WordPopup'
+import VocabDetailView from '../../components/VocabDetailView'
 import LucideIcon from '../../components/LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
 import './index.scss'
@@ -101,10 +101,12 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   }, [isSubView])
 
   /** 跳转回原文记录 */
-  const goToResult = (recordId: string, e: any) => {
-    e.stopPropagation()
+  const goToResult = (recordId: string, e?: any) => {
+    if (e) e.stopPropagation()
     if (!recordId) return
     Taro.navigateTo({ url: `/pages/result/index?recordId=${recordId}&mode=replay` })
+    // 如果是从弹窗跳走，顺便关闭弹窗
+    if (popupEntry) setPopupEntry(null)
   }
 
   /** 删除生词 */
@@ -129,6 +131,29 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
         }
       },
     })
+  }
+
+  /** 切换掌握状态 */
+  const handleToggleMastery = (entry: VocabEntry) => {
+    const newMastered = !entry.mastered
+    const newStatus = newMastered ? 'mastered' : 'learning'
+    
+    // 更新本地
+    updateVocabEntry(entry.id, { mastered: newMastered })
+    
+    // 更新列表和弹窗状态
+    setVocabList(prev => prev.map(v => v.id === entry.id ? { ...v, mastered: newMastered } : v))
+    if (popupEntry && popupEntry.id === entry.id) {
+      setPopupEntry({ ...popupEntry, mastered: newMastered })
+    }
+
+    // 同步云端
+    const { isLoggedIn } = useAuthStore.getState()
+    if (isLoggedIn) {
+      updateCloudVocabulary(entry.id, { mastery_status: newStatus }).catch(() => {})
+    }
+    
+    Taro.showToast({ title: newMastered ? '已标记掌握' : '已取消掌握', icon: 'success' })
   }
 
   const goToInput = () => {
@@ -210,14 +235,13 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
 
       {!isSubView && <TabBar current='profile' />}
 
-      {/* 复用 WordPopup 作为生词详情页 */}
-      <WordPopup
+      {/* 沉浸式单词详情页 */}
+      <VocabDetailView
         visible={!!popupEntry}
-        mode='full'
-        mark={null}
-        word={popupEntry?.word || ''}
-        contextSentence={popupEntry?.sentence}
+        entry={popupEntry}
         onClose={() => setPopupEntry(null)}
+        onGoToResult={goToResult}
+        onToggleMastery={handleToggleMastery}
       />
     </View>
   )

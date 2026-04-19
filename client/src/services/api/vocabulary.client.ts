@@ -51,6 +51,15 @@ interface VocabularyUpsertDto {
 }
 
 function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
+  const detailMeanings = Array.isArray(dto.meanings_json) 
+    ? dto.meanings_json.map((m: any) => ({
+        pos: m.partOfSpeech || m.part_of_speech || '',
+        definitions: Array.isArray(m.definitions) 
+          ? m.definitions.map((d: any) => d.meaning || d) 
+          : []
+      })).filter(m => m.definitions.length > 0)
+    : undefined;
+
   return {
     id: dto.id,
     recordId: dto.client_record_id || dto.analysis_record_id || '', 
@@ -62,6 +71,7 @@ function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
     meaning: dto.short_meaning,
     addedAt: new Date(dto.created_at).getTime(),
     mastered: dto.mastery_status === 'mastered',
+    detailMeanings,
     tags: dto.tags,
     exchange: dto.exchange,
     provider: dto.source_provider,
@@ -107,7 +117,9 @@ export async function addVocabToCloud(
       phonetic: entry.phonetic || null,
       part_of_speech: entry.partOfSpeech || null,
       short_meaning: entry.meaning,
-      meanings_json: [],
+      meanings_json: entry.detailMeanings 
+        ? entry.detailMeanings.map(m => ({ partOfSpeech: m.pos, definitions: m.definitions.map(d => ({ meaning: d })) }))
+        : [],
       tags: entry.tags || [],
       exchange: entry.exchange || [],
       source_provider: entry.provider || 'tecd3',

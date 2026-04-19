@@ -45,6 +45,8 @@ class DictionaryEntryPayload(BaseModel):
     examples: list[DictionaryExample] = Field(default_factory=list, description="例句列表")
     phrases: list[DictionaryPhrase] = Field(default_factory=list, description="短语列表")
     entry_kind: Literal["entry", "fragment"] = Field(description="词条类型")
+    exchange: list[str] = Field(default_factory=list, description="词形变换")
+    tags: list[str] = Field(default_factory=list, description="考试标签")
 
 
 class DictionaryCandidate(BaseModel):

@@ -29,6 +29,8 @@ export interface DictEntryPayloadDto {
   examples: DictExampleDto[]
   phrases: DictPhraseDto[]
   entry_kind: 'entry' | 'fragment'
+  exchange?: string[]
+  tags?: string[]
 }
 
 export interface DictCandidateDto {

@@ -38,6 +38,8 @@ function mapEntryResult(dto: DictEntryResultDto): DictionaryEntryResult {
         meaning: item.meaning ?? undefined,
       })),
       entryKind: dto.entry.entry_kind,
+      exchange: dto.entry.exchange,
+      tags: dto.entry.tags,
     },
   }
 }

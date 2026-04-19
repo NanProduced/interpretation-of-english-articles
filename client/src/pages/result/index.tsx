@@ -593,6 +593,12 @@ export default function Result() {
             phonetic: detailEntry.phonetic,
             provider: dictResult.provider || 'tecd3',
             sentence: wordPopup.contextSentence,
+            detailMeanings: detailMeanings.map(m => ({
+              pos: m.partOfSpeech || '',
+              definitions: m.definitions.map(d => d.meaning).filter(Boolean)
+            })).filter(m => m.definitions.length > 0),
+            exchange: detailEntry.exchange || [],
+            tags: detailEntry.tags || [],
           }
           saveVocabEntry(vocabEntry)
           // 立即刷新 vocabList，避免等 useEffect 导致体感延迟

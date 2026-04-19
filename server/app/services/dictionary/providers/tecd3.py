@@ -226,6 +226,8 @@ class Tecd3Provider:
             examples=self._parse_examples(entry),
             phrases=self._parse_phrases(entry),
             entry_kind=entry.entry_kind,  # type: ignore[arg-type]
+            exchange=[], # TODO: extract exchange from db if available
+            tags=entry.exam_tags or [],
         )
         return DictionaryEntryResult(
             query=query,

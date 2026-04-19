@@ -234,6 +234,19 @@ export function removeVocabEntry(id: string): void {
   }
 }
 
+export function updateVocabEntry(id: string, updates: Partial<VocabEntry>): void {
+  try {
+    const vocab = getVocabulary()
+    const index = vocab.findIndex(v => v.id === id)
+    if (index > -1) {
+      vocab[index] = { ...vocab[index], ...updates }
+      Taro.setStorageSync(KEYS.VOCABULARY, vocab)
+    }
+  } catch (e) {
+    console.error('[storage] updateVocabEntry failed', e)
+  }
+}
+
 // ============ User Preferences ============
 
 export interface UserPreferences {
