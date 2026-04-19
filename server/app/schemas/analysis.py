@@ -212,8 +212,14 @@ class AcademicRenderSceneModel(BaseModel):
     )
     translations: list[TranslationItem] = Field(default_factory=list, description="逐句翻译结果。")
     inline_marks: list[AcademicInlineMark] = Field(default_factory=list, description="行内标注。")
-    sentence_entries: list[AcademicSentenceEntry] = Field(default_factory=list, description="句尾入口。")
-    content_summary: ContentSummary | None = Field(default=None, description="内容概要。P2 可选。")
+    sentence_entries: list[AcademicSentenceEntry] = Field(
+        default_factory=list,
+        description="句尾入口。当 entry_type='content_summary' 时为 content_summary 的扁平文本版本，与顶层 content_summary 互为补充。",
+    )
+    content_summary: ContentSummary | None = Field(
+        default=None,
+        description="内容概要结构化数据。前端优先消费此字段做结构化渲染；sentence_entries 中的 content_summary entry 是其扁平文本降级版本，用于简单列表展示。",
+    )
     warnings: list[Warning] = Field(default_factory=list, description="渲染与校验告警。")
 
 

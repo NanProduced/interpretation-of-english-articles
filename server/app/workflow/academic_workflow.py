@@ -497,6 +497,7 @@ async def academic_project_render_scene_node(state: AcademicState) -> AcademicSt
 
 async def academic_assemble_result_node(state: AcademicState) -> AcademicState:
     render_scene = state.get("render_scene")
+    normalized_result = state.get("academic_normalized_result")
 
     if render_scene is None:
         payload = state["payload"]
@@ -525,13 +526,27 @@ async def academic_assemble_result_node(state: AcademicState) -> AcademicState:
     }
     has_heavy_failure = any(w.code in heavy_failure_codes for w in render_scene.warnings)
     has_no_entries = len(render_scene.sentence_entries) == 0 and len(render_scene.inline_marks) == 0
+    has_no_translations = len(render_scene.translations) == 0
     informational_codes = {"LOW_ENGLISH_RATIO", "HIGH_NOISE_RATIO", "UNSUPPORTED_TEXT_TYPE"}
     has_informational_only = len(render_scene.warnings) > 0 and all(
         w.code in informational_codes for w in render_scene.warnings
     )
 
-    if has_heavy_failure and has_no_entries:
+    quality_degraded = (
+        normalized_result is not None
+        and normalized_result.quality_state == "degraded"
+    )
+    has_critical_quality_issue = (
+        normalized_result is not None
+        and any("translations_missing" in issue for issue in normalized_result.quality_issues)
+    )
+
+    if has_heavy_failure and (has_no_entries or has_no_translations):
         render_scene.user_facing_state = "degraded_heavy"
+    elif has_critical_quality_issue:
+        render_scene.user_facing_state = "degraded_heavy"
+    elif quality_degraded:
+        render_scene.user_facing_state = "degraded_light"
     elif len(render_scene.warnings) > 0 and not has_informational_only:
         render_scene.user_facing_state = "degraded_light"
     else:
@@ -550,7 +565,7 @@ def _build_term_prompt_strategy(plan: Any) -> PromptStrategy:
         policy_lines=(
             '用户是学术阅读者，他们需要理解专业术语和学术表达。',
             '标词策略：precision 优先于 recall。只标注真正的术语，不要把普通词汇标成术语。',
-            '优先标专业术语（technical）、半技术词汇（sub_technical）、缩写（abbreviation）和符号引用（notation）。',
+            '优先标专业术语（technical）、半技术词汇（sub_technical）、缩写（abbreviation）、符号引用（notation）和概念对立（concept_opposition）。',
             '常见词不标。如果文本确实没有术语，少标或不标是正确行为。',
         ),
     )

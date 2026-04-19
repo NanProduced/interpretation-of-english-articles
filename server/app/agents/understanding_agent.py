@@ -30,13 +30,17 @@ UNDERSTANDING_INSTRUCTIONS = """
 
 ## logic_notes 规则
 
-六种逻辑类型：
+十种逻辑类型：
 - contrast：对比/转折（however, whereas, in contrast）
 - causation：因果（therefore, as a result, lead to）
 - concession：让步（although, despite, while）
 - condition：条件/假设（if, assuming that, provided that）
 - evidence：证据支撑（as shown in, demonstrated by）
 - elaboration：阐释/展开（in other words, that is, specifically）
+- transition：过渡/衔接（furthermore, moreover, additionally）
+- limitation：限定（only, within the scope of, to the extent that）
+- hypothesis：假设（we hypothesize that, if it were the case）
+- conclusion：结论（thus, in summary, these findings suggest）
 
 规则：
 - 宁少勿滥，每句最多 2 条 LogicNote

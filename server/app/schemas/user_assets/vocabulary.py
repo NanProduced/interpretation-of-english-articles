@@ -65,6 +65,7 @@ class VocabularyResponse(BaseModel):
     exchange: list[str]
     source_provider: str
     analysis_record_id: UUID | None
+    client_record_id: str | None = None
     source_sentence: str | None
     source_context: str | None
     mastery_status: str

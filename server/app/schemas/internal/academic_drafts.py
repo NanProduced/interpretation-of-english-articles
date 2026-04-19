@@ -28,8 +28,9 @@ class TermNote(BaseModel):
         "sub_technical",
         "abbreviation",
         "notation",
+        "concept_opposition",
     ] = Field(
-        description="术语类别：technical=专业术语, sub_technical=半技术词汇, abbreviation=缩写, notation=变量/符号/公式引用",
+        description="术语类别：technical=专业术语, sub_technical=半技术词汇, abbreviation=缩写, notation=变量/符号/公式引用, concept_opposition=概念对立（如 nature vs. nurture）",
     )
     zh: str = Field(
         min_length=1,
@@ -107,8 +108,12 @@ class LogicNote(BaseModel):
         "condition",
         "evidence",
         "elaboration",
+        "transition",
+        "limitation",
+        "hypothesis",
+        "conclusion",
     ] = Field(
-        description="逻辑关系类型",
+        description="逻辑关系类型：contrast=对比/转折, causation=因果, concession=让步, condition=条件/假设, evidence=证据支撑, elaboration=阐释/展开, transition=过渡/衔接, limitation=限定, hypothesis=假设, conclusion=结论",
     )
     anchor_text: str = Field(
         min_length=1,

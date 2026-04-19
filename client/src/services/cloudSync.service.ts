@@ -133,7 +133,18 @@ export const CloudSyncService = {
 
     try {
       // 这里的 entry 是 clone 的或者是最新的，确保带上 resolvedRecordId
-      await addVocabToCloud({ ...entry, cloudRecordId: resolvedRecordId })
+      const res = await addVocabToCloud({ ...entry, cloudRecordId: resolvedRecordId })
+      
+      // 同步成功后，用云端返回的真正 UUID 替换本地的临时 ID，确保后续删除/更新操作能对准
+      if (res.id && res.id !== entry.id) {
+        const { getVocabulary, removeVocabEntry, saveVocabEntry } = await import('./storage')
+        const currentVocab = getVocabulary()
+        const target = currentVocab.find(v => v.id === entry.id)
+        if (target) {
+          removeVocabEntry(entry.id)
+          saveVocabEntry({ ...target, id: res.id })
+        }
+      }
     } catch (err) {
       console.warn('[cloudSync] syncVocab failed', entry.word, err)
     }

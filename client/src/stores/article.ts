@@ -248,6 +248,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
 
         const res = await submitAnalysisTask({
           ...normalizedRequest,
+          client_record_id: clientRecordId,
           wait_for_result: true,
           wait_timeout_seconds: 40,
         })
@@ -291,6 +292,26 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         }
 
         const pageState = derivePageState('polling', null, null)
+        
+        // 进入轮询前先存一个初始记录到本地，确保在此期间收藏生词能找到关联记录
+        const initialRecord: AnalysisRecord = {
+          recordId: clientRecordId,
+          cloudId: serverRecordId,
+          title: deriveFallbackTitle(normalizedRequest.text),
+          sourceText: normalizedRequest.text,
+          requestPayload: {
+            reading_goal: normalizedRequest.reading_goal,
+            reading_variant: normalizedRequest.reading_variant,
+            source_type: normalizedRequest.source_type,
+          },
+          renderScene: null,
+          pageState,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          isFavorited: false,
+        }
+        saveRecord(initialRecord)
+
         set({ phase: 'polling', pageState, recordId: clientRecordId, cloudId: serverRecordId })
       } catch (err: any) {
         if (err instanceof ApiError && err.statusCode === 409) {

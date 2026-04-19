@@ -109,19 +109,19 @@ async def list_vocabulary(
     offset = (page - 1) * limit
 
     async with pool.acquire() as conn:
+        base_query = """
+            SELECT v.id, v.user_id, v.lemma, v.display_word, v.phonetic, v.part_of_speech,
+                   v.short_meaning, v.meanings_json, v.tags, v.exchange, v.source_provider,
+                   v.analysis_record_id, r.client_record_id, v.source_sentence, v.source_context,
+                   v.mastery_status, v.review_count, v.last_reviewed_at,
+                   v.payload_json, v.created_at, v.updated_at
+            FROM vocabulary_book v
+            LEFT JOIN analysis_records r ON v.analysis_record_id = r.id
+            WHERE v.user_id = $1
+        """
         if mastery_status:
             rows = await conn.fetch(
-                """
-                SELECT id, user_id, lemma, display_word, phonetic, part_of_speech,
-                       short_meaning, meanings_json, tags, exchange, source_provider,
-                       analysis_record_id, source_sentence, source_context,
-                       mastery_status, review_count, last_reviewed_at,
-                       payload_json, created_at, updated_at
-                FROM vocabulary_book
-                WHERE user_id = $1 AND mastery_status = $4
-                ORDER BY created_at DESC
-                LIMIT $2 OFFSET $3
-                """,
+                base_query + " AND v.mastery_status = $4 ORDER BY v.created_at DESC LIMIT $2 OFFSET $3",
                 user_id,
                 limit,
                 offset,
@@ -134,17 +134,7 @@ async def list_vocabulary(
             )
         else:
             rows = await conn.fetch(
-                """
-                SELECT id, user_id, lemma, display_word, phonetic, part_of_speech,
-                       short_meaning, meanings_json, tags, exchange, source_provider,
-                       analysis_record_id, source_sentence, source_context,
-                       mastery_status, review_count, last_reviewed_at,
-                       payload_json, created_at, updated_at
-                FROM vocabulary_book
-                WHERE user_id = $1
-                ORDER BY created_at DESC
-                LIMIT $2 OFFSET $3
-                """,
+                base_query + " ORDER BY v.created_at DESC LIMIT $2 OFFSET $3",
                 user_id,
                 limit,
                 offset,
@@ -169,13 +159,14 @@ async def get_vocabulary_by_id(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT id, user_id, lemma, display_word, phonetic, part_of_speech,
-                   short_meaning, meanings_json, tags, exchange, source_provider,
-                   analysis_record_id, source_sentence, source_context,
-                   mastery_status, review_count, last_reviewed_at,
-                   payload_json, created_at, updated_at
-            FROM vocabulary_book
-            WHERE id = $1 AND user_id = $2
+            SELECT v.id, v.user_id, v.lemma, v.display_word, v.phonetic, v.part_of_speech,
+                   v.short_meaning, v.meanings_json, v.tags, v.exchange, v.source_provider,
+                   v.analysis_record_id, r.client_record_id, v.source_sentence, v.source_context,
+                   v.mastery_status, v.review_count, v.last_reviewed_at,
+                   v.payload_json, v.created_at, v.updated_at
+            FROM vocabulary_book v
+            LEFT JOIN analysis_records r ON v.analysis_record_id = r.id
+            WHERE v.id = $1 AND v.user_id = $2
             """,
             vocab_id,
             user_id,
@@ -214,22 +205,15 @@ async def update_vocabulary(
     values = list(updates.values()) + [vocab_id, user_id]
 
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
+        await conn.execute(
             f"""
             UPDATE vocabulary_book
             SET {set_clause}
             WHERE id = ${len(values)} AND user_id = ${len(values) + 1}
-            RETURNING id, user_id, lemma, display_word, phonetic, part_of_speech,
-                      short_meaning, meanings_json, tags, exchange, source_provider,
-                      analysis_record_id, source_sentence, source_context,
-                      mastery_status, review_count, last_reviewed_at,
-                      payload_json, created_at, updated_at
             """,
             *values,
         )
-        if row is None:
-            return None
-        return dict(row)
+        return await get_vocabulary_by_id(user_id, vocab_id)
 
 
 async def delete_vocabulary(user_id: UUID, vocab_id: UUID) -> bool:

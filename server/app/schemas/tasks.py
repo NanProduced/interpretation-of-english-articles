@@ -31,6 +31,7 @@ class TaskSubmitRequest(BaseModel):
     text: str = Field(min_length=1, description="待分析的原始英文文本。")
     reading_goal: ReadingGoal = Field(default="daily_reading")
     reading_variant: ReadingVariant = Field(default="intermediate_reading")
+    client_record_id: str | None = Field(default=None, max_length=64, description="客户端生成的记录唯一标识。")
     source_type: Literal["user_input", "daily_article", "ocr"] = Field(default="user_input")
     extended: bool = Field(default=False)
     wait_for_result: bool = Field(

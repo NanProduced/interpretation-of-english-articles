@@ -14,16 +14,7 @@ from app.schemas.internal.academic_drafts import (
 )
 from app.schemas.internal.normalized import DropLogEntry
 
-
-class AcademicGoalPolicy(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    term_density: int = Field(default=5, ge=1, description="每句最大术语标注数")
-    logic_density: int = Field(default=2, ge=1, description="每句最大逻辑标注数")
-    interpretation_density: int = Field(default=1, ge=0, description="每句最大解释标注数")
-    require_paragraph_role: bool = False
-    require_content_summary: bool = False
-    translation_rigor: Literal["research_reading"] = "research_reading"
+AcademicQualityState = Literal["normal", "degraded"]
 
 
 class AcademicNormalizedResult(BaseModel):
@@ -36,4 +27,12 @@ class AcademicNormalizedResult(BaseModel):
     paragraph_roles: list[ParagraphRole] = Field(default_factory=list)
     content_summary: ContentSummary | None = None
     title: str = Field(min_length=1, description="中文标题")
+    quality_state: AcademicQualityState = Field(
+        default="normal",
+        description="归一化质量判定。normal=结果完整; degraded=关键产出缺失或异常。",
+    )
+    quality_issues: list[str] = Field(
+        default_factory=list,
+        description="quality_state 为 degraded 时的具体原因列表。",
+    )
     drop_log: list[DropLogEntry] = Field(default_factory=list, description="归一化阶段的删除/降级日志")

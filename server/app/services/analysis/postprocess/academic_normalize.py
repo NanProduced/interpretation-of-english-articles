@@ -16,13 +16,31 @@ from app.schemas.internal.academic_drafts import (
     TermNote,
     UnderstandingDraft,
 )
-from app.schemas.internal.academic_normalized import AcademicNormalizedResult
+from app.schemas.internal.academic_normalized import AcademicNormalizedResult, AcademicQualityState
 from app.schemas.internal.analysis import PreparedSentence
 from app.schemas.internal.execution_plan import AcademicGoalPolicy
 from app.schemas.internal.normalized import DropLogEntry
 
 
 ACADEMIC_DROP_SOURCE = Literal["term", "translation", "understanding"]
+
+ACADEMIC_SIGNAL_WORDS: set[str] = {
+    "algorithm", "analysis", "approach", "assessment", "baseline",
+    "coefficient", "correlation", "covariate", "dataset", "derivative",
+    "dimension", "distribution", "effect", "empirical", "estimate",
+    "evaluation", "experiment", "framework", "function", "gradient",
+    "hypothesis", "implementation", "index", "inference", "latent",
+    "linear", "logistic", "matrix", "measurement", "method",
+    "model", "network", "neural", "optimization", "parameter",
+    "polynomial", "prediction", "probability", "regression", "sample",
+    "significance", "simulation", "spectrum", "statistic", "stochastic",
+    "strategy", "threshold", "trajectory", "validation", "variance",
+    "vector", "significant", "methodology", "longitudinal", "cross-sectional",
+    "mediated", "moderated", "robust", "systematic", "meta-analysis",
+    "randomized", "controlled", "quantitative", "qualitative",
+    "epidemiological", "retrospective", "prospective", "cohort",
+    "placebo", "blinded", "multivariate", "univariate", "nonparametric",
+}
 
 
 @dataclass
@@ -354,6 +372,54 @@ def _density_control_interpretation(
     return [n for n in interpretation_notes if n.sentence_id in survivors]
 
 
+def _estimate_term_density(sentences: list[PreparedSentence]) -> float:
+    if not sentences:
+        return 0.0
+    total_words = 0
+    signal_hits = 0
+    for s in sentences:
+        words = s.text.split()
+        total_words += len(words)
+        for w in words:
+            cleaned = w.strip(".,;:()[]{}\"'").casefold()
+            if cleaned in ACADEMIC_SIGNAL_WORDS:
+                signal_hits += 1
+    if total_words == 0:
+        return 0.0
+    return signal_hits / total_words
+
+
+TERM_DENSITY_THRESHOLD = 0.04
+
+
+def _assess_quality_state(
+    *,
+    term_annotations: list[TermNote],
+    sentence_translations: list[AcademicSentenceTranslation],
+    logic_notes: list[LogicNote],
+    sentences: list[PreparedSentence],
+    drop_log: list[DropLogEntry],
+) -> tuple[AcademicQualityState, list[str]]:
+    issues: list[str] = []
+
+    if not sentence_translations and sentences:
+        issues.append("translations_missing")
+
+    if not term_annotations and sentences:
+        estimated = _estimate_term_density(sentences)
+        if estimated >= TERM_DENSITY_THRESHOLD:
+            issues.append(f"term_annotations_empty_with_academic_density_{estimated:.2f}")
+
+    if not logic_notes and sentences:
+        estimated = _estimate_term_density(sentences)
+        if estimated >= TERM_DENSITY_THRESHOLD * 2:
+            issues.append(f"logic_notes_empty_with_high_complexity_{estimated:.2f}")
+
+    if issues:
+        return "degraded", issues
+    return "normal", []
+
+
 def academic_normalize_and_ground(
     term_draft: TermDraft,
     translation_draft: AcademicTranslationDraft,
@@ -389,6 +455,14 @@ def academic_normalize_and_ground(
 
     content_summary = understanding_draft.content_summary
 
+    quality_state, quality_issues = _assess_quality_state(
+        term_annotations=term_result,
+        sentence_translations=translation_result,
+        logic_notes=logic_result,
+        sentences=sentences,
+        drop_log=drop_log,
+    )
+
     return AcademicNormalizedResult(
         term_annotations=term_result,
         sentence_translations=translation_result,
@@ -397,5 +471,7 @@ def academic_normalize_and_ground(
         paragraph_roles=paragraph_roles,
         content_summary=content_summary,
         title=translation_draft.title,
+        quality_state=quality_state,
+        quality_issues=quality_issues,
         drop_log=drop_log,
     )

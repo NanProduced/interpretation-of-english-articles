@@ -25,6 +25,7 @@ interface VocabularyResponseDto {
   exchange: string[]
   source_provider: string
   analysis_record_id: string | null
+  client_record_id: string | null
   source_sentence: string | null
   source_context: string | null
   mastery_status: string
@@ -52,7 +53,7 @@ interface VocabularyUpsertDto {
 function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
   return {
     id: dto.id,
-    recordId: dto.analysis_record_id || '', // 后端返回的是 UUID，这里可能是 client_record_id 的占位，通常云端只存 UUID
+    recordId: dto.client_record_id || dto.analysis_record_id || '', 
     cloudRecordId: dto.analysis_record_id || undefined,
     word: dto.display_word,
     lemma: dto.lemma,

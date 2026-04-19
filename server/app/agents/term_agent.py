@@ -23,11 +23,12 @@ TERM_INSTRUCTIONS = """
 
 你的判断标准：precision 优先于 recall。只标注真正的术语，不要把普通词汇标成术语。用户看到"the"被标为术语会失去信任。
 
-四种术语类别：
+五种术语类别：
 - technical：专业术语，特定领域的专属词汇（如 apoptosis, eigenvalue, epistemology）
 - sub_technical：半技术词汇，日常英语中有常见含义但在学术语境下有特殊含义（如 literature=文献而非文学, significance=统计学显著而非重要, model=理论模型）
 - abbreviation：缩写（如 DNA, MRI, RCT）
 - notation：变量/符号/公式引用（如 x₁, α, Eq.(3)）
+- concept_opposition：概念对立，成对出现的对立概念（如 nature vs. nurture, qualitative vs. quantitative）
 
 关于锚点：
 - text 字段必须从原句中精确摘取，不要改写、不要拼写变化

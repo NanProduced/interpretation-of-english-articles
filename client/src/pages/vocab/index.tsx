@@ -100,11 +100,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   /** 跳转回原文记录 */
   const goToResult = (recordId: string) => {
     if (!recordId) return
-    const record = getRecord(recordId)
-    if (!record) {
-      Taro.showToast({ title: '原文记录已删除', icon: 'none' })
-      return
-    }
+    // 不再在本地预判是否存在，因为 Result 页会自动从云端拉取
     Taro.navigateTo({ url: `/pages/result/index?recordId=${recordId}&mode=replay` })
   }
 
@@ -124,7 +120,9 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
           // 云端也同步删除（失败静默忽略）
           const { isLoggedIn } = useAuthStore.getState()
           if (isLoggedIn) {
-            deleteCloudVocabulary(entry.id).catch(() => {})
+            deleteCloudVocabulary(entry.id).catch((err) => {
+               console.error('[Vocab] delete cloud failed', err)
+            })
           }
           // 更新列表
           setVocabList((prev) => prev.filter((v) => v.id !== entry.id))
@@ -190,9 +188,6 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
               </View>
               <View className='card-footer'>
                 <View className='source-info'>
-                  {entry.recordId && !getRecord(entry.recordId) && (
-                    <Text className='deleted-tag'>原文已删</Text>
-                  )}
                 </View>
                 <Text className='date-text'>{formatDate(entry.addedAt)}</Text>
               </View>

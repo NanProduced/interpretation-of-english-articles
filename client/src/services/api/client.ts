@@ -195,6 +195,7 @@ export type TaskStatus = 'queued' | 'running' | 'finalizing' | 'succeeded' | 'fa
 export interface TaskSubmitRequest extends AnalyzeRequest {
   wait_for_result?: boolean
   wait_timeout_seconds?: number
+  client_record_id?: string
 }
 
 export interface TaskSubmitResponse {

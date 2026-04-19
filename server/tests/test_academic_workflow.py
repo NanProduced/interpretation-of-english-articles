@@ -435,3 +435,140 @@ def test_task_submit_response_accepts_academic_render_scene() -> None:
     )
     assert response.render_scene is not None
     assert response.render_scene.schema_version == "3.0.0-academic"
+
+
+def test_quality_state_normal_when_translations_present() -> None:
+    sentences = [_sentence("s1", "The cat sat on the mat and looked around.")]
+    term_draft = TermDraft(term_notes=[])
+    translation_draft = AcademicTranslationDraft(
+        title="简单文本",
+        sentence_translations=[
+            AcademicSentenceTranslation(sentence_id="s1", translation_zh="猫坐在垫子上四处张望。"),
+        ],
+    )
+    understanding_draft = UnderstandingDraft()
+
+    policy = AcademicGoalPolicy()
+    result = academic_normalize_and_ground(
+        term_draft, translation_draft, understanding_draft, sentences, policy,
+    )
+    assert result.quality_state == "normal"
+    assert result.quality_issues == []
+
+
+def test_quality_state_degraded_when_translations_missing() -> None:
+    sentences = [_sentence("s1", "The data was analyzed using regression.")]
+    term_draft = TermDraft(term_notes=[])
+    translation_draft = AcademicTranslationDraft(
+        title="回归分析",
+        sentence_translations=[],
+    )
+    understanding_draft = UnderstandingDraft()
+
+    policy = AcademicGoalPolicy()
+    result = academic_normalize_and_ground(
+        term_draft, translation_draft, understanding_draft, sentences, policy,
+    )
+    assert result.quality_state == "degraded"
+    assert any("translations_missing" in issue for issue in result.quality_issues)
+
+
+def test_quality_state_degraded_when_term_empty_with_academic_density() -> None:
+    sentences = [
+        _sentence("s1", "The longitudinal regression analysis demonstrated a statistically significant correlation coefficient."),
+    ]
+    term_draft = TermDraft(term_notes=[])
+    translation_draft = AcademicTranslationDraft(
+        title="回归分析",
+        sentence_translations=[
+            AcademicSentenceTranslation(sentence_id="s1", translation_zh="纵向回归分析表明了统计上显著的相关系数。"),
+        ],
+    )
+    understanding_draft = UnderstandingDraft()
+
+    policy = AcademicGoalPolicy()
+    result = academic_normalize_and_ground(
+        term_draft, translation_draft, understanding_draft, sentences, policy,
+    )
+    assert result.quality_state == "degraded"
+    assert any("term_annotations_empty_with_academic_density" in issue for issue in result.quality_issues)
+
+
+def test_quality_state_normal_when_term_empty_without_academic_density() -> None:
+    sentences = [_sentence("s1", "The cat sat on the mat.")]
+    term_draft = TermDraft(term_notes=[])
+    translation_draft = AcademicTranslationDraft(
+        title="简单文本",
+        sentence_translations=[
+            AcademicSentenceTranslation(sentence_id="s1", translation_zh="猫坐在垫子上。"),
+        ],
+    )
+    understanding_draft = UnderstandingDraft()
+
+    policy = AcademicGoalPolicy()
+    result = academic_normalize_and_ground(
+        term_draft, translation_draft, understanding_draft, sentences, policy,
+    )
+    assert result.quality_state == "normal"
+
+
+def test_concept_opposition_term_category_accepted() -> None:
+    sentences = [_sentence("s1", "The nature versus nurture debate continues.")]
+    term_draft = TermDraft(term_notes=[
+        TermNote(
+            sentence_ids=["s1"],
+            text="nature versus nurture",
+            term_category="concept_opposition",
+            zh="先天与后天",
+            context_definition="关于行为发展是先天遗传还是后天环境决定的经典争论",
+        ),
+    ])
+    translation_draft = AcademicTranslationDraft(
+        title="先天与后天",
+        sentence_translations=[
+            AcademicSentenceTranslation(sentence_id="s1", translation_zh="先天与后天的争论仍在继续。"),
+        ],
+    )
+    understanding_draft = UnderstandingDraft()
+
+    policy = AcademicGoalPolicy()
+    result = academic_normalize_and_ground(
+        term_draft, translation_draft, understanding_draft, sentences, policy,
+    )
+    assert len(result.term_annotations) == 1
+    assert result.term_annotations[0].term_category == "concept_opposition"
+
+
+def test_extended_logic_types_accepted() -> None:
+    sentences = [_sentence("s1", "We hypothesize that the intervention reduces symptoms. Thus, the treatment is effective.")]
+    understanding_draft = UnderstandingDraft(
+        logic_notes=[
+            LogicNote(
+                sentence_ids=["s1"],
+                logic_type="hypothesis",
+                anchor_text="hypothesize",
+                explanation="研究假设",
+            ),
+            LogicNote(
+                sentence_ids=["s1"],
+                logic_type="conclusion",
+                anchor_text="Thus",
+                explanation="结论推导",
+            ),
+        ],
+    )
+    term_draft = TermDraft(term_notes=[])
+    translation_draft = AcademicTranslationDraft(
+        title="干预研究",
+        sentence_translations=[
+            AcademicSentenceTranslation(sentence_id="s1", translation_zh="我们假设干预能减少症状。因此，治疗是有效的。"),
+        ],
+    )
+
+    policy = AcademicGoalPolicy(logic_density=3)
+    result = academic_normalize_and_ground(
+        term_draft, translation_draft, understanding_draft, sentences, policy,
+    )
+    logic_types = {n.logic_type for n in result.logic_notes}
+    assert "hypothesis" in logic_types
+    assert "conclusion" in logic_types

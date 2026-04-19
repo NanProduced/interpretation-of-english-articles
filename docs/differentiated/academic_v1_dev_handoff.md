@@ -184,6 +184,60 @@ v1 不渲染：
 5. 有没有让 normalize 因“合法空结果”误判 degraded
 6. 有没有让 projection 偷偷回退到 learning 语义
 
-## 12. 给开发 agent 的一句话说明
+## 12. 实现修订记录
+
+以下修订基于代码审查发现的问题，已落地到代码中，与主文档第 12 节存在有意的偏离。
+
+### 12.1 term_category 新增 concept_opposition
+
+主文档 12.5.1 明确排除了 `concept_opposition`，理由是"它不是概念实体，是概念关系"。
+
+**实现偏离理由**：
+- LLM 能准确识别成对对立概念（如 nature vs. nurture, qualitative vs. quantitative）
+- 这类标注对学术阅读有独立价值——用户需要知道哪些概念在对立框架中
+- 不放入 LogicNote 是因为 LogicNote 描述的是"句子间的逻辑关系"，而 concept_opposition 描述的是"术语本身的对立语义"
+- 当前枚举：`technical | sub_technical | abbreviation | notation | concept_opposition`
+
+### 12.2 logic_type 扩展为 10 种
+
+主文档 12.5.2 将 logic_type 收为 6 种，明确合并了 transition/limitation/hypothesis/conclusion。
+
+**实现偏离理由**：
+- `transition`（furthermore, moreover）与 `contrast`（however, whereas）在语用上有本质区别：前者是顺承补充，后者是转折对立，LLM 能区分
+- `limitation`（only, within the scope of）与 `concession`（although, despite）语义不同：前者是限定范围，后者是让步承认
+- `hypothesis`（we hypothesize that）与 `condition`（if, provided that）在学术文本中有不同功能：前者是研究假设，后者是逻辑条件
+- `conclusion`（thus, in summary）在学术文本中高频出现，独立标注有助于用户追踪论证链条
+- 当前枚举：`contrast | causation | concession | condition | evidence | elaboration | transition | limitation | hypothesis | conclusion`
+
+### 12.3 AcademicNormalizedResult 新增 quality_state / quality_issues
+
+主文档 12.6.3 的 `AcademicNormalizedResult` 不含质量判定字段。
+
+**新增理由**：
+- 落地主文档第 6 节"基于文本复杂度做轻量 coverage 判定"的要求
+- `quality_state: "normal" | "degraded"` 让 assemble_result_node 能区分"合法空结果"和"异常缺失"
+- `quality_issues: list[str]` 记录具体降级原因，便于调试和前端展示
+- 降级判定逻辑：
+  - `translations` 缺失 → 必降级（`translations_missing`）
+  - `term_annotations` 全空且文本学术信号密度 ≥ 4% → 降级（`term_annotations_empty_with_academic_density`）
+  - `logic_notes` 全空且文本学术信号密度 ≥ 8% → 降级（`logic_notes_empty_with_high_complexity`）
+  - `interpretation_notes` / `paragraph_roles` / `content_summary` 为空 → 不降级
+
+### 12.4 content_summary 双重映射约定
+
+`AcademicRenderSceneModel` 中 `content_summary` 存在两处：
+1. 顶层 `content_summary: ContentSummary | None` — 结构化原始数据
+2. `sentence_entries` 中 `entry_type="content_summary"` 的 entry — 扁平文本版本
+
+**前端消费约定**：
+- 优先消费顶层 `content_summary` 做结构化渲染（overview / research_question / methodology / key_findings / limitations 分别展示）
+- `sentence_entries` 中的 content_summary entry 是降级版本，用于简单列表展示或不支持结构化渲染的场景
+- 两者数据来源相同，不会出现不一致
+
+### 12.5 删除重复 AcademicGoalPolicy 定义
+
+原 `academic_normalized.py` 中存在一份与 `execution_plan.py` 重复的 `AcademicGoalPolicy` 定义，已删除。唯一权威定义在 `execution_plan.py`。
+
+## 13. 给开发 agent 的一句话说明
 
 按 `academic_reading_differentiation.md` 第 12 节和本 handoff 文档开发 `academic v1`。先做后端最小闭环：`TermDraft + TranslationDraft + UnderstandingDraft -> AcademicNormalizedResult -> AcademicRenderSceneModel`，不要扩 UI，不要做检测框架，不要把 P2 字段当成必填。

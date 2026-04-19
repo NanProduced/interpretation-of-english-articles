@@ -217,6 +217,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                       placeholder='点击设置昵称'
                       placeholderStyle='color: #a1a1aa; font-weight: 500;'
                       maxlength={20}
+                      onInput={onNicknameChange}
                       onBlur={onNicknameChange}
                       onConfirm={onNicknameChange}
                     />

@@ -99,6 +99,7 @@ async def submit_task(
     reading_variant: str,
     source_type: str,
     extended: bool,
+    client_record_id: str | None = None,
 ) -> TaskSubmitResult:
     """
     Submit an analysis task with single-active-task control.
@@ -130,7 +131,7 @@ async def submit_task(
                 )
 
             # 2. Create analysis_record (minimal metadata)
-            client_record_id = f"task-{uuid4()}"
+            final_client_record_id = client_record_id or f"task-{uuid4()}"
             record_row = await conn.fetchrow(
                 """
                 INSERT INTO analysis_records (
@@ -143,7 +144,7 @@ async def submit_task(
                 RETURNING id
                 """,
                 user_id,
-                client_record_id,
+                final_client_record_id,
                 source_type,
                 text,
                 source_text_hash,
