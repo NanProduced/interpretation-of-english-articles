@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { getRecordIds, getRecord, deleteRecord, getVocabulary } from '../../services/storage'
 import { useAuthStore } from '../../stores/auth'
 import { fetchCloudRecords, deleteCloudRecord } from '../../services/api/records.client'
@@ -110,6 +110,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
   }, [])
 
   useEffect(() => { loadRecords() }, [loadRecords])
+  useDidShow(loadRecords)
 
   // --------------------------------------------------------------------------
   // 交互逻辑

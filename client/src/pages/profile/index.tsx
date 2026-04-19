@@ -6,7 +6,7 @@
  */
 
 import { View, Text, ScrollView, Image, Button, Input } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useConfigStore } from '../../stores/config'
 import { useAuthStore } from '../../stores/auth'
@@ -52,17 +52,18 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     setLoadingStats(true)
     if (isLoggedIn) {
       try {
-        const [vocabResult, quotaResult] = await Promise.all([
+        // 先尝试获取最新用户信息以刷新累计篇数
+        await fetchUserInfo().catch(() => {})
+        
+        const [vocabResult, quotaResult, recordResult] = await Promise.all([
           fetchCloudVocabulary(1, 1).catch(() => ({ total: 0 })),
           fetchUserQuota().catch(() => null),
+          fetchCloudRecords(1, 1).catch(() => ({ total: 0 })),
         ])
         
-        if (userInfo?.cumulativeArticleCount !== undefined) {
-          setArticleCount(userInfo.cumulativeArticleCount)
-        } else {
-          const recordResult = await fetchCloudRecords(1, 1).catch(() => ({ total: 0 }))
-          setArticleCount(recordResult.total)
-        }
+        // 优先使用接口返回的实时记录总数，兜底使用用户信息里的统计
+        const latestInfo = useAuthStore.getState().userInfo
+        setArticleCount(recordResult.total || latestInfo?.cumulativeArticleCount || 0)
 
         setWordCount(vocabResult.total)
         if (quotaResult) {
@@ -86,11 +87,13 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       setQuota(null)
     }
     setLoadingStats(false)
-  }, [isLoggedIn, userInfo])
+  }, [isLoggedIn]) // 移除了 userInfo 依赖，避免 fetchUserInfo 更新导致的死循环
 
   useEffect(() => {
     loadStats()
   }, [isLoggedIn, loadStats])
+
+  useDidShow(loadStats)
 
   useEffect(() => {
     if (isLoggedIn) {

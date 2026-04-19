@@ -6,7 +6,7 @@
  */
 
 import { View, Text, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { getVocabulary, removeVocabEntry, getRecord } from '../../services/storage'
@@ -82,6 +82,8 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   useEffect(() => {
     loadVocab()
   }, [loadVocab])
+
+  useDidShow(loadVocab)
 
   // 下拉刷新
   useEffect(() => {

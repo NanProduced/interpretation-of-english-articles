@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Image, Text, View } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
@@ -28,7 +28,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
   }, [placeholders.length])
 
   // 获取匿名用户剩余试用次数
-  useEffect(() => {
+  const fetchGuestTrials = useCallback(() => {
     if (isLoggedIn) return
     const anonymousId = Taro.getStorageSync('anonymous_id') as string | undefined
     if (!anonymousId) return
@@ -46,6 +46,14 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
       })
       .catch(() => {})
   }, [isLoggedIn])
+
+  useEffect(() => {
+    fetchGuestTrials()
+  }, [fetchGuestTrials])
+
+  useDidShow(() => {
+    fetchGuestTrials()
+  })
 
   const getGreetingConfig = () => {
     const hour = new Date().getHours()
