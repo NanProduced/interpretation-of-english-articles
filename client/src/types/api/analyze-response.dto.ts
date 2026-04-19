@@ -162,6 +162,7 @@ export type AcademicVisualTone = 'term' | 'logic'
 
 export interface AcademicInlineGlossary {
   zh?: string
+  zh_uncertain?: boolean
   context_definition?: string
   term_category?: string
   logic_type?: string
@@ -217,6 +218,7 @@ export interface AcademicAnalyzeResponseDto {
   inline_marks: AcademicInlineMark[]
   sentence_entries: AcademicSentenceEntry[]
   content_summary: ContentSummaryDto | null
+  title?: string | null
   warnings: Warning[]
 }
 

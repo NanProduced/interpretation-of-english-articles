@@ -4,7 +4,7 @@ import LucideIcon from '../LucideIcon'
 import { useConfigStore } from '../../stores/config'
 import './index.scss'
 
-export type AnalysisCardType = 'vocab' | 'grammar' | 'sentence'
+export type AnalysisCardType = 'vocab' | 'grammar' | 'sentence' | 'term' | 'logic' | 'interpretation' | 'summary'
 
 import { parseSentenceAnalysis, type AnalysisChunk } from '../ParagraphBlock/utils'
 
@@ -22,7 +22,7 @@ export interface AnalysisCardProps {
   structuredData?: any
 }
 
-const TYPE_CONFIG = {
+const TYPE_CONFIG: Record<AnalysisCardType, { icon: string; colorClass: string; accentColor: string; defaultLabel: string }> = {
   vocab: {
     icon: 'languages',
     colorClass: 'type-vocab',
@@ -40,6 +40,30 @@ const TYPE_CONFIG = {
     colorClass: 'type-sentence',
     accentColor: 'var(--sentence-accent)',
     defaultLabel: '句式解析',
+  },
+  term: {
+    icon: 'flask-conical',
+    colorClass: 'type-term',
+    accentColor: 'var(--term-accent)',
+    defaultLabel: '术语标注',
+  },
+  logic: {
+    icon: 'git-branch',
+    colorClass: 'type-logic',
+    accentColor: 'var(--logic-accent)',
+    defaultLabel: '逻辑关系',
+  },
+  interpretation: {
+    icon: 'message-square-text',
+    colorClass: 'type-interpretation',
+    accentColor: 'var(--term-accent)',
+    defaultLabel: '解释说明',
+  },
+  summary: {
+    icon: 'file-text',
+    colorClass: 'type-summary',
+    accentColor: 'var(--logic-accent)',
+    defaultLabel: '内容概要',
   },
 }
 
@@ -101,7 +125,7 @@ export default function AnalysisCard({
         <View className='summary-main'>
           <LucideIcon name={config.icon} size={16} color={config.accentColor} />
           {/* 语法点和句式解析现在都在头部显示具体标题 */}
-          {type === 'grammar' || type === 'sentence' ? (
+          {type === 'grammar' || type === 'sentence' || type === 'term' || type === 'logic' || type === 'interpretation' || type === 'summary' ? (
             <Text className='card-title-header' numberOfLines={1}>{title}</Text>
           ) : (
             <Text className='card-category-label'>{label || config.defaultLabel}</Text>
@@ -120,12 +144,12 @@ export default function AnalysisCard({
         <View className='card-body' onClick={(e) => e.stopPropagation()}>
           {/* 这里是如 Figma 稿中的紫色标签区域 */}
           {/* 如果是语法类型或句式解析，标题已在头部展示，此处仅保留序号（如果有） */}
-          {(badgeIndex !== undefined || (type !== 'grammar' && type !== 'sentence')) && (
+          {(badgeIndex !== undefined || (type !== 'grammar' && type !== 'sentence' && type !== 'term' && type !== 'logic' && type !== 'interpretation' && type !== 'summary')) && (
             <View className='card-title-badges'>
               {badgeIndex !== undefined && (
                 <View className='badge-index-circle'>{badgeIndex}</View>
               )}
-              {type !== 'grammar' && type !== 'sentence' && (
+              {type !== 'grammar' && type !== 'sentence' && type !== 'term' && type !== 'logic' && type !== 'interpretation' && type !== 'summary' && (
                 <View className='title-tag-badge'>{title}</View>
               )}
             </View>

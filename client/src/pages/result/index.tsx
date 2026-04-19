@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useArticleStore } from '../../stores/article'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
-import { InlineMarkModel, AnyInlineMarkModel, PageMode, AnyRenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
+import { InlineMarkModel, AnyInlineMarkModel, PageMode, AnyRenderSceneVm, ResultPageState, AcademicRenderSceneVm } from '../../types/view/render-scene.vm'
 import NavBar from '../../components/NavBar'
 import ParagraphBlock, { type WordClickPayload } from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
+import ContentSummaryCard from '../../components/ContentSummaryCard'
 import LucideIcon from '../../components/LucideIcon'
 import { LoadingIllustration, ErrorIllustration, EmptyIllustration } from '../../components/ResultIllustrations'
 import ActiveLoading from '../../components/ActiveLoading'
@@ -155,10 +156,12 @@ export default function Result() {
   useShareAppMessage(() => {
     const state = useArticleStore.getState()
     const { recordId, sceneData } = state
+    const academicVm = sceneData?.schemaVersion === '3.0.0-academic' ? sceneData as AcademicRenderSceneVm : null
+    const academicTitle = academicVm?.title
     const firstSentence = sceneData?.article.sentences[0]?.text
-    const title = firstSentence
-      ? firstSentence.split('\n')[0].slice(0, 30) + '...'
-      : 'Claread透读 - AI 英语深度解析'
+    const title = academicTitle
+      || (firstSentence ? firstSentence.split('\n')[0].slice(0, 30) + '...' : null)
+      || 'Claread透读 - AI 英语深度解析'
     const path = recordId
       ? `/pages/result/index?recordId=${recordId}&mode=replay`
       : '/pages/result/index'
@@ -331,13 +334,19 @@ export default function Result() {
     if (state !== 'degraded_light' && state !== 'degraded_heavy') return null
 
     const isHeavy = state === 'degraded_heavy'
+    const isAcademic = sceneData?.schemaVersion === '3.0.0-academic'
+
     const message = isHeavy
-      ? '由于网络环境影响，当前为您呈现的是“极速分析”结果。部分深度解析可能暂不可用。'
-      : '分析引擎正在轻量化运行，已为您精选了最重要的解读，细节稍有简化，不影响整体理解。'
+      ? isAcademic
+        ? '学术解析未能完整执行，部分术语标注或逻辑分析可能缺失。建议稍后重新解析。'
+        : '由于网络环境影响，当前为您呈现的是“极速分析”结果。部分深度解析可能暂不可用。'
+      : isAcademic
+        ? '学术解析部分节点轻量化运行，术语和逻辑标注已精简，核心内容不受影响。'
+        : '分析引擎正在轻量化运行，已为您精选了最重要的解读，细节稍有简化，不影响整体理解。'
 
     return (
-      <View className={`degraded-banner ${isHeavy ? 'heavy' : ''}`}>
-        <LucideIcon name='info' size={14} color='var(--color-focus)' />
+      <View className={`degraded-banner ${isHeavy ? 'heavy' : ''} ${isAcademic ? 'academic' : ''}`}>
+        <LucideIcon name='info' size={14} color={isAcademic ? 'var(--term-accent)' : 'var(--color-focus)'} />
         <View className='degraded-banner-content'>
           <Text className='degraded-banner-text'>{message}</Text>
         </View>
@@ -462,10 +471,18 @@ export default function Result() {
     return renderSourceFallback()
   }
 
+  const isAcademicMode = sceneData?.schemaVersion === '3.0.0-academic'
+  const academicVm = isAcademicMode ? (sceneData as AcademicRenderSceneVm) : null
+  const academicContentSummary = academicVm?.contentSummary ?? null
+  const academicTitle = academicVm?.title ?? null
+
   const renderArticleHeader = () => {
     const { request } = sceneData!
     return (
       <View className='article-header'>
+        {isAcademicMode && academicTitle && (
+          <Text className='article-title'>{academicTitle}</Text>
+        )}
         <View className='article-meta-row'>
           <Text className='source-tag'>
             {request.sourceType === 'user_input' ? '手动输入' : '每日文章'}
@@ -473,6 +490,9 @@ export default function Result() {
           <Text className='level-tag'>
             {getSafeDisplayLabel(request.readingGoal, request.readingVariant)}
           </Text>
+          {isAcademicMode && (
+            <Text className='mode-tag-academic'>学术模式</Text>
+          )}
         </View>
       </View>
     )
@@ -531,8 +551,24 @@ export default function Result() {
         {/* 降级提示条 */}
         {renderDegradedBanner(pageState)}
 
+        {/* 学术模式信息性提示 */}
+        {isAcademicMode && sceneData?.warnings?.some(w => w.level === 'info' || w.code === 'NON_ACADEMIC_TEXT_DETECTED' || w.code === 'FRAGMENT_INPUT_DETECTED') && (
+          <View className='academic-info-banner'>
+            <LucideIcon name='info' size={14} color='var(--term-accent)' />
+            <Text className='academic-info-text'>
+              {sceneData.warnings.find(w => w.code === 'NON_ACADEMIC_TEXT_DETECTED')
+                ? '检测到输入文本可能不是学术文献，已自动调整解析策略。如需英语学习模式，可切换至日常阅读。'
+                : '检测到片段输入，内容概要可能不完整。'}
+            </Text>
+          </View>
+        )}
+
         <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={handleScroll}>
           <View className='article-container'>
+            {renderArticleHeader()}
+            {academicContentSummary && (
+              <ContentSummaryCard summary={academicContentSummary} />
+            )}
             {renderParagraphs()}
             
             <View className='article-end-actions'>

@@ -152,6 +152,7 @@ export type RenderSceneVm = RenderSceneVmBase
 
 export interface AcademicInlineGlossary {
   zh?: string
+  zhUncertain?: boolean
   contextDefinition?: string
   termCategory?: string
   logicType?: string
@@ -205,6 +206,7 @@ export interface AcademicRenderSceneVm {
   inlineMarks: AcademicInlineMarkModel[]
   sentenceEntries: AcademicSentenceEntryModel[]
   contentSummary: ContentSummaryModel | null
+  title?: string | null
   warnings: WarningModel[]
 }
 

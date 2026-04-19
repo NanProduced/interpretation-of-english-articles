@@ -136,7 +136,7 @@ function renderTextWithMarks(
 
   // 沉浸模式下只保留词汇相关的标记（vocab, phrase, context）
   const visibleMarks = isImmersive 
-    ? marks.filter(m => ['vocab', 'phrase', 'context'].includes(m.visualTone))
+    ? marks.filter(m => ['vocab', 'phrase', 'context', 'term', 'logic'].includes(m.visualTone))
     : marks
 
   if (visibleMarks.length === 0) {
@@ -230,7 +230,7 @@ function renderTextWithMarks(
       continue
     }
 
-    const isVocabulary = ['vocab', 'phrase', 'context'].includes(item.mark.visualTone)
+    const isVocabulary = ['vocab', 'phrase', 'context', 'term'].includes(item.mark.visualTone)
     const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
     const isSaved = vocabList?.includes(item.text.toLowerCase())
     
@@ -384,6 +384,42 @@ const ParagraphBlock = memo(function ParagraphBlock({
               onToggle: (expanded: boolean) => handleAnalysisToggle(e.id, expanded)
             }
           }),
+        ...sentenceEntries
+          .filter(e => e.entryType === 'term_note')
+          .map(e => ({
+            id: e.id,
+            type: 'term' as const,
+            title: e.title || e.label,
+            label: '术语标注',
+            content: e.content,
+          })),
+        ...sentenceEntries
+          .filter(e => e.entryType === 'logic_note')
+          .map(e => ({
+            id: e.id,
+            type: 'logic' as const,
+            title: e.title || e.label,
+            label: '逻辑关系',
+            content: e.content,
+          })),
+        ...sentenceEntries
+          .filter(e => e.entryType === 'interpretation_note')
+          .map(e => ({
+            id: e.id,
+            type: 'interpretation' as const,
+            title: e.title || e.label,
+            label: '解释说明',
+            content: e.content,
+          })),
+        ...sentenceEntries
+          .filter(e => e.entryType === 'content_summary')
+          .map(e => ({
+            id: e.id,
+            type: 'summary' as const,
+            title: e.title || e.label,
+            label: '内容概要',
+            content: e.content,
+          })),
     ]
 
     return { sentence, sentenceMarks, sentenceTranslation, analysisCards }

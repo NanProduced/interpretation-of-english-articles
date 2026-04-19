@@ -25,15 +25,24 @@
       background-color: rgba(144, 224, 239, 0.4);
       box-shadow: inset 0 0 6rpx rgba(144, 224, 239, 0.25);
     }
+
+    &.tone-term {
+      background-color: rgba(59, 130, 246, 0.2);
+      box-shadow: inset 0 0 6rpx rgba(59, 130, 246, 0.15);
+    }
+
+    &.tone-logic {
+      background-color: rgba(249, 115, 22, 0.2);
+      box-shadow: inset 0 0 6rpx rgba(249, 115, 22, 0.15);
+    }
   }
 
   &.underline {
     padding-bottom: 2rpx;
     
-    // 语法下划线：加粗并使用高饱和色，确保在各种分辨率下清晰
     &.tone-grammar {
       border-bottom: 5rpx solid var(--grammar-accent);
-      box-shadow: 0 2rpx 4rpx rgba(139, 92, 246, 0.15); // 微弱外发光增加存在感
+      box-shadow: 0 2rpx 4rpx rgba(139, 92, 246, 0.15);
     }
     
     &.tone-vocab {
@@ -46,6 +55,16 @@
     
     &.tone-context {
       border-bottom: 4rpx solid rgba(3, 169, 244, 0.9);
+    }
+
+    &.tone-term {
+      border-bottom: 4rpx solid var(--term-accent);
+      box-shadow: 0 2rpx 4rpx rgba(59, 130, 246, 0.15);
+    }
+
+    &.tone-logic {
+      border-bottom: 4rpx solid var(--logic-accent);
+      box-shadow: 0 2rpx 4rpx rgba(249, 115, 22, 0.15);
     }
   }
 

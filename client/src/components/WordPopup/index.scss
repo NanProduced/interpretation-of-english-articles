@@ -362,6 +362,24 @@
       font-weight: var(--weight-bold);
       line-height: 1.4;
     }
+
+    .uncertain-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6rpx;
+      margin-left: 12rpx;
+      padding: 2rpx 12rpx;
+      background: var(--logic-surface);
+      border: 1rpx solid var(--logic-border);
+      border-radius: var(--radius-xs);
+      vertical-align: middle;
+
+      .uncertain-text {
+        font-size: 20rpx;
+        color: var(--logic-label);
+        font-weight: var(--weight-medium);
+      }
+    }
   }
 
   .glossary-reason-box {
@@ -377,6 +395,72 @@
       color: var(--text-sub);
       line-height: 1.6;
       flex: 1;
+    }
+  }
+
+  .academic-context-def {
+    background: var(--term-surface);
+  }
+
+  .academic-meta-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8rpx;
+    margin-top: 12rpx;
+  }
+
+  .academic-tag {
+    font-size: 20rpx;
+    padding: 4rpx 16rpx;
+    border-radius: var(--radius-xs);
+    font-weight: 500;
+
+    &.tag-term {
+      background: var(--term-surface);
+      color: var(--term-label);
+      border: 1rpx solid var(--term-border);
+    }
+
+    &.tag-logic {
+      background: var(--logic-surface);
+      color: var(--logic-label);
+      border: 1rpx solid var(--logic-border);
+    }
+  }
+
+  .academic-hedging {
+    margin-top: 12rpx;
+    padding: 12rpx 16rpx;
+    background: var(--logic-surface);
+    border-radius: var(--radius-xs);
+    border: 1rpx solid var(--logic-border);
+
+    .hedging-label {
+      display: flex;
+      align-items: center;
+      gap: 8rpx;
+      margin-bottom: 8rpx;
+
+      .hedging-label-text {
+        font-size: 22rpx;
+        color: var(--logic-label);
+        font-weight: 500;
+      }
+    }
+
+    .hedging-words {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8rpx;
+    }
+
+    .hedging-word-chip {
+      font-size: 20rpx;
+      padding: 4rpx 12rpx;
+      background: var(--color-white);
+      color: var(--logic-content);
+      border-radius: var(--radius-xs);
+      border: 1rpx solid var(--logic-border);
     }
   }
 }

@@ -90,6 +90,7 @@ def _project_term_note(
 
     glossary = AcademicInlineGlossary(
         zh=note.zh,
+        zh_uncertain=note.zh_uncertain,
         context_definition=note.context_definition,
         term_category=note.term_category,
     )
@@ -375,6 +376,7 @@ def project_to_academic_render_scene(
         inline_marks=inline_marks,
         sentence_entries=sentence_entries,
         content_summary=normalized_result.content_summary,
+        title=normalized_result.title,
         warnings=[Warning(**w) for w in warnings],
     )
     return AcademicProjectionOutcome(result=result, warnings=warnings, dropped_count=failed_annotations)

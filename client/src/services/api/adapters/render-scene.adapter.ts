@@ -188,6 +188,7 @@ function transformAcademicInlineMark(mark: DtoAcademicInlineMark): AcademicInlin
     glossary: mark.glossary
       ? {
           zh: mark.glossary.zh,
+          zhUncertain: mark.glossary.zh_uncertain,
           contextDefinition: mark.glossary.context_definition,
           termCategory: mark.glossary.term_category,
           logicType: mark.glossary.logic_type,
@@ -230,6 +231,7 @@ function transformAcademicDto(dto: AcademicAnalyzeResponseDto): AcademicRenderSc
     inlineMarks: (dto.inline_marks ?? []).map(transformAcademicInlineMark),
     sentenceEntries: (dto.sentence_entries ?? []).map(transformAcademicSentenceEntry),
     contentSummary: dto.content_summary ? transformContentSummary(dto.content_summary) : null,
+    title: dto.title,
     warnings: (dto.warnings ?? []).map(transformWarning),
   }
 }
@@ -380,6 +382,7 @@ function reverseAcademicInlineMark(mark: AcademicInlineMarkModel): DtoAcademicIn
     glossary: mark.glossary
       ? {
           zh: mark.glossary.zh,
+          zh_uncertain: mark.glossary.zhUncertain,
           context_definition: mark.glossary.contextDefinition,
           term_category: mark.glossary.termCategory,
           logic_type: mark.glossary.logicType,
@@ -428,6 +431,7 @@ function reverseAcademicVm(vm: AcademicRenderSceneVm): AcademicAnalyzeResponseDt
     inline_marks: (vm.inlineMarks ?? []).map(reverseAcademicInlineMark),
     sentence_entries: (vm.sentenceEntries ?? []).map(reverseAcademicSentenceEntry),
     content_summary: vm.contentSummary ? reverseContentSummary(vm.contentSummary) : null,
+    title: vm.title,
     warnings: (vm.warnings ?? []).map(reverseWarning),
   }
 }

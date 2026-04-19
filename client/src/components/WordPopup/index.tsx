@@ -69,6 +69,27 @@ const MINI_LABEL_MAP: Record<string, string> = {
   logic: '逻辑',
 }
 
+const TERM_CATEGORY_LABELS: Record<string, string> = {
+  technical: '专业术语',
+  sub_technical: '半技术词汇',
+  abbreviation: '缩写',
+  notation: '符号引用',
+  concept_opposition: '概念对立',
+}
+
+const LOGIC_TYPE_LABELS: Record<string, string> = {
+  contrast: '对比转折',
+  causation: '因果关系',
+  concession: '让步',
+  condition: '条件假设',
+  evidence: '证据支撑',
+  elaboration: '阐释展开',
+  transition: '过渡衔接',
+  limitation: '限定',
+  hypothesis: '假设',
+  conclusion: '结论',
+}
+
 export default function WordPopup({
   visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0,
   onClose, onExpand, onAddVocab, onFavorite,
@@ -258,11 +279,46 @@ export default function WordPopup({
               <View className='glossary-content'>
                 <View className='glossary-main-zh'>
                   <Text className='zh-text'>{glossary.zh || (isLearningGlossary(glossary) ? glossary.gloss : '')}</Text>
+                  {!isLearningGlossary(glossary) && glossary.zhUncertain && (
+                    <View className='uncertain-badge'>
+                      <LucideIcon name='alert-triangle' size={14} color='var(--color-warning)' />
+                      <Text className='uncertain-text'>翻译不确定</Text>
+                    </View>
+                  )}
                 </View>
                 {isLearningGlossary(glossary) && glossary.reason && (
                   <View className='glossary-reason-box'>
                     <LucideIcon name='info' size={12} color='var(--color-primary)' />
                     <Text className='reason-text'>{glossary.reason}</Text>
+                  </View>
+                )}
+                {!isLearningGlossary(glossary) && glossary.contextDefinition && (
+                  <View className='glossary-reason-box academic-context-def'>
+                    <LucideIcon name='book-open' size={12} color='var(--term-accent)' />
+                    <Text className='reason-text'>{glossary.contextDefinition}</Text>
+                  </View>
+                )}
+                {!isLearningGlossary(glossary) && glossary.termCategory && (
+                  <View className='academic-meta-tags'>
+                    <View className='academic-tag tag-term'>{TERM_CATEGORY_LABELS[glossary.termCategory] || glossary.termCategory}</View>
+                  </View>
+                )}
+                {!isLearningGlossary(glossary) && glossary.logicType && (
+                  <View className='academic-meta-tags'>
+                    <View className='academic-tag tag-logic'>{LOGIC_TYPE_LABELS[glossary.logicType] || glossary.logicType}</View>
+                  </View>
+                )}
+                {!isLearningGlossary(glossary) && glossary.hedgingDetected && glossary.hedgingWords && glossary.hedgingWords.length > 0 && (
+                  <View className='academic-hedging'>
+                    <View className='hedging-label'>
+                      <LucideIcon name='shield-alert' size={12} color='var(--logic-accent)' />
+                      <Text className='hedging-label-text'>模糊限制语</Text>
+                    </View>
+                    <View className='hedging-words'>
+                      {glossary.hedgingWords.map((w, i) => (
+                        <View key={i} className='hedging-word-chip'>{w}</View>
+                      ))}
+                    </View>
                   </View>
                 )}
               </View>

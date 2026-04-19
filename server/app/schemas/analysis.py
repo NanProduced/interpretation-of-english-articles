@@ -174,6 +174,7 @@ AcademicVisualTone = Literal["term", "logic"]
 
 class AcademicInlineGlossary(BaseModel):
     zh: str | None = None
+    zh_uncertain: bool = False
     context_definition: str | None = None
     term_category: str | None = None
     logic_type: str | None = None
@@ -219,6 +220,10 @@ class AcademicRenderSceneModel(BaseModel):
     content_summary: ContentSummary | None = Field(
         default=None,
         description="内容概要结构化数据。前端优先消费此字段做结构化渲染；sentence_entries 中的 content_summary entry 是其扁平文本降级版本，用于简单列表展示。",
+    )
+    title: str | None = Field(
+        default=None,
+        description="基于文本内容生成的中文标题，用于历史记录展示和页面标题。",
     )
     warnings: list[Warning] = Field(default_factory=list, description="渲染与校验告警。")
 
