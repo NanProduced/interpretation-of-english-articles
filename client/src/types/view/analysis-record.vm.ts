@@ -6,7 +6,7 @@
  */
 
 import type { AnalyzeRequest } from '../../services/api'
-import type { RenderSceneVm, ResultPageState } from './render-scene.vm'
+import type { AnyRenderSceneVm, ResultPageState } from './render-scene.vm'
 
 export interface AnalysisRecord {
   /** 本地生成唯一 ID (client_record_id) */
@@ -24,7 +24,7 @@ export interface AnalysisRecord {
     source_type: 'user_input'
   }
   /** 分析结果快照（null 表示分析失败/异常） */
-  renderScene: RenderSceneVm | null
+  renderScene: AnyRenderSceneVm | null
   /** 回看时的页面状态 */
   pageState: ResultPageState
   /** 创建时间（timestamp） */

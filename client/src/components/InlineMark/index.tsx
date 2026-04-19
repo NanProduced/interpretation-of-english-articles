@@ -1,20 +1,22 @@
 import { Text } from '@tarojs/components'
-import { InlineMarkModel, VisualTone } from '../../types/view/render-scene.vm'
+import { AnyInlineMarkModel, VisualTone, AcademicVisualTone } from '../../types/view/render-scene.vm'
 import type { WordClickPayload } from '../ParagraphBlock'
 import './index.scss'
 
-const TONE_CLASSES: Record<VisualTone, string> = {
+const TONE_CLASSES: Record<VisualTone | AcademicVisualTone, string> = {
   vocab: 'tone-vocab',
   phrase: 'tone-phrase',
   context: 'tone-context',
   grammar: 'tone-grammar',
+  term: 'tone-term',
+  logic: 'tone-logic',
 }
 
 interface InlineMarkProps {
-  mark: InlineMarkModel
+  mark: AnyInlineMarkModel
   text: string
   isActive?: boolean
-  isSaved?: boolean // 是否已加入生词本
+  isSaved?: boolean
   onWordClick?: (payload: WordClickPayload) => void
 }
 

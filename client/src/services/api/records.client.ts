@@ -9,7 +9,7 @@ import { request } from './client'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
 import type { AnalyzeRequest } from './client'
 import { analyzeResponseDtoToVm, vmToAnalyzeResponseDto } from './adapters/render-scene.adapter'
-import type { AnalyzeResponseDto } from '../../types/api/analyze-response.dto'
+import type { AnyAnalyzeResponseDto } from '../../types/api/analyze-response.dto'
 
 // ---------------------------------------------------------------------------
 // 后端 DTO（snake_case）
@@ -79,7 +79,7 @@ function dtoToVm(dto: RecordResponseDto): AnalysisRecord {
 
       try {
         if (isSnakeCase) {
-          renderSceneVm = analyzeResponseDtoToVm(rawScene as AnalyzeResponseDto)
+          renderSceneVm = analyzeResponseDtoToVm(rawScene as AnyAnalyzeResponseDto)
         } else if (looksLikeVm) {
           // 认为是已经转换过的 camelCase 格式
           renderSceneVm = rawScene as AnalysisRecord['renderScene']

@@ -14,7 +14,7 @@ import { analyzeResponseDtoToVm } from '../services/api/adapters/render-scene.ad
 import { normalizeServerAnalyzeParams } from '../config/purpose'
 import { useAuthStore } from './auth'
 import {
-  RenderSceneVm,
+  AnyRenderSceneVm,
   ResultPageState,
 } from '../types/view/render-scene.vm'
 import { saveRecord, getRecord } from '../services/storage'
@@ -24,7 +24,7 @@ import { track } from '../services/analytics'
 function derivePageState(
   phase: ArticlePhase,
   errorCode: string | null,
-  vm: RenderSceneVm | null
+  vm: AnyRenderSceneVm | null
 ): ResultPageState {
   if (phase === 'idle' || phase === 'loading' || phase === 'polling') return 'loading'
   if (phase === 'error') {
@@ -42,7 +42,7 @@ function derivePageState(
 
 export type ArticlePhase = 'idle' | 'loading' | 'polling' | 'success' | 'empty' | 'error'
 
-function isEmptyResult(vm: RenderSceneVm): boolean {
+function isEmptyResult(vm: AnyRenderSceneVm): boolean {
   const sentences = vm.article?.sentences
   if (!sentences || sentences.length === 0) return true
   return sentences.every((s) => !s.text || s.text.trim() === '')
@@ -65,7 +65,7 @@ function generateLocalRecordId(): string {
 let currentAbortFlag = false
 
 interface ArticleState {
-  sceneData: RenderSceneVm | null
+  sceneData: AnyRenderSceneVm | null
   requestParams: AnalyzeRequest | null
   recordId: string | null
   cloudId: string | null

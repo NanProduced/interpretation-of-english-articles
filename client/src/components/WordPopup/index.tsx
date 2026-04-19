@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { InlineMarkModel, type VisualTone, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
+import { AnyInlineMarkModel, type VisualTone, type AcademicVisualTone, type InlineGlossary, type AcademicInlineGlossary, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
 import { fetchDict, fetchDictEntry } from '../../services/api/client'
 import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
 import LucideIcon from '../LucideIcon'
@@ -10,7 +10,7 @@ import './index.scss'
 interface WordPopupProps {
   visible: boolean
   mode?: 'mini' | 'full'
-  mark: InlineMarkModel | null
+  mark: AnyInlineMarkModel | null
   word: string
   contextSentence?: string
   occurrence?: number
@@ -34,11 +34,17 @@ function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): stri
     .join('；')
 }
 
-const TONE_META: Record<VisualTone, { label: string; color: string; bg: string }> = {
+function isLearningGlossary(g: InlineGlossary | AcademicInlineGlossary | undefined): g is InlineGlossary {
+  return !!g && ('gloss' in g || 'reason' in g || 'phraseType' in g)
+}
+
+const TONE_META: Record<VisualTone | AcademicVisualTone, { label: string; color: string; bg: string }> = {
   vocab: { label: '词汇', color: '#B45309', bg: '#FFD166' },
   phrase: { label: '短语', color: '#6D28D9', bg: '#B2A4FF' },
   context: { label: '语境', color: '#0369A1', bg: '#90E0EF' },
   grammar: { label: '语法', color: '#047857', bg: '#6EE7B7' },
+  term: { label: '术语', color: '#1D4ED8', bg: '#BFDBFE' },
+  logic: { label: '逻辑', color: '#C2410C', bg: '#FED7AA' },
 }
 
 const PHRASE_KIND_LABELS: Record<string, string> = {
@@ -59,6 +65,8 @@ const MINI_LABEL_MAP: Record<string, string> = {
   idiom: '习语',
   proper_noun: '专名',
   compound: '复合',
+  term: '术语',
+  logic: '逻辑',
 }
 
 export default function WordPopup({
@@ -74,9 +82,10 @@ export default function WordPopup({
   const glossary = mark?.glossary
   const toneMeta = mark ? TONE_META[mark.visualTone] : null
   
-  const effectivePhraseKind = glossary?.phraseType || mark?.lookupKind
-  const professionalLabel = (effectivePhraseKind && PHRASE_KIND_LABELS[effectivePhraseKind])
-    ? PHRASE_KIND_LABELS[effectivePhraseKind]
+  const effectivePhraseKind = isLearningGlossary(glossary) ? glossary.phraseType : undefined
+  const effectiveLookupKind = 'lookupKind' in (mark ?? {}) ? (mark as any).lookupKind : undefined
+  const professionalLabel = ((effectivePhraseKind || effectiveLookupKind) && PHRASE_KIND_LABELS[effectivePhraseKind || effectiveLookupKind || ''])
+    ? PHRASE_KIND_LABELS[effectivePhraseKind || effectiveLookupKind || '']
     : (toneMeta?.label || 'AI 解析')
 
   const miniLabel = (effectivePhraseKind && MINI_LABEL_MAP[effectivePhraseKind])
@@ -85,7 +94,7 @@ export default function WordPopup({
 
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
   const detailMeanings = entry?.meanings || []
-  const miniMeaning = glossary?.zh || glossary?.gloss || getEntrySummary(entry)
+  const miniMeaning = glossary?.zh || (isLearningGlossary(glossary) ? glossary.gloss : undefined) || getEntrySummary(entry)
   const isLLMAnnotated = !!glossary
 
   // Hooks must ALWAYS be called in the same order. 
@@ -248,9 +257,9 @@ export default function WordPopup({
               </View>
               <View className='glossary-content'>
                 <View className='glossary-main-zh'>
-                  <Text className='zh-text'>{glossary.zh || glossary.gloss}</Text>
+                  <Text className='zh-text'>{glossary.zh || (isLearningGlossary(glossary) ? glossary.gloss : '')}</Text>
                 </View>
-                {glossary.reason && (
+                {isLearningGlossary(glossary) && glossary.reason && (
                   <View className='glossary-reason-box'>
                     <LucideIcon name='info' size={12} color='var(--color-primary)' />
                     <Text className='reason-text'>{glossary.reason}</Text>

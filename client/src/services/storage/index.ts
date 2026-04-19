@@ -16,7 +16,7 @@ import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import type { AnalyzeRequest } from '../api'
-import type { RenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
+import type { AnyRenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
 
 // ============ Key 定义 ============
 

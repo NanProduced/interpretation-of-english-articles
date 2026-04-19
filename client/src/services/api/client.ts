@@ -7,7 +7,7 @@
 
 import Taro from '@tarojs/taro'
 import { apiConfig, getAuthHeaders } from '../../config/api.config'
-import type { AnalyzeResponseDto } from '../../types/api/analyze-response.dto'
+import type { AnyAnalyzeResponseDto } from '../../types/api/analyze-response.dto'
 import type { DictEntryResultDto, DictResponseDto } from '../../types/api/dict-response.dto'
 
 /** API 错误类型 */
@@ -203,7 +203,7 @@ export interface TaskSubmitResponse {
   record_id: string
   status: TaskStatus
   created: boolean
-  render_scene?: AnalyzeResponseDto | null
+  render_scene?: AnyAnalyzeResponseDto | null
 }
 
 export interface TaskStatusResponse {
@@ -322,8 +322,8 @@ export interface AnalyzeRequest {
  * 统一返回 AnalyzeResponseDto (snake_case)
  * 由调用方通过 analyzeResponseDtoToVm() 转换为前端 VM (camelCase)
  */
-export async function fetchAnalyze(dto: AnalyzeRequest): Promise<AnalyzeResponseDto> {
-  return request<AnalyzeResponseDto>({
+export async function fetchAnalyze(dto: AnalyzeRequest): Promise<AnyAnalyzeResponseDto> {
+  return request<AnyAnalyzeResponseDto>({
     url: '/analyze',
     method: 'POST',
     data: dto,

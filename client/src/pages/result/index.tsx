@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useArticleStore } from '../../stores/article'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
-import { InlineMarkModel, PageMode, RenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
+import { InlineMarkModel, AnyInlineMarkModel, PageMode, AnyRenderSceneVm, ResultPageState } from '../../types/view/render-scene.vm'
 import NavBar from '../../components/NavBar'
 import ParagraphBlock, { type WordClickPayload } from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
@@ -17,8 +17,7 @@ import { ensureLoggedIn } from '../../services/auth'
 import { track } from '../../services/analytics'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
-import { getSafeDisplayLabel } from '../../config/purpose'
-import { ReadingGoal } from '../../config/purpose'
+import { getSafeDisplayLabel, ReadingGoal, SERVER_GOAL_TO_UI_GOAL, getApiParams } from '../../config/purpose'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
 import './index.scss'
 
@@ -52,7 +51,7 @@ const PAGE_STATE_MESSAGES: Record<ResultPageState, { title: string; subtitle: st
   },
 }
 
-function hasRenderableScene(scene: RenderSceneVm | null): boolean {
+function hasRenderableScene(scene: AnyRenderSceneVm | null): boolean {
   if (!scene) return false
   if (scene.article?.paragraphs?.length) return true
   return (scene.article?.sentences ?? []).some((sentence) => !!sentence.text?.trim())
@@ -72,9 +71,10 @@ export default function Result() {
   const [wordPopup, setWordPopup] = useState<{
     visible: boolean
     mode: 'mini' | 'full'
-    mark: InlineMarkModel | null
+    mark: AnyInlineMarkModel | null
     word: string
     contextSentence?: string
+    occurrence?: number
     x: number
     y: number
   }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
@@ -101,7 +101,7 @@ export default function Result() {
     purpose: ReadingGoal;
     level: string | null;
   }>({
-    purpose: 'daily_reading',
+    purpose: 'daily',
     level: 'intermediate_reading'
   })
 
@@ -276,10 +276,11 @@ export default function Result() {
     }
 
     // 重新发起分析（生成新记录）
+    const apiParams = getApiParams(goal, level)
     analyze({
       text,
-      reading_goal: goal,
-      reading_variant: level as any,
+      reading_goal: apiParams.reading_goal,
+      reading_variant: apiParams.reading_variant,
       source_type: source_type as any,
       extended: false,
     })
@@ -298,7 +299,7 @@ export default function Result() {
       // 拉起策略选择弹窗
       if (requestParams) {
         setTempConfig({
-          purpose: requestParams.reading_goal,
+          purpose: SERVER_GOAL_TO_UI_GOAL[requestParams.reading_goal] || 'daily',
           level: requestParams.reading_variant
         })
       }

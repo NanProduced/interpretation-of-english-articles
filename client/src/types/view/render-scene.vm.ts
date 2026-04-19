@@ -7,6 +7,8 @@
  * 基于 client/src/types/render-scene.ts 重构，明确 VM 边界
  */
 
+// ============ 共享基础类型 ============
+
 export interface TextAnchor {
   kind: 'text'
   sentenceId: string
@@ -28,6 +30,63 @@ export interface MultiTextAnchor {
 
 export type InlineMarkAnchor = TextAnchor | MultiTextAnchor
 
+export type RenderType = 'background' | 'underline'
+
+export interface SentenceModel {
+  sentenceId: string
+  paragraphId: string
+  text: string
+}
+
+export interface ParagraphModel {
+  paragraphId: string
+  sentenceIds: string[]
+}
+
+export interface ArticleModel {
+  paragraphs: ParagraphModel[]
+  sentences: SentenceModel[]
+}
+
+export interface TranslationModel {
+  sentenceId: string
+  translationZh: string
+}
+
+export interface RequestMeta {
+  requestId: string
+  sourceType: 'user_input'
+  readingGoal: string
+  readingVariant: string
+  profileId: string
+}
+
+export type WarningLevel = 'info' | 'warning' | 'error'
+
+export interface WarningModel {
+  code: string
+  level: WarningLevel
+  message: string
+  sentenceId?: string
+  annotationId?: string
+}
+
+export type ContentResultState = 'normal' | 'degraded_light' | 'degraded_heavy'
+
+export type ResultPageState =
+  | 'loading'
+  | 'normal'
+  | 'degraded_light'
+  | 'degraded_heavy'
+  | 'empty'
+  | 'failed'
+  | 'timeout'
+  | 'network_fail'
+
+export type PageMode = 'immersive' | 'intensive'
+
+// ============ Learning 模式类型 ============
+
 export interface InlineGlossary {
   zh?: string
   gloss?: string
@@ -42,8 +101,6 @@ export type AnnotationType =
   | 'grammar_note'
 
 export type VisualTone = 'vocab' | 'phrase' | 'context' | 'grammar'
-
-export type RenderType = 'background' | 'underline'
 
 export type PhraseKind = 
   | 'word' 
@@ -78,45 +135,6 @@ export interface SentenceEntryModel {
   content: string
 }
 
-export type WarningLevel = 'info' | 'warning' | 'error'
-
-export interface WarningModel {
-  code: string
-  level: WarningLevel
-  message: string
-  sentenceId?: string
-  annotationId?: string
-}
-
-export interface SentenceModel {
-  sentenceId: string
-  paragraphId: string
-  text: string
-}
-
-export interface ParagraphModel {
-  paragraphId: string
-  sentenceIds: string[]
-}
-
-export interface ArticleModel {
-  paragraphs: ParagraphModel[]
-  sentences: SentenceModel[]
-}
-
-export interface TranslationModel {
-  sentenceId: string
-  translationZh: string
-}
-
-export interface RequestMeta {
-  requestId: string
-  sourceType: 'user_input'
-  readingGoal: string
-  readingVariant: string
-  profileId: string
-}
-
 export interface RenderSceneVmBase {
   schemaVersion: '3.0.0'
   request: RequestMeta
@@ -130,19 +148,71 @@ export interface RenderSceneVmBase {
 
 export type RenderSceneVm = RenderSceneVmBase
 
-export type ContentResultState = 'normal' | 'degraded_light' | 'degraded_heavy'
+// ============ Academic 模式类型 ============
 
-export type ResultPageState =
-  | 'loading'
-  | 'normal'
-  | 'degraded_light'
-  | 'degraded_heavy'
-  | 'empty'
-  | 'failed'
-  | 'timeout'
-  | 'network_fail'
+export interface AcademicInlineGlossary {
+  zh?: string
+  contextDefinition?: string
+  termCategory?: string
+  logicType?: string
+  hedgingDetected?: boolean
+  hedgingWords?: string[]
+}
 
-export type PageMode = 'immersive' | 'intensive'
+export type AcademicAnnotationType = 'term_note' | 'logic_note'
+export type AcademicVisualTone = 'term' | 'logic'
+
+export interface AcademicInlineMarkModel {
+  id: string
+  annotationType: AcademicAnnotationType
+  anchor: InlineMarkAnchor
+  renderType: RenderType
+  visualTone: AcademicVisualTone
+  clickable: boolean
+  lookupText?: string
+  glossary?: AcademicInlineGlossary
+  parentId?: string
+}
+
+export type AcademicSentenceEntryType = 'term_note' | 'logic_note' | 'interpretation_note' | 'content_summary'
+
+export interface AcademicSentenceEntryModel {
+  id: string
+  sentenceId: string
+  entryType: AcademicSentenceEntryType
+  label: string
+  title?: string
+  content: string
+}
+
+export type ContentSummaryCompleteness = 'full' | 'partial' | 'minimal'
+
+export interface ContentSummaryModel {
+  completeness: ContentSummaryCompleteness
+  overview: string
+  researchQuestion?: string | null
+  methodology?: string | null
+  keyFindings?: string[]
+  limitations?: string[]
+}
+
+export interface AcademicRenderSceneVm {
+  schemaVersion: '3.0.0-academic'
+  request: RequestMeta
+  article: ArticleModel
+  userFacingState: ContentResultState
+  translations: TranslationModel[]
+  inlineMarks: AcademicInlineMarkModel[]
+  sentenceEntries: AcademicSentenceEntryModel[]
+  contentSummary: ContentSummaryModel | null
+  warnings: WarningModel[]
+}
+
+// ============ 联合类型 ============
+
+export type AnyInlineMarkModel = InlineMarkModel | AcademicInlineMarkModel
+export type AnySentenceEntryModel = SentenceEntryModel | AcademicSentenceEntryModel
+export type AnyRenderSceneVm = RenderSceneVm | AcademicRenderSceneVm
 
 export interface DictionaryMeaning {
   partOfSpeech: string

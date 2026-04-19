@@ -11,7 +11,10 @@
 
 import type {
   AnalyzeResponseDto,
+  AcademicAnalyzeResponseDto,
+  AnyAnalyzeResponseDto,
   InlineMark as DtoInlineMark,
+  AcademicInlineMark as DtoAcademicInlineMark,
   TextAnchor as DtoTextAnchor,
   MultiTextAnchor as DtoMultiTextAnchor,
   SpanRefPart,
@@ -20,13 +23,22 @@ import type {
   ArticleStructure,
   TranslationItem,
   SentenceEntry,
+  AcademicSentenceEntry,
   Warning,
   AnalyzeRequestMeta,
+  ContentSummaryDto,
+  ACADEMIC_SCHEMA_VERSION,
 } from '@/types/api/analyze-response.dto'
+
+import { ACADEMIC_SCHEMA_VERSION as ACADEMIC_VERSION } from '@/types/api/analyze-response.dto'
 
 import type {
   RenderSceneVmBase,
+  AcademicRenderSceneVm,
+  AnyRenderSceneVm,
   InlineMarkModel,
+  AcademicInlineMarkModel,
+  AcademicInlineGlossary as VmAcademicInlineGlossary,
   TextAnchor as VmTextAnchor,
   MultiTextAnchor as VmMultiTextAnchor,
   SpanRef,
@@ -35,13 +47,14 @@ import type {
   ArticleModel,
   TranslationModel,
   SentenceEntryModel,
+  AcademicSentenceEntryModel,
+  ContentSummaryModel,
   WarningModel,
   RequestMeta,
 } from '@/types/view/render-scene.vm'
 
-/**
- * 转换 InlineMarkAnchor (dto -> vm)
- */
+// ============ 共享转换函数 ============
+
 function transformAnchor(dtoAnchor: DtoTextAnchor | DtoMultiTextAnchor): VmTextAnchor | VmMultiTextAnchor {
   if (dtoAnchor.kind === 'text') {
     const a = dtoAnchor as DtoTextAnchor
@@ -65,9 +78,57 @@ function transformAnchor(dtoAnchor: DtoTextAnchor | DtoMultiTextAnchor): VmTextA
   }
 }
 
-/**
- * 转换 InlineMark
- */
+function transformTranslation(item: TranslationItem): TranslationModel {
+  return {
+    sentenceId: item.sentence_id,
+    translationZh: item.translation_zh,
+  }
+}
+
+function transformSentence(sentence: ArticleSentence): SentenceModel {
+  return {
+    sentenceId: sentence.sentence_id,
+    paragraphId: sentence.paragraph_id,
+    text: sentence.text,
+  }
+}
+
+function transformParagraph(paragraph: ArticleParagraph): ParagraphModel {
+  return {
+    paragraphId: paragraph.paragraph_id,
+    sentenceIds: paragraph.sentence_ids,
+  }
+}
+
+function transformArticle(article: ArticleStructure): ArticleModel {
+  return {
+    paragraphs: (article.paragraphs ?? []).map(transformParagraph),
+    sentences: (article.sentences ?? []).map(transformSentence),
+  }
+}
+
+function transformWarning(warning: Warning): WarningModel {
+  return {
+    code: warning.code,
+    level: warning.level,
+    message: warning.message,
+    sentenceId: warning.sentence_id,
+    annotationId: warning.annotation_id,
+  }
+}
+
+function transformRequestMeta(meta: AnalyzeRequestMeta): RequestMeta {
+  return {
+    requestId: meta.request_id,
+    sourceType: meta.source_type as 'user_input',
+    readingGoal: meta.reading_goal,
+    readingVariant: meta.reading_variant,
+    profileId: meta.profile_id,
+  }
+}
+
+// ============ Learning 模式转换 ============
+
 function transformInlineMark(mark: DtoInlineMark): InlineMarkModel {
   return {
     id: mark.id,
@@ -89,9 +150,6 @@ function transformInlineMark(mark: DtoInlineMark): InlineMarkModel {
   }
 }
 
-/**
- * 转换 SentenceEntry
- */
 function transformSentenceEntry(entry: SentenceEntry): SentenceEntryModel {
   return {
     id: entry.id,
@@ -103,79 +161,7 @@ function transformSentenceEntry(entry: SentenceEntry): SentenceEntryModel {
   }
 }
 
-/**
- * 转换 Warning
- */
-function transformWarning(warning: Warning): WarningModel {
-  return {
-    code: warning.code,
-    level: warning.level,
-    message: warning.message,
-    sentenceId: warning.sentence_id,
-    annotationId: warning.annotation_id,
-  }
-}
-
-/**
- * 转换 TranslationItem
- */
-function transformTranslation(item: TranslationItem): TranslationModel {
-  return {
-    sentenceId: item.sentence_id,
-    translationZh: item.translation_zh,
-  }
-}
-
-/**
- * 转换 ArticleSentence
- */
-function transformSentence(sentence: ArticleSentence): SentenceModel {
-  return {
-    sentenceId: sentence.sentence_id,
-    paragraphId: sentence.paragraph_id,
-    text: sentence.text,
-  }
-}
-
-/**
- * 转换 ArticleParagraph
- */
-function transformParagraph(paragraph: ArticleParagraph): ParagraphModel {
-  return {
-    paragraphId: paragraph.paragraph_id,
-    sentenceIds: paragraph.sentence_ids,
-  }
-}
-
-/**
- * 转换 ArticleStructure
- */
-function transformArticle(article: ArticleStructure): ArticleModel {
-  return {
-    paragraphs: (article.paragraphs ?? []).map(transformParagraph),
-    sentences: (article.sentences ?? []).map(transformSentence),
-  }
-}
-
-/**
- * 转换 AnalyzeRequestMeta
- */
-function transformRequestMeta(meta: AnalyzeRequestMeta): RequestMeta {
-  return {
-    requestId: meta.request_id,
-    sourceType: meta.source_type as 'user_input',
-    readingGoal: meta.reading_goal,
-    readingVariant: meta.reading_variant,
-    profileId: meta.profile_id,
-  }
-}
-
-/**
- * 转换完整响应
- * 唯一转换点，snake_case -> camelCase
- * 返回 RenderSceneVmBase
- */
-export function analyzeResponseDtoToVm(dto: AnalyzeResponseDto): RenderSceneVmBase {
+function transformLearningDto(dto: AnalyzeResponseDto): RenderSceneVmBase {
   return {
     schemaVersion: dto.schema_version as RenderSceneVmBase['schemaVersion'],
     request: transformRequestMeta(dto.request),
@@ -188,9 +174,77 @@ export function analyzeResponseDtoToVm(dto: AnalyzeResponseDto): RenderSceneVmBa
   }
 }
 
-/**
- * 反向转换 InlineMarkAnchor (vm -> dto)
- */
+// ============ Academic 模式转换 ============
+
+function transformAcademicInlineMark(mark: DtoAcademicInlineMark): AcademicInlineMarkModel {
+  return {
+    id: mark.id,
+    annotationType: mark.annotation_type,
+    anchor: transformAnchor(mark.anchor),
+    renderType: mark.render_type,
+    visualTone: mark.visual_tone,
+    clickable: mark.clickable,
+    lookupText: mark.lookup_text,
+    glossary: mark.glossary
+      ? {
+          zh: mark.glossary.zh,
+          contextDefinition: mark.glossary.context_definition,
+          termCategory: mark.glossary.term_category,
+          logicType: mark.glossary.logic_type,
+          hedgingDetected: mark.glossary.hedging_detected,
+          hedgingWords: mark.glossary.hedging_words,
+        }
+      : undefined,
+  }
+}
+
+function transformAcademicSentenceEntry(entry: AcademicSentenceEntry): AcademicSentenceEntryModel {
+  return {
+    id: entry.id,
+    sentenceId: entry.sentence_id,
+    entryType: entry.entry_type,
+    label: entry.label,
+    title: entry.title,
+    content: entry.content,
+  }
+}
+
+function transformContentSummary(dto: ContentSummaryDto): ContentSummaryModel {
+  return {
+    completeness: dto.completeness,
+    overview: dto.overview,
+    researchQuestion: dto.research_question,
+    methodology: dto.methodology,
+    keyFindings: dto.key_findings,
+    limitations: dto.limitations,
+  }
+}
+
+function transformAcademicDto(dto: AcademicAnalyzeResponseDto): AcademicRenderSceneVm {
+  return {
+    schemaVersion: '3.0.0-academic',
+    request: transformRequestMeta(dto.request),
+    article: transformArticle(dto.article),
+    userFacingState: dto.user_facing_state,
+    translations: (dto.translations ?? []).map(transformTranslation),
+    inlineMarks: (dto.inline_marks ?? []).map(transformAcademicInlineMark),
+    sentenceEntries: (dto.sentence_entries ?? []).map(transformAcademicSentenceEntry),
+    contentSummary: dto.content_summary ? transformContentSummary(dto.content_summary) : null,
+    warnings: (dto.warnings ?? []).map(transformWarning),
+  }
+}
+
+// ============ 统一入口 ============
+
+export function analyzeResponseDtoToVm(dto: AnyAnalyzeResponseDto): AnyRenderSceneVm {
+  if (dto.schema_version === ACADEMIC_VERSION) {
+    return transformAcademicDto(dto as AcademicAnalyzeResponseDto)
+  }
+  return transformLearningDto(dto as AnalyzeResponseDto)
+}
+
+// ============ 反向转换：共享函数 ============
+
 function reverseAnchor(vmAnchor: VmTextAnchor | VmMultiTextAnchor): DtoTextAnchor | DtoMultiTextAnchor {
   if (vmAnchor.kind === 'text') {
     const a = vmAnchor as VmTextAnchor
@@ -214,9 +268,53 @@ function reverseAnchor(vmAnchor: VmTextAnchor | VmMultiTextAnchor): DtoTextAncho
   }
 }
 
-/**
- * 反向转换 InlineMark (vm -> dto)
- */
+function reverseTranslation(item: TranslationModel): TranslationItem {
+  return {
+    sentence_id: item.sentenceId,
+    translation_zh: item.translationZh,
+  }
+}
+
+function reverseSentence(sentence: SentenceModel): ArticleSentence {
+  return {
+    sentence_id: sentence.sentenceId,
+    paragraph_id: sentence.paragraphId,
+    text: sentence.text,
+    sentence_span: { start: 0, end: 0 },
+  }
+}
+
+function reverseParagraph(paragraph: ParagraphModel): ArticleParagraph {
+  return {
+    paragraph_id: paragraph.paragraphId,
+    text: '',
+    render_span: { start: 0, end: 0 },
+    sentence_ids: paragraph.sentenceIds,
+  }
+}
+
+function reverseWarning(warning: WarningModel): Warning {
+  return {
+    code: warning.code,
+    level: warning.level,
+    message: warning.message,
+    sentence_id: warning.sentenceId,
+    annotation_id: warning.annotationId,
+  }
+}
+
+function reverseRequestMeta(meta: RequestMeta): AnalyzeRequestMeta {
+  return {
+    request_id: meta.requestId,
+    source_type: meta.sourceType,
+    reading_goal: meta.readingGoal as AnalyzeRequestMeta['reading_goal'],
+    reading_variant: meta.readingVariant as AnalyzeRequestMeta['reading_variant'],
+    profile_id: meta.profileId,
+  }
+}
+
+// ============ 反向转换：Learning 模式 ============
+
 function reverseInlineMark(mark: InlineMarkModel): DtoInlineMark {
   return {
     id: mark.id,
@@ -238,9 +336,6 @@ function reverseInlineMark(mark: InlineMarkModel): DtoInlineMark {
   }
 }
 
-/**
- * 反向转换 SentenceEntry (vm -> dto)
- */
 function reverseSentenceEntry(entry: SentenceEntryModel): SentenceEntry {
   return {
     id: entry.id,
@@ -252,72 +347,7 @@ function reverseSentenceEntry(entry: SentenceEntryModel): SentenceEntry {
   }
 }
 
-/**
- * 反向转换 Warning (vm -> dto)
- */
-function reverseWarning(warning: WarningModel): Warning {
-  return {
-    code: warning.code,
-    level: warning.level,
-    message: warning.message,
-    sentence_id: warning.sentenceId,
-    annotation_id: warning.annotationId,
-  }
-}
-
-/**
- * 反向转换 TranslationItem (vm -> dto)
- */
-function reverseTranslation(item: TranslationModel): TranslationItem {
-  return {
-    sentence_id: item.sentenceId,
-    translation_zh: item.translationZh,
-  }
-}
-
-/**
- * 反向转换 ArticleSentence (vm -> dto)
- */
-function reverseSentence(sentence: SentenceModel): ArticleSentence {
-  return {
-    sentence_id: sentence.sentenceId,
-    paragraph_id: sentence.paragraphId,
-    text: sentence.text,
-    sentence_span: { start: 0, end: 0 },
-  }
-}
-
-/**
- * 反向转换 ArticleParagraph (vm -> dto)
- */
-function reverseParagraph(paragraph: ParagraphModel): ArticleParagraph {
-  return {
-    paragraph_id: paragraph.paragraphId,
-    text: '',
-    render_span: { start: 0, end: 0 },
-    sentence_ids: paragraph.sentenceIds,
-  }
-}
-
-/**
- * 反向转换 RequestMeta (vm -> dto)
- */
-function reverseRequestMeta(meta: RequestMeta): AnalyzeRequestMeta {
-  return {
-    request_id: meta.requestId,
-    source_type: meta.sourceType,
-    reading_goal: meta.readingGoal as AnalyzeRequestMeta['reading_goal'],
-    reading_variant: meta.readingVariant as AnalyzeRequestMeta['reading_variant'],
-    profile_id: meta.profileId,
-  }
-}
-
-/**
- * 反向转换完整响应
- * camelCase VM -> snake_case DTO
- * 用于前端保存记录到云端时，确保 render_scene_json 与后端输出格式一致
- */
-export function vmToAnalyzeResponseDto(vm: RenderSceneVmBase): AnalyzeResponseDto {
+function reverseLearningVm(vm: RenderSceneVmBase): AnalyzeResponseDto {
   return {
     schema_version: vm.schemaVersion,
     request: reverseRequestMeta(vm.request),
@@ -334,4 +364,79 @@ export function vmToAnalyzeResponseDto(vm: RenderSceneVmBase): AnalyzeResponseDt
     sentence_entries: (vm.sentenceEntries ?? []).map(reverseSentenceEntry),
     warnings: (vm.warnings ?? []).map(reverseWarning),
   }
+}
+
+// ============ 反向转换：Academic 模式 ============
+
+function reverseAcademicInlineMark(mark: AcademicInlineMarkModel): DtoAcademicInlineMark {
+  return {
+    id: mark.id,
+    annotation_type: mark.annotationType,
+    anchor: reverseAnchor(mark.anchor),
+    render_type: mark.renderType,
+    visual_tone: mark.visualTone,
+    clickable: mark.clickable,
+    lookup_text: mark.lookupText,
+    glossary: mark.glossary
+      ? {
+          zh: mark.glossary.zh,
+          context_definition: mark.glossary.contextDefinition,
+          term_category: mark.glossary.termCategory,
+          logic_type: mark.glossary.logicType,
+          hedging_detected: mark.glossary.hedgingDetected,
+          hedging_words: mark.glossary.hedgingWords,
+        }
+      : undefined,
+  }
+}
+
+function reverseAcademicSentenceEntry(entry: AcademicSentenceEntryModel): AcademicSentenceEntry {
+  return {
+    id: entry.id,
+    sentence_id: entry.sentenceId,
+    entry_type: entry.entryType,
+    label: entry.label,
+    title: entry.title,
+    content: entry.content,
+  }
+}
+
+function reverseContentSummary(model: ContentSummaryModel): ContentSummaryDto {
+  return {
+    completeness: model.completeness,
+    overview: model.overview,
+    research_question: model.researchQuestion,
+    methodology: model.methodology,
+    key_findings: model.keyFindings,
+    limitations: model.limitations,
+  }
+}
+
+function reverseAcademicVm(vm: AcademicRenderSceneVm): AcademicAnalyzeResponseDto {
+  return {
+    schema_version: '3.0.0-academic',
+    request: reverseRequestMeta(vm.request),
+    article: {
+      source_type: vm.request.sourceType,
+      source_text: '',
+      render_text: '',
+      paragraphs: (vm.article.paragraphs ?? []).map(reverseParagraph),
+      sentences: (vm.article.sentences ?? []).map(reverseSentence),
+    },
+    user_facing_state: vm.userFacingState,
+    translations: (vm.translations ?? []).map(reverseTranslation),
+    inline_marks: (vm.inlineMarks ?? []).map(reverseAcademicInlineMark),
+    sentence_entries: (vm.sentenceEntries ?? []).map(reverseAcademicSentenceEntry),
+    content_summary: vm.contentSummary ? reverseContentSummary(vm.contentSummary) : null,
+    warnings: (vm.warnings ?? []).map(reverseWarning),
+  }
+}
+
+// ============ 反向转换：统一入口 ============
+
+export function vmToAnalyzeResponseDto(vm: AnyRenderSceneVm): AnyAnalyzeResponseDto {
+  if (vm.schemaVersion === '3.0.0-academic') {
+    return reverseAcademicVm(vm as AcademicRenderSceneVm)
+  }
+  return reverseLearningVm(vm as RenderSceneVmBase)
 }

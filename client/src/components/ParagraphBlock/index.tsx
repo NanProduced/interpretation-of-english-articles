@@ -1,23 +1,25 @@
 import { useMemo, memo, useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
-import { InlineMarkModel, SentenceEntryModel, VisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
+import { InlineMarkModel, AnyInlineMarkModel, SentenceEntryModel, AnySentenceEntryModel, VisualTone, AcademicVisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
 import InlineMark from '../InlineMark'
 import ClickableWord from '../ClickableWord'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
 import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis } from './utils'
 import './index.scss'
 
-const TONE_PRIORITY: Record<VisualTone, number> = {
+const TONE_PRIORITY: Record<VisualTone | AcademicVisualTone, number> = {
   vocab: 1,
   phrase: 2,
   context: 3,
   grammar: 4,
+  term: 5,
+  logic: 6,
 }
 
 export interface WordClickPayload {
   word: string
-  mark: InlineMarkModel | null
+  mark: AnyInlineMarkModel | null
   event?: any
   contextSentence?: string
   occurrence?: number
@@ -27,11 +29,11 @@ interface ParagraphBlockProps {
   order: number
   sentences: SentenceModel[]
   translations: TranslationModel[]
-  inlineMarks: InlineMarkModel[]
+  inlineMarks: AnyInlineMarkModel[]
   activeMarkId?: string | null
   activeSentenceId?: string | null
   selectedWord?: string | null
-  tailEntries: SentenceEntryModel[]
+  tailEntries: AnySentenceEntryModel[]
   pageMode: 'immersive' | 'intensive'
   vocabList?: string[]
   onWordClick?: (payload: WordClickPayload) => void
@@ -105,7 +107,7 @@ function renderTextWithAnalysis(
 
 function renderTextWithMarks(
   text: string,
-  marks: InlineMarkModel[],
+  marks: AnyInlineMarkModel[],
   activeMarkId?: string | null,
   selectedWord?: string | null,
   vocabList?: string[],
@@ -151,7 +153,7 @@ function renderTextWithMarks(
   // ... 后续逻辑中也要应用 getNextOccurrence ...
 
 
-  const flatParts: Array<{ mark: InlineMarkModel; start: number; end: number; text: string }> = []
+  const flatParts: Array<{ mark: AnyInlineMarkModel; start: number; end: number; text: string }> = []
 
   visibleMarks.forEach((m) => {
     if (m.anchor.kind === 'text') {
@@ -163,7 +165,7 @@ function renderTextWithMarks(
       m.anchor.parts.forEach((part, idx) => {
         const pos = findTextAnchorPosition(text, part.anchorText, part.occurrence || 1)
         if (pos >= 0) {
-          const partMark: InlineMarkModel = {
+          const partMark: AnyInlineMarkModel = {
             ...m,
             id: `${m.id}-part-${idx}`,
             parentId: m.id,
@@ -309,7 +311,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   }
 
   const marksBySentenceId = useMemo(() => {
-    const map = new Map<string, InlineMarkModel[]>()
+    const map = new Map<string, AnyInlineMarkModel[]>()
     inlineMarks.forEach((m) => {
       const sid = m.anchor.sentenceId
       if (!map.has(sid)) map.set(sid, [])
@@ -319,7 +321,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   }, [inlineMarks])
 
   const entriesBySentenceId = useMemo(() => {
-    const map = new Map<string, SentenceEntryModel[]>()
+    const map = new Map<string, AnySentenceEntryModel[]>()
     tailEntries.forEach((e) => {
       if (!map.has(e.sentenceId)) map.set(e.sentenceId, [])
       map.get(e.sentenceId)!.push(e)
@@ -333,7 +335,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
         <View className='english-paragraph'>
           <Text className='english-flow'>
             {sentences.map((sentence, idx) => {
-              const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
+              const sentenceMarks: AnyInlineMarkModel[] = marksBySentenceId.get(sentence.sentenceId) || []
               return (
                 <Text 
                   key={sentence.sentenceId} 
@@ -353,8 +355,8 @@ const ParagraphBlock = memo(function ParagraphBlock({
 
   // --- Intensive Mode Chunking Logic ---
   const sentenceDataList = sentences.map(sentence => {
-    const sentenceMarks = marksBySentenceId.get(sentence.sentenceId) || []
-    const sentenceEntries = entriesBySentenceId.get(sentence.sentenceId) || []
+    const sentenceMarks: AnyInlineMarkModel[] = marksBySentenceId.get(sentence.sentenceId) || []
+    const sentenceEntries: AnySentenceEntryModel[] = entriesBySentenceId.get(sentence.sentenceId) || []
     const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
 
     const analysisCards: (AnalysisCardProps & { id: string })[] = [

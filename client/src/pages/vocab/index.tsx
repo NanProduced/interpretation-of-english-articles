@@ -15,6 +15,8 @@ import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
+import WordPopup from '../../components/WordPopup'
+import LucideIcon from '../../components/LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
 import './index.scss'
 
@@ -47,6 +49,7 @@ function formatDate(timestamp: number): string {
 export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const [vocabList, setVocabList] = useState<VocabEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [popupEntry, setPopupEntry] = useState<VocabEntry | null>(null)
   const { navBarHeight } = useLayoutStore()
   const loadVocabRef = useRef<() => Promise<void>>()
 
@@ -98,9 +101,9 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   }, [isSubView])
 
   /** 跳转回原文记录 */
-  const goToResult = (recordId: string) => {
+  const goToResult = (recordId: string, e: any) => {
+    e.stopPropagation()
     if (!recordId) return
-    // 不再在本地预判是否存在，因为 Result 页会自动从云端拉取
     Taro.navigateTo({ url: `/pages/result/index?recordId=${recordId}&mode=replay` })
   }
 
@@ -115,16 +118,13 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
       cancelText: '取消',
       success: (res) => {
         if (res.confirm) {
-          // 本地一定删
           removeVocabEntry(entry.id)
-          // 云端也同步删除（失败静默忽略）
           const { isLoggedIn } = useAuthStore.getState()
           if (isLoggedIn) {
             deleteCloudVocabulary(entry.id).catch((err) => {
                console.error('[Vocab] delete cloud failed', err)
             })
           }
-          // 更新列表
           setVocabList((prev) => prev.filter((v) => v.id !== entry.id))
         }
       },
@@ -161,13 +161,15 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
                 animation: `slideInUp 0.6s var(--ease-spring) both`,
                 animationDelay: `${index * 0.05}s`
               }}
-              onClick={() => entry.recordId && goToResult(entry.recordId)}
+              onClick={() => setPopupEntry(entry)}
             >
               <View className='card-header'>
-                <Text className='word-text'>{entry.word}</Text>
-                {entry.partOfSpeech && (
-                  <Text className='pos-tag'>{entry.partOfSpeech}</Text>
-                )}
+                <View className='word-group'>
+                  <Text className='word-text'>{entry.word}</Text>
+                  {entry.phonetic && (
+                    <Text className='phonetic-text'>/{entry.phonetic}/</Text>
+                  )}
+                </View>
                 {entry.mastered && (
                   <Text className='mastered-tag'>已掌握</Text>
                 )}
@@ -175,21 +177,30 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
                   className='delete-btn'
                   onClick={(e) => handleDelete(entry, e)}
                 >
-                  <Text className='delete-icon'>×</Text>
+                  <LucideIcon name='trash2' size={18} color='var(--text-muted)' />
                 </View>
               </View>
               <View className='card-body'>
-                <Text className='meaning-text'>{entry.meaning}</Text>
+                <View className='meaning-row'>
+                  {entry.partOfSpeech && (
+                    <Text className='pos-tag'>{entry.partOfSpeech}</Text>
+                  )}
+                  <Text className='meaning-text'>{entry.meaning}</Text>
+                </View>
                 {entry.sentence && (
                   <View className='context-box'>
-                    <Text className='context-text'>{entry.sentence}</Text>
+                    <Text className='context-text'>"{entry.sentence}"</Text>
                   </View>
                 )}
               </View>
               <View className='card-footer'>
-                <View className='source-info'>
-                </View>
-                <Text className='date-text'>{formatDate(entry.addedAt)}</Text>
+                <Text className='date-text'>收藏于 {formatDate(entry.addedAt)}</Text>
+                {entry.recordId && (
+                  <View className='source-link' onClick={(e) => goToResult(entry.recordId, e)}>
+                    <Text>查看原文</Text>
+                    <LucideIcon name='chevronRight' size={14} color='currentColor' />
+                  </View>
+                )}
               </View>
             </View>
           ))
@@ -198,6 +209,16 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
       </ScrollView>
 
       {!isSubView && <TabBar current='profile' />}
+
+      {/* 复用 WordPopup 作为生词详情页 */}
+      <WordPopup
+        visible={!!popupEntry}
+        mode='full'
+        mark={null}
+        word={popupEntry?.word || ''}
+        contextSentence={popupEntry?.sentence}
+        onClose={() => setPopupEntry(null)}
+      />
     </View>
   )
 }

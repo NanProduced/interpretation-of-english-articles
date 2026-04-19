@@ -5,10 +5,12 @@
  * 禁止在此文件引入 UI concerns
  *
  * @see server/app/schemas/analysis.py::RenderSceneModel
+ * @see server/app/schemas/analysis.py::AcademicRenderSceneModel
  */
 
 /** 后端 schema 版本 */
 export const BACKEND_SCHEMA_VERSION = '3.0.0' as const
+export const ACADEMIC_SCHEMA_VERSION = '3.0.0-academic' as const
 
 // ============ 基础类型 ============
 
@@ -58,7 +60,30 @@ export interface ArticleStructure {
   sentences: ArticleSentence[]
 }
 
-// ============ 行内标注 ============
+// ============ 翻译 ============
+
+export interface TranslationItem {
+  sentence_id: string
+  translation_zh: string
+}
+
+// ============ 警告 ============
+
+export type WarningLevel = 'info' | 'warning' | 'error'
+
+export interface Warning {
+  code: string
+  level: WarningLevel
+  message: string
+  sentence_id?: string
+  annotation_id?: string
+}
+
+// ============ 页面状态 ============
+
+export type UserFacingState = 'normal' | 'degraded_light' | 'degraded_heavy'
+
+// ============ Learning 模式行内标注 ============
 
 export type InlineMarkRenderType = 'background' | 'underline'
 export type VisualTone = 'vocab' | 'phrase' | 'context' | 'grammar'
@@ -104,7 +129,7 @@ export interface InlineMark {
   glossary?: InlineGlossary
 }
 
-// ============ 句尾入口 ============
+// ============ Learning 模式句尾入口 ============
 
 export type SentenceEntryType = 'grammar_note' | 'sentence_analysis'
 
@@ -117,30 +142,7 @@ export interface SentenceEntry {
   content: string
 }
 
-// ============ 警告 ============
-
-export type WarningLevel = 'info' | 'warning' | 'error'
-
-export interface Warning {
-  code: string
-  level: WarningLevel
-  message: string
-  sentence_id?: string
-  annotation_id?: string
-}
-
-// ============ 翻译 ============
-
-export interface TranslationItem {
-  sentence_id: string
-  translation_zh: string
-}
-
-// ============ 页面状态 ============
-
-export type UserFacingState = 'normal' | 'degraded_light' | 'degraded_heavy'
-
-// ============ 完整响应 ============
+// ============ Learning 模式完整响应 ============
 
 export interface AnalyzeResponseDto {
   schema_version: typeof BACKEND_SCHEMA_VERSION
@@ -152,3 +154,72 @@ export interface AnalyzeResponseDto {
   sentence_entries: SentenceEntry[]
   warnings: Warning[]
 }
+
+// ============ Academic 模式行内标注 ============
+
+export type AcademicAnnotationType = 'term_note' | 'logic_note'
+export type AcademicVisualTone = 'term' | 'logic'
+
+export interface AcademicInlineGlossary {
+  zh?: string
+  context_definition?: string
+  term_category?: string
+  logic_type?: string
+  hedging_detected?: boolean
+  hedging_words?: string[]
+}
+
+export interface AcademicInlineMark {
+  id: string
+  annotation_type: AcademicAnnotationType
+  anchor: InlineMarkAnchor
+  render_type: InlineMarkRenderType
+  visual_tone: AcademicVisualTone
+  clickable: boolean
+  lookup_text?: string
+  glossary?: AcademicInlineGlossary
+}
+
+// ============ Academic 模式句尾入口 ============
+
+export type AcademicSentenceEntryType = 'term_note' | 'logic_note' | 'interpretation_note' | 'content_summary'
+
+export interface AcademicSentenceEntry {
+  id: string
+  sentence_id: string
+  entry_type: AcademicSentenceEntryType
+  label: string
+  title?: string
+  content: string
+}
+
+// ============ Academic 模式内容概要 ============
+
+export type ContentSummaryCompleteness = 'full' | 'partial' | 'minimal'
+
+export interface ContentSummaryDto {
+  completeness: ContentSummaryCompleteness
+  overview: string
+  research_question?: string | null
+  methodology?: string | null
+  key_findings?: string[]
+  limitations?: string[]
+}
+
+// ============ Academic 模式完整响应 ============
+
+export interface AcademicAnalyzeResponseDto {
+  schema_version: typeof ACADEMIC_SCHEMA_VERSION
+  request: AnalyzeRequestMeta
+  article: ArticleStructure
+  user_facing_state: UserFacingState
+  translations: TranslationItem[]
+  inline_marks: AcademicInlineMark[]
+  sentence_entries: AcademicSentenceEntry[]
+  content_summary: ContentSummaryDto | null
+  warnings: Warning[]
+}
+
+// ============ 联合类型 ============
+
+export type AnyAnalyzeResponseDto = AnalyzeResponseDto | AcademicAnalyzeResponseDto
