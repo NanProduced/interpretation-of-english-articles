@@ -275,7 +275,7 @@ Sync Queue 数据结构：
 
 ## 9. 关联文档
 
-- `mini-program-integration-and-ux-design.md` - 用户主链路与产品设计
-- `daily-reader-module-design.md` - 每日精读独立设计
-- `tecd3-local-dictionary-integration.md` - TECD3 词典接入细则
+- [小程序联调与用户体验设计文档](./mini-program-integration-and-ux-design.md) - 用户主链路与产品设计
+- [每日精读模块设计文档](./daily-reader-module-design.md) - 每日精读独立设计
+- [词典服务架构与查询策略](./dictionary-service-architecture.md) - TECD3 词典接入细则与查询策略
 - `server/db/migrations/0001_initial_schema.sql` - 数据库 DDL

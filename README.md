@@ -118,14 +118,11 @@ Claread透读的重点不是通用翻译，而是围绕英文阅读场景，输�
 
 ## 本地参考文档
 
-- [文档说明](./docs/README.md)
+- [文档说明与索引](./docs/README.md)
 - [产品需求摘要](./docs/product/prd-summary.md)
-- [Workflow V0 架构回顾与问题诊断报告](./docs/workflow/v0/v0-retrospective-report.md)
-- [Workflow V1 设计草案](./docs/workflow/v1/workflow-v1-design.md)
-- [Workflow V3 设计与重构文档（当前重构参考）](./docs/workflow/v3/workflow-v3-design.md)
-- [Workflow V2.1 改造设计稿（上一版主线参考）](./docs/workflow/v2/v2-1-refactor-design.md)
-- [Workflow V2 统一设计文档（归档）](./docs/workflow/v2/archive/v2-unified-design.md)
-- [微信小程序技术边界](./docs/architecture/mini-program-boundaries.md)
+- [架构决策记录](./docs/architecture/ARCHITECTURE.md)
+- [Workflow V3 设计与重构文档（当前主线）](./docs/workflow/v3/workflow-v3-design.md)
+- [Workflow V2.1 改造设计稿（历史参考）](./docs/workflow/v2/v2-1-refactor-design.md)
 - [LangSmith 使用规范](./docs/operations/langsmith-usage.md)
 - [回归集使用说明](./docs/operations/regression-suite-usage.md)
 - [模型配置教程](./docs/operations/model-configuration-usage.md)

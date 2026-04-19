@@ -3,9 +3,9 @@
 > 文档定位：用于指导 Claread透读 的“每日精读”模块设计与开发，覆盖页面形态、内容生产链路、专用 LLM workflow、前端交互边界与数据结构。\
 > 生效范围：本文档只覆盖“每日精读”这一条独立产品线，不替代主线的用户输入解析结果页设计。\
 > 关联文档：
-> - [小程序联调与用户体验开发设计文档](./mini-program-integration-and-ux-design.md)
-> - [小程序正式上线架构与部署方案](./production-architecture-and-deployment-plan.md)
-> - [TECD3 本地词典接入方案](./tecd3-local-dictionary-integration.md)
+> - [小程序联调与用户体验设计文档](./mini-program-integration-and-ux-design.md)
+> - [Claread 透读架构决策记录](./ARCHITECTURE.md)
+> - [词典服务架构与查询策略](./dictionary-service-architecture.md)
 
 ## 1. 背景与核心判断
 

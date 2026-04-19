@@ -1,5 +1,7 @@
 # V2.1 改造设计稿
 
+> **文档分类：历史参考**。本文档是 v2.1 阶段的设计稿，当前开发以 [Workflow V3 设计与重构文档](../v3/workflow-v3-design.md) 为准。本文档仍被 server/README.md 引用为 v2.1 现状参考，但不再作为新功能的设计依据。
+>
 > 文档定位：用于记录 Claread透读 v2.1 阶段的设计、开发、联调与验收基线。
 >
 > 生效范围：`v2.1` 相关的 schema、prompt、validator、API 投影、前端 mock、结果页 UI/UX 改造。
