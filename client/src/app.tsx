@@ -4,7 +4,6 @@ import { useAuthStore } from './stores/auth'
 import { useArticleStore } from './stores/article'
 import { CloudSyncService } from './services/cloudSync.service'
 import { ensureLoggedIn } from './services/auth'
-import { runMigrations } from './services/migration'
 import LoginGuideModal from './components/LoginGuideModal'
 import './app.scss'
 
@@ -17,7 +16,6 @@ function App({ children }: PropsWithChildren<any>) {
   // 启动时恢复认证状态
   useEffect(() => {
     const restoreState = async () => {
-      await runMigrations()
       await useAuthStore.getState().restore()
       if ((Taro as any)._navigatingToOnboarding) return
       ;(Taro as any)._navigatingToOnboarding = true

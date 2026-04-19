@@ -232,7 +232,7 @@ CREATE TABLE vocabulary_book (
   tags TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   exchange TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   source_provider TEXT NOT NULL DEFAULT 'tecd3',
-  analysis_record_id UUID REFERENCES analysis_records(id) ON DELETE SET NULL,
+  dict_entry_id BIGINT REFERENCES dict_entries(id) ON DELETE SET NULL,
   source_sentence TEXT,
   source_context TEXT,
   mastery_status TEXT NOT NULL DEFAULT 'new' CHECK (mastery_status IN ('new', 'learning', 'review', 'mastered', 'archived')),
@@ -246,6 +246,7 @@ CREATE TABLE vocabulary_book (
 CREATE UNIQUE INDEX uq_vocabulary_book_user_lemma_lower ON vocabulary_book(user_id, LOWER(lemma));
 CREATE INDEX idx_vocabulary_book_user_created_at ON vocabulary_book(user_id, created_at DESC);
 CREATE INDEX idx_vocabulary_book_user_mastery_status ON vocabulary_book(user_id, mastery_status);
+CREATE INDEX idx_vocabulary_book_dict_entry_id ON vocabulary_book(dict_entry_id) WHERE dict_entry_id IS NOT NULL;
 
 CREATE TABLE dict_entries (
   id BIGSERIAL PRIMARY KEY,
@@ -447,13 +448,13 @@ COMMENT ON COLUMN vocabulary_book.meanings_json IS '完整释义结构 JSON。';
 COMMENT ON COLUMN vocabulary_book.tags IS '词汇标签数组。';
 COMMENT ON COLUMN vocabulary_book.exchange IS '词形变化数组。';
 COMMENT ON COLUMN vocabulary_book.source_provider IS '词汇来源提供方，例如 tecd3。';
-COMMENT ON COLUMN vocabulary_book.analysis_record_id IS '来源分析记录 ID，可为空。';
-COMMENT ON COLUMN vocabulary_book.source_sentence IS '来源句子文本。';
-COMMENT ON COLUMN vocabulary_book.source_context IS '来源上下文文本。';
+COMMENT ON COLUMN vocabulary_book.dict_entry_id IS '关联的词典词条 ID，用于详情页按需加载完整释义、短语、例句等。';
+COMMENT ON COLUMN vocabulary_book.source_sentence IS '最近一次来源句子文本。';
+COMMENT ON COLUMN vocabulary_book.source_context IS '最近一次来源上下文文本。';
 COMMENT ON COLUMN vocabulary_book.mastery_status IS '掌握状态，支持 new、learning、review、mastered、archived。';
 COMMENT ON COLUMN vocabulary_book.review_count IS '累计复习次数。';
 COMMENT ON COLUMN vocabulary_book.last_reviewed_at IS '最近一次复习时间。';
-COMMENT ON COLUMN vocabulary_book.payload_json IS '生词附加元数据 JSON。';
+COMMENT ON COLUMN vocabulary_book.payload_json IS '生词附加元数据 JSON，承载 source_refs（多语境来源）、collected_forms（收藏形态）、audio_url（音频缓存）。';
 COMMENT ON COLUMN vocabulary_book.created_at IS '记录创建时间。';
 COMMENT ON COLUMN vocabulary_book.updated_at IS '记录最后更新时间。';
 
