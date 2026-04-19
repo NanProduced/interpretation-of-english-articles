@@ -15,6 +15,8 @@ CREATE TABLE users (
   avatar_url TEXT,
   locale TEXT NOT NULL DEFAULT 'zh-CN',
   timezone TEXT NOT NULL DEFAULT 'Asia/Shanghai',
+  cumulative_article_count INTEGER NOT NULL DEFAULT 0,
+  last_active_at TIMESTAMPTZ,
   settings_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   last_login_at TIMESTAMPTZ,
@@ -188,6 +190,14 @@ CREATE TABLE user_credit_ledger (
 CREATE INDEX idx_credit_ledger_user_created ON user_credit_ledger(user_id, created_at DESC);
 CREATE INDEX idx_credit_ledger_task ON user_credit_ledger(task_id) WHERE task_id IS NOT NULL;
 
+CREATE TABLE anonymous_quotas (
+  anonymous_id TEXT PRIMARY KEY,
+  trial_count INTEGER NOT NULL DEFAULT 0,
+  last_trial_at DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE favorite_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -265,13 +275,14 @@ CREATE TABLE dict_lookup_targets (
   id BIGSERIAL PRIMARY KEY,
   source TEXT NOT NULL DEFAULT 'tecd3',
   normalized_form TEXT NOT NULL,
+  lookup_type TEXT NOT NULL DEFAULT 'word' CHECK (lookup_type IN ('word', 'phrase')),
   lookup_label TEXT NOT NULL,
   entry_id BIGINT NOT NULL REFERENCES dict_entries(id) ON DELETE CASCADE,
   target_label TEXT NOT NULL,
   target_pos TEXT,
   preview_text TEXT,
   rank INTEGER NOT NULL DEFAULT 0,
-  match_kind TEXT NOT NULL CHECK (match_kind IN ('headword', 'alias', 'disamb', 'redirect', 'nlp')),
+  match_kind TEXT NOT NULL CHECK (match_kind IN ('headword', 'alias', 'disamb', 'redirect', 'nlp', 'phrase', 'phrase_template')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT uq_dict_lookup_targets UNIQUE (source, normalized_form, entry_id, match_kind)
 );
@@ -299,6 +310,8 @@ COMMENT ON COLUMN users.display_name IS '用户展示名称。';
 COMMENT ON COLUMN users.avatar_url IS '用户头像地址。';
 COMMENT ON COLUMN users.locale IS '用户语言区域设置，例如 zh-CN。';
 COMMENT ON COLUMN users.timezone IS '用户时区标识，例如 Asia/Shanghai。';
+COMMENT ON COLUMN users.cumulative_article_count IS '用户自注册以来累计成功解析的文章总数，删除历史记录不减少。';
+COMMENT ON COLUMN users.last_active_at IS '用户最近一次活跃（如发起解析）的时间。';
 COMMENT ON COLUMN users.settings_json IS '用户设置的结构化 JSON 数据。';
 COMMENT ON COLUMN users.metadata_json IS '用户附加元数据 JSON。';
 COMMENT ON COLUMN users.last_login_at IS '最近一次登录时间。';
@@ -404,6 +417,13 @@ COMMENT ON COLUMN user_credit_ledger.bucket_type IS '积分桶类型：daily_fre
 COMMENT ON COLUMN user_credit_ledger.balance_after IS '变动后余额。';
 COMMENT ON COLUMN user_credit_ledger.metadata_json IS '扩展元数据 JSON，如 { input_tokens, output_tokens, multiplier_input, multiplier_output }。';
 
+COMMENT ON TABLE anonymous_quotas IS '匿名/游客试用额度表，用于限制未登录状态下的试用次数。';
+COMMENT ON COLUMN anonymous_quotas.anonymous_id IS '匿名用户标识，例如设备 ID 或客户端生成 UUID。';
+COMMENT ON COLUMN anonymous_quotas.trial_count IS '累计试用次数。';
+COMMENT ON COLUMN anonymous_quotas.last_trial_at IS '最近一次试用日期。';
+COMMENT ON COLUMN anonymous_quotas.created_at IS '记录创建时间。';
+COMMENT ON COLUMN anonymous_quotas.updated_at IS '记录最后更新时间。';
+
 COMMENT ON TABLE favorite_records IS '收藏记录表，保存用户对文章、句子、短语或词汇的收藏。';
 COMMENT ON COLUMN favorite_records.id IS '收藏记录主键，使用 UUID。';
 COMMENT ON COLUMN favorite_records.user_id IS '所属用户 ID。';
@@ -460,13 +480,14 @@ COMMENT ON TABLE dict_lookup_targets IS '词典查询映射表，保存归一化
 COMMENT ON COLUMN dict_lookup_targets.id IS '查询映射主键，自增 bigint。';
 COMMENT ON COLUMN dict_lookup_targets.source IS '词典来源标识，当前为 tecd3。';
 COMMENT ON COLUMN dict_lookup_targets.normalized_form IS '归一化后的查询词。';
+COMMENT ON COLUMN dict_lookup_targets.lookup_type IS '查询目标类型，word 表示单词查找，phrase 表示短语查找。';
 COMMENT ON COLUMN dict_lookup_targets.lookup_label IS '查询结果页显示的查找标签。';
 COMMENT ON COLUMN dict_lookup_targets.entry_id IS '关联的词条详情 ID。';
 COMMENT ON COLUMN dict_lookup_targets.target_label IS '候选词条展示标签。';
 COMMENT ON COLUMN dict_lookup_targets.target_pos IS '候选词条词性。';
 COMMENT ON COLUMN dict_lookup_targets.preview_text IS '候选词条预览释义。';
 COMMENT ON COLUMN dict_lookup_targets.rank IS '候选排序值，越小越靠前。';
-COMMENT ON COLUMN dict_lookup_targets.match_kind IS '匹配来源类型，例如 headword、disamb、redirect、nlp。';
+COMMENT ON COLUMN dict_lookup_targets.match_kind IS '匹配来源类型，例如 headword、disamb、redirect、nlp、phrase、phrase_template。';
 COMMENT ON COLUMN dict_lookup_targets.created_at IS '记录创建时间。';
 
 COMMENT ON TABLE dict_redirects IS '词典重定向关系表，保存 MDX 链接跳转与归一化别名到词条键的映射。';
@@ -503,6 +524,10 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TRIGGER trg_user_credit_accounts_set_updated_at
 BEFORE UPDATE ON user_credit_accounts
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_anonymous_quotas_set_updated_at
+BEFORE UPDATE ON anonymous_quotas
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TRIGGER trg_vocabulary_book_set_updated_at

@@ -3,8 +3,9 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { getRecordIds, getRecord, deleteRecord, getVocabulary } from '../../services/storage'
 import { useAuthStore } from '../../stores/auth'
-import { fetchCloudRecords, deleteCloudRecord } from '../../services/api/records.client'
+import { fetchCloudRecords } from '../../services/api/records.client'
 import { fetchCloudFavorites } from '../../services/api/favorites.client'
+import { CloudSyncService } from '../../services/cloudSync.service'
 import type { AnalysisRecord } from '../../types/view/analysis-record.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
@@ -67,7 +68,6 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     : records
 
   const loadRecords = useCallback(async () => {
-    // ... (现有代码逻辑保持不变)
     setLoading(true)
     const { isLoggedIn } = useAuthStore.getState()
     if (isLoggedIn) {
@@ -82,12 +82,22 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
         allVocab.forEach(v => {
           if (v.recordId) vocabCounts[v.recordId] = (vocabCounts[v.recordId] || 0) + 1
         })
-        const merged: AnalysisRecord[] = recordResult.items.map((r) => ({
+        const cloudRecords = recordResult.items.map((r) => ({
           ...r,
           isFavorited: favIds.has(r.recordId),
           vocabCount: vocabCounts[r.recordId] || 0,
         }))
-        setRecords(merged)
+        const localIds = getRecordIds()
+        const localOnlyRecords: AnalysisRecord[] = []
+        const cloudRecordIds = new Set(cloudRecords.map(r => r.recordId))
+        for (const id of localIds) {
+          if (cloudRecordIds.has(id)) continue
+          const record = getRecord(id)
+          if (record && !record.tombstone) {
+            localOnlyRecords.push({ ...record, vocabCount: vocabCounts[id] || 0 })
+          }
+        }
+        setRecords([...cloudRecords, ...localOnlyRecords])
         setLoading(false)
         return
       } catch {}
@@ -101,7 +111,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     const loaded: AnalysisRecord[] = []
     for (const id of ids) {
       const record = getRecord(id)
-      if (record) {
+      if (record && !record.tombstone) {
         loaded.push({ ...record, vocabCount: vocabCounts[id] || 0 })
       }
     }
@@ -156,9 +166,8 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
           selectedIds.forEach(id => {
             deleteRecord(id)
             const record = records.find(r => r.recordId === id)
-            const { isLoggedIn } = useAuthStore.getState()
-            if (isLoggedIn && record?.cloudId) {
-              deleteCloudRecord(record.cloudId).catch(() => {})
+            if (record?.cloudId) {
+              CloudSyncService.syncDeleteRecord(record.cloudId, id)
             }
           })
           loadRecords()
@@ -207,9 +216,8 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
       success: (res) => {
         if (res.confirm) {
           deleteRecord(record.recordId)
-          const { isLoggedIn } = useAuthStore.getState()
-          if (isLoggedIn && record.cloudId) {
-            deleteCloudRecord(record.cloudId).catch(() => {})
+          if (record.cloudId) {
+            CloudSyncService.syncDeleteRecord(record.cloudId, record.recordId)
           }
           loadRecords()
         }

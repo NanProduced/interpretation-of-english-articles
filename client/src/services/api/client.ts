@@ -227,6 +227,8 @@ export interface TaskSubmitRequest extends AnalyzeRequest {
 export interface TaskSubmitResponse {
   task_id: string
   record_id: string
+  cloud_record_id: string
+  client_record_id: string | null
   status: TaskStatus
   created: boolean
   render_scene?: AnyAnalyzeResponseDto | null
@@ -235,6 +237,8 @@ export interface TaskSubmitResponse {
 export interface TaskStatusResponse {
   task_id: string
   record_id: string
+  cloud_record_id: string
+  client_record_id: string | null
   status: TaskStatus
   failure_code?: string | null
   failure_message?: string | null

@@ -17,7 +17,9 @@ import {
   AnyRenderSceneVm,
   ResultPageState,
 } from '../types/view/render-scene.vm'
-import { saveRecord, getRecord } from '../services/storage'
+import {
+  saveRecord, getRecord, saveRecordIdentity,
+} from '../services/storage'
 import type { AnalysisRecord } from '../types/view/analysis-record.vm'
 import { track } from '../services/analytics'
 
@@ -253,7 +255,10 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           wait_timeout_seconds: 40,
         })
         taskId = res.task_id
-        serverRecordId = res.record_id
+        serverRecordId = res.cloud_record_id || res.record_id
+
+        if (res.client_record_id && res.client_record_id !== clientRecordId) {
+        }
 
         if (res.render_scene) {
           const vm = analyzeResponseDtoToVm(res.render_scene)
@@ -266,6 +271,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           const localRecord: AnalysisRecord = {
             recordId: clientRecordId,
             cloudId: serverRecordId,
+            syncState: 'synced',
             title: deriveFallbackTitle(normalizedRequest.text),
             sourceText: normalizedRequest.text,
             requestPayload: {
@@ -280,6 +286,9 @@ export const useArticleStore = create<ArticleState>((set, get) => {
             isFavorited: false,
           }
           saveRecord(localRecord)
+          if (serverRecordId) {
+            saveRecordIdentity(clientRecordId, serverRecordId)
+          }
           track('analyze_success', { pageState })
           set({
             sceneData: vm,
@@ -297,6 +306,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         const initialRecord: AnalysisRecord = {
           recordId: clientRecordId,
           cloudId: serverRecordId,
+          syncState: 'local_only',
           title: deriveFallbackTitle(normalizedRequest.text),
           sourceText: normalizedRequest.text,
           requestPayload: {
@@ -311,6 +321,9 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           isFavorited: false,
         }
         saveRecord(initialRecord)
+        if (serverRecordId) {
+          saveRecordIdentity(clientRecordId, serverRecordId)
+        }
 
         set({ phase: 'polling', pageState, recordId: clientRecordId, cloudId: serverRecordId })
       } catch (err: any) {
@@ -318,7 +331,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           const current = await getCurrentTask()
           if (current.has_active && current.task) {
              taskId = current.task.task_id
-             serverRecordId = current.task.record_id
+             serverRecordId = current.task.cloud_record_id || current.task.record_id
              
              const cloudRecord = await fetchCloudRecord(serverRecordId)
              if (!cloudRecord) {
@@ -327,7 +340,10 @@ export const useArticleStore = create<ArticleState>((set, get) => {
                 return
              }
              
-             const realClientRecordId = cloudRecord.recordId
+             const realClientRecordId = current.task.client_record_id || cloudRecord.recordId
+             if (realClientRecordId && serverRecordId) {
+               saveRecordIdentity(realClientRecordId, serverRecordId)
+             }
              const recoveryPageState = derivePageState('polling', null, null)
              set({ phase: 'polling', pageState: recoveryPageState, recordId: realClientRecordId, cloudId: serverRecordId })
              await startPolling(taskId)
@@ -370,7 +386,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
       try {
         const current = await getCurrentTask()
         if (current.has_active && current.task) {
-          const serverRecordId = current.task.record_id
+          const serverRecordId = current.task.cloud_record_id || current.task.record_id
           
           if (targetRecordId && targetRecordId !== serverRecordId) {
              const cloudRecord = await fetchCloudRecord(serverRecordId)
@@ -386,7 +402,10 @@ export const useArticleStore = create<ArticleState>((set, get) => {
              return
           }
 
-          const realClientRecordId = cloudRecord.recordId
+          const realClientRecordId = current.task.client_record_id || cloudRecord.recordId
+          if (realClientRecordId && serverRecordId) {
+            saveRecordIdentity(realClientRecordId, serverRecordId)
+          }
           set({
             recordId: realClientRecordId,
             cloudId: serverRecordId,

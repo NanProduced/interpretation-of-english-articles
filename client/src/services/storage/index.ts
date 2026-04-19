@@ -27,6 +27,8 @@ const KEYS = {
   FAVORITES: 'favorite_records',
   VOCABULARY: 'vocabulary_book',
   USER_PREF: 'user_preferences',
+  RECORD_IDENTITY_MAP: 'record_identity_map',
+  SYNC_QUEUE: 'sync_queue',
 } as const
 
 // ============ Article Draft ============
@@ -272,4 +274,102 @@ export function saveUserPreferences(pref: Partial<UserPreferences>): void {
   } catch (e) {
     console.error('[storage] saveUserPreferences failed', e)
   }
+}
+
+// ============ Record Identity Map ============
+
+export interface RecordIdentityMap {
+  [clientRecordId: string]: string
+}
+
+export function getRecordIdentityMap(): RecordIdentityMap {
+  try {
+    const raw = Taro.getStorageSync<RecordIdentityMap>(KEYS.RECORD_IDENTITY_MAP)
+    return raw || {}
+  } catch (e) {
+    console.error('[storage] getRecordIdentityMap failed', e)
+    return {}
+  }
+}
+
+export function saveRecordIdentity(clientRecordId: string, cloudRecordId: string): void {
+  try {
+    const map = getRecordIdentityMap()
+    map[clientRecordId] = cloudRecordId
+    Taro.setStorageSync(KEYS.RECORD_IDENTITY_MAP, map)
+  } catch (e) {
+    console.error('[storage] saveRecordIdentity failed', e)
+  }
+}
+
+export function resolveCloudIdFromMap(clientRecordId: string): string | null {
+  const map = getRecordIdentityMap()
+  return map[clientRecordId] || null
+}
+
+export function resolveClientIdFromMap(cloudRecordId: string): string | null {
+  const map = getRecordIdentityMap()
+  for (const [clientId, cloudId] of Object.entries(map)) {
+    if (cloudId === cloudRecordId) return clientId
+  }
+  return null
+}
+
+// ============ Sync Queue ============
+
+export interface SyncQueueItem {
+  opId: string
+  entityType: 'record' | 'favorite' | 'vocab'
+  entityId: string
+  action: string
+  payload: Record<string, unknown>
+  dependsOn?: string[]
+  status: 'pending' | 'running' | 'failed' | 'done'
+  retryCount: number
+  nextRetryAt?: number
+  lastError?: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+export function getSyncQueue(): SyncQueueItem[] {
+  try {
+    const raw = Taro.getStorageSync<SyncQueueItem[]>(KEYS.SYNC_QUEUE)
+    return raw || []
+  } catch (e) {
+    console.error('[storage] getSyncQueue failed', e)
+    return []
+  }
+}
+
+export function saveSyncQueue(queue: SyncQueueItem[]): void {
+  try {
+    Taro.setStorageSync(KEYS.SYNC_QUEUE, queue)
+  } catch (e) {
+    console.error('[storage] saveSyncQueue failed', e)
+  }
+}
+
+export function enqueueSyncItem(item: SyncQueueItem): void {
+  const queue = getSyncQueue()
+  queue.push(item)
+  saveSyncQueue(queue)
+}
+
+export function updateSyncQueueItem(opId: string, updates: Partial<SyncQueueItem>): void {
+  const queue = getSyncQueue()
+  const idx = queue.findIndex(item => item.opId === opId)
+  if (idx > -1) {
+    queue[idx] = { ...queue[idx], ...updates, updatedAt: Date.now() }
+    saveSyncQueue(queue)
+  }
+}
+
+export function removeSyncQueueItem(opId: string): void {
+  const queue = getSyncQueue().filter(item => item.opId !== opId)
+  saveSyncQueue(queue)
+}
+
+export function getPendingSyncItems(): SyncQueueItem[] {
+  return getSyncQueue().filter(item => item.status === 'pending')
 }

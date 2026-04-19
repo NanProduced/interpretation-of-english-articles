@@ -1,17 +1,33 @@
 /**
  * CloudSyncService
  *
- * 分析成功后自动将本地数据同步到云端。
- * 所有操作均为 fire-and-forget，失败不影响本地数据。
+ * 离线优先的持久化同步服务。
+ * 所有用户资产 mutation 先写本地，再入队后台 flush。
  * 未登录时静默跳过。
+ * 队列持久化到 Taro storage，重启后不丢失。
  */
 
-import Taro from '@tarojs/taro'
 import { useAuthStore } from '../stores/auth'
 import type { AnalysisRecord } from '../types/view/analysis-record.vm'
 import type { FavoriteRecord } from '../types/view/favorites.vm'
 import type { VocabEntry } from '../types/view/vocabulary.vm'
-import { getRecord } from './storage'
+import {
+  getRecord,
+  updateRecord,
+  getVocabulary,
+  removeVocabEntry,
+  saveVocabEntry,
+  updateVocabEntry,
+  saveRecordIdentity,
+  resolveCloudIdFromMap,
+  getSyncQueue,
+  saveSyncQueue,
+  enqueueSyncItem,
+  updateSyncQueueItem,
+  removeSyncQueueItem,
+  getPendingSyncItems,
+  type SyncQueueItem,
+} from './storage'
 import {
   saveRecordToCloud,
   fetchCloudRecordByClientId,
@@ -21,34 +37,38 @@ import {
   addFavoriteToCloud,
   removeFavoriteFromCloud,
 } from './api/favorites.client'
-import { addVocabToCloud } from './api/vocabulary.client'
+import {
+  addVocabToCloud,
+  updateCloudVocabulary,
+  deleteCloudVocabulary,
+} from './api/vocabulary.client'
 
-// ---------------------------------------------------------------------------
-// 工具函数
-// ---------------------------------------------------------------------------
-
-/** 计算字符串的简单哈希（用于 sourceTextHash，非安全用途） */
 function hashString(str: string): string {
   let hash = 0
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i)
     hash = (hash << 5) - hash + char
-    hash = hash & hash // Convert to 32bit integer
+    hash = hash & hash
   }
   return Math.abs(hash).toString(16).padStart(8, '0')
 }
 
+function generateOpId(): string {
+  return `op_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
 // ---------------------------------------------------------------------------
-// CloudSyncService
+// resolveCloudId: 优先读本地映射 + storage，再走网络
 // ---------------------------------------------------------------------------
 
 const resolveCloudIdCache = new Map<string, Promise<string | null>>()
 
-/** 尝试从本地或后端找回云端 UUID (带并发去重) */
 async function resolveCloudId(clientRecordId: string): Promise<string | null> {
-  // 1. 先看本地有没有内存中的新值
   const local = getRecord(clientRecordId)
   if (local?.cloudId) return local.cloudId
+
+  const fromMap = resolveCloudIdFromMap(clientRecordId)
+  if (fromMap) return fromMap
 
   if (resolveCloudIdCache.has(clientRecordId)) {
     return resolveCloudIdCache.get(clientRecordId)!
@@ -57,11 +77,13 @@ async function resolveCloudId(clientRecordId: string): Promise<string | null> {
   const promise = (async () => {
     try {
       const cloudRecord = await fetchCloudRecordByClientId(clientRecordId)
-      if (cloudRecord?.cloudId) return cloudRecord.cloudId
+      if (cloudRecord?.cloudId) {
+        saveRecordIdentity(clientRecordId, cloudRecord.cloudId)
+        updateRecord(clientRecordId, { cloudId: cloudRecord.cloudId })
+        return cloudRecord.cloudId
+      }
     } catch {
-      // 忽略 Lookup 失败
     } finally {
-      // 一定时间后清理缓存，允许重试
       setTimeout(() => resolveCloudIdCache.delete(clientRecordId), 5000)
     }
     return null
@@ -71,79 +93,259 @@ async function resolveCloudId(clientRecordId: string): Promise<string | null> {
   return promise
 }
 
-// 简单队列机制，保证针对同一目标的云端同步请求有序执行
-const syncQueues = new Map<string, Promise<void>>()
+// ---------------------------------------------------------------------------
+// Flush Worker: 全局单例，串行执行 pending 队列
+// ---------------------------------------------------------------------------
 
-function enqueueSync(queueKey: string, task: () => Promise<void>): Promise<void> {
-  const prev = syncQueues.get(queueKey) || Promise.resolve()
-  const next = prev.then(task).catch(task) // 即便前一个失败，继续执行后一个
-  syncQueues.set(queueKey, next)
-  // 清理完成的队列
-  next.finally(() => {
-    if (syncQueues.get(queueKey) === next) {
-      syncQueues.delete(queueKey)
+let flushRunning = false
+
+function recoverStuckRunningItems(): void {
+  const queue = getSyncQueue()
+  let dirty = false
+  for (let i = 0; i < queue.length; i++) {
+    if (queue[i].status === 'running') {
+      queue[i] = { ...queue[i], status: 'pending', updatedAt: Date.now() }
+      dirty = true
     }
-  })
-  return next
+  }
+  if (dirty) saveSyncQueue(queue)
 }
+
+async function flushQueue(): Promise<void> {
+  if (flushRunning) return
+  if (!useAuthStore.getState().isLoggedIn) return
+
+  recoverStuckRunningItems()
+
+  flushRunning = true
+  try {
+    const pending = getPendingSyncItems()
+    if (pending.length === 0) return
+
+    for (const item of pending) {
+      const now = Date.now()
+      if (item.nextRetryAt && now < item.nextRetryAt) continue
+
+      updateSyncQueueItem(item.opId, { status: 'running' })
+
+      try {
+        await executeQueueItem(item)
+        removeSyncQueueItem(item.opId)
+      } catch (err: any) {
+        const retryCount = item.retryCount + 1
+        const maxRetries = 5
+        const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 60000)
+
+        if (retryCount >= maxRetries) {
+          updateSyncQueueItem(item.opId, {
+            status: 'failed',
+            retryCount,
+            lastError: err?.message || String(err),
+          })
+        } else {
+          updateSyncQueueItem(item.opId, {
+            status: 'pending',
+            retryCount,
+            nextRetryAt: Date.now() + backoffMs,
+            lastError: err?.message || String(err),
+          })
+        }
+      }
+    }
+  } finally {
+    flushRunning = false
+  }
+}
+
+async function executeQueueItem(item: SyncQueueItem): Promise<void> {
+  switch (item.action) {
+    case 'SYNC_RECORD':
+      await executeSyncRecord(item)
+      break
+    case 'ADD_FAVORITE':
+      await executeAddFavorite(item)
+      break
+    case 'REMOVE_FAVORITE':
+      await executeRemoveFavorite(item)
+      break
+    case 'UPSERT_VOCAB':
+      await executeUpsertVocab(item)
+      break
+    case 'UPDATE_VOCAB_MASTERY':
+      await executeUpdateVocabMastery(item)
+      break
+    case 'DELETE_VOCAB':
+      await executeDeleteVocab(item)
+      break
+    case 'DELETE_RECORD':
+      await executeDeleteRecord(item)
+      break
+    default:
+      console.warn('[cloudSync] unknown action:', item.action)
+  }
+}
+
+async function executeSyncRecord(item: SyncQueueItem): Promise<void> {
+  const { clientRecordId } = item.payload as { clientRecordId: string }
+  const record = getRecord(clientRecordId as string)
+  if (!record || !record.sourceText) return
+
+  const res = await saveRecordToCloud({
+    clientRecordId: record.recordId,
+    title: record.title ?? null,
+    sourceText: record.sourceText,
+    sourceTextHash: hashString(record.sourceText),
+    requestPayload: record.requestPayload,
+    renderScene: record.renderScene,
+    pageState: record.pageState,
+  })
+
+  const cloudRecordId = res.id
+  saveRecordIdentity(record.recordId, String(cloudRecordId))
+  updateRecord(record.recordId, {
+    cloudId: String(cloudRecordId),
+    syncState: 'synced',
+    lastSyncedAt: Date.now(),
+  })
+}
+
+async function executeAddFavorite(item: SyncQueueItem): Promise<void> {
+  const { clientRecordId } = item.payload as { clientRecordId: string }
+  let cloudId = resolveCloudIdFromMap(clientRecordId)
+  if (!cloudId) {
+    const record = getRecord(clientRecordId)
+    cloudId = record?.cloudId || undefined
+  }
+  if (!cloudId) {
+    cloudId = (await resolveCloudId(clientRecordId)) || undefined
+  }
+  if (!cloudId) {
+    throw new Error(`Cannot resolve cloudId for favorite add: ${clientRecordId}`)
+  }
+  await addFavoriteToCloud(cloudId, clientRecordId)
+}
+
+async function executeRemoveFavorite(item: SyncQueueItem): Promise<void> {
+  const { clientRecordId } = item.payload as { clientRecordId: string }
+  let cloudId = resolveCloudIdFromMap(clientRecordId)
+  if (!cloudId) {
+    const record = getRecord(clientRecordId)
+    cloudId = record?.cloudId || undefined
+  }
+  if (!cloudId) {
+    cloudId = (await resolveCloudId(clientRecordId)) || undefined
+  }
+  if (!cloudId) {
+    throw new Error(`Cannot resolve cloudId for favorite remove: ${clientRecordId}`)
+  }
+  await removeFavoriteFromCloud(cloudId)
+}
+
+async function executeUpsertVocab(item: SyncQueueItem): Promise<void> {
+  const { vocabEntry } = item.payload as { vocabEntry: VocabEntry }
+  const entry = vocabEntry
+
+  let resolvedRecordId = entry.cloudRecordId
+  if (!resolvedRecordId && entry.recordId) {
+    resolvedRecordId = (await resolveCloudId(entry.recordId)) || undefined
+  }
+  if (!resolvedRecordId) {
+    throw new Error(`Cannot resolve cloudRecordId for vocab upsert: ${entry.word}`)
+  }
+
+  const res = await addVocabToCloud({ ...entry, cloudRecordId: resolvedRecordId })
+
+  if (res.id && res.id !== entry.id) {
+    const currentVocab = getVocabulary()
+    const target = currentVocab.find(v => v.id === entry.id)
+    if (target) {
+      removeVocabEntry(entry.id)
+      saveVocabEntry({ ...target, id: res.id, cloudRecordId: resolvedRecordId, syncState: 'synced' })
+    }
+  } else {
+    updateVocabEntry(entry.id, { syncState: 'synced' })
+  }
+}
+
+async function executeUpdateVocabMastery(item: SyncQueueItem): Promise<void> {
+  const { lemma, masteryStatus } = item.payload as { lemma: string; masteryStatus: string }
+  const currentId = resolveCurrentVocabId(lemma, item.entityId)
+  if (!currentId) return
+  await updateCloudVocabulary(currentId, { mastery_status: masteryStatus as any })
+}
+
+async function executeDeleteVocab(item: SyncQueueItem): Promise<void> {
+  const { lemma } = item.payload as { lemma: string }
+  const currentId = resolveCurrentVocabId(lemma, item.entityId)
+  if (!currentId) return
+  await deleteCloudVocabulary(currentId)
+}
+
+function resolveCurrentVocabId(lemma: string, fallbackId: string): string | null {
+  const vocab = getVocabulary()
+  const normalizedLemma = lemma.toLowerCase()
+  const match = vocab.find(v => (v.lemma || v.word).toLowerCase() === normalizedLemma && !v.tombstone)
+  if (match) return match.id
+  const stillExists = vocab.find(v => v.id === fallbackId && !v.tombstone)
+  if (stillExists) return fallbackId
+  return null
+}
+
+async function executeDeleteRecord(item: SyncQueueItem): Promise<void> {
+  const { cloudRecordId } = item.payload as { cloudRecordId: string }
+  if (!cloudRecordId) return
+  await deleteCloudRecord(cloudRecordId)
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export const CloudSyncService = {
   /**
    * 同步分析记录到云端（upsert）
-   * - 未登录：静默跳过
-   * - 已在云端存在：更新
-   * - 网络失败：静默跳过，不阻塞
+   * 成功后回填 cloudId 并写入 ID 映射
    */
   async syncRecord(record: AnalysisRecord): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
     if (!record.sourceText) return
 
-    try {
-      await saveRecordToCloud({
-        clientRecordId: record.recordId,
-        title: record.title ?? null,
-        sourceText: record.sourceText,
-        sourceTextHash: hashString(record.sourceText),
-        requestPayload: record.requestPayload,
-        renderScene: record.renderScene,
-        pageState: record.pageState,
-      })
-    } catch (err) {
-      // 静默失败，不影响用户
-      console.warn('[cloudSync] syncRecord failed', record.recordId, err)
-    }
+    updateRecord(record.recordId, { syncState: 'syncing' })
+
+    enqueueSyncItem({
+      opId: generateOpId(),
+      entityType: 'record',
+      entityId: record.recordId,
+      action: 'SYNC_RECORD',
+      payload: { clientRecordId: record.recordId },
+      status: 'pending',
+      retryCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+
+    flushQueue()
   },
 
   /**
    * 同步收藏状态到云端
-   * @param cloudId 云端 UUID
-   * @param clientRecordId 本地记录 ID
-   * @param action 'add' | 'remove'
    */
   async syncFavorite(cloudId: string | undefined, clientRecordId: string, action: 'add' | 'remove'): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
-    
-    return enqueueSync(`fav_${clientRecordId}`, async () => {
-      let resolvedId = cloudId
-      if (!resolvedId) {
-        resolvedId = (await resolveCloudId(clientRecordId)) || undefined
-      }
 
-      if (!resolvedId) {
-        console.warn('[cloudSync] syncFavorite skipped: missing cloudId even after resolve', clientRecordId)
-        return
-      }
-
-      try {
-        if (action === 'add') {
-          await addFavoriteToCloud(resolvedId, clientRecordId)
-        } else {
-          await removeFavoriteFromCloud(resolvedId)
-        }
-      } catch (err) {
-        console.warn('[cloudSync] syncFavorite failed', clientRecordId, action, err)
-      }
+    enqueueSyncItem({
+      opId: generateOpId(),
+      entityType: 'favorite',
+      entityId: clientRecordId,
+      action: action === 'add' ? 'ADD_FAVORITE' : 'REMOVE_FAVORITE',
+      payload: { clientRecordId, cloudId: cloudId || null },
+      status: 'pending',
+      retryCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     })
+
+    flushQueue()
   },
 
   /**
@@ -151,57 +353,110 @@ export const CloudSyncService = {
    */
   async syncVocab(entry: VocabEntry): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
-    
-    // 使用 lemma 或 word 作为去重队列 key，保证同一个词的同步是有序的
-    const queueKey = `vocab_${entry.recordId}_${entry.lemma || entry.word}`
-    
-    return enqueueSync(queueKey, async () => {
-      let resolvedRecordId = entry.cloudRecordId
-      if (!resolvedRecordId && entry.recordId) {
-        resolvedRecordId = (await resolveCloudId(entry.recordId)) || undefined
-      }
 
-      if (!resolvedRecordId) {
-         console.warn('[cloudSync] syncVocab skipped: missing cloudRecordId for word', entry.word)
-         return
-      }
-
-      try {
-        // 这里的 entry 是 clone 的或者是最新的，确保带上 resolvedRecordId
-        const res = await addVocabToCloud({ ...entry, cloudRecordId: resolvedRecordId })
-        
-        // 同步成功后，用云端返回的真正 UUID 替换本地的临时 ID，确保后续删除/更新操作能对准
-        if (res.id && res.id !== entry.id) {
-          const { getVocabulary, removeVocabEntry, saveVocabEntry } = await import('./storage')
-          const currentVocab = getVocabulary()
-          const target = currentVocab.find(v => v.id === entry.id)
-          if (target) {
-            removeVocabEntry(entry.id)
-            saveVocabEntry({ ...target, id: res.id })
-          }
-        }
-      } catch (err) {
-        console.warn('[cloudSync] syncVocab failed', entry.word, err)
-      }
+    enqueueSyncItem({
+      opId: generateOpId(),
+      entityType: 'vocab',
+      entityId: entry.id,
+      action: 'UPSERT_VOCAB',
+      payload: { vocabEntry: { ...entry } },
+      status: 'pending',
+      retryCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     })
+
+    flushQueue()
+  },
+
+  /**
+   * 同步生词掌握状态到云端
+   */
+  async syncVocabMastery(vocabId: string, masteryStatus: string, lemma: string): Promise<void> {
+    if (!useAuthStore.getState().isLoggedIn) return
+
+    enqueueSyncItem({
+      opId: generateOpId(),
+      entityType: 'vocab',
+      entityId: vocabId,
+      action: 'UPDATE_VOCAB_MASTERY',
+      payload: { lemma, masteryStatus },
+      status: 'pending',
+      retryCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+
+    flushQueue()
+  },
+
+  /**
+   * 同步删除生词到云端
+   */
+  async syncDeleteVocab(vocabId: string, lemma: string): Promise<void> {
+    if (!useAuthStore.getState().isLoggedIn) return
+
+    enqueueSyncItem({
+      opId: generateOpId(),
+      entityType: 'vocab',
+      entityId: vocabId,
+      action: 'DELETE_VOCAB',
+      payload: { lemma },
+      status: 'pending',
+      retryCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+
+    flushQueue()
+  },
+
+  /**
+   * 同步删除记录到云端
+   */
+  async syncDeleteRecord(cloudRecordId: string, clientRecordId: string): Promise<void> {
+    if (!useAuthStore.getState().isLoggedIn) return
+
+    enqueueSyncItem({
+      opId: generateOpId(),
+      entityType: 'record',
+      entityId: clientRecordId,
+      action: 'DELETE_RECORD',
+      payload: { cloudRecordId, clientRecordId },
+      status: 'pending',
+      retryCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+
+    flushQueue()
   },
 
   /**
    * 同步所有本地收藏到云端（登录后全量同步）
-   * 注意：这要求本地记录必须带有 cloudId
    */
   async syncAllFavorites(localFavorites: FavoriteRecord[]): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
 
-    const records = localFavorites
-      .map((favorite) => getRecord(favorite.recordId))
-      .filter((record): record is AnalysisRecord => !!record)
+    for (const fav of localFavorites) {
+      if (fav.tombstone) continue
+      const record = getRecord(fav.recordId)
+      if (!record?.isFavorited) continue
 
-    await Promise.allSettled(
-      records
-        .filter(r => r.isFavorited && r.cloudId)
-        .map((r) => addFavoriteToCloud(r.cloudId!, r.recordId))
-    )
+      enqueueSyncItem({
+        opId: generateOpId(),
+        entityType: 'favorite',
+        entityId: fav.recordId,
+        action: 'ADD_FAVORITE',
+        payload: { clientRecordId: fav.recordId, cloudId: record.cloudId || null },
+        status: 'pending',
+        retryCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+    }
+
+    flushQueue()
   },
 
   /**
@@ -210,10 +465,41 @@ export const CloudSyncService = {
   async syncAllVocab(localVocab: VocabEntry[]): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
 
-    await Promise.allSettled(
-      localVocab
-        .filter(e => e.cloudRecordId)
-        .map((entry) => addVocabToCloud(entry))
-    )
+    for (const entry of localVocab) {
+      if (entry.tombstone) continue
+
+      enqueueSyncItem({
+        opId: generateOpId(),
+        entityType: 'vocab',
+        entityId: entry.id,
+        action: 'UPSERT_VOCAB',
+        payload: { vocabEntry: { ...entry } },
+        status: 'pending',
+        retryCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+    }
+
+    flushQueue()
+  },
+
+  /**
+   * 手动触发 flush（App 启动、登录成功、onShow 时调用）
+   */
+  flush: flushQueue,
+
+  /**
+   * 获取队列状态（调试用）
+   */
+  getQueueStatus() {
+    const queue = getSyncQueue()
+    return {
+      total: queue.length,
+      pending: queue.filter(i => i.status === 'pending').length,
+      running: queue.filter(i => i.status === 'running').length,
+      failed: queue.filter(i => i.status === 'failed').length,
+      done: queue.filter(i => i.status === 'done').length,
+    }
   },
 }

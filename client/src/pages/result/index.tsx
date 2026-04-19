@@ -14,7 +14,6 @@ import { useLayoutStore } from '../../stores/layout'
 import { useAuthStore } from '../../stores/auth'
 import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry, getVocabulary } from '../../services/storage'
 import { CloudSyncService } from '../../services/cloudSync.service'
-import { ensureLoggedIn } from '../../services/auth'
 import { track } from '../../services/analytics'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
@@ -226,45 +225,24 @@ export default function Result() {
     if (!recordId) return
     const isAdding = !favorited
 
-    // 播放弹跳反馈
     setAnimTrigger(prev => prev + 1)
 
     if (isAdding) {
-      // 先写本地
-      saveFavorite({ recordId, createdAt: Date.now() } as FavoriteRecord)
+      saveFavorite({ recordId, cloudId: cloudId || undefined, createdAt: Date.now() } as FavoriteRecord)
       updateRecord(recordId, { isFavorited: true })
       setFavorited(true)
       track('favorite', { isFavorited: true })
       Taro.showToast({ title: '已收藏', icon: 'success', duration: 1500 })
 
-      // 再同步云端（401 → 引导登录 → 重试）
-      try {
-        await CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'add')
-      } catch (err: any) {
-        if (err?.statusCode === 401) {
-          const relogin = await ensureLoggedIn()
-          if (relogin) {
-            await CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'add')
-          }
-        }
-        // 其他错误静默忽略
-      }
+      CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'add')
     } else {
-      // 取消收藏（乐观更新，失败时回滚）
       removeFavorite(recordId)
       updateRecord(recordId, { isFavorited: false })
       setFavorited(false)
       track('favorite', { isFavorited: false })
       Taro.showToast({ title: '已取消收藏', icon: 'none', duration: 1500 })
 
-      try {
-        await CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'remove')
-      } catch {
-        // 云端删除失败，回滚本地状态
-        saveFavorite({ recordId, createdAt: Date.now() } as FavoriteRecord)
-        updateRecord(recordId, { isFavorited: true })
-        setFavorited(true)
-      }
+      CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'remove')
     }
   }
 
@@ -637,7 +615,6 @@ export default function Result() {
             tags: detailEntry.tags || [],
           }
           saveVocabEntry(vocabEntry)
-          // 立即刷新 vocabList，避免等 useEffect 导致体感延迟
           const allVocabAfter = getVocabulary()
           const wordsAfter = allVocabAfter
             .filter((v) => v.recordId === recordId)
@@ -645,28 +622,7 @@ export default function Result() {
           setVocabList(wordsAfter)
           track('add_vocab', { word: w })
 
-          // 云端同步（带重试）
-          let lastError: any
-          for (let attempt = 0; attempt < 2; attempt++) {
-            try {
-              await CloudSyncService.syncVocab(vocabEntry)
-              lastError = null
-              break
-            } catch (err: any) {
-              lastError = err
-              if (err?.statusCode === 401) {
-                const relogin = await ensureLoggedIn()
-                if (!relogin) break
-                // relogin success, retry
-              } else {
-                // 非 401 错误，第一次重试，第二次放弃
-                if (attempt === 0) continue
-              }
-            }
-          }
-          if (lastError) {
-            console.warn('[result] syncVocab failed after retries:', w, lastError)
-          }
+          CloudSyncService.syncVocab(vocabEntry)
         }}
         onFavorite={(w) => { track('favorite_word', { word: w }) }}
       />

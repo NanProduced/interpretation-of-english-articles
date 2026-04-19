@@ -53,7 +53,21 @@ docker compose -f docker-compose.local.yml up -d
 
 - 初始 schema 会通过 `server/db/migrations/0001_initial_schema.sql` 在首次建库时自动导入
 - 如果你修改了初始 migration，并希望重新初始化本地数据库，需要清掉本地 volume 再重新启动
+- 开发期如只想清空业务数据，请执行 `server/db/reset_dev_keep_dict.sql`；该脚本**不会删除或清空** `dict_entries`、`dict_lookup_targets`、`dict_redirects`
+- 非特殊情况，**禁止删除、清空或重建** `dict_*` 相关表；如确需处理，必须先确认有完整重导方案（含 `exam_tag` 数据）
 - `Redis` 当前不是首发阻塞项，但本地环境先保留，便于后续 session/cache 接入
+
+仅清空非词典业务表的示例命令：
+
+```bash
+docker exec -i claread-postgres psql -U claread -d claread < server/db/reset_dev_keep_dict.sql
+```
+
+如果你已经在宿主机安装了 `psql`，也可以直接执行：
+
+```bash
+psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/reset_dev_keep_dict.sql
+```
 
 ## 模型配置
 
@@ -171,7 +185,38 @@ docker compose -f docker-compose.local.yml up -d
 
 ## 当前对外接口
 
-- `POST /analyze`
+- `POST /analysis-tasks` — 提交分析任务
+- `GET /analysis-tasks/{task_id}` — 查询任务状态
+- `GET /analysis-tasks/current` — 获取当前活跃任务
+- `POST /analyze` — 直接分析（匿名用户）
+- `GET/POST/PATCH/DELETE /records` — 分析记录 CRUD
+- `GET/POST/PATCH/DELETE /vocabulary` — 生词本 CRUD
+- `GET/POST/DELETE /favorites` — 收藏 CRUD
+- `GET /dict` — 词典查询
+- `POST /auth/wechat/login` — 微信登录
+- `GET /me/quota` — 用户配额查询
+
+### 任务接口字段语义
+
+任务接口响应中的 ID 字段：
+
+| 字段 | 类型 | 语义 | 状态 |
+|------|------|------|------|
+| `task_id` | UUID | 任务主键 | 当前 |
+| `record_id` | UUID | 云端 analysis_records.id | **已弃用**，用 `cloud_record_id` 替代 |
+| `cloud_record_id` | UUID | 云端 analysis_records.id | 新增 |
+| `client_record_id` | string | 前端生成的稳定记录主键 | 新增 |
+
+### 生词本接口字段语义
+
+生词本响应中的来源记录 ID 字段：
+
+| 字段 | 类型 | 语义 | 状态 |
+|------|------|------|------|
+| `analysis_record_id` | UUID | 来源记录云端 ID | **已弃用**，用 `source_cloud_record_id` 替代 |
+| `client_record_id` | string | 来源记录前端主键 | **已弃用**，用 `source_client_record_id` 替代 |
+| `source_cloud_record_id` | UUID | 来源记录云端 ID | 新增 |
+| `source_client_record_id` | string | 来源记录前端主键 | 新增 |
 
 说明：
 

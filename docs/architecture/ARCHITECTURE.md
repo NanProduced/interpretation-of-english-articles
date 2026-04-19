@@ -48,6 +48,12 @@
 - `favorite_records` / `vocabulary_book`
 - `dict_entries` / `dict_lookup_targets` / `dict_redirects`
 
+词典表保护规则：
+
+- `dict_entries` / `dict_lookup_targets` / `dict_redirects` 视为高成本真源表
+- 非特殊情况，禁止删除表、清空表、重建表
+- 如必须重建，前提是已经确认离线重导链路可用，且包含 `exam_tag` 等成熟数据恢复方案
+
 ### 2.4 生词本去重规则
 
 - 优先按 `lemma` 去重
@@ -104,8 +110,20 @@ wx.login() → code → POST /auth/wechat/login → code2Session → session_tok
 ### 5.2 混合协同语义
 
 - 默认"提交任务并在单次请求内等待结果（40s 超时）"
-- 超时后返回 `task_id + record_id`，前端轮询 `GET /analysis-tasks/{task_id}`
-- 历史页直接读取 `record_id` 对应的云端记录
+- 超时后返回 `task_id + cloud_record_id + client_record_id`，前端轮询 `GET /analysis-tasks/{task_id}`
+- 历史页直接读取 `cloud_record_id` 对应的云端记录
+- 前端使用 `client_record_id` 做本地回看主键，`cloud_record_id` 做云端 API 操作
+
+### 5.2.1 任务接口字段语义
+
+任务接口响应中的 ID 字段：
+
+| 字段 | 类型 | 语义 | 状态 |
+|------|------|------|------|
+| `task_id` | UUID | 任务主键 | 当前 |
+| `record_id` | UUID | 云端 analysis_records.id | **已弃用**，用 `cloud_record_id` 替代 |
+| `cloud_record_id` | UUID | 云端 analysis_records.id | 新增 |
+| `client_record_id` | string | 前端生成的稳定记录主键 | 新增 |
 
 ### 5.3 幂等控制
 
@@ -172,6 +190,73 @@ idle → loading → polling → success / empty / error
 - `client/src/types/api/` = 后端 DTO (snake_case)
 - `client/src/types/view/` = 前端 VM (camelCase)
 - 转换只在 `services/api/adapters/` 一处
+
+### 7.4 用户资产 ID 契约
+
+前端统一使用以下 ID 语义，禁止混用：
+
+| 前端字段 | 后端字段 | 含义 | 用途 |
+|----------|----------|------|------|
+| `clientRecordId` | `client_record_id` | 前端生成的稳定记录主键 | 页面路由、本地 storage、历史回看、本地资产引用 |
+| `cloudRecordId` | `cloud_record_id` / `id` | 云端 analysis_records.id (UUID) | 后端写操作、外键引用、删除记录、收藏、生词关联 |
+| `taskId` | `task_id` | 分析任务主键 | 任务状态查询、轮询 |
+
+兼容策略：
+
+- 允许在局部组件内部保留 `recordId` 变量名，但必须明确等价于 `clientRecordId`
+- 不允许把云端 UUID 写入任何本应表达 `clientRecordId` 的字段
+- 迁移期间保留兼容字段（如 `record_id`），但新代码必须优先使用明确命名
+
+### 7.5 离线优先同步策略
+
+当前结论：采用"离线优先 mutation queue"方案。
+
+原则：
+
+- 所有用户操作先写本地 storage
+- 每次 mutation 写入持久化 Sync Queue（Taro storage）
+- 后台 flush 将 mutation 合并到云端
+- 云端成功后更新本地同步状态
+- 同步失败不回滚用户可见本地结果，只标记待同步或失败
+
+Sync Queue 数据结构：
+
+- `opId`: 操作唯一标识
+- `entityType`: `'record' | 'favorite' | 'vocab'`
+- `entityId`: 实体 ID
+- `action`: 操作类型（如 `SYNC_RECORD`, `ADD_FAVORITE`, `UPSERT_VOCAB` 等）
+- `payload`: 操作参数
+- `status`: `'pending' | 'running' | 'failed' | 'done'`
+- `retryCount`: 重试次数（最多 5 次，指数退避）
+
+触发时机：
+
+- App 启动后
+- 登录成功后
+- `onShow` 切前台时
+- 用户操作入队后立即触发
+
+本地 ID 映射层：
+
+- 持久化存储 `clientRecordId → cloudRecordId` 映射
+- 写入时机：提交分析任务成功、同步记录成功、云端记录/生词/收藏回流时
+- 用途：生词同步 resolve cloud id、收藏同步 resolve cloud id、历史记录补齐映射
+
+### 7.6 Vocabulary 接口字段语义
+
+生词本接口响应中的来源记录 ID 字段：
+
+| 字段 | 类型 | 语义 | 状态 |
+|------|------|------|------|
+| `analysis_record_id` | UUID | 来源记录云端 ID | **已弃用**，用 `source_cloud_record_id` 替代 |
+| `client_record_id` | string | 来源记录前端主键 | **已弃用**，用 `source_client_record_id` 替代 |
+| `source_cloud_record_id` | UUID | 来源记录云端 ID | 新增 |
+| `source_client_record_id` | string | 来源记录前端主键 | 新增 |
+
+前端 adapter 要求：
+
+- 只允许用 `source_client_record_id` 或兼容期的 `client_record_id` 回填 `sourceClientRecordId`
+- 不允许再把 `analysis_record_id` 用作 `sourceClientRecordId`
 
 ## 8. 实施原则
 

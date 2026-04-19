@@ -63,7 +63,9 @@ class TaskSubmitResponse(BaseModel):
     """202 response after task submission."""
 
     task_id: UUID
-    record_id: UUID
+    record_id: UUID = Field(deprecated=True, description="已弃用，请使用 cloud_record_id。")
+    cloud_record_id: UUID = Field(description="云端 analysis_records.id (UUID)。")
+    client_record_id: str | None = Field(default=None, description="前端生成的稳定记录主键。")
     status: TaskStatus
     created: bool = Field(description="当前实现恒为 True，保留该字段用于响应兼容。")
     render_scene: AnyRenderSceneModel | None = Field(
@@ -76,7 +78,9 @@ class TaskStatusResponse(BaseModel):
     """GET /analysis-tasks/{id} response."""
 
     task_id: UUID
-    record_id: UUID
+    record_id: UUID = Field(deprecated=True, description="已弃用，请使用 cloud_record_id。")
+    cloud_record_id: UUID = Field(description="云端 analysis_records.id (UUID)。")
+    client_record_id: str | None = Field(default=None, description="前端生成的稳定记录主键。")
     status: TaskStatus
     failure_code: str | None = None
     failure_message: str | None = None

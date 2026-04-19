@@ -32,6 +32,7 @@ interface FavoriteListDto {
 function dtoToVm(dto: FavoriteResponseDto): FavoriteRecord {
   return {
     recordId: dto.target_key,
+    cloudId: dto.analysis_record_id || undefined,
     createdAt: new Date(dto.created_at).getTime(),
   }
 }

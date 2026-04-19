@@ -10,7 +10,8 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { getVocabulary, removeVocabEntry, getRecord, updateVocabEntry } from '../../services/storage'
-import { fetchCloudVocabulary, deleteCloudVocabulary, updateCloudVocabulary } from '../../services/api/vocabulary.client'
+import { CloudSyncService } from '../../services/cloudSync.service'
+import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
@@ -46,6 +47,54 @@ function formatDate(timestamp: number): string {
   }
 }
 
+function mergeVocabCloudWithLocal(cloudItems: VocabEntry[], localItems: VocabEntry[]): VocabEntry[] {
+  const localByLemma = new Map<string, VocabEntry>()
+  for (const item of localItems) {
+    const key = (item.lemma || item.word).toLowerCase()
+    localByLemma.set(key, item)
+  }
+
+  const result: VocabEntry[] = []
+  const seenLemmas = new Set<string>()
+
+  for (const cloud of cloudItems) {
+    const key = (cloud.lemma || cloud.word).toLowerCase()
+    seenLemmas.add(key)
+    const local = localByLemma.get(key)
+
+    if (!local) {
+      result.push(cloud)
+      continue
+    }
+
+    if (local.tombstone) continue
+
+    if (local.pendingOp === 'delete') continue
+
+    if (local.pendingOp === 'create' || local.pendingOp === 'update') {
+      result.push(local)
+      continue
+    }
+
+    if (local.syncState === 'local_only') {
+      result.push(local)
+      continue
+    }
+
+    result.push({ ...cloud, mastered: local.mastered !== cloud.mastered ? local.mastered : cloud.mastered })
+  }
+
+  for (const local of localItems) {
+    if (local.tombstone) continue
+    const key = (local.lemma || local.word).toLowerCase()
+    if (seenLemmas.has(key)) continue
+    if (local.pendingOp === 'delete') continue
+    result.push(local)
+  }
+
+  return result
+}
+
 export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const [vocabList, setVocabList] = useState<VocabEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,7 +102,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const { navBarHeight } = useLayoutStore()
   const loadVocabRef = useRef<() => Promise<void>>()
 
-  /** 加载生词本：云端优先，失败降级本地 */
+  /** 加载生词本：云端优先，merge 本地 pending mutation */
   const loadVocab = useCallback(async () => {
     setLoading(true)
     const { isLoggedIn } = useAuthStore.getState()
@@ -61,8 +110,11 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     if (isLoggedIn) {
       try {
         const result = await fetchCloudVocabulary(1, 100)
-        setVocabList(result.items)
-        track('view_vocab', { count: result.total, source: 'cloud' })
+        const cloudItems = result.items
+        const localItems = getVocabulary()
+        const merged = mergeVocabCloudWithLocal(cloudItems, localItems)
+        setVocabList(merged)
+        track('view_vocab', { count: merged.length, source: 'cloud_merged' })
         setLoading(false)
         return
       } catch {
@@ -121,12 +173,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
       success: (res) => {
         if (res.confirm) {
           removeVocabEntry(entry.id)
-          const { isLoggedIn } = useAuthStore.getState()
-          if (isLoggedIn) {
-            deleteCloudVocabulary(entry.id).catch((err) => {
-               console.error('[Vocab] delete cloud failed', err)
-            })
-          }
+          CloudSyncService.syncDeleteVocab(entry.id, entry.lemma || entry.word)
           setVocabList((prev) => prev.filter((v) => v.id !== entry.id))
         }
       },
@@ -138,20 +185,14 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     const newMastered = !entry.mastered
     const newStatus = newMastered ? 'mastered' : 'learning'
     
-    // 更新本地
     updateVocabEntry(entry.id, { mastered: newMastered })
     
-    // 更新列表和弹窗状态
     setVocabList(prev => prev.map(v => v.id === entry.id ? { ...v, mastered: newMastered } : v))
     if (popupEntry && popupEntry.id === entry.id) {
       setPopupEntry({ ...popupEntry, mastered: newMastered })
     }
 
-    // 同步云端
-    const { isLoggedIn } = useAuthStore.getState()
-    if (isLoggedIn) {
-      updateCloudVocabulary(entry.id, { mastery_status: newStatus }).catch(() => {})
-    }
+    CloudSyncService.syncVocabMastery(entry.id, newStatus, entry.lemma || entry.word)
     
     Taro.showToast({ title: newMastered ? '已标记掌握' : '已取消掌握', icon: 'success' })
   }

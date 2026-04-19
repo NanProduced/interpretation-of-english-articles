@@ -26,6 +26,34 @@ logger = getLogger("app.api")
 router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
 
 
+def _vocab_row_to_response(row: dict) -> VocabularyResponse:
+    return VocabularyResponse(
+        id=row["id"],
+        user_id=row["user_id"],
+        lemma=row["lemma"],
+        display_word=row["display_word"],
+        phonetic=row.get("phonetic"),
+        part_of_speech=row.get("part_of_speech"),
+        short_meaning=row["short_meaning"],
+        meanings_json=row.get("meanings_json"),
+        tags=row.get("tags", []),
+        exchange=row.get("exchange", []),
+        source_provider=row.get("source_provider", "tecd3"),
+        analysis_record_id=row.get("analysis_record_id"),
+        source_cloud_record_id=row.get("analysis_record_id"),
+        client_record_id=row.get("client_record_id"),
+        source_client_record_id=row.get("client_record_id"),
+        source_sentence=row.get("source_sentence"),
+        source_context=row.get("source_context"),
+        mastery_status=row.get("mastery_status", "new"),
+        review_count=row.get("review_count", 0),
+        last_reviewed_at=row.get("last_reviewed_at"),
+        payload_json=row.get("payload_json"),
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
 @router.post("", response_model=VocabularyUpsertResponse)
 async def add_vocabulary(
     current_user: AuthUserDep,
@@ -78,7 +106,7 @@ async def get_vocabulary_list(
             lite=lite,
         )
         return VocabularyListResponse(
-            items=[VocabularyResponse(**row) for row in items],
+            items=[_vocab_row_to_response(row) for row in items],
             total=total,
             page=page,
             limit=limit,
@@ -105,7 +133,7 @@ async def update_vocabulary(
         )
         if updated is None:
             raise HTTPException(status_code=404, detail="Vocabulary entry not found")
-        return VocabularyResponse(**updated)
+        return _vocab_row_to_response(updated)
     except HTTPException:
         raise
     except Exception as e:

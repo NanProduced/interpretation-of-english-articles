@@ -4,7 +4,7 @@ import { useAuthStore } from './stores/auth'
 import { useArticleStore } from './stores/article'
 import { CloudSyncService } from './services/cloudSync.service'
 import { ensureLoggedIn } from './services/auth'
-import { getFavorites, getVocabulary } from './services/storage'
+import { runMigrations } from './services/migration'
 import LoginGuideModal from './components/LoginGuideModal'
 import './app.scss'
 
@@ -17,6 +17,7 @@ function App({ children }: PropsWithChildren<any>) {
   // 启动时恢复认证状态
   useEffect(() => {
     const restoreState = async () => {
+      await runMigrations()
       await useAuthStore.getState().restore()
       if ((Taro as any)._navigatingToOnboarding) return
       ;(Taro as any)._navigatingToOnboarding = true
@@ -73,16 +74,8 @@ function App({ children }: PropsWithChildren<any>) {
 
     // 切前台：恢复状态 + 尝试同步 pending 数据
     const showHandler = async (options: any) => {
-      // 尝试静默同步 pending 数据（未登录则跳过）
       if (useAuthStore.getState().isLoggedIn) {
-        const favorites = getFavorites()
-        const vocab = getVocabulary()
-        if (favorites.length > 0) {
-          CloudSyncService.syncAllFavorites(favorites)
-        }
-        if (vocab.length > 0) {
-          CloudSyncService.syncAllVocab(vocab)
-        }
+        CloudSyncService.flush()
       }
 
       // 检查是否分析中断需要恢复

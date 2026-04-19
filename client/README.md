@@ -10,6 +10,36 @@
 - 历史记录页
 - 我的页面
 
+## 用户资产层
+
+### ID 契约
+
+前端统一使用以下 ID 语义：
+
+- `clientRecordId`（代码中常简写为 `recordId`）：前端生成的稳定记录主键，用于页面路由、本地 storage、历史回看
+- `cloudRecordId`（代码中常简写为 `cloudId`）：云端 `analysis_records.id` UUID，用于 API 操作
+- `taskId`：分析任务主键
+
+禁止把云端 UUID 写入本应表达 `clientRecordId` 的字段。
+
+### 目录结构
+
+- `services/storage/` — 底层本地存储，包含 record_identity_map 和 sync_queue 的持久化
+- `services/cloudSync.service.ts` — 离线优先同步服务，持久化 Sync Queue + 后台 flush
+- `services/migration.ts` — 本地数据迁移，修复旧 UUID 污染数据
+- `services/api/` — 远端 DTO 与请求
+- `stores/` — 页面状态
+
+### 同步策略
+
+所有用户资产 mutation 采用"本地优先 + 持久化队列 + 后台 flush"模式：
+
+1. 用户操作先写本地 storage
+2. 写入 Sync Queue（持久化到 Taro storage）
+3. 后台 flush 将 mutation 合并到云端
+4. 云端成功后更新本地同步状态
+5. 同步失败不回滚本地结果，只标记待同步
+
 ## 图标渲染经验
 
 ### 结论

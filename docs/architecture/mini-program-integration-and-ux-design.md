@@ -327,7 +327,7 @@ flowchart TD
 
 建议补充字段边界：
 
-- `record_id`: 历史记录主键，统一使用后端分配的 `client_record_id`
+- `record_id`: 历史记录主键，统一使用前端分配的 `client_record_id`
 - `cloud_id`: 后端数据库主键 (UUID)，用于 API 操作
 - `source_text`: 原始输入文本
 - `request_payload`: 发给 `/analyze` 的稳定请求参数
@@ -338,6 +338,10 @@ flowchart TD
 - `is_favorited`: 是否收藏全文
 - `vocab_refs`: 结果页中被加入生词本的词条引用
 - `sync_state`: `local_only / syncing / synced / sync_failed`
+- `last_sync_attempt_at`: 最近一次同步尝试时间
+- `last_synced_at`: 最近一次同步成功时间
+- `last_sync_error`: 最近一次同步错误
+- `tombstone`: 软删除标记
 
 资产建模原则：
 
@@ -524,11 +528,14 @@ flowchart TD
 - 收藏记录
 - 生词本
 - onboarding 状态
+- record_identity_map（clientRecordId → cloudRecordId 映射）
+- sync_queue（持久化同步队列）
 
 特点：
 
 - 进入 storage
 - 可以在重启小程序后恢复
+- 每条记录带 `sync_state` 标记同步状态
 
 #### 云端同步态
 
@@ -583,16 +590,19 @@ flowchart TD
 
 #### 8.6.1 本地缓存策略
 
-建议至少拆成三类 key：
+建议至少拆成以下 key：
 
 - 输入草稿
 - 历史分析记录
 - 用户偏好与 onboarding
+- `record_identity_map`（clientRecordId → cloudRecordId 映射）
+- `sync_queue`（持久化同步队列）
 
 不要把所有内容塞进单一大对象。推荐原因：
 
 - 输入草稿与历史记录生命周期不同
 - 偏好配置变更频率低，不应和大体积结果快照共用写入路径
+- ID 映射和同步队列需要独立读写，避免与业务数据互相影响
 
 #### 8.6.2 页面恢复策略
 

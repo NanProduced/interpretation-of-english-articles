@@ -64,8 +64,10 @@ class VocabularyResponse(BaseModel):
     tags: list[str]
     exchange: list[str]
     source_provider: str
-    analysis_record_id: UUID | None
-    client_record_id: str | None = None
+    analysis_record_id: UUID | None = Field(deprecated=True, description="已弃用，请使用 source_cloud_record_id。")
+    source_cloud_record_id: UUID | None = Field(default=None, description="来源分析记录的云端 UUID。")
+    client_record_id: str | None = Field(deprecated=True, description="已弃用，请使用 source_client_record_id。")
+    source_client_record_id: str | None = Field(default=None, description="来源分析记录的前端稳定主键。")
     source_sentence: str | None = Field(default=None)
     source_context: str | None = Field(default=None)
     mastery_status: str

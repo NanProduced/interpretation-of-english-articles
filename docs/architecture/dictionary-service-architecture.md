@@ -57,6 +57,8 @@ dict_entries / dict_lookup_targets / dict_redirects
 
 - 数据重建时，以重新导入为准，不手工修库
 - `mdict-utils` 只参与离线解包
+- 非特殊情况，禁止删除、清空或重建 `dict_entries` / `dict_lookup_targets` / `dict_redirects`
+- 如必须重建，必须先确认 TECD3 重导链路和 `exam_tag` 数据恢复方案可用
 
 ---
 
@@ -82,14 +84,11 @@ dict_entries / dict_lookup_targets / dict_redirects
 | `rank` | 同形词排序权重 |
 | `entry_id` | 关联 `dict_entries.id` |
 
-### 3.3 迁移
+### 3.3 Schema 基线
 
-```sql
--- 0002_add_phrase_lookup_type.sql
-ALTER TABLE dict_lookup_targets ADD COLUMN lookup_type TEXT NOT NULL DEFAULT 'word';
-ALTER TABLE dict_lookup_targets ADD CONSTRAINT dict_lookup_targets_lookup_type_chk
-  CHECK (lookup_type IN ('word', 'phrase'));
-```
+- 当前词典 schema 已并入 `db/migrations/0001_initial_schema.sql`
+- `dict_lookup_targets.lookup_type` 与短语相关约束已经在初始 schema 中
+- 开发期重置数据库时，优先清空非词典业务表，不动 `dict_*` 表
 
 ---
 
@@ -240,7 +239,7 @@ async def lookup_candidates_batch(normalized_forms: list[str]) -> list[Candidate
 | 文件 | 说明 |
 |------|------|
 | `db/migrations/0001_initial_schema.sql` | 初始表结构 |
-| `db/migrations/0002_add_phrase_lookup_type.sql` | phrase lookup_type 字段 |
+| `db/reset_dev_keep_dict.sql` | 开发期清空非词典业务表，保留 `dict_*` 数据 |
 
 ---
 

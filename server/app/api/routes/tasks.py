@@ -40,6 +40,24 @@ router = APIRouter(prefix="/analysis-tasks", tags=["tasks"])
 _TERMINAL_STATUSES = {"succeeded", "failed", "cancelled", "expired"}
 
 
+def _task_dict_to_status_response(task: dict) -> TaskStatusResponse:
+    return TaskStatusResponse(
+        task_id=task["task_id"],
+        record_id=task["record_id"],
+        cloud_record_id=task["record_id"],
+        client_record_id=task.get("client_record_id"),
+        status=task["status"],
+        failure_code=task.get("failure_code"),
+        failure_message=task.get("failure_message"),
+        quota_cost_points=task.get("quota_cost_points", 0),
+        queued_at=task["queued_at"],
+        started_at=task.get("started_at"),
+        finished_at=task.get("finished_at"),
+        created_at=task["created_at"],
+        updated_at=task["updated_at"],
+    )
+
+
 async def _wait_task_until_terminal(
     *,
     user_id: UUID,
@@ -166,6 +184,8 @@ async def submit_analysis_task(
         response = TaskSubmitResponse(
             task_id=result.task_id,
             record_id=result.record_id,
+            cloud_record_id=result.record_id,
+            client_record_id=result.client_record_id,
             status=response_task_status,
             created=result.created,
             render_scene=render_scene,
@@ -217,7 +237,7 @@ async def get_current_task(
             return ActiveTaskResponse(has_active=False)
         return ActiveTaskResponse(
             has_active=True,
-            task=TaskStatusResponse(**task),
+            task=_task_dict_to_status_response(task),
         )
     except Exception as e:
         logger.error("get_current_task failed: %s", e, exc_info=True)
@@ -237,7 +257,7 @@ async def get_task(
         )
         if task is None:
             raise HTTPException(status_code=404, detail="Task not found")
-        return TaskStatusResponse(**task)
+        return _task_dict_to_status_response(task)
     except HTTPException:
         raise
     except Exception as e:

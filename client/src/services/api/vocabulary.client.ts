@@ -25,7 +25,9 @@ interface VocabularyResponseDto {
   exchange: string[]
   source_provider: string
   analysis_record_id: string | null
+  source_cloud_record_id: string | null
   client_record_id: string | null
+  source_client_record_id: string | null
   source_sentence?: string | null
   source_context?: string | null
   mastery_status: string
@@ -60,10 +62,13 @@ function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
       })).filter(m => m.definitions.length > 0)
     : undefined;
 
+  const sourceClientRecordId = dto.source_client_record_id || dto.client_record_id || ''
+  const sourceCloudRecordId = dto.source_cloud_record_id || dto.analysis_record_id || undefined
+
   return {
     id: dto.id,
-    recordId: dto.client_record_id || dto.analysis_record_id || '', 
-    cloudRecordId: dto.analysis_record_id || undefined,
+    recordId: sourceClientRecordId,
+    cloudRecordId: sourceCloudRecordId,
     word: dto.display_word,
     lemma: dto.lemma,
     phonetic: dto.phonetic || undefined,

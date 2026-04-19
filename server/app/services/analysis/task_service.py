@@ -27,17 +27,19 @@ def compute_source_text_hash(text: str) -> str:
 class TaskSubmitResult:
     """Result of submit_task."""
 
-    __slots__ = ("task_id", "record_id", "status", "created")
+    __slots__ = ("task_id", "record_id", "client_record_id", "status", "created")
 
     def __init__(
         self,
         task_id: UUID,
         record_id: UUID,
+        client_record_id: str,
         status: str,
         created: bool,
     ) -> None:
         self.task_id = task_id
         self.record_id = record_id
+        self.client_record_id = client_record_id
         self.status = status
         self.created = created
 
@@ -185,6 +187,7 @@ async def submit_task(
             return TaskSubmitResult(
                 task_id=task_id,
                 record_id=record_id,
+                client_record_id=final_client_record_id,
                 status="queued",
                 created=True,
             )
@@ -247,19 +250,21 @@ async def get_task_status(
         row = await conn.fetchrow(
             """
             SELECT
-                id AS task_id,
-                analysis_record_id AS record_id,
-                status,
-                failure_code,
-                failure_message,
-                quota_cost_points,
-                queued_at,
-                started_at,
-                finished_at,
-                created_at,
-                updated_at
-            FROM analysis_tasks
-            WHERE id = $1 AND user_id = $2
+                t.id AS task_id,
+                t.analysis_record_id AS record_id,
+                r.client_record_id,
+                t.status,
+                t.failure_code,
+                t.failure_message,
+                t.quota_cost_points,
+                t.queued_at,
+                t.started_at,
+                t.finished_at,
+                t.created_at,
+                t.updated_at
+            FROM analysis_tasks t
+            LEFT JOIN analysis_records r ON t.analysis_record_id = r.id
+            WHERE t.id = $1 AND t.user_id = $2
             """,
             task_id,
             user_id,
@@ -277,21 +282,23 @@ async def get_active_task(user_id: UUID) -> dict[str, Any] | None:
         row = await conn.fetchrow(
             """
             SELECT
-                id AS task_id,
-                analysis_record_id AS record_id,
-                status,
-                failure_code,
-                failure_message,
-                quota_cost_points,
-                queued_at,
-                started_at,
-                finished_at,
-                created_at,
-                updated_at
-            FROM analysis_tasks
-            WHERE user_id = $1
-              AND status IN ('queued', 'running', 'finalizing')
-            ORDER BY created_at DESC
+                t.id AS task_id,
+                t.analysis_record_id AS record_id,
+                r.client_record_id,
+                t.status,
+                t.failure_code,
+                t.failure_message,
+                t.quota_cost_points,
+                t.queued_at,
+                t.started_at,
+                t.finished_at,
+                t.created_at,
+                t.updated_at
+            FROM analysis_tasks t
+            LEFT JOIN analysis_records r ON t.analysis_record_id = r.id
+            WHERE t.user_id = $1
+              AND t.status IN ('queued', 'running', 'finalizing')
+            ORDER BY t.created_at DESC
             LIMIT 1
             """,
             user_id,

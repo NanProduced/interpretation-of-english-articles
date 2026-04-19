@@ -7,10 +7,18 @@
 
 export interface VocabEntry {
   id: string
-  /** 来源分析记录 ID (client_record_id) */
+  /** 来源分析记录的前端稳定主键 (client_record_id) */
   recordId: string
-  /** 来源分析记录云端 ID (UUID) */
+  /** 来源分析记录的云端 ID (UUID) */
   cloudRecordId?: string
+  /** 同步状态 */
+  syncState?: 'local_only' | 'syncing' | 'synced' | 'sync_failed'
+  /** 待执行操作 */
+  pendingOp?: 'create' | 'update' | 'delete' | null
+  /** 最近一次同步错误 */
+  lastSyncError?: string | null
+  /** 软删除标记 */
+  tombstone?: boolean
   /** 单词/短语原文 */
   word: string
   /** 词性 */
