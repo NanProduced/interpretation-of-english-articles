@@ -14,9 +14,32 @@
   }
 
   &.saved {
-    border-bottom: 3rpx solid var(--color-phrase) !important; 
-    color: var(--color-phrase) !important;
+    background-color: rgba(148, 163, 184, 0.18);
+    border-bottom: 2rpx solid transparent !important;
+    border-radius: 8rpx 3rpx 7rpx 4rpx;
+    color: var(--text-main) !important;
     font-weight: var(--weight-medium);
+    padding: 0 8rpx 0 4rpx;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 6rpx;
+      height: 8rpx;
+      background-color: rgba(100, 116, 139, 0.45);
+      border-radius: 0 0 3rpx 0;
+    }
+
+    &:active {
+      background-color: rgba(148, 163, 184, 0.32);
+
+      &::after {
+        background-color: rgba(100, 116, 139, 0.7);
+      }
+    }
   }
 
   // grammar_note 等非点击热区 mark 内的单词，保留 tone 视觉提示 (对应后端的 span 锚点)

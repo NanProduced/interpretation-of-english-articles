@@ -12,6 +12,9 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.user_assets.vocabulary import (
+    VocabHighlightsRequest,
+    VocabHighlightsResponse,
+    VocabMatchItem,
     VocabularyCreateRequest,
     VocabularyListResponse,
     VocabularyResponse,
@@ -110,6 +113,39 @@ async def get_vocabulary_list(
         )
     except Exception as e:
         logger.error("list_vocabulary failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/highlights", response_model=VocabHighlightsResponse)
+async def get_vocab_highlights(
+    current_user: AuthUserDep,
+    body: VocabHighlightsRequest,
+) -> VocabHighlightsResponse:
+    """查询句子列表中与用户生词本匹配的词条，用于结果页 overlay。"""
+    try:
+        sentences = [
+            {"sentence_id": s.sentence_id, "tokens": s.tokens}
+            for s in body.sentences
+        ]
+        matches = await vocab_svc.find_vocab_highlights(
+            user_id=UUID(current_user.user_id),
+            sentences=sentences,
+        )
+        return VocabHighlightsResponse(
+            matches=[
+                VocabMatchItem(
+                    vocab_id=m["vocab_id"],
+                    lemma=m["lemma"],
+                    sentence_id=m["sentence_id"],
+                    anchor_text=m["anchor_text"],
+                    occurrence=m["occurrence"],
+                    mastery_status=m["mastery_status"],
+                )
+                for m in matches
+            ]
+        )
+    except Exception as e:
+        logger.error("get_vocab_highlights failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

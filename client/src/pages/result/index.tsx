@@ -14,9 +14,10 @@ import { useLayoutStore } from '../../stores/layout'
 import { useAuthStore } from '../../stores/auth'
 import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry, getVocabulary } from '../../services/storage'
 import { CloudSyncService } from '../../services/cloudSync.service'
+import { fetchVocabHighlights } from '../../services/api/vocabulary.client'
 import { track } from '../../services/analytics'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
-import type { VocabEntry, SaveVocabResult } from '../../types/view/vocabulary.vm'
+import type { VocabEntry, SaveVocabResult, VocabHighlightMatch } from '../../types/view/vocabulary.vm'
 import { getSafeDisplayLabel, ReadingGoal, SERVER_GOAL_TO_UI_GOAL, getApiParams } from '../../config/purpose'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
 import './index.scss'
@@ -132,20 +133,84 @@ export default function Result() {
     }
   }, [loadRecord])
 
-  // === 加载生词本：提取当前文章关联的单词列表（含 lemma 和 collectedForms） ===
+  // === 加载生词本：提取所有已收藏词形列表（用于结果页 saved-vocab overlay） ===
   useEffect(() => {
     if (!recordId) return
     const all = getVocabulary()
-    const words = all
-      .filter((v) => v.sourceRefs?.some(r => r.clientRecordId === recordId) || false)
-      .flatMap((v) => {
-        const forms = [v.word.toLowerCase()]
-        if (v.lemma) forms.push(v.lemma.toLowerCase())
-        if (v.collectedForms) forms.push(...v.collectedForms.map(f => f.toLowerCase()))
-        return forms
-      })
+    const words = all.flatMap((v) => {
+      const forms = [v.word.toLowerCase()]
+      if (v.lemma) forms.push(v.lemma.toLowerCase())
+      if (v.collectedForms) forms.push(...v.collectedForms.map(f => f.toLowerCase()))
+      return forms
+    })
     setVocabList([...new Set(words)])
   }, [recordId])
+
+  // === 加载 vocab highlights（登录用户使用云端 API，匿名用户使用本地匹配） ===
+  const [vocabHighlights, setVocabHighlights] = useState<VocabHighlightMatch[]>([])
+  const highlightsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!sceneData || !hasRenderableScene(sceneData)) return
+
+    const isLoggedIn = useAuthStore.getState().isLoggedIn
+    const sentences = sceneData.article.sentences.map(s => ({
+      sentenceId: s.sentenceId,
+      tokens: s.text.split(/\s+/).filter(Boolean),
+    }))
+
+    if (highlightsTimerRef.current) clearTimeout(highlightsTimerRef.current)
+
+    highlightsTimerRef.current = setTimeout(async () => {
+      if (isLoggedIn) {
+        try {
+          const matches = await fetchVocabHighlights(sentences)
+          setVocabHighlights(matches)
+          const highlightWords = matches.map(m => m.anchorText.toLowerCase())
+          setVocabList(prev => [...new Set([...prev, ...highlightWords])])
+        } catch {
+          // API 失败时 fallback 到本地数据，vocabList 已在上面加载
+        }
+      } else {
+        const all = getVocabulary()
+        const localMatches: VocabHighlightMatch[] = []
+        const lemmaSet = new Map<string, { id: string; lemma: string; masteryStatus: string; collectedForms: string[] }>()
+        all.forEach(v => {
+          const key = (v.lemma || v.word).toLowerCase()
+          lemmaSet.set(key, {
+            id: v.id,
+            lemma: v.lemma || v.word,
+            masteryStatus: v.mastered ? 'mastered' : 'new',
+            collectedForms: (v.collectedForms || []).map(f => f.toLowerCase()),
+          })
+        })
+
+        for (const sent of sentences) {
+          const occMap: Record<string, number> = {}
+          for (const token of sent.tokens) {
+            const cleaned = token.replace(/[.,;:!?'"(){}[\]]/g, '').toLowerCase()
+            if (!cleaned) continue
+            const match = lemmaSet.get(cleaned) || [...lemmaSet.values()].find(e => e.collectedForms.includes(cleaned))
+            if (!match) continue
+            occMap[match.lemma] = (occMap[match.lemma] || 0) + 1
+            localMatches.push({
+              vocabId: match.id,
+              lemma: match.lemma,
+              sentenceId: sent.sentenceId,
+              anchorText: token,
+              occurrence: occMap[match.lemma],
+              masteryStatus: match.masteryStatus,
+            })
+          }
+        }
+        setVocabHighlights(localMatches)
+      }
+    }, 500)
+
+    return () => {
+      if (highlightsTimerRef.current) clearTimeout(highlightsTimerRef.current)
+    }
+  }, [sceneData, recordId])
 
   Taro.useDidShow(() => {
     // 页面展示时，如果当前处于加载中或失败状态，且没有场景数据，尝试恢复活跃任务
@@ -638,17 +703,12 @@ export default function Result() {
             Taro.showToast({ title: `${w} 已记入生词本`, icon: 'success' })
           }
           const allVocabAfter = getVocabulary()
-          const wordsAfter = allVocabAfter
-            .filter((v) => {
-              const vLemma = (v.lemma || v.word).toLowerCase()
-              return v.sourceRefs?.some(r => r.clientRecordId === recordId) || false
-            })
-            .flatMap((v) => {
-              const forms = [v.word.toLowerCase()]
-              if (v.lemma) forms.push(v.lemma.toLowerCase())
-              if (v.collectedForms) forms.push(...v.collectedForms.map(f => f.toLowerCase()))
-              return forms
-            })
+          const wordsAfter = allVocabAfter.flatMap((v) => {
+            const forms = [v.word.toLowerCase()]
+            if (v.lemma) forms.push(v.lemma.toLowerCase())
+            if (v.collectedForms) forms.push(...v.collectedForms.map(f => f.toLowerCase()))
+            return forms
+          })
           setVocabList([...new Set(wordsAfter)])
           track('add_vocab', { word: w, merged: result.merged })
 

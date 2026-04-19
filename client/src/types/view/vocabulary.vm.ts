@@ -86,3 +86,13 @@ export interface SaveVocabResult {
   /** 归并后的语境总数 */
   totalSourceCount: number
 }
+
+/** highlights API 单个匹配结果 */
+export interface VocabHighlightMatch {
+  vocabId: string
+  lemma: string
+  sentenceId: string
+  anchorText: string
+  occurrence: number
+  masteryStatus: string
+}

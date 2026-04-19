@@ -325,3 +325,124 @@ async def delete_vocabulary(user_id: UUID, vocab_id: UUID) -> bool:
             user_id,
         )
     return "DELETE 1" in result
+
+
+async def _load_user_vocab_lemmas(
+    conn, user_id: UUID
+) -> dict[str, dict[str, Any]]:
+    """
+    加载用户所有生词的 lemma → {vocab_id, lemma, mastery_status, collected_forms} 映射。
+
+    返回的 dict key 为小写 lemma，value 包含原始字段。
+    """
+    rows = await conn.fetch(
+        """
+        SELECT id, lemma, mastery_status, payload_json
+        FROM vocabulary_book
+        WHERE user_id = $1
+        """,
+        user_id,
+    )
+    lemma_map: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        payload = dict(row["payload_json"]) if row["payload_json"] else {}
+        collected_forms: list[str] = payload.get("collected_forms", [])
+        lemma_map[row["lemma"].lower()] = {
+            "vocab_id": row["id"],
+            "lemma": row["lemma"],
+            "mastery_status": row["mastery_status"],
+            "collected_forms": [f.lower() for f in collected_forms],
+        }
+    return lemma_map
+
+
+def _match_tokens_against_vocab(
+    sentences: list[dict],
+    lemma_map: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    对句子 token 列表做生词匹配，返回匹配结果列表。
+
+    匹配策略：
+    1. 直接匹配：token 小写后直接在 lemma_map 中
+    2. collected_forms 匹配：token 小写后出现在某词条的 collected_forms 中
+    3. lemma candidates 匹配：通过 lemminflect 还原 token 后匹配 lemma
+    """
+    from app.services.dictionary.lemma import get_lemma_candidates
+
+    matches: list[dict[str, Any]] = []
+
+    for sent in sentences:
+        sentence_id = sent["sentence_id"]
+        tokens = sent["tokens"]
+
+        occurrence_map: dict[str, int] = {}
+
+        for token in tokens:
+            cleaned = token.strip(".,;:!?\"'()[]{}").lower()
+            if not cleaned:
+                continue
+
+            matched_entry = None
+
+            if cleaned in lemma_map:
+                matched_entry = lemma_map[cleaned]
+            else:
+                for entry in lemma_map.values():
+                    if cleaned in entry["collected_forms"]:
+                        matched_entry = entry
+                        break
+
+            if matched_entry is None:
+                candidates = get_lemma_candidates(cleaned)
+                for cand in candidates:
+                    if cand.lower() in lemma_map:
+                        matched_entry = lemma_map[cand.lower()]
+                        break
+
+            if matched_entry is None:
+                continue
+
+            lemma_key = matched_entry["lemma"].lower()
+            occurrence_map[lemma_key] = occurrence_map.get(lemma_key, 0) + 1
+
+            matches.append(
+                {
+                    "vocab_id": matched_entry["vocab_id"],
+                    "lemma": matched_entry["lemma"],
+                    "sentence_id": sentence_id,
+                    "anchor_text": token,
+                    "occurrence": occurrence_map[lemma_key],
+                    "mastery_status": matched_entry["mastery_status"],
+                }
+            )
+
+    return matches
+
+
+async def find_vocab_highlights(
+    user_id: UUID,
+    sentences: list[dict],
+) -> list[dict[str, Any]]:
+    """
+    查询句子列表中与用户生词本匹配的词条。
+
+    Args:
+        user_id: 用户 ID
+        sentences: [{"sentence_id": str, "tokens": [str]}]
+
+    Returns:
+        匹配结果列表 [{"vocab_id", "lemma", "sentence_id", "anchor_text",
+                       "occurrence", "mastery_status"}]
+    """
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    async with pool.acquire() as conn:
+        lemma_map = await _load_user_vocab_lemmas(conn, user_id)
+
+    if not lemma_map:
+        return []
+
+    return _match_tokens_against_vocab(sentences, lemma_map)

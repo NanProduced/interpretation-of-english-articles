@@ -6,7 +6,7 @@
  */
 
 import { request } from './client'
-import type { VocabEntry, SourceRef } from '../../types/view/vocabulary.vm'
+import type { VocabEntry, SourceRef, VocabHighlightMatch } from '../../types/view/vocabulary.vm'
 
 // ---------------------------------------------------------------------------
 // 后端 DTO（snake_case）
@@ -189,4 +189,38 @@ export async function deleteCloudVocabulary(vocabId: string): Promise<void> {
     url: `/vocabulary/${vocabId}`,
     method: 'DELETE',
   })
+}
+
+interface HighlightsResponseDto {
+  matches: Array<{
+    vocab_id: string
+    lemma: string
+    sentence_id: string
+    anchor_text: string
+    occurrence: number
+    mastery_status: string
+  }>
+}
+
+export async function fetchVocabHighlights(
+  sentences: Array<{ sentenceId: string; tokens: string[] }>
+): Promise<VocabHighlightMatch[]> {
+  const res = await request<HighlightsResponseDto>({
+    url: '/vocabulary/highlights',
+    method: 'POST',
+    data: {
+      sentences: sentences.map(s => ({
+        sentence_id: s.sentenceId,
+        tokens: s.tokens,
+      })),
+    },
+  })
+  return res.matches.map(m => ({
+    vocabId: m.vocab_id,
+    lemma: m.lemma,
+    sentenceId: m.sentence_id,
+    anchorText: m.anchor_text,
+    occurrence: m.occurrence,
+    masteryStatus: m.mastery_status,
+  }))
 }

@@ -119,3 +119,38 @@ class VocabularyUpsertResponse(BaseModel):
     lemma: str
     created: bool
     updated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Highlights (Result Page Overlay)
+# ---------------------------------------------------------------------------
+
+
+class SentenceTokens(BaseModel):
+    """单个句子的 token 列表，用于 highlights 请求。"""
+
+    sentence_id: str = Field(min_length=1, max_length=64)
+    tokens: list[str] = Field(min_length=1)
+
+
+class VocabHighlightsRequest(BaseModel):
+    """POST /vocabulary/highlights — 查询句子中已收藏的生词匹配。"""
+
+    sentences: list[SentenceTokens] = Field(min_length=1, max_length=200)
+
+
+class VocabMatchItem(BaseModel):
+    """单个匹配结果：句子中某个 token 匹配到了用户生词本中的词条。"""
+
+    vocab_id: UUID
+    lemma: str
+    sentence_id: str
+    anchor_text: str
+    occurrence: int
+    mastery_status: str
+
+
+class VocabHighlightsResponse(BaseModel):
+    """POST /vocabulary/highlights — 匹配结果。"""
+
+    matches: list[VocabMatchItem]

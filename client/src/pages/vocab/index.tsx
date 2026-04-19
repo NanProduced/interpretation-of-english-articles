@@ -1,13 +1,13 @@
 /**
  * 生词本页面
  *
- * 展示用户收藏的单词列表，支持云端同步。
+ * 展示用户收藏的单词列表，支持搜索、筛选和云端同步。
  * 点击单词弹出详情视图。
  */
 
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Input } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { getVocabulary, removeVocabEntry, updateVocabEntry } from '../../services/storage'
 import { CloudSyncService } from '../../services/cloudSync.service'
@@ -24,6 +24,16 @@ import './index.scss'
 interface VocabPageProps {
   isSubView?: boolean
 }
+
+type SortMode = 'time' | 'alpha'
+type FilterStatus = 'all' | 'new' | 'learning' | 'mastered'
+
+const FILTER_OPTIONS: { value: FilterStatus; label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'new', label: '新词' },
+  { value: 'learning', label: '学习中' },
+  { value: 'mastered', label: '已掌握' },
+]
 
 function formatDate(timestamp: number): string {
   const now = Date.now()
@@ -91,12 +101,24 @@ function mergeVocabCloudWithLocal(cloudItems: VocabEntry[], localItems: VocabEnt
   return result
 }
 
+function getMasteryStatus(entry: VocabEntry): string {
+  if (entry.mastered) return 'mastered'
+  return 'new'
+}
+
 export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const [vocabList, setVocabList] = useState<VocabEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [popupEntry, setPopupEntry] = useState<VocabEntry | null>(null)
   const { navBarHeight } = useLayoutStore()
   const loadVocabRef = useRef<() => Promise<void>>()
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [sortMode, setSortMode] = useState<SortMode>('time')
+  const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const loadVocab = useCallback(async () => {
     setLoading(true)
@@ -143,6 +165,41 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     if (!page) return
     ;(page as any).onPullDownRefresh(handler)
   }, [isSubView])
+
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedQuery(searchQuery)
+    }, 300)
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    }
+  }, [searchQuery])
+
+  const filteredList = useMemo(() => {
+    let list = vocabList
+
+    if (debouncedQuery) {
+      const q = debouncedQuery.toLowerCase()
+      list = list.filter((v) => {
+        if (v.lemma?.toLowerCase().startsWith(q)) return true
+        if (v.word.toLowerCase().startsWith(q)) return true
+        if (v.collectedForms?.some(f => f.toLowerCase().startsWith(q))) return true
+        if (v.meaning?.toLowerCase().includes(q)) return true
+        return false
+      })
+    }
+
+    if (filterStatus !== 'all') {
+      list = list.filter((v) => getMasteryStatus(v) === filterStatus)
+    }
+
+    if (sortMode === 'alpha') {
+      list = [...list].sort((a, b) => (a.lemma || a.word).localeCompare(b.lemma || b.word))
+    }
+
+    return list
+  }, [vocabList, debouncedQuery, filterStatus, sortMode])
 
   const goToResult = (recordId: string, sentenceId?: string, e?: any) => {
     if (e) e.stopPropagation()
@@ -191,25 +248,108 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     Taro.navigateTo({ url: '/pages/input/index' })
   }
 
+  const handleSearchInput = (e: any) => {
+    setSearchQuery(e.detail.value || '')
+  }
+
+  const clearSearch = () => {
+    setSearchQuery('')
+    setDebouncedQuery('')
+  }
+
   return (
     <View className={`vocab-page ${isSubView ? 'sub-view' : ''}`}>
       {!isSubView && <NavBar title='生词本' />}
       {!isSubView && <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />}
+
+      <View className='search-bar'>
+        <View className='search-input-wrap'>
+          <LucideIcon name='search' size={16} color='var(--text-muted)' />
+          <Input
+            className='search-input'
+            type='text'
+            placeholder='搜索单词或释义'
+            placeholderClass='search-placeholder'
+            value={searchQuery}
+            onInput={handleSearchInput}
+            confirmType='search'
+          />
+          {searchQuery && (
+            <View className='search-clear' onClick={clearSearch}>
+              <LucideIcon name='x' size={14} color='var(--text-muted)' />
+            </View>
+          )}
+        </View>
+        <View
+          className={`filter-btn ${showFilterPanel ? 'active' : ''}`}
+          onClick={() => setShowFilterPanel(!showFilterPanel)}
+        >
+          <LucideIcon name='slidersHorizontal' size={18} color={showFilterPanel ? 'var(--color-ink)' : 'var(--text-sub)'} />
+        </View>
+      </View>
+
+      {showFilterPanel && (
+        <View className='filter-panel'>
+          <View className='filter-row'>
+            <Text className='filter-label'>状态</Text>
+            <View className='filter-chips'>
+              {FILTER_OPTIONS.map(opt => (
+                <View
+                  key={opt.value}
+                  className={`filter-chip ${filterStatus === opt.value ? 'active' : ''}`}
+                  onClick={() => setFilterStatus(opt.value)}
+                >
+                  <Text>{opt.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View className='filter-row'>
+            <Text className='filter-label'>排序</Text>
+            <View className='filter-chips'>
+              <View
+                className={`filter-chip ${sortMode === 'time' ? 'active' : ''}`}
+                onClick={() => setSortMode('time')}
+              >
+                <Text>按时间</Text>
+              </View>
+              <View
+                className={`filter-chip ${sortMode === 'alpha' ? 'active' : ''}`}
+                onClick={() => setSortMode('alpha')}
+              >
+                <Text>按字母</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {debouncedQuery && (
+        <View className='search-result-hint'>
+          <Text className='search-result-text'>
+            {filteredList.length > 0
+              ? `找到 ${filteredList.length} 个结果`
+              : '未找到匹配的生词'}
+          </Text>
+        </View>
+      )}
 
       <ScrollView scrollY className='list-area'>
         {loading && vocabList.length === 0 ? (
           <View className='loading-state'>
             <Text className='loading-text'>加载中...</Text>
           </View>
-        ) : vocabList.length === 0 ? (
+        ) : filteredList.length === 0 ? (
           <View className='empty-state'>
-            <Text className='empty-text'>暂无生词</Text>
-            <View className='empty-action' onClick={goToInput}>
-              <Text className='empty-sub'>去读一篇文章，记下不认识的词吧 →</Text>
-            </View>
+            <Text className='empty-text'>{debouncedQuery ? '未找到匹配的生词' : '暂无生词'}</Text>
+            {!debouncedQuery && (
+              <View className='empty-action' onClick={goToInput}>
+                <Text className='empty-sub'>去读一篇文章，记下不认识的词吧 →</Text>
+              </View>
+            )}
           </View>
         ) : (
-          vocabList.map((entry, index) => {
+          filteredList.map((entry, index) => {
             const sourceCount = entry.sourceRefs?.length || 0
             const primaryRef = entry.sourceRefs?.[0]
 
