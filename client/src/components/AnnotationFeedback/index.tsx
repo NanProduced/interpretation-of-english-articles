@@ -1,19 +1,20 @@
 import { View, Text, Textarea } from '@tarojs/components'
 import { useState } from 'react'
 import { submitFeedback } from '../../services/api/feedback.client'
+import LucideIcon from '../LucideIcon'
 import Taro from '@tarojs/taro'
 import './index.scss'
 
 const POSITIVE_OPTIONS = [
-  { value: 'helpful', label: '✅ 有帮助' },
+  { value: 'helpful', label: '有帮助' },
 ]
 
 const NEGATIVE_OPTIONS = [
-  { value: 'wrong_label', label: '⚠️ 标注有误' },
-  { value: 'inaccurate', label: '📝 释义不准确' },
-  { value: 'wrong_boundary', label: '🔗 标注范围有误' },
-  { value: 'should_not_annotate', label: '❌ 不该标注' },
-  { value: 'other', label: '💬 其他问题' },
+  { value: 'wrong_label', label: '标注有误' },
+  { value: 'inaccurate', label: '释义不准确' },
+  { value: 'wrong_boundary', label: '标注范围有误' },
+  { value: 'should_not_annotate', label: '不该标注' },
+  { value: 'other', label: '其他问题' },
 ]
 
 interface AnnotationFeedbackProps {
@@ -68,7 +69,9 @@ export default function AnnotationFeedback({
     <View className='annotation-feedback' onClick={(e) => e.stopPropagation()}>
       <View className='annotation-feedback__header'>
         <Text className='annotation-feedback__title'>反馈标注</Text>
-        <View className='annotation-feedback__close' onClick={onClose}>✕</View>
+        <View className='annotation-feedback__close' onClick={onClose}>
+          <LucideIcon name='x' size={18} color='var(--text-muted)' />
+        </View>
       </View>
 
       <View className='annotation-feedback__section'>

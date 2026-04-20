@@ -6,6 +6,7 @@ import { fetchDict, fetchDictEntry } from '../../services/api/client'
 import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
 import { filterExamTags } from '../../config/purpose'
 import LucideIcon from '../LucideIcon'
+import DictionaryFeedback from '../DictionaryFeedback'
 import './index.scss'
 
 interface WordPopupProps {
@@ -100,6 +101,7 @@ export default function WordPopup({
   const [loading, setLoading] = useState(false)
   const [screenWidth, setScreenWidth] = useState(375)
   const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
+  const [showDictFeedback, setShowDictFeedback] = useState(false)
 
   const lookupText = mark?.lookupText || word
   const glossary = mark?.glossary
@@ -430,6 +432,10 @@ export default function WordPopup({
             <LucideIcon name='star' size={18} color='var(--text-sub)' />
             <Text>收藏</Text>
           </View>
+          <View className='footer-action-btn secondary' onClick={() => setShowDictFeedback(true)}>
+            <LucideIcon name='messageSquare' size={18} color='var(--text-sub)' />
+            <Text>反馈</Text>
+          </View>
           {isEntryResult && entry && entry.id > 0 && (
             <View className='footer-action-btn primary' onClick={() => onAddVocab?.(entry.word, dictResult)}>
               <LucideIcon name='plus' size={18} color='var(--color-white)' />
@@ -437,6 +443,21 @@ export default function WordPopup({
             </View>
           )}
         </View>
+
+        {showDictFeedback && (
+          <View className='popup-feedback-overlay' onClick={() => setShowDictFeedback(false)}>
+            <DictionaryFeedback
+              word={lookupText}
+              phonetic={entry?.phonetic}
+              currentMeaning={getEntrySummary(entry) || undefined}
+              dictSource='tecd3'
+              dictEntryId={entry?.id}
+              contextSentence={contextSentence}
+              readingVariant={readingVariant}
+              onClose={() => setShowDictFeedback(false)}
+            />
+          </View>
+        )}
       </View>
     </View>
   )

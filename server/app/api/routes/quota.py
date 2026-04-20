@@ -277,7 +277,6 @@ async def get_credit_ledger(
     cursor: str | None = None,
     limit: int = 20,
 ) -> LedgerListResponse:
-    from fastapi import Query
     from app.database import connection as db_connection
 
     user_id = UUID(current_user.user_id)

@@ -5,12 +5,12 @@ import Taro from '@tarojs/taro'
 import './index.scss'
 
 const NEGATIVE_OPTIONS = [
-  { value: 'wrong_definition', label: '❌ 释义错误' },
-  { value: 'missing_definition', label: '📝 释义缺失' },
-  { value: 'wrong_pos', label: '🔤 词性标注有误' },
-  { value: 'wrong_phonetic', label: '🔊 音标有误' },
-  { value: 'bad_example', label: '📖 例句不当' },
-  { value: 'other', label: '💬 其他问题' },
+  { value: 'wrong_definition', label: '释义错误' },
+  { value: 'missing_definition', label: '释义缺失' },
+  { value: 'wrong_pos', label: '词性标注有误' },
+  { value: 'wrong_phonetic', label: '音标有误' },
+  { value: 'bad_example', label: '例句不当' },
+  { value: 'other', label: '其他问题' },
 ]
 
 interface DictionaryFeedbackProps {

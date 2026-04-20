@@ -1,19 +1,19 @@
 .credit-detail {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding: 24px 32px;
+  background: #FAF9F9;
+  padding: 24rpx 32rpx;
 
   &__group {
-    margin-bottom: 16px;
+    margin-bottom: 16rpx;
   }
 
   &__date-header {
-    padding: 16px 0 8px;
+    padding: 20rpx 0 12rpx;
   }
 
   &__date-label {
-    font-size: 24px;
-    color: #999;
+    font-size: 24rpx;
+    color: var(--text-muted, #999);
     font-weight: 500;
   }
 
@@ -22,23 +22,23 @@
     justify-content: space-between;
     align-items: center;
     background: #fff;
-    border-radius: 12px;
-    padding: 20px 24px;
-    margin-bottom: 8px;
+    border-radius: var(--radius-sm, 24rpx);
+    padding: 24rpx;
+    margin-bottom: 8rpx;
   }
 
   &__entry-left {
     display: flex;
     align-items: flex-start;
-    gap: 16px;
+    gap: 16rpx;
     flex: 1;
     min-width: 0;
   }
 
   &__entry-icon {
-    font-size: 28px;
+    font-size: 28rpx;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 4rpx;
   }
 
   &__entry-info {
@@ -47,24 +47,24 @@
   }
 
   &__entry-label {
-    font-size: 28px;
+    font-size: 28rpx;
     font-weight: 500;
-    color: #333;
+    color: var(--color-ink, #030213);
     display: block;
   }
 
   &__entry-desc {
-    font-size: 24px;
-    color: #999;
+    font-size: 24rpx;
+    color: var(--text-sub, #717182);
     display: block;
-    margin-top: 4px;
+    margin-top: 4rpx;
   }
 
   &__entry-article {
-    font-size: 22px;
-    color: #bbb;
+    font-size: 22rpx;
+    color: var(--text-muted, #999);
     display: block;
-    margin-top: 4px;
+    margin-top: 4rpx;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -75,39 +75,39 @@
     flex-direction: column;
     align-items: flex-end;
     flex-shrink: 0;
-    margin-left: 16px;
+    margin-left: 16rpx;
   }
 
   &__entry-points {
-    font-size: 32px;
+    font-size: 32rpx;
     font-weight: 600;
   }
 
   &__entry-time {
-    font-size: 22px;
+    font-size: 22rpx;
     color: #ccc;
-    margin-top: 4px;
+    margin-top: 4rpx;
   }
 
   &__load-more {
-    padding: 32px;
+    padding: 40rpx;
     text-align: center;
   }
 
   &__load-more-text {
-    font-size: 26px;
-    color: #999;
+    font-size: 26rpx;
+    color: var(--text-muted, #999);
   }
 
   &__empty {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 120px 0;
+    padding: 160rpx 0;
   }
 
   &__empty-text {
-    font-size: 28px;
-    color: #999;
+    font-size: 28rpx;
+    color: var(--text-muted, #999);
   }
 }

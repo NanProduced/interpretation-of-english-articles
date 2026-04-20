@@ -1,10 +1,11 @@
-import { useMemo, memo, useState, useEffect } from 'react'
+import { useMemo, memo, useState, useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import { InlineMarkModel, AnyInlineMarkModel, SentenceEntryModel, AnySentenceEntryModel, VisualTone, AcademicVisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
 import InlineMark from '../InlineMark'
 import ClickableWord from '../ClickableWord'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
+import AnnotationFeedback from '../AnnotationFeedback'
 import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis } from './utils'
 import './index.scss'
 
@@ -37,6 +38,7 @@ interface ParagraphBlockProps {
   pageMode: 'immersive' | 'intensive'
   vocabList?: string[]
   vocabSavedMap?: Record<string, string>
+  recordId?: string
   onWordClick?: (payload: WordClickPayload) => void
   onSentenceClick?: (sentenceId: string) => void
 }
@@ -286,11 +288,17 @@ const ParagraphBlock = memo(function ParagraphBlock({
   pageMode,
   vocabList,
   vocabSavedMap,
+  recordId,
   activeSentenceId,
   onWordClick,
   onSentenceClick,
 }: ParagraphBlockProps) {
   const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null)
+  const [feedbackTarget, setFeedbackTarget] = useState<{
+    targetId: string
+    annotationType: string
+    contextJson: Record<string, unknown>
+  } | null>(null)
   const containerClass = `paragraph-block ${pageMode} ${activeAnalysisId ? 'has-active-analysis' : ''}`
 
   // 监听分析卡片激活状态，自动定位锚点
@@ -317,6 +325,14 @@ const ParagraphBlock = memo(function ParagraphBlock({
   const handleAnalysisToggle = (entryId: string, expanded: boolean) => {
     setActiveAnalysisId(expanded ? entryId : null)
   }
+
+  const handleCardFeedback = useCallback((entryId: string, entryType: string, title: string, content: string) => {
+    setFeedbackTarget({
+      targetId: entryId,
+      annotationType: entryType,
+      contextJson: { title, content_preview: content.slice(0, 200) },
+    })
+  }, [])
 
   const marksBySentenceId = useMemo(() => {
     const map = new Map<string, AnyInlineMarkModel[]>()
@@ -376,6 +392,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           title: e.title || e.label,
           label: '语法要点',
           content: e.content,
+          onFeedback: recordId ? () => handleCardFeedback(e.id, 'grammar_note', e.title || e.label, e.content) : undefined,
         })),
         ...sentenceEntries
           .filter(e => e.entryType === 'sentence_analysis')
@@ -389,7 +406,8 @@ const ParagraphBlock = memo(function ParagraphBlock({
               content: e.content,
               structuredData: parsed,
               isExpanded: activeAnalysisId === e.id,
-              onToggle: (expanded: boolean) => handleAnalysisToggle(e.id, expanded)
+              onToggle: (expanded: boolean) => handleAnalysisToggle(e.id, expanded),
+              onFeedback: recordId ? () => handleCardFeedback(e.id, 'sentence_analysis', e.label, e.content) : undefined,
             }
           }),
         ...sentenceEntries
@@ -400,6 +418,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
             title: e.title || e.label,
             label: '术语标注',
             content: e.content,
+            onFeedback: recordId ? () => handleCardFeedback(e.id, 'term_note', e.title || e.label, e.content) : undefined,
           })),
         ...sentenceEntries
           .filter(e => e.entryType === 'logic_note')
@@ -409,6 +428,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
             title: e.title || e.label,
             label: '逻辑关系',
             content: e.content,
+            onFeedback: recordId ? () => handleCardFeedback(e.id, 'logic_note', e.title || e.label, e.content) : undefined,
           })),
         ...sentenceEntries
           .filter(e => e.entryType === 'interpretation_note')
@@ -418,6 +438,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
             title: e.title || e.label,
             label: '解释说明',
             content: e.content,
+            onFeedback: recordId ? () => handleCardFeedback(e.id, 'interpretation_note', e.title || e.label, e.content) : undefined,
           })),
         ...sentenceEntries
           .filter(e => e.entryType === 'content_summary')
@@ -502,6 +523,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       structuredData={card.structuredData}
                       isExpanded={card.isExpanded}
                       onToggle={card.onToggle}
+                      onFeedback={card.onFeedback}
                     />
                   ))}
                 </View>
@@ -550,6 +572,17 @@ const ParagraphBlock = memo(function ParagraphBlock({
           )
         }
       })}
+      {feedbackTarget && recordId && (
+        <View className='annotation-feedback-overlay' onClick={() => setFeedbackTarget(null)}>
+          <AnnotationFeedback
+            recordId={recordId}
+            targetId={feedbackTarget.targetId}
+            annotationType={feedbackTarget.annotationType}
+            contextJson={feedbackTarget.contextJson}
+            onClose={() => setFeedbackTarget(null)}
+          />
+        </View>
+      )}
     </View>
   )
 })

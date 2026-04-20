@@ -1,83 +1,83 @@
 .my-feedback {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding: 24px 32px;
+  background: #FAF9F9;
+  padding: 24rpx 32rpx;
 
   &__empty {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 120px 0;
+    padding: 160rpx 0;
   }
 
   &__empty-text {
-    font-size: 28px;
-    color: #999;
+    font-size: 28rpx;
+    color: var(--text-muted, #999);
   }
 
   &__item {
     background: #fff;
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 16px;
+    border-radius: var(--radius-md, 32rpx);
+    padding: 28rpx;
+    margin-bottom: 16rpx;
   }
 
   &__item-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 12rpx;
   }
 
   &__item-scope {
-    font-size: 28px;
+    font-size: 28rpx;
     font-weight: 500;
-    color: #333;
+    color: var(--color-ink, #030213);
   }
 
   &__item-date {
-    font-size: 24px;
-    color: #999;
+    font-size: 24rpx;
+    color: var(--text-muted, #999);
   }
 
   &__item-content {
-    font-size: 26px;
-    color: #666;
+    font-size: 26rpx;
+    color: var(--text-sub, #717182);
     display: block;
-    margin-bottom: 12px;
+    margin-bottom: 12rpx;
     line-height: 1.5;
   }
 
   &__item-footer {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 16rpx;
   }
 
   &__item-status {
-    font-size: 24px;
+    font-size: 24rpx;
     font-weight: 500;
   }
 
   &__item-reward {
-    font-size: 24px;
+    font-size: 24rpx;
     color: #4caf50;
     font-weight: 500;
   }
 
   &__item-delete {
-    font-size: 24px;
-    color: #999;
+    font-size: 24rpx;
+    color: var(--text-muted, #999);
     margin-left: auto;
   }
 
   &__load-more {
-    padding: 24px;
+    padding: 32rpx;
     text-align: center;
   }
 
   &__load-more-text {
-    font-size: 26px;
-    color: #999;
+    font-size: 26rpx;
+    color: var(--text-muted, #999);
   }
 }

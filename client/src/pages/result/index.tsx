@@ -20,6 +20,7 @@ import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import type { VocabEntry, SaveVocabResult, VocabHighlightMatch } from '../../types/view/vocabulary.vm'
 import { getSafeDisplayLabel, ReadingGoal, SERVER_GOAL_TO_UI_GOAL, getApiParams } from '../../config/purpose'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
+import FeedbackWidget from '../../components/FeedbackWidget'
 import './index.scss'
 
 function getSimpleLemmaCandidates(word: string): string[] {
@@ -634,6 +635,7 @@ export default function Result() {
           vocabSavedMap={vocabSavedMap}
           tailEntries={sceneData!.sentenceEntries}
           pageMode={pageMode}
+          recordId={recordId || undefined}
           activeSentenceId={activeSentenceId}
           onWordClick={handleWordClick}
           onSentenceClick={handleSentenceClick}
@@ -709,6 +711,15 @@ export default function Result() {
                 <Text>再分析一篇</Text>
               </View>
             </View>
+
+            {sceneData && (pageState === 'normal' || pageState === 'degraded_light') && (
+              <FeedbackWidget
+                recordId={recordId || ''}
+                readingGoal={sceneData.request?.readingGoal}
+                readingVariant={sceneData.request?.readingVariant}
+                userFacingState={(sceneData as AnyRenderSceneVm).userFacingState}
+              />
+            )}
             <View className='bottom-spacer' />
           </View>
         </ScrollView>

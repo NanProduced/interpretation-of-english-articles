@@ -1,6 +1,7 @@
 import { View, Text, Textarea } from '@tarojs/components'
 import { useState } from 'react'
 import { submitFeedback } from '../../services/api/feedback.client'
+import LucideIcon from '../LucideIcon'
 import Taro from '@tarojs/taro'
 import './index.scss'
 
@@ -98,11 +99,11 @@ export default function FeedbackWidget({
     <View className='feedback-widget'>
       <Text className='feedback-widget__label'>本次解读对你有帮助吗？</Text>
       <View className='feedback-widget__actions'>
-        <View className='feedback-widget__btn' onClick={handleThumbsUp}>
-          👍
+        <View className={`feedback-widget__btn ${submitted === 'positive' ? 'feedback-widget__btn--active' : ''}`} onClick={handleThumbsUp}>
+          <LucideIcon name='thumbsUp' size={20} color={submitted === 'positive' ? 'var(--color-ink)' : 'var(--text-sub)'} />
         </View>
-        <View className='feedback-widget__btn' onClick={handleThumbsDown}>
-          👎
+        <View className={`feedback-widget__btn ${submitted === 'negative' ? 'feedback-widget__btn--active' : ''}`} onClick={handleThumbsDown}>
+          <LucideIcon name='thumbsDown' size={20} color={submitted === 'negative' ? 'var(--color-ink)' : 'var(--text-sub)'} />
         </View>
       </View>
 

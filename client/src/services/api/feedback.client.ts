@@ -79,7 +79,7 @@ export async function submitFeedback(params: {
   appVersion?: string
 }): Promise<FeedbackSubmitResult> {
   const dto = await request<FeedbackSubmitDto>({
-    url: '/api/feedback',
+    url: '/feedback',
     method: 'POST',
     data: {
       feedback_scope: params.feedbackScope,
@@ -115,7 +115,7 @@ export async function fetchFeedbackList(params: {
   if (params.feedbackScope) query.feedback_scope = params.feedbackScope
 
   const qs = Object.entries(query).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
-  const url = `/api/feedback${qs ? `?${qs}` : ''}`
+  const url = `/feedback${qs ? `?${qs}` : ''}`
 
   const dto = await request<FeedbackListDto>({ url })
   return {
@@ -127,7 +127,7 @@ export async function fetchFeedbackList(params: {
 
 export async function deleteFeedback(feedbackId: string): Promise<void> {
   await request<void>({
-    url: `/api/feedback/${feedbackId}`,
+    url: `/feedback/${feedbackId}`,
     method: 'DELETE',
   })
 }

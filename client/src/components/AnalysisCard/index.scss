@@ -202,20 +202,38 @@
     .card-footer {
       display: flex;
       justify-content: flex-end;
+      align-items: center;
       margin-top: 16rpx;
+      gap: 12rpx;
       
       .type-indicator-badge {
         display: flex;
         align-items: center;
         gap: 8rpx;
         padding: 6rpx 16rpx;
-        border-radius: 6rpx; // 稍微硬朗一点的倒角
+        border-radius: 6rpx;
         
-        // 我们会通过嵌套在最外层 card 的 .type-* 来赋予实体颜色
         .indicator-text {
           font-size: 20rpx;
           font-weight: var(--weight-bold);
-          color: var(--color-white); // 实体填充，白字
+          color: var(--color-white);
+        }
+      }
+
+      .card-feedback-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 56rpx;
+        height: 56rpx;
+        border-radius: 50%;
+        background: #FAF9F9;
+        border: 1rpx solid var(--border-color, rgba(0, 0, 0, 0.06));
+        transition: all 0.15s ease-out;
+
+        &:active {
+          transform: scale(0.9);
+          background: #f0f0f0;
         }
       }
     }

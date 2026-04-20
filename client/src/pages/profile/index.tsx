@@ -14,6 +14,7 @@ import { ensureLoggedIn } from '../../services/auth'
 import { getAllRecords, getVocabulary } from '../../services/storage'
 import { fetchCloudRecords } from '../../services/api/records.client'
 import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
+import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { fetchUserQuota, updateProfile } from '../../services/api/client'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
@@ -52,20 +53,22 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     setLoadingStats(true)
     if (isLoggedIn) {
       try {
-        // 先尝试获取最新用户信息以刷新累计篇数
         await fetchUserInfo().catch(() => {})
         
         const [vocabResult, quotaResult, recordResult] = await Promise.all([
-          fetchCloudVocabulary(1, 1).catch(() => ({ total: 0 })),
+          fetchCloudVocabulary(1, 1).catch(() => ({ total: 0, items: [] as VocabEntry[] })),
           fetchUserQuota().catch(() => null),
           fetchCloudRecords(1, 1).catch(() => ({ total: 0 })),
         ])
         
-        // 优先使用接口返回的实时记录总数，兜底使用用户信息里的统计
         const latestInfo = useAuthStore.getState().userInfo
         setArticleCount(recordResult.total || latestInfo?.cumulativeArticleCount || 0)
 
-        setWordCount(vocabResult.total)
+        const localVocab = getVocabulary()
+        const cloudTotal = vocabResult.total
+        const localCount = localVocab.filter(v => !v.tombstone && v.pendingOp !== 'delete').length
+        setWordCount(Math.max(cloudTotal, localCount))
+
         if (quotaResult) {
           setQuota({ 
             remaining: quotaResult.remaining_points, 
@@ -87,7 +90,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       setQuota(null)
     }
     setLoadingStats(false)
-  }, [isLoggedIn]) // 移除了 userInfo 依赖，避免 fetchUserInfo 更新导致的死循环
+  }, [isLoggedIn])
 
   useEffect(() => {
     loadStats()

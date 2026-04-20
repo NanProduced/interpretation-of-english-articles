@@ -56,7 +56,7 @@ export async function fetchCreditLedger(params: {
   if (params.limit) query.limit = String(params.limit)
 
   const qs = Object.entries(query).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
-  const url = `/api/me/credit/ledger${qs ? `?${qs}` : ''}`
+  const url = `/me/credit/ledger${qs ? `?${qs}` : ''}`
 
   const dto = await request<LedgerListDto>({ url })
   return {

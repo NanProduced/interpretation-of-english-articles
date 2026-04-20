@@ -9,7 +9,7 @@ from __future__ import annotations
 from logging import getLogger
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.schemas.feedback import (
     FeedbackCreateRequest,
@@ -91,7 +91,7 @@ async def list_feedback(
 async def delete_feedback(
     current_user: AuthUserDep,
     feedback_id: UUID,
-) -> None:
+) -> Response:
     user_id = UUID(current_user.user_id)
     deleted = await feedback_svc.delete_feedback(user_id=user_id, feedback_id=feedback_id)
     if not deleted:
@@ -99,3 +99,4 @@ async def delete_feedback(
             status_code=404,
             detail="Feedback not found or not deletable (only pending feedback can be deleted)",
         )
+    return Response(status_code=204)

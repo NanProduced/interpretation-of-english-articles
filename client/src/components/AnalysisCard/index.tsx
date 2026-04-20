@@ -19,6 +19,7 @@ export interface AnalysisCardProps {
   badgeIndex?: number
   isExpanded?: boolean
   onToggle?: (expanded: boolean) => void
+  onFeedback?: () => void
   structuredData?: any
 }
 
@@ -92,6 +93,7 @@ export default function AnalysisCard({
   badgeIndex,
   isExpanded: controlledIsExpanded,
   onToggle,
+  onFeedback,
   structuredData: externalStructuredData,
 }: AnalysisCardProps) {
   const globalDefaultExpanded = useConfigStore((s) => s.defaultCardExpanded)
@@ -201,6 +203,11 @@ export default function AnalysisCard({
             <View className={`type-indicator-badge type-${type}`}>
               <Text className='indicator-text'>{label || config.defaultLabel}</Text>
             </View>
+            {onFeedback && (
+              <View className='card-feedback-btn' onClick={(e) => { e.stopPropagation(); onFeedback() }}>
+                <LucideIcon name='messageSquare' size={14} color='var(--text-muted)' />
+              </View>
+            )}
           </View>
         </View>
       </View>

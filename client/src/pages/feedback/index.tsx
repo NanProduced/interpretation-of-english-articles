@@ -1,7 +1,7 @@
 import { View, Text, Input, Textarea } from '@tarojs/components'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
-import { submitFeedback, fetchFeedbackList, FeedbackListItem } from '../../services/api/feedback.client'
+import { submitFeedback, fetchFeedbackList } from '../../services/api/feedback.client'
 import './index.scss'
 
 const FEEDBACK_CATEGORIES = [
@@ -19,11 +19,11 @@ export default function FeedbackPage() {
   const [submitting, setSubmitting] = useState(false)
   const [feedbackCount, setFeedbackCount] = useState<number | null>(null)
 
-  useState(() => {
+  useEffect(() => {
     fetchFeedbackList({ limit: 1 }).then(res => {
       setFeedbackCount(res.items.length)
     }).catch(() => {})
-  })
+  }, [])
 
   const canSubmit = selectedCategory && content.trim()
 

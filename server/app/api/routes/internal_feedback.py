@@ -7,6 +7,7 @@ Uses API Key authentication instead of user session.
 
 from __future__ import annotations
 
+import os
 from logging import getLogger
 from uuid import UUID
 
@@ -16,13 +17,14 @@ from app.schemas.feedback import (
     FeedbackRewardRequest,
     FeedbackStatusUpdateRequest,
 )
+from app.services.analysis.credit_service import grant_bonus_credits
 from app.services.feedback import service as feedback_svc
 
 logger = getLogger("app.api")
 
 router = APIRouter(prefix="/internal/feedback", tags=["internal"])
 
-INTERNAL_API_KEY = "claread_internal_2026"
+INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY", "claread_internal_2026")
 
 
 def _verify_internal_key(x_internal_key: str | None) -> None:
@@ -64,8 +66,6 @@ async def reward_feedback(
             status_code=404,
             detail="Feedback not found or already adopted",
         )
-
-    from app.services.analysis.credit_service import grant_bonus_credits
 
     user_id = row["user_id"]
     granted = await grant_bonus_credits(
