@@ -10,13 +10,46 @@ import './app.scss'
 
 const INTERRUPTED_STATE_KEY = 'analysis_interrupted'
 const GUEST_DISMISSED_KEY = 'guest_dismissed'
+const INVITER_ID_KEY = 'pending_inviter_id'
+
+function extractInviterId(options: any): string | null {
+  const query = options?.query || options
+  const inviter = query?.inviter || query?.inviter_id
+  if (inviter && typeof inviter === 'string' && inviter.trim()) {
+    return inviter.trim()
+  }
+  return null
+}
+
+function savePendingInviter(inviterId: string): void {
+  const { isLoggedIn } = useAuthStore.getState()
+  if (isLoggedIn) {
+    console.log('[invite] User already logged in, ignoring invite')
+    return
+  }
+  const existing = Taro.getStorageSync(INVITER_ID_KEY)
+  if (existing && existing !== inviterId) {
+    console.log('[invite] Inviter ID conflict, keeping first one:', existing)
+    return
+  }
+  Taro.setStorageSync(INVITER_ID_KEY, inviterId)
+  console.log('[invite] Saved pending inviter:', inviterId)
+}
 
 function App({ children }: PropsWithChildren<any>) {
   const [showLoginGuide, setShowLoginGuide] = useState(false)
 
-  // 启动时恢复认证状态
+  // 启动时恢复认证状态 + 处理邀请参数
   useEffect(() => {
     const restoreState = async () => {
+      const launchOptions = Taro.getLaunchOptionsSync()
+      console.log('[app] Launch options:', launchOptions)
+      
+      const inviterId = extractInviterId(launchOptions)
+      if (inviterId) {
+        savePendingInviter(inviterId)
+      }
+
       await useAuthStore.getState().restore()
       if ((Taro as any)._navigatingToOnboarding) return
       ;(Taro as any)._navigatingToOnboarding = true
@@ -24,10 +57,8 @@ function App({ children }: PropsWithChildren<any>) {
       const { isLoggedIn } = useAuthStore.getState()
 
       if (isLoggedIn && !Taro.getStorageSync('user_configured')) {
-        // 已登录但未设置过用户配置 → 跳转 onboarding
         Taro.navigateTo({ url: '/pages/onboarding/index' })
       } else if (!isLoggedIn) {
-        // 未登录：检查是否已选择过游客模式（当天不重复弹窗）
         const dismissed = Taro.getStorageSync(GUEST_DISMISSED_KEY)
         const today = new Date().toDateString()
         if (dismissed !== today) {
@@ -71,8 +102,15 @@ function App({ children }: PropsWithChildren<any>) {
       }
     }
 
-    // 切前台：恢复状态 + 尝试同步 pending 数据
+    // 切前台：处理邀请参数 + 恢复状态 + 尝试同步 pending 数据
     const showHandler = async (options: any) => {
+      console.log('[app] onAppShow options:', options)
+      
+      const inviterId = extractInviterId(options)
+      if (inviterId) {
+        savePendingInviter(inviterId)
+      }
+
       // 尝试静默同步 pending 数据（未登录则跳过）
       if (useAuthStore.getState().isLoggedIn) {
         const favorites = getFavorites()
