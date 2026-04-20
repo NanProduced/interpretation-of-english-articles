@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { getRecordIds, getRecord, deleteRecord, getVocabulary } from '../../services/storage'
@@ -12,6 +12,7 @@ import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import { useLayoutStore } from '../../stores/layout'
 import { getSafeDisplayLabel } from '../../config/purpose'
+import type { ReadingGoal } from '../../config/purpose'
 import LucideIcon from '../../components/LucideIcon'
 import './index.scss'
 
@@ -45,7 +46,7 @@ function getDisplayTitle(record: AnalysisRecord): string {
   return firstLine.length > 50 ? `${firstLine.slice(0, 50)}...` : firstLine
 }
 
-type FilterTab = 'all' | 'favorites'
+type FilterTab = 'all' | 'favorites' | ReadingGoal
 
 interface HistoryPageProps {
   isSubView?: boolean
@@ -63,9 +64,24 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
   // 数据与状态管理
   // --------------------------------------------------------------------------
 
-  const filteredRecords = activeTab === 'favorites'
-    ? records.filter((r) => r.isFavorited)
-    : records
+  const filteredRecords = (() => {
+    if (activeTab === 'favorites') {
+      return records.filter((r) => r.isFavorited)
+    }
+    if (activeTab === 'all') {
+      return records
+    }
+    const serverGoalMap: Record<string, string> = {
+      exam: 'exam',
+      daily: 'daily_reading',
+      academic: 'academic',
+    }
+    const targetServerGoal = serverGoalMap[activeTab]
+    return records.filter((r) => {
+      const recordGoal = r.requestPayload?.reading_goal
+      return recordGoal === targetServerGoal
+    })
+  })()
 
   const loadRecords = useCallback(async () => {
     setLoading(true)
@@ -99,7 +115,8 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
             localOnlyRecords.push({ ...record, vocabCount: vocabCounts[id] || 0 })
           }
         }
-        setRecords([...cloudRecords, ...localOnlyRecords])
+        const mergedRecords = [...cloudRecords, ...localOnlyRecords].sort((a, b) => b.createdAt - a.createdAt)
+        setRecords(mergedRecords)
         setLoading(false)
         return
       } catch {}
@@ -200,7 +217,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     ]
 
     filteredRecords.forEach(r => {
-      const t = r.updatedAt || r.createdAt
+      const t = r.createdAt
       if (t >= todayTs) groups[0].items.push(r)
       else if (t >= yesterdayTs) groups[1].items.push(r)
       else if (t >= sevenDaysTs) groups[2].items.push(r)
@@ -256,6 +273,24 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
           >
             <Text className='filter-tab-label'>已收藏</Text>
           </View>
+          <View
+            className={`filter-tab ${activeTab === 'exam' ? 'active' : ''}`}
+            onClick={() => setActiveTab('exam')}
+          >
+            <Text className='filter-tab-label'>考试备考</Text>
+          </View>
+          <View
+            className={`filter-tab ${activeTab === 'daily' ? 'active' : ''}`}
+            onClick={() => setActiveTab('daily')}
+          >
+            <Text className='filter-tab-label'>日常阅读</Text>
+          </View>
+          <View
+            className={`filter-tab ${activeTab === 'academic' ? 'active' : ''}`}
+            onClick={() => setActiveTab('academic')}
+          >
+            <Text className='filter-tab-label'>学术文献</Text>
+          </View>
         </View>
         
         {records.length > 0 && (
@@ -272,7 +307,11 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
         {loading && records.length === 0 ? null : groupedRecords.length === 0 ? (
             <View className='empty-state'>
               <Text className='empty-text'>
-                {activeTab === 'favorites' ? '暂无收藏记录' : '暂无解读记录'}
+                {activeTab === 'favorites' ? '暂无收藏记录' : 
+                 activeTab === 'exam' ? '暂无考试备考相关的解读记录' :
+                 activeTab === 'daily' ? '暂无日常阅读相关的解读记录' :
+                 activeTab === 'academic' ? '暂无学术文献相关的解读记录' :
+                 '暂无解读记录'}
               </Text>
               {activeTab === 'all' && (
                 <View className='empty-action' onClick={goToInput}>

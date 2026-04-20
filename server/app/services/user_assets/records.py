@@ -226,7 +226,7 @@ async def list_records(
             FROM analysis_records r
             {content_join}
             WHERE r.user_id = $1 AND r.deleted_at IS NULL
-            ORDER BY r.updated_at DESC
+            ORDER BY r.created_at DESC
             LIMIT $2 OFFSET $3
             """,
             user_id,
