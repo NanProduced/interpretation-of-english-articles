@@ -102,17 +102,24 @@ export function getRecord(id: string): AnalysisRecord | null {
 }
 
 /**
- * 保存分析记录（追加到列表头部）
+ * 保存分析记录
+ * - 新记录：追加到列表头部
+ * - 已存在的记录：只更新内容，不改变 ID 列表顺序（避免打乱排序）
  */
 export function saveRecord(record: AnalysisRecord): void {
   try {
     // 保存记录本身
     Taro.setStorageSync(KEYS.RECORD(record.recordId), record)
 
-    // 更新 ID 列表（去重 + 头部插入）
+    // 更新 ID 列表
     const ids = getRecordIds()
-    const filtered = ids.filter((id) => id !== record.recordId)
-    Taro.setStorageSync(KEYS.RECORD_IDS, [record.recordId, ...filtered])
+    const isNewRecord = !ids.includes(record.recordId)
+    
+    // 只有新记录才插入到头部，已存在的记录不改变顺序
+    if (isNewRecord) {
+      Taro.setStorageSync(KEYS.RECORD_IDS, [record.recordId, ...ids])
+    }
+    // 已存在的记录：保持 ID 列表顺序不变
   } catch (e) {
     console.error('[storage] saveRecord failed', e)
   }
