@@ -50,7 +50,10 @@ from app.services.analysis.prompting.profiles.registry import (
     register_profile,
 )
 from app.services.analysis.prompting.profiles.resolver import (
+    ProfileError,
+    ProfileNotFoundError,
     ProfileResolver,
+    ProfileVersionNotFoundError,
     resolve_profile,
 )
 
@@ -68,9 +71,12 @@ def init_profiles() -> None:
 
 __all__ = [
     "ExampleConfig",
+    "ProfileError",
+    "ProfileNotFoundError",
     "ProfileRegistry",
     "ProfileResolver",
     "ProfileVersion",
+    "ProfileVersionNotFoundError",
     "PromptPolicyConfig",
     "PromptProfile",
     "get_builtin_profiles",

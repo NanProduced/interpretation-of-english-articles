@@ -24,9 +24,12 @@ from app.services.analysis.prompting.example_strategy import (
 )
 from app.services.analysis.prompting.profiles import (
     ExampleConfig,
+    ProfileError,
+    ProfileNotFoundError,
     ProfileRegistry,
     ProfileResolver,
     ProfileVersion,
+    ProfileVersionNotFoundError,
     PromptPolicyConfig,
     PromptProfile,
     get_builtin_profiles,
@@ -452,8 +455,29 @@ class TestProfileResolver:
             ),
         )
 
-        with pytest.raises(ValueError, match="Profile 'nonexistent_profile' not found"):
+        with pytest.raises(ProfileNotFoundError) as exc_info:
             resolver.resolve(unknown_plan)
+        
+        assert exc_info.value.profile_id == "nonexistent_profile"
+        assert "nonexistent_profile" in str(exc_info.value)
+
+    def test_resolve_raises_version_not_found_error(self) -> None:
+        """测试找不到指定版本时抛出明确的错误。"""
+        init_profiles()
+        resolver = ProfileResolver()
+        plan = build_goal_execution_plan("daily_reading", "beginner_reading")
+
+        with pytest.raises(ProfileVersionNotFoundError) as exc_info:
+            resolver.resolve(plan, version="99.99.99")
+        
+        assert exc_info.value.profile_id == "daily_beginner"
+        assert exc_info.value.requested_version == "99.99.99"
+        assert "99.99.99" in str(exc_info.value)
+
+    def test_profile_error_inheritance(self) -> None:
+        """测试异常类的继承关系。"""
+        assert issubclass(ProfileNotFoundError, ProfileError)
+        assert issubclass(ProfileVersionNotFoundError, ProfileError)
 
     def test_get_strategy_bundle(self) -> None:
         init_profiles()

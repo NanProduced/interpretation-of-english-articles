@@ -19,6 +19,66 @@ from app.services.analysis.prompting.profiles.models import PromptProfile
 from app.services.analysis.prompting.profiles.registry import ProfileRegistry, get_default_registry
 
 
+class ProfileError(Exception):
+    """Profile 相关错误的基类。
+
+    所有与 profile 配置相关的错误都应该继承这个基类，
+    便于上层代码统一捕获和处理。
+    """
+
+    def __init__(self, profile_id: str, message: str) -> None:
+        self.profile_id = profile_id
+        self.message = message
+        super().__init__(message)
+
+    def __str__(self) -> str:
+        return f"[{self.profile_id}] {self.message}"
+
+
+class ProfileNotFoundError(ProfileError):
+    """Profile 未找到错误。
+
+    当请求的 profile_id 在注册中心中不存在时抛出。
+    """
+
+    def __init__(self, profile_id: str, message: str | None = None) -> None:
+        if message is None:
+            message = (
+                f"Profile '{profile_id}' not found in registry. "
+                f"Ensure init_profiles() has been called."
+            )
+        super().__init__(profile_id, message)
+
+
+class ProfileVersionNotFoundError(ProfileError):
+    """Profile 版本未找到错误。
+
+    当请求的 profile 存在，但指定的版本不存在时抛出。
+    """
+
+    def __init__(
+        self,
+        profile_id: str,
+        requested_version: str,
+        available_versions: list[str],
+    ) -> None:
+        self.requested_version = requested_version
+        self.available_versions = available_versions
+
+        if available_versions:
+            versions_str = ", ".join(f"'{v}'" for v in available_versions)
+            message = (
+                f"Version '{requested_version}' not found for profile '{profile_id}'. "
+                f"Available versions: {versions_str}"
+            )
+        else:
+            message = (
+                f"Version '{requested_version}' not found for profile '{profile_id}'. "
+                f"No versions available."
+            )
+        super().__init__(profile_id, message)
+
+
 class ProfileResolver:
     """Profile 解析器。
 
@@ -56,14 +116,20 @@ class ProfileResolver:
 
         if profile is None:
             if version is None:
-                raise ValueError(
-                    f"Profile '{profile_id}' not found in registry. "
+                raise ProfileNotFoundError(
+                    profile_id=profile_id,
+                    message=f"Profile '{profile_id}' not found in registry. "
                     f"Ensure init_profiles() has been called."
                 )
             else:
-                raise ValueError(
-                    f"Profile '{profile_id}' version '{version}' not found in registry. "
-                    f"Available versions: {[v.to_string() for v in self._registry.list_versions(profile_id)] if self._registry.has_profile(profile_id) else 'none'}"
+                available_versions = []
+                if self._registry.has_profile(profile_id):
+                    all_profiles = self._registry.get_all_versions(profile_id)
+                    available_versions = [p.version.to_string() for p in all_profiles]
+                raise ProfileVersionNotFoundError(
+                    profile_id=profile_id,
+                    requested_version=version,
+                    available_versions=available_versions,
                 )
 
         return profile
