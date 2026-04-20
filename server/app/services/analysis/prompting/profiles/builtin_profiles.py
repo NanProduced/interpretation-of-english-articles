@@ -366,6 +366,8 @@ def get_builtin_profiles() -> list[PromptProfile]:
 
     这些 profile 保持与当前实现完全一致，确保默认行为兼容。
     """
+    academic_general = _create_academic_profile()
+
     return [
         _create_profile(
             profile_id="daily_beginner",
@@ -471,14 +473,115 @@ def get_builtin_profiles() -> list[PromptProfile]:
             grammar_examples=IELTS_TOEFL_GRAMMAR_EXAMPLES,
             translation_examples=IELTS_TOEFL_TRANSLATION_EXAMPLES,
         ),
+        academic_general,
     ]
+
+
+def _create_academic_profile() -> PromptProfile:
+    """创建学术阅读的 profile。
+
+    包含 term、academic_translation、understanding 三个 agent 的配置。
+    """
+    term_policy_lines = (
+        '用户是学术阅读者，他们需要理解专业术语和学术表达。',
+        '标词策略：precision 优先于 recall。只标注真正的术语，不要把普通词汇标成术语。',
+        '优先标专业术语（technical）、半技术词汇（sub_technical）、缩写（abbreviation）、符号引用（notation）和概念对立（concept_opposition）。',
+        '常见词不标。如果文本确实没有术语，少标或不标是正确行为。',
+    )
+
+    academic_translation_policy_lines = (
+        '翻译风格：研究阅读级准确翻译。',
+        '必须保留 hedging（may, might, suggest, indicate, could possibly 等）和限定条件。',
+        '术语翻译使用该学科通用的标准中文术语。',
+        '文风客观严谨，保持学术文本的"非个人化"特征。',
+    )
+
+    understanding_policy_lines = (
+        '你是学术阅读理解助手，负责逻辑标注和解释性改写。',
+        '逻辑标注：宁少勿滥，每句最多 2 条。anchor_text 必须是原文精确子串。',
+        '解释性改写：只在直译会产生严重理解偏差或需要消解指代时输出。普通句子不需要。',
+        '段落角色和内容概要是 P2 可选字段，允许为空。',
+    )
+
+    term_examples = (
+        ExampleEntry(
+            example_type="vocab",
+            sentence_text="The study employed a longitudinal design to track changes in cognitive function.",
+            output_fragment='{"type": "term_note", "sentence_ids": ["s1"], "text": "longitudinal", "term_category": "technical", "zh": "纵向的", "zh_uncertain": false, "context_definition": "在研究方法语境下，longitudinal 指对同一组对象进行长期跟踪研究的设计，与 cross-sectional（横截面）相对", "discipline": "research_methodology"}',
+        ),
+        ExampleEntry(
+            example_type="vocab",
+            sentence_text="The results suggest that the effect may be mediated by attentional processes.",
+            output_fragment='{"type": "term_note", "sentence_ids": ["s2"], "text": "mediated", "term_category": "sub_technical", "zh": "中介/调节", "zh_uncertain": true, "context_definition": "在统计学语境下，mediated 表示一个变量通过另一个变量间接产生影响，即中介效应", "discipline": "statistics"}',
+        ),
+    )
+
+    academic_translation_examples = (
+        ExampleEntry(
+            example_type="translation",
+            sentence_text="The results suggest that the effect may be mediated by attentional processes.",
+            output_fragment='{"sentence_id": "s1", "translation_zh": "结果表明，该效应可能由注意过程中介。", "translation_notes": ["保留了 may be 的不确定性表达"]}',
+        ),
+        ExampleEntry(
+            example_type="translation",
+            sentence_text="Although the sample size was relatively small, the findings are consistent with previous research.",
+            output_fragment='{"sentence_id": "s2", "translation_zh": "尽管样本量相对较小，但研究结果与先前研究一致。"}',
+        ),
+    )
+
+    understanding_examples = (
+        ExampleEntry(
+            example_type="vocab",
+            sentence_text="Although the sample size was relatively small, the findings are consistent with previous research.",
+            output_fragment='{"type": "logic_note", "sentence_ids": ["s1"], "logic_type": "concession", "anchor_text": "Although", "explanation": "让步：承认样本量小的局限，同时强调结果的一致性", "hedging_detected": false, "hedging_words": []}',
+        ),
+        ExampleEntry(
+            example_type="vocab",
+            sentence_text="The results suggest that the effect may be mediated by attentional processes.",
+            output_fragment='{"type": "logic_note", "sentence_ids": ["s2"], "logic_type": "evidence", "anchor_text": "suggest that", "explanation": "证据支撑：用 suggest 而非 prove 表明这是推断而非定论", "hedging_detected": true, "hedging_words": ["suggest", "may"]}',
+        ),
+    )
+
+    policy_config = PromptPolicyConfig(
+        term=term_policy_lines,
+        academic_translation=academic_translation_policy_lines,
+        understanding=understanding_policy_lines,
+    )
+
+    example_config = ExampleConfig(
+        term=term_examples,
+        academic_translation=academic_translation_examples,
+        understanding=understanding_examples,
+        selection_mode="baseline",
+    )
+
+    goal_policy = GoalPolicy(
+        annotation_density=4,
+        vocabulary_focus="academic_priority",
+        grammar_focus="structural",
+        translation_focus="academic",
+    )
+
+    return PromptProfile(
+        profile_id="academic_general",
+        version=ProfileVersion(major=0, minor=0, patch=0, is_default=True),
+        description="学术阅读 - 通用配置",
+        reading_goal="academic",
+        reading_variant=None,
+        policy_config=policy_config,
+        example_config=example_config,
+        goal_policy=goal_policy,
+    )
 
 
 def register_builtin_profiles() -> None:
     """注册所有内置的 prompt profile 到默认注册中心。
 
     这个函数应该在应用启动时调用一次，确保所有内置 profile 都可用。
+    此函数可以安全地多次调用（已存在的 profile 会被跳过）。
     """
     registry = get_default_registry()
     for profile in get_builtin_profiles():
+        if registry.has_version(profile.profile_id, profile.version):
+            continue
         registry.register(profile)

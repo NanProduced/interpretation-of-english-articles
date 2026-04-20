@@ -4,7 +4,8 @@
 设计原则：
 - 为所有 agent 提供同一套配置来源
 - 策略层解耦，不写死在 node 内
-- 支持新的声明式 prompt profile 体系，同时保持向后兼容
+- 只使用新的声明式 prompt profile 体系（不再保留旧路径）
+- 新体系的行为与旧实现完全一致（通过迁移内置 profiles 保证）
 """
 
 from __future__ import annotations
@@ -15,9 +16,6 @@ from typing import Literal
 from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.services.analysis.prompting.example_strategy import (
     ExampleStrategy,
-    get_grammar_example_strategy,
-    get_translation_example_strategy,
-    get_vocabulary_example_strategy,
 )
 from app.services.analysis.prompting.profiles import (
     ProfileResolver,
@@ -25,9 +23,6 @@ from app.services.analysis.prompting.profiles import (
 )
 from app.services.analysis.prompting.prompt_strategy import (
     PromptStrategy,
-    build_grammar_prompt_strategy,
-    build_translation_prompt_strategy,
-    build_vocabulary_prompt_strategy,
 )
 
 
@@ -54,17 +49,10 @@ def build_vocabulary_bundle(
     Args:
         plan: 执行计划
         profile_version: 可选的 profile 版本号，用于支持版本化的 prompt 配置。
-            如果提供，将从注册中心查询指定版本的 profile；
-            如果未提供，使用默认版本（行为与旧实现一致）。
+            如果未提供，使用默认版本。
     """
-    if profile_version is not None:
-        resolver = _get_resolver()
-        return resolver.get_strategy_bundle(plan, "vocabulary", profile_version)
-
-    return StrategyBundle(
-        prompt_strategy=build_vocabulary_prompt_strategy(plan),
-        example_strategy=get_vocabulary_example_strategy(plan),
-    )
+    resolver = _get_resolver()
+    return resolver.get_strategy_bundle(plan, "vocabulary", profile_version)
 
 
 def build_grammar_bundle(
@@ -77,17 +65,10 @@ def build_grammar_bundle(
     Args:
         plan: 执行计划
         profile_version: 可选的 profile 版本号，用于支持版本化的 prompt 配置。
-            如果提供，将从注册中心查询指定版本的 profile；
-            如果未提供，使用默认版本（行为与旧实现一致）。
+            如果未提供，使用默认版本。
     """
-    if profile_version is not None:
-        resolver = _get_resolver()
-        return resolver.get_strategy_bundle(plan, "grammar", profile_version)
-
-    return StrategyBundle(
-        prompt_strategy=build_grammar_prompt_strategy(plan),
-        example_strategy=get_grammar_example_strategy(plan),
-    )
+    resolver = _get_resolver()
+    return resolver.get_strategy_bundle(plan, "grammar", profile_version)
 
 
 def build_translation_bundle(
@@ -100,22 +81,60 @@ def build_translation_bundle(
     Args:
         plan: 执行计划
         profile_version: 可选的 profile 版本号，用于支持版本化的 prompt 配置。
-            如果提供，将从注册中心查询指定版本的 profile；
-            如果未提供，使用默认版本（行为与旧实现一致）。
+            如果未提供，使用默认版本。
     """
-    if profile_version is not None:
-        resolver = _get_resolver()
-        return resolver.get_strategy_bundle(plan, "translation", profile_version)
+    resolver = _get_resolver()
+    return resolver.get_strategy_bundle(plan, "translation", profile_version)
 
-    return StrategyBundle(
-        prompt_strategy=build_translation_prompt_strategy(plan),
-        example_strategy=get_translation_example_strategy(plan),
-    )
+
+def build_term_bundle(
+    plan: GoalExecutionPlan,
+    *,
+    profile_version: str | None = None,
+) -> StrategyBundle:
+    """构建 term agent 的 strategy bundle（academic workflow）。
+
+    Args:
+        plan: 执行计划
+        profile_version: 可选的 profile 版本号
+    """
+    resolver = _get_resolver()
+    return resolver.get_strategy_bundle(plan, "term", profile_version)
+
+
+def build_academic_translation_bundle(
+    plan: GoalExecutionPlan,
+    *,
+    profile_version: str | None = None,
+) -> StrategyBundle:
+    """构建 academic_translation agent 的 strategy bundle（academic workflow）。
+
+    Args:
+        plan: 执行计划
+        profile_version: 可选的 profile 版本号
+    """
+    resolver = _get_resolver()
+    return resolver.get_strategy_bundle(plan, "academic_translation", profile_version)
+
+
+def build_understanding_bundle(
+    plan: GoalExecutionPlan,
+    *,
+    profile_version: str | None = None,
+) -> StrategyBundle:
+    """构建 understanding agent 的 strategy bundle（academic workflow）。
+
+    Args:
+        plan: 执行计划
+        profile_version: 可选的 profile 版本号
+    """
+    resolver = _get_resolver()
+    return resolver.get_strategy_bundle(plan, "understanding", profile_version)
 
 
 def build_strategy_bundle(
     plan: GoalExecutionPlan,
-    agent_type: Literal["vocabulary", "grammar", "translation"],
+    agent_type: Literal["vocabulary", "grammar", "translation", "term", "academic_translation", "understanding"],
     *,
     profile_version: str | None = None,
 ) -> StrategyBundle:
@@ -137,5 +156,11 @@ def build_strategy_bundle(
         return build_grammar_bundle(plan, profile_version=profile_version)
     elif agent_type == "translation":
         return build_translation_bundle(plan, profile_version=profile_version)
+    elif agent_type == "term":
+        return build_term_bundle(plan, profile_version=profile_version)
+    elif agent_type == "academic_translation":
+        return build_academic_translation_bundle(plan, profile_version=profile_version)
+    elif agent_type == "understanding":
+        return build_understanding_bundle(plan, profile_version=profile_version)
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
