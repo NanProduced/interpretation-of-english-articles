@@ -31,7 +31,7 @@
   - 技术栈选型、数据模型、认证登录、积分配额、异步任务中心、词典查询策略、前端状态管理、ID 契约、离线优先同步策略
 - [词典服务架构与查询策略](./architecture/dictionary-service-architecture.md)
   - TECD3 离线导入、PostgreSQL 真源、查询策略、缓存策略、dict_* 表保护规则
-- [每日精读模块设计文档](./architecture/daily-reader-module-design.md)
+- [每日精读 Specs](../specs/daily-reader/)
   - 每日精读页面形态、专用 workflow、数据结构、内容生产链路
 - [小程序联调与用户体验设计文档](./architecture/mini-program-integration-and-ux-design.md)
   - 用户主链路、结果页状态映射、前后端边界、用户资产管理、微信平台能力接入

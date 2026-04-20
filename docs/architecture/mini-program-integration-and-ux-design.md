@@ -5,7 +5,7 @@
 > 关联文档：
 > - [ARCHITECTURE.md](./ARCHITECTURE.md) — 架构决策记录（ID 契约、同步策略等）
 > - [dictionary-service-architecture.md](./dictionary-service-architecture.md) — 词典服务架构
-> - [daily-reader-module-design.md](./daily-reader-module-design.md) — 每日精读独立设计
+> - [每日精读 Specs](../../specs/daily-reader/) — 每日精读独立设计
 
 补充范围说明：
 
