@@ -14,7 +14,7 @@
 1. 声明式配置：所有配置都是数据驱动的，不包含逻辑代码
 2. 版本化：每个 profile 可以有多个版本，支持语义化版本查询
 3. 可扩展：通过注册机制支持动态添加新的 profile
-4. 兼容性：未显式指定版本时，使用默认版本（与当前行为一致）
+4. 统一路径：不再有 legacy fallback 路径，所有配置都来自注册中心
 
 使用示例：
     # 获取默认解析器
@@ -24,8 +24,7 @@
     init_profiles()
     
     # 解析 profile
-    result = resolve_profile(execution_plan)
-    profile = result.profile
+    profile = resolve_profile(execution_plan)
     
     # 获取指定 agent 的 policy lines
     vocab_policy = profile.get_policy_lines("vocabulary")
@@ -51,9 +50,7 @@ from app.services.analysis.prompting.profiles.registry import (
     register_profile,
 )
 from app.services.analysis.prompting.profiles.resolver import (
-    ProfileResolutionResult,
     ProfileResolver,
-    ResolutionSource,
     resolve_profile,
 )
 
@@ -72,12 +69,10 @@ def init_profiles() -> None:
 __all__ = [
     "ExampleConfig",
     "ProfileRegistry",
-    "ProfileResolutionResult",
     "ProfileResolver",
     "ProfileVersion",
     "PromptPolicyConfig",
     "PromptProfile",
-    "ResolutionSource",
     "get_builtin_profiles",
     "get_default_registry",
     "init_profiles",

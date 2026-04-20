@@ -3,7 +3,7 @@
 验证以下功能：
 1. 核心数据模型的正确性
 2. ProfileRegistry 的注册、查询、版本管理功能
-3. ProfileResolver 的解析功能和兼容性
+3. ProfileResolver 的解析功能
 4. 内置 profiles 与旧实现的行为一致性
 5. 版本化功能（同一 profile 的不同版本）
 """
@@ -25,7 +25,6 @@ from app.services.analysis.prompting.example_strategy import (
 from app.services.analysis.prompting.profiles import (
     ExampleConfig,
     ProfileRegistry,
-    ProfileResolutionResult,
     ProfileResolver,
     ProfileVersion,
     PromptPolicyConfig,
@@ -400,6 +399,7 @@ class TestBuiltinProfiles:
         assert "exam_kaoyan" in profile_ids
         assert "exam_tem" in profile_ids
         assert "exam_ielts_toefl" in profile_ids
+        assert "academic_general" in profile_ids
 
     def test_init_profiles_registers_builtin_profiles(self) -> None:
         registry = get_default_registry()
@@ -430,10 +430,30 @@ class TestProfileResolver:
         resolver = ProfileResolver()
         plan = build_goal_execution_plan("daily_reading", "beginner_reading")
 
-        result = resolver.resolve_or_fallback(plan)
+        profile = resolver.resolve(plan)
 
-        assert result.is_from_registry
-        assert result.profile.profile_id == "daily_beginner"
+        assert profile.profile_id == "daily_beginner"
+
+    def test_resolve_raises_error_for_unknown_profile(self) -> None:
+        """测试找不到 profile 时抛出明确的错误。"""
+        resolver = ProfileResolver()
+        
+        unknown_plan = GoalExecutionPlan(
+            goal_id="daily_reading",
+            variant_id="beginner_reading",
+            topology_mode="learning",
+            output_mode="learning_scene",
+            prompt_profile="nonexistent_profile",
+            policy=GoalPolicy(
+                annotation_density=4,
+                vocabulary_focus="high_value_only",
+                grammar_focus="balanced",
+                translation_focus="natural",
+            ),
+        )
+
+        with pytest.raises(ValueError, match="Profile 'nonexistent_profile' not found"):
+            resolver.resolve(unknown_plan)
 
     def test_get_strategy_bundle(self) -> None:
         init_profiles()
@@ -450,10 +470,10 @@ class TestProfileResolver:
         init_profiles()
         plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
 
-        result = resolve_profile(plan)
+        profile = resolve_profile(plan)
 
-        assert isinstance(result, ProfileResolutionResult)
-        assert result.profile.profile_id == "daily_intermediate"
+        assert isinstance(profile, PromptProfile)
+        assert profile.profile_id == "daily_intermediate"
 
 
 class TestCompatibility:
@@ -467,8 +487,8 @@ class TestCompatibility:
         old_strategy = build_vocabulary_prompt_strategy(plan)
 
         resolver = ProfileResolver()
-        result = resolver.resolve_or_fallback(plan)
-        new_policy_lines = result.profile.get_policy_lines("vocabulary")
+        profile = resolver.resolve(plan)
+        new_policy_lines = profile.get_policy_lines("vocabulary")
 
         assert old_strategy.policy_lines == new_policy_lines
 
@@ -480,8 +500,8 @@ class TestCompatibility:
         old_examples = get_vocabulary_example_strategy(plan)
 
         resolver = ProfileResolver()
-        result = resolver.resolve_or_fallback(plan)
-        new_examples = result.profile.get_examples("vocabulary")
+        profile = resolver.resolve(plan)
+        new_examples = profile.get_examples("vocabulary")
 
         assert len(old_examples.examples) == len(new_examples)
         for old, new in zip(old_examples.examples, new_examples):
@@ -489,27 +509,15 @@ class TestCompatibility:
             assert old.sentence_text == new.sentence_text
             assert old.output_fragment == new.output_fragment
 
-    def test_strategy_builder_without_version_uses_old_implementation(self) -> None:
-        """验证不指定 version 时使用旧实现（保持兼容）。"""
+    def test_strategy_builder_uses_new_system(self) -> None:
+        """验证 strategy builder 统一使用新的 profile 体系。"""
+        init_profiles()
         plan = build_goal_execution_plan("daily_reading", "beginner_reading")
 
         bundle = build_vocabulary_bundle(plan)
 
-        expected_policy = build_vocabulary_prompt_strategy(plan)
-        expected_examples = get_vocabulary_example_strategy(plan)
-
-        assert bundle.prompt_strategy.policy_lines == expected_policy.policy_lines
-        assert len(bundle.example_strategy.examples) == len(expected_examples.examples)
-
-    def test_strategy_builder_with_version_uses_new_system(self) -> None:
-        """验证指定 version 时使用新的 profile 体系。"""
-        init_profiles()
-        plan = build_goal_execution_plan("daily_reading", "beginner_reading")
-
-        bundle = build_vocabulary_bundle(plan, profile_version="default")
-
         registry = get_default_registry()
-        expected_profile = registry.get("daily_beginner", "default")
+        expected_profile = registry.get("daily_beginner")
         assert expected_profile is not None
 
         assert bundle.prompt_strategy.policy_lines == expected_profile.get_policy_lines("vocabulary")
@@ -520,9 +528,9 @@ class TestCompatibility:
         init_profiles()
         plan = build_goal_execution_plan("daily_reading", "intermediate_reading")
 
-        vocab_bundle = build_strategy_bundle(plan, "vocabulary", profile_version="default")
-        grammar_bundle = build_strategy_bundle(plan, "grammar", profile_version="default")
-        translation_bundle = build_strategy_bundle(plan, "translation", profile_version="default")
+        vocab_bundle = build_strategy_bundle(plan, "vocabulary")
+        grammar_bundle = build_strategy_bundle(plan, "grammar")
+        translation_bundle = build_strategy_bundle(plan, "translation")
 
         assert isinstance(vocab_bundle, StrategyBundle)
         assert isinstance(grammar_bundle, StrategyBundle)
