@@ -119,11 +119,17 @@ class PromptPolicyConfig:
         vocabulary: 词汇标注 agent 的 policy lines
         grammar: 语法分析 agent 的 policy lines
         translation: 翻译 agent 的 policy lines
+        term: 术语标注 agent 的 policy lines（academic workflow）
+        academic_translation: 学术翻译 agent 的 policy lines（academic workflow）
+        understanding: 理解/逻辑标注 agent 的 policy lines（academic workflow）
     """
 
     vocabulary: tuple[str, ...] = ()
     grammar: tuple[str, ...] = ()
     translation: tuple[str, ...] = ()
+    term: tuple[str, ...] = ()
+    academic_translation: tuple[str, ...] = ()
+    understanding: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,12 +142,18 @@ class ExampleConfig:
         vocabulary: 词汇标注 agent 的示例
         grammar: 语法分析 agent 的示例
         translation: 翻译 agent 的示例
+        term: 术语标注 agent 的示例（academic workflow）
+        academic_translation: 学术翻译 agent 的示例（academic workflow）
+        understanding: 理解/逻辑标注 agent 的示例（academic workflow）
         selection_mode: 示例选择模式
     """
 
     vocabulary: tuple[ExampleEntry, ...] = ()
     grammar: tuple[ExampleEntry, ...] = ()
     translation: tuple[ExampleEntry, ...] = ()
+    term: tuple[ExampleEntry, ...] = ()
+    academic_translation: tuple[ExampleEntry, ...] = ()
+    understanding: tuple[ExampleEntry, ...] = ()
     selection_mode: Literal["baseline", "rag", "manual"] = "baseline"
 
 
@@ -181,7 +193,10 @@ class PromptProfile:
         """是否为默认版本。"""
         return self.version.is_default
 
-    def get_policy_lines(self, agent_type: Literal["vocabulary", "grammar", "translation"]) -> tuple[str, ...]:
+    def get_policy_lines(
+        self,
+        agent_type: Literal["vocabulary", "grammar", "translation", "term", "academic_translation", "understanding"],
+    ) -> tuple[str, ...]:
         """获取指定 agent 的 policy lines。"""
         if agent_type == "vocabulary":
             return self.policy_config.vocabulary
@@ -189,9 +204,18 @@ class PromptProfile:
             return self.policy_config.grammar
         elif agent_type == "translation":
             return self.policy_config.translation
+        elif agent_type == "term":
+            return self.policy_config.term
+        elif agent_type == "academic_translation":
+            return self.policy_config.academic_translation
+        elif agent_type == "understanding":
+            return self.policy_config.understanding
         return ()
 
-    def get_examples(self, agent_type: Literal["vocabulary", "grammar", "translation"]) -> list[ExampleEntry]:
+    def get_examples(
+        self,
+        agent_type: Literal["vocabulary", "grammar", "translation", "term", "academic_translation", "understanding"],
+    ) -> list[ExampleEntry]:
         """获取指定 agent 的示例列表。"""
         if agent_type == "vocabulary":
             return list(self.example_config.vocabulary)
@@ -199,6 +223,12 @@ class PromptProfile:
             return list(self.example_config.grammar)
         elif agent_type == "translation":
             return list(self.example_config.translation)
+        elif agent_type == "term":
+            return list(self.example_config.term)
+        elif agent_type == "academic_translation":
+            return list(self.example_config.academic_translation)
+        elif agent_type == "understanding":
+            return list(self.example_config.understanding)
         return []
 
 

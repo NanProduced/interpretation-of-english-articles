@@ -151,7 +151,7 @@ class ProfileResolver:
     def get_strategy_bundle(
         self,
         plan: GoalExecutionPlan,
-        agent_type: Literal["vocabulary", "grammar", "translation"],
+        agent_type: Literal["vocabulary", "grammar", "translation", "term", "academic_translation", "understanding"],
         version: str | None = None,
     ) -> StrategyBundle:
         """获取指定 agent 的策略 bundle。
@@ -203,6 +203,43 @@ class ProfileResolver:
             )
             example_strategy = ExampleStrategy(
                 examples=list(profile.example_config.translation),
+                selection_mode=profile.example_config.selection_mode,
+            )
+        elif agent_type == "term":
+            prompt_strategy = PromptStrategy(
+                profile_id=profile.profile_id,
+                reading_goal=profile.reading_goal or plan.goal_id,
+                reading_variant=profile.reading_variant or plan.variant_id,
+                vocabulary_policy=plan.policy.vocabulary_focus,
+                annotation_style="structural_and_academic",
+                policy_lines=profile.policy_config.term,
+            )
+            example_strategy = ExampleStrategy(
+                examples=list(profile.example_config.term),
+                selection_mode=profile.example_config.selection_mode,
+            )
+        elif agent_type == "academic_translation":
+            prompt_strategy = PromptStrategy(
+                profile_id=profile.profile_id,
+                reading_goal=profile.reading_goal or plan.goal_id,
+                reading_variant=profile.reading_variant or plan.variant_id,
+                translation_style="academic",
+                policy_lines=profile.policy_config.academic_translation,
+            )
+            example_strategy = ExampleStrategy(
+                examples=list(profile.example_config.academic_translation),
+                selection_mode=profile.example_config.selection_mode,
+            )
+        elif agent_type == "understanding":
+            prompt_strategy = PromptStrategy(
+                profile_id=profile.profile_id,
+                reading_goal=profile.reading_goal or plan.goal_id,
+                reading_variant=profile.reading_variant or plan.variant_id,
+                annotation_style="structural_and_academic",
+                policy_lines=profile.policy_config.understanding,
+            )
+            example_strategy = ExampleStrategy(
+                examples=list(profile.example_config.understanding),
                 selection_mode=profile.example_config.selection_mode,
             )
         else:

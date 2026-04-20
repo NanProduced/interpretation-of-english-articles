@@ -32,11 +32,10 @@ from app.schemas.internal.analysis import PreparedSentence
 from app.services.analysis.postprocess.academic_normalize import academic_normalize_and_ground
 from app.services.analysis.postprocess.academic_projection import project_to_academic_render_scene
 from app.services.analysis.preprocess.input_preparation import prepare_input
-from app.services.analysis.prompting.example_strategy import ExampleEntry
-from app.services.analysis.prompting.prompt_composer import build_agent_prompt
-from app.services.analysis.prompting.prompt_strategy import (
-    PromptStrategy,
-    build_prompt_sections,
+from app.services.analysis.prompting.strategy_builder import (
+    build_academic_translation_bundle,
+    build_term_bundle,
+    build_understanding_bundle,
 )
 from app.services.analysis.runtime.academic_runners import (
     run_academic_translation_agent,
@@ -255,18 +254,18 @@ async def parallel_term_translation_node(
         for s in prepared_input.sentences
     ]
 
-    term_strategy = _build_term_prompt_strategy(plan)
-    translation_strategy = _build_academic_translation_prompt_strategy(plan)
+    term_bundle = build_term_bundle(plan)
+    translation_bundle = build_academic_translation_bundle(plan)
 
     term_deps = TermAgentDeps(
         sentences=sentences_data,
-        prompt_strategy=term_strategy,
-        examples=_get_term_examples(plan),
+        prompt_strategy=term_bundle.prompt_strategy,
+        examples=term_bundle.example_strategy.examples,
     )
     translation_deps = AcademicTranslationAgentDeps(
         sentences=sentences_data,
-        prompt_strategy=translation_strategy,
-        examples=_get_academic_translation_examples(plan),
+        prompt_strategy=translation_bundle.prompt_strategy,
+        examples=translation_bundle.example_strategy.examples,
     )
 
     term_meta = _build_agent_trace_metadata(state, "term_agent", model_sel)
@@ -350,14 +349,14 @@ async def understanding_agent_node(
         for s in prepared_input.sentences
     ]
 
-    understanding_strategy = _build_understanding_prompt_strategy(plan)
+    understanding_bundle = build_understanding_bundle(plan)
 
     term_draft_json = term_draft.model_dump(mode="json") if term_draft else None
 
     deps = UnderstandingAgentDeps(
         sentences=sentences_data,
-        prompt_strategy=understanding_strategy,
-        examples=_get_understanding_examples(plan),
+        prompt_strategy=understanding_bundle.prompt_strategy,
+        examples=understanding_bundle.example_strategy.examples,
         term_draft_json=term_draft_json,
     )
 
@@ -553,97 +552,6 @@ async def academic_assemble_result_node(state: AcademicState) -> AcademicState:
         render_scene.user_facing_state = "normal"
 
     return {"render_scene": render_scene}
-
-
-def _build_term_prompt_strategy(plan: Any) -> PromptStrategy:
-    return PromptStrategy(
-        profile_id=plan.prompt_profile,
-        reading_goal=plan.goal_id,
-        reading_variant=plan.variant_id,
-        vocabulary_policy=plan.policy.vocabulary_focus,
-        annotation_style="structural_and_academic",
-        policy_lines=(
-            '用户是学术阅读者，他们需要理解专业术语和学术表达。',
-            '标词策略：precision 优先于 recall。只标注真正的术语，不要把普通词汇标成术语。',
-            '优先标专业术语（technical）、半技术词汇（sub_technical）、缩写（abbreviation）、符号引用（notation）和概念对立（concept_opposition）。',
-            '常见词不标。如果文本确实没有术语，少标或不标是正确行为。',
-        ),
-    )
-
-
-def _build_academic_translation_prompt_strategy(plan: Any) -> PromptStrategy:
-    return PromptStrategy(
-        profile_id=plan.prompt_profile,
-        reading_goal=plan.goal_id,
-        reading_variant=plan.variant_id,
-        translation_style="academic",
-        policy_lines=(
-            '翻译风格：研究阅读级准确翻译。',
-            '必须保留 hedging（may, might, suggest, indicate, could possibly 等）和限定条件。',
-            '术语翻译使用该学科通用的标准中文术语。',
-            '文风客观严谨，保持学术文本的"非个人化"特征。',
-        ),
-    )
-
-
-def _build_understanding_prompt_strategy(plan: Any) -> PromptStrategy:
-    return PromptStrategy(
-        profile_id=plan.prompt_profile,
-        reading_goal=plan.goal_id,
-        reading_variant=plan.variant_id,
-        annotation_style="structural_and_academic",
-        policy_lines=(
-            '你是学术阅读理解助手，负责逻辑标注和解释性改写。',
-            '逻辑标注：宁少勿滥，每句最多 2 条。anchor_text 必须是原文精确子串。',
-            '解释性改写：只在直译会产生严重理解偏差或需要消解指代时输出。普通句子不需要。',
-            '段落角色和内容概要是 P2 可选字段，允许为空。',
-        ),
-    )
-
-
-def _get_term_examples(plan: Any) -> list[ExampleEntry]:
-    return [
-        ExampleEntry(
-            example_type="vocab",
-            sentence_text="The study employed a longitudinal design to track changes in cognitive function.",
-            output_fragment='{"type": "term_note", "sentence_ids": ["s1"], "text": "longitudinal", "term_category": "technical", "zh": "纵向的", "zh_uncertain": false, "context_definition": "在研究方法语境下，longitudinal 指对同一组对象进行长期跟踪研究的设计，与 cross-sectional（横截面）相对", "discipline": "research_methodology"}',
-        ),
-        ExampleEntry(
-            example_type="vocab",
-            sentence_text="The results suggest that the effect may be mediated by attentional processes.",
-            output_fragment='{"type": "term_note", "sentence_ids": ["s2"], "text": "mediated", "term_category": "sub_technical", "zh": "中介/调节", "zh_uncertain": true, "context_definition": "在统计学语境下，mediated 表示一个变量通过另一个变量间接产生影响，即中介效应", "discipline": "statistics"}',
-        ),
-    ]
-
-
-def _get_academic_translation_examples(plan: Any) -> list[ExampleEntry]:
-    return [
-        ExampleEntry(
-            example_type="translation",
-            sentence_text="The results suggest that the effect may be mediated by attentional processes.",
-            output_fragment='{"sentence_id": "s1", "translation_zh": "结果表明，该效应可能由注意过程中介。", "translation_notes": ["保留了 may be 的不确定性表达"]}',
-        ),
-        ExampleEntry(
-            example_type="translation",
-            sentence_text="Although the sample size was relatively small, the findings are consistent with previous research.",
-            output_fragment='{"sentence_id": "s2", "translation_zh": "尽管样本量相对较小，但研究结果与先前研究一致。"}',
-        ),
-    ]
-
-
-def _get_understanding_examples(plan: Any) -> list[ExampleEntry]:
-    return [
-        ExampleEntry(
-            example_type="vocab",
-            sentence_text="Although the sample size was relatively small, the findings are consistent with previous research.",
-            output_fragment='{"type": "logic_note", "sentence_ids": ["s1"], "logic_type": "concession", "anchor_text": "Although", "explanation": "让步：承认样本量小的局限，同时强调结果的一致性", "hedging_detected": false, "hedging_words": []}',
-        ),
-        ExampleEntry(
-            example_type="vocab",
-            sentence_text="The results suggest that the effect may be mediated by attentional processes.",
-            output_fragment='{"type": "logic_note", "sentence_ids": ["s2"], "logic_type": "evidence", "anchor_text": "suggest that", "explanation": "证据支撑：用 suggest 而非 prove 表明这是推断而非定论", "hedging_detected": true, "hedging_words": ["suggest", "may"]}',
-        ),
-    ]
 
 
 def build_academic_graph() -> Any:
