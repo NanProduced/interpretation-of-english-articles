@@ -21,13 +21,20 @@ logger = getLogger("app.api")
 
 router = APIRouter(prefix="/me", tags=["user"])
 
-# Anonymous user limits
-ANONYMOUS_DAILY_TRIAL_LIMIT = 3  # 未登录用户每天可试用次数
+ANONYMOUS_DAILY_TRIAL_LIMIT = 3
+
+
+ENTRY_TYPE_DESCRIPTIONS: dict[str, str] = {
+    "analysis_deduct": "分析扣减",
+    "feedback_reward": "反馈奖励 · 你的反馈已被采纳",
+    "daily_grant": "每日常规额度刷新",
+    "bonus_grant": "奖励积分到账",
+    "refund": "分析失败 · 积分退回",
+    "manual_adjust": "管理员调整",
+}
 
 
 class QuotaResponse(BaseModel):
-    """GET /me/quota response."""
-
     daily_free_points: int
     daily_used_points: int
     bonus_points: int
@@ -35,27 +42,37 @@ class QuotaResponse(BaseModel):
 
 
 class AnonymousQuotaResponse(BaseModel):
-    """GET /me/quota/anonymous response for guest users."""
-
     remaining_trials: int
     max_trials_per_day: int
-    reset_at: str  # ISO date of next reset
+    reset_at: str
 
 
 class QuotaCheckRequest(BaseModel):
-    """POST /quota/check request body."""
-
     anonymous_id: str | None = None
-    # Note: user_id comes from auth header if available
 
 
 class QuotaCheckResponse(BaseModel):
-    """POST /quota/check response."""
-
     allowed: bool
     remaining: int
-    reset_at: str  # ISO date
-    quota_type: str  # "authenticated" or "anonymous"
+    reset_at: str
+    quota_type: str
+
+
+class LedgerEntryResponse(BaseModel):
+    id: str
+    entry_type: str
+    points: int
+    bucket_type: str
+    balance_after: int
+    description: str
+    article_title: str | None
+    created_at: datetime
+
+
+class LedgerListResponse(BaseModel):
+    items: list[LedgerEntryResponse]
+    cursor: str | None
+    has_more: bool
 
 
 @router.get("/quota", response_model=QuotaResponse)
@@ -252,3 +269,72 @@ def _get_next_reset_iso() -> str:
     """Get ISO datetime for next midnight UTC (next reset)."""
     tomorrow = date.today()
     return datetime.combine(tomorrow, datetime.min.time()).astimezone(timezone.utc).isoformat()
+
+
+@router.get("/credit/ledger", response_model=LedgerListResponse)
+async def get_credit_ledger(
+    current_user: AuthUserDep,
+    cursor: str | None = None,
+    limit: int = 20,
+) -> LedgerListResponse:
+    from fastapi import Query
+    from app.database import connection as db_connection
+
+    user_id = UUID(current_user.user_id)
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    limit_val = min(limit, 100)
+    params: list = [user_id]
+    where_clauses = ["user_id = $1"]
+
+    if cursor:
+        params.append(UUID(cursor))
+        where_clauses.append(f"id < ${len(params)}")
+
+    params.append(limit_val + 1)
+    query_limit = f"${len(params)}"
+    where_sql = " AND ".join(where_clauses)
+
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""
+            SELECT l.id, l.entry_type, l.points, l.bucket_type,
+                   l.balance_after, l.metadata_json, l.created_at,
+                   l.task_id,
+                   r.title AS article_title
+            FROM user_credit_ledger l
+            LEFT JOIN analysis_tasks t ON l.task_id = t.id
+            LEFT JOIN analysis_records r ON t.analysis_record_id = r.id
+            WHERE {where_sql}
+            ORDER BY l.created_at DESC
+            LIMIT {query_limit}
+            """,
+            *params,
+        )
+
+    items = []
+    for row in rows[:limit_val]:
+        entry_type = row["entry_type"]
+        description = ENTRY_TYPE_DESCRIPTIONS.get(entry_type, entry_type)
+        article_title = row.get("article_title")
+
+        if entry_type == "analysis_deduct" and article_title:
+            description = f"分析扣减 · {article_title[:30]}"
+
+        items.append(LedgerEntryResponse(
+            id=str(row["id"]),
+            entry_type=entry_type,
+            points=row["points"],
+            bucket_type=row["bucket_type"],
+            balance_after=row["balance_after"],
+            description=description,
+            article_title=article_title,
+            created_at=row["created_at"],
+        ))
+
+    has_more = len(rows) > limit_val
+    next_cursor = str(items[-1].id) if items and has_more else None
+
+    return LedgerListResponse(items=items, cursor=next_cursor, has_more=has_more)

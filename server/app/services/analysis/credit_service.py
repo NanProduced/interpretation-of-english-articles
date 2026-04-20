@@ -246,6 +246,85 @@ async def deduct_credits(
             return actual_total
 
 
+async def grant_bonus_credits(
+    user_id: UUID,
+    points: int,
+    entry_type: str = "feedback_reward",
+    metadata: dict[str, Any] | None = None,
+) -> int:
+    """
+    Grant bonus points to a user account.
+
+    Args:
+        user_id: User to grant points to
+        points: Points to grant (must be > 0)
+        entry_type: Ledger entry type, default 'feedback_reward'
+        metadata: Extra metadata
+
+    Returns:
+        Actual points granted (0 if account not found or points <= 0)
+    """
+    if points <= 0:
+        return 0
+
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    now = datetime.now(timezone.utc)
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                """
+                SELECT daily_free_points, daily_used_points, bonus_points
+                FROM user_credit_accounts
+                WHERE user_id = $1
+                FOR UPDATE
+                """,
+                user_id,
+            )
+
+            if row is None:
+                logger.error("Cannot grant bonus: no account for user %s", user_id)
+                return 0
+
+            new_bonus = row["bonus_points"] + points
+            balance_after = (row["daily_free_points"] - row["daily_used_points"]) + new_bonus
+
+            await conn.execute(
+                """
+                UPDATE user_credit_accounts
+                SET bonus_points = $2, updated_at = $3
+                WHERE user_id = $1
+                """,
+                user_id,
+                new_bonus,
+                now,
+            )
+
+            await conn.execute(
+                """
+                INSERT INTO user_credit_ledger
+                    (user_id, task_id, entry_type, points, bucket_type, balance_after, metadata_json, created_at)
+                VALUES ($1, NULL, $2, $3, 'bonus', $4, $5, $6)
+                """,
+                user_id,
+                entry_type,
+                points,
+                balance_after,
+                json.dumps(metadata or {}),
+                now,
+            )
+
+            logger.info(
+                "Granted %d bonus points to user %s (entry_type=%s, new_bonus=%d, balance=%d)",
+                points, user_id, entry_type, new_bonus, balance_after,
+            )
+
+            return points
+
+
 async def get_quota_info(user_id: UUID) -> dict[str, Any]:
     """Get user's current quota information, performing daily reset if needed."""
     remaining = await check_quota(user_id)

@@ -6,7 +6,10 @@ export default {
     'pages/result/index',
     'pages/history/index',
     'pages/vocab/index',
-    'pages/profile/index'
+    'pages/profile/index',
+    'pages/feedback/index',
+    'pages/feedback/my-feedback',
+    'pages/credit-detail/index'
   ],
   window: {
     backgroundTextStyle: 'light',

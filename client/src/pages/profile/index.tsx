@@ -165,6 +165,17 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       ]
     },
     {
+      title: "反馈与帮助",
+      items: [
+        {
+          label: "意见反馈",
+          icon: 'messageSquare',
+          url: '/pages/feedback/index',
+          color: 'green',
+        },
+      ]
+    },
+    {
       title: "关于与合规",
       items: [
         { label: "用户协议与隐私政策", icon: 'file', color: 'gray' },
@@ -246,7 +257,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           </View>
 
           {/* Account Metrics Portfolio */}
-          <View className='stats-dashboard'>
+          <View className='stats-dashboard' onClick={() => Taro.navigateTo({ url: '/pages/credit-detail/index' })}>
             <View className='dashboard-header'>
               <View className='panel-label'>
                 <LucideIcon name='ticket' size={28} color='var(--text-muted)' />

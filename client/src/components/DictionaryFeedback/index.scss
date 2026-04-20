@@ -1,0 +1,100 @@
+.dict-feedback {
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  padding: 32px;
+  max-height: 70vh;
+  overflow-y: auto;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  &__title {
+    font-size: 32px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  &__close {
+    font-size: 36px;
+    color: #999;
+    padding: 8px;
+  }
+
+  &__word-info {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  &__word {
+    font-size: 32px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  &__phonetic {
+    font-size: 24px;
+    color: #999;
+  }
+
+  &__option {
+    padding: 20px 24px;
+    background: #f8f8f8;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    font-size: 28px;
+    color: #333;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+
+    &--active {
+      border-color: #333;
+      background: #f0f0f0;
+      font-weight: 500;
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
+  &__input-wrap {
+    margin: 16px 0;
+  }
+
+  &__input {
+    width: 100%;
+    min-height: 80px;
+    padding: 16px;
+    background: #f8f8f8;
+    border-radius: 12px;
+    border: 2px solid #e0e0e0;
+    font-size: 26px;
+    color: #333;
+  }
+
+  &__submit {
+    padding: 20px;
+    background: #333;
+    color: #fff;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 28px;
+    font-weight: 500;
+
+    &--disabled {
+      background: #ccc;
+    }
+
+    &:active:not(&--disabled) {
+      opacity: 0.8;
+    }
+  }
+}
