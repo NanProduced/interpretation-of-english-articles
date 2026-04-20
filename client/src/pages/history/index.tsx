@@ -16,17 +16,20 @@ import type { ReadingGoal } from '../../config/purpose'
 import LucideIcon from '../../components/LucideIcon'
 import './index.scss'
 
-/** 格式化日期 */
+/** 格式化日期
+ * 使用与分组逻辑相同的日历天边界判断方式，确保分组和显示一致
+ */
 function formatDate(timestamp: number): string {
-  const now = Date.now()
-  const diff = now - timestamp
-  const oneDay = 24 * 60 * 60 * 1000
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const todayTs = now.getTime()
+  const yesterdayTs = todayTs - 24 * 60 * 60 * 1000
 
-  if (diff < oneDay) {
+  if (timestamp >= todayTs) {
     const hours = new Date(timestamp).getHours()
     const minutes = new Date(timestamp).getMinutes()
     return `今天 ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-  } else if (diff < 2 * oneDay) {
+  } else if (timestamp >= yesterdayTs) {
     return '昨天'
   } else {
     const date = new Date(timestamp)
