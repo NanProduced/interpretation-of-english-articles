@@ -139,7 +139,8 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
         loaded.push({ ...record, vocabCount: vocabCounts[id] || 0 })
       }
     }
-    setRecords(loaded)
+    const sortedRecords = loaded.sort((a, b) => b.createdAt - a.createdAt)
+    setRecords(sortedRecords)
     setLoading(false)
   }, [])
 
