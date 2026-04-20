@@ -83,12 +83,51 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.analysis_task_worker = worker
     logger.info("Analysis task worker started")
 
+    # 5. 启动每日文章抓取调度器
+    from app.services.daily_articles.scheduler import DailyFetchScheduler
+    from app.services.daily_articles.service import DailyArticleService
+
+    daily_article_service = DailyArticleService(
+        min_articles=settings.daily_fetch_min_articles,
+    )
+
+    async def scheduled_fetch_task() -> None:
+        """Scheduled daily fetch task."""
+        logger.info("Starting scheduled daily article fetch")
+        try:
+            result = await daily_article_service.fetch_and_save_articles(
+                max_articles=settings.daily_fetch_min_articles + 5,
+                batch_size=settings.daily_fetch_batch_size,
+            )
+            logger.info(
+                "Scheduled fetch completed: saved %d articles (status=%s)",
+                result.articles_saved,
+                result.status,
+            )
+        except Exception as e:
+            logger.error("Scheduled daily fetch failed: %s", e, exc_info=True)
+
+    daily_fetch_scheduler = DailyFetchScheduler(
+        fetch_task=scheduled_fetch_task,
+        hour=settings.daily_fetch_hour,
+        minute=settings.daily_fetch_minute,
+        enabled=settings.daily_fetch_enabled,
+    )
+    daily_fetch_scheduler.start()
+    app.state.daily_fetch_scheduler = daily_fetch_scheduler
+    logger.info("Daily fetch scheduler initialized")
+
     yield
 
     # 关闭时清理
     if hasattr(app.state, "analysis_task_worker"):
         worker = app.state.analysis_task_worker
         await worker.stop()
+
+    if hasattr(app.state, "daily_fetch_scheduler"):
+        scheduler = app.state.daily_fetch_scheduler
+        await scheduler.stop()
+
     await close_redis()
     await close_db()
     logger.info("Application shutdown complete")

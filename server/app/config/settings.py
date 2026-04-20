@@ -42,6 +42,23 @@ class Settings(BaseSettings):
     wechat_app_secret: str = ""
     auth_session_expiry_days: int = 30
 
+    # 每日文章抓取配置
+    daily_fetch_enabled: bool = True
+    daily_fetch_hour: int = 9
+    daily_fetch_minute: int = 0
+    daily_fetch_timezone: str = "Asia/Shanghai"
+    daily_fetch_min_articles: int = 5
+    daily_fetch_batch_size: int = 30
+
+    # 文章内容验证配置
+    article_min_word_count: int = 500
+    article_max_word_count: int = 1200
+
+    # 外部数据源 API Keys（可选）
+    # SpaceFlight News API 不需要 API Key（免费）
+    # NewsAPI 需要 API Key（免费额度有限）
+    newsapi_api_key: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
