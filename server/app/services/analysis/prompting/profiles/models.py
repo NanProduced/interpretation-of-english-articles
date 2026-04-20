@@ -23,12 +23,18 @@ class ProfileVersion:
         minor: 次版本号
         patch: 修订号
         is_default: 是否为默认版本
+        parts_count: 原始版本字符串的部分数（用于区分匹配策略）
+            - 1: 只提供了 major（如 "1"）
+            - 2: 提供了 major.minor（如 "1.0"）
+            - 3: 提供了完整版本（如 "1.0.0"）
+            - 0: 默认版本 "default"
     """
 
     major: int
     minor: int = 0
     patch: int = 0
     is_default: bool = False
+    parts_count: int = 3
 
     @classmethod
     def from_string(cls, version_str: str) -> ProfileVersion:
@@ -41,14 +47,15 @@ class ProfileVersion:
             ProfileVersion 实例
         """
         if version_str.lower() == "default":
-            return cls(major=0, minor=0, patch=0, is_default=True)
+            return cls(major=0, minor=0, patch=0, is_default=True, parts_count=0)
 
         parts = version_str.split(".")
+        parts_count = len(parts)
         major = int(parts[0]) if parts else 0
         minor = int(parts[1]) if len(parts) > 1 else 0
         patch = int(parts[2]) if len(parts) > 2 else 0
 
-        return cls(major=major, minor=minor, patch=patch)
+        return cls(major=major, minor=minor, patch=patch, is_default=False, parts_count=parts_count)
 
     def to_string(self) -> str:
         """转换为字符串表示。"""
@@ -59,10 +66,14 @@ class ProfileVersion:
     def matches(self, other: ProfileVersion | str) -> bool:
         """检查版本是否匹配。
 
-        支持部分匹配：
-        - "1" 匹配所有 1.x.x 版本
-        - "1.0" 匹配所有 1.0.x 版本
-        - "1.0.0" 精确匹配
+        匹配策略根据请求版本的完整程度（parts_count）决定：
+        - parts_count=0 ("default"): 只匹配 is_default=True 的版本
+        - parts_count=1 ("1"): 匹配所有 major 相同的版本（1.x.x）
+        - parts_count=2 ("1.0"): 匹配所有 major.minor 相同的版本（1.0.x）
+        - parts_count=3 ("1.0.0"): 精确匹配（major.minor.patch 都相同）
+
+        注意：此方法用于请求版本匹配已注册版本。
+        已注册版本的 parts_count 始终为 3（完整版本号）。
         """
         if isinstance(other, str):
             other = ProfileVersion.from_string(other)
@@ -70,16 +81,13 @@ class ProfileVersion:
         if other.is_default:
             return self.is_default
 
-        if self.major != other.major:
-            return False
+        if other.parts_count == 1:
+            return self.major == other.major
 
-        if other.minor > 0 and self.minor != other.minor:
-            return False
+        if other.parts_count == 2:
+            return self.major == other.major and self.minor == other.minor
 
-        if other.patch > 0 and self.patch != other.patch:
-            return False
-
-        return True
+        return self.major == other.major and self.minor == other.minor and self.patch == other.patch
 
     def __lt__(self, other: ProfileVersion) -> bool:
         if self.is_default:
