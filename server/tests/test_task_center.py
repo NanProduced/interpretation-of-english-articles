@@ -641,10 +641,20 @@ class TestTaskExecutorCharging:
                 "sentence_entries": [],
                 "warnings": [
                     {
-                        "code": "NORMALIZE_AND_GROUND_FAILED",
+                        "code": "VOCABULARY_AGENT_FAILED",
                         "level": "error",
-                        "message": "normalize failed",
-                    }
+                        "message": "vocabulary agent failed",
+                    },
+                    {
+                        "code": "GRAMMAR_AGENT_FAILED",
+                        "level": "error",
+                        "message": "grammar agent failed",
+                    },
+                    {
+                        "code": "TRANSLATION_AGENT_FAILED",
+                        "level": "error",
+                        "message": "translation agent failed",
+                    },
                 ],
             }
         )

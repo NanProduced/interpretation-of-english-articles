@@ -55,6 +55,6 @@ def get_vocabulary_agent() -> Agent[VocabularyAgentDeps, VocabularyDraft]:
         instructions=VOCABULARY_INSTRUCTIONS,
         name="vocabulary_agent",
         retries=2,
-        output_retries=2,
+        output_retries=3,
         instrument=False,
     )

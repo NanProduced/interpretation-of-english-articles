@@ -32,21 +32,22 @@ from app.llm.runtime import get_model_selection
 from app.llm.types import ModelSelection
 from app.schemas.analysis import AnalyzeRequestMeta, ArticleStructure, RenderSceneModel, Warning
 from app.schemas.internal.analysis import PreparedSentence
+from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
+from app.services.analysis.planning.goal_planner import build_goal_execution_plan
 from app.services.analysis.postprocess.draft_validators import validate_all_drafts
-from app.services.analysis.preprocess.input_preparation import prepare_input
 from app.services.analysis.postprocess.normalize_and_ground import normalize_and_ground
 from app.services.analysis.postprocess.projection import project_to_render_scene
-from app.services.analysis.runtime.runners import (
-    run_grammar_agent,
-    run_translation_agent,
-    run_vocabulary_agent,
-)
+from app.services.analysis.preprocess.input_preparation import prepare_input
 from app.services.analysis.prompting.strategy_builder import (
     build_grammar_bundle,
     build_translation_bundle,
     build_vocabulary_bundle,
 )
-from app.services.analysis.planning.goal_planner import build_goal_execution_plan
+from app.services.analysis.runtime.runners import (
+    run_grammar_agent,
+    run_translation_agent,
+    run_vocabulary_agent,
+)
 from app.workflow.analyze_state import AnalyzeState
 from app.workflow.tracing import build_llm_trace_metadata
 
@@ -56,7 +57,7 @@ WORKFLOW_VERSION = "3.0.0"
 MAX_ANNOTATION_ATTEMPTS = 3
 
 # 触发 repair 的条件
-ANCHOR_FAILURE_THRESHOLD = 0.20
+ANCHOR_FAILURE_THRESHOLD = 0.35
 
 
 def _annotation_count_by_type(annotations: list[Any]) -> dict[str, int]:
@@ -425,23 +426,21 @@ async def parallel_agents_node(state: AnalyzeState, config: RunnableConfig) -> A
 @traceable(name="normalize_and_ground", run_type="chain")
 async def normalize_and_ground_node(state: AnalyzeState) -> AnalyzeState:
     """Normalize and ground node。"""
-    payload = state["payload"]
     prepared_input = state["prepared_input"]
     vocabulary_draft = state.get("vocabulary_draft")
     grammar_draft = state.get("grammar_draft")
     translation_draft = state.get("translation_draft")
 
-    if vocabulary_draft is None or grammar_draft is None or translation_draft is None:
-        plan = state.get("goal_execution_plan")
-        profile_id = plan.prompt_profile if plan else "unresolved"
-        return {
-            "normalized_result": None,
-            "render_scene": _empty_result(request_id=payload.request_id or "", payload=payload, profile_id=profile_id),
-            "warnings": [
-                *state.get("warnings", []),
-                Warning(code="NORMALIZE_AND_GROUND_FAILED", level="error", message="并行 agent 未返回有效结果，无法进行归一化"),
-            ],
-        }
+    partial_warnings: list[Warning] = []
+    if vocabulary_draft is None:
+        vocabulary_draft = VocabularyDraft()
+        partial_warnings.append(Warning(code="VOCABULARY_AGENT_FAILED", level="error", message="vocabulary agent 未返回有效结果，词汇标注已降级为空"))
+    if grammar_draft is None:
+        grammar_draft = GrammarDraft()
+        partial_warnings.append(Warning(code="GRAMMAR_AGENT_FAILED", level="error", message="grammar agent 未返回有效结果，语法标注已降级为空"))
+    if translation_draft is None:
+        translation_draft = TranslationDraft(title="（翻译不可用）", sentence_translations=[])
+        partial_warnings.append(Warning(code="TRANSLATION_AGENT_FAILED", level="error", message="translation agent 未返回有效结果，翻译已降级为空"))
 
     sentences = [PreparedSentence.model_validate(s) if not isinstance(s, PreparedSentence) else s for s in prepared_input.sentences]
     validation_warnings = validate_all_drafts(vocabulary_draft, grammar_draft, translation_draft, sentences)
@@ -472,7 +471,7 @@ async def normalize_and_ground_node(state: AnalyzeState) -> AnalyzeState:
     return {
         "normalized_result": normalized_result,
         "drop_log": normalized_result.drop_log,
-        "warnings": [*state.get("warnings", []), *draft_warnings],
+        "warnings": [*state.get("warnings", []), *partial_warnings, *draft_warnings],
     }
 
 

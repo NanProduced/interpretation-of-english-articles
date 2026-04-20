@@ -134,7 +134,9 @@ def test_analyze_route_returns_empty_result_when_all_agents_fail(monkeypatch) ->
     assert response.status_code == 200
     body = response.json()
     warning_codes = {warning["code"] for warning in body["warnings"]}
-    assert "NORMALIZE_AND_GROUND_FAILED" in warning_codes
+    assert "VOCABULARY_AGENT_FAILED" in warning_codes
+    assert "GRAMMAR_AGENT_FAILED" in warning_codes
+    assert "TRANSLATION_AGENT_FAILED" in warning_codes
     assert body["inline_marks"] == []
     assert body["sentence_entries"] == []
 

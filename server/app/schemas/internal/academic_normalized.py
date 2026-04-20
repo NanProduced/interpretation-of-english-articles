@@ -18,7 +18,7 @@ AcademicQualityState = Literal["normal", "degraded"]
 
 
 class AcademicNormalizedResult(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
     term_annotations: list[TermNote] = Field(default_factory=list)
     sentence_translations: list[AcademicSentenceTranslation] = Field(default_factory=list)

@@ -50,6 +50,6 @@ def get_translation_agent() -> Agent[TranslationAgentDeps, TranslationDraft]:
         instructions=TRANSLATION_INSTRUCTIONS,
         name="translation_agent",
         retries=2,
-        output_retries=2,
+        output_retries=3,
         instrument=False,
     )

@@ -17,19 +17,25 @@ from app.workflow.analyze_state import AnalyzeState
 
 
 def _should_repair(state: AnalyzeState) -> bool:
-    """判断是否需要触发 repair_agent。"""
+    """判断是否需要触发 repair_agent。
+
+    只统计 quality drops（排除 density_control 正常裁剪），
+    与 repair_agent_node 内部的判断标准保持一致。
+    """
     normalized_result = state.get("normalized_result")
     if normalized_result is None:
         return False
 
-    drop_count = len(normalized_result.drop_log) if normalized_result.drop_log else 0
+    drop_log = normalized_result.drop_log or []
+    quality_drops = [d for d in drop_log if d.drop_stage != "density_control"]
+    quality_drop_count = len(quality_drops)
     annotation_count = len(normalized_result.annotations)
 
     if annotation_count == 0:
-        return drop_count > 0
+        return False
 
-    failure_ratio = drop_count / (annotation_count + drop_count)
-    return failure_ratio > 0.20
+    failure_ratio = quality_drop_count / (annotation_count + quality_drop_count)
+    return failure_ratio > 0.35
 
 
 def build_learning_graph() -> Any:

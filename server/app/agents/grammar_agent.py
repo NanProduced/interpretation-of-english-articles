@@ -53,6 +53,6 @@ def get_grammar_agent() -> Agent[GrammarAgentDeps, GrammarDraft]:
         instructions=GRAMMAR_INSTRUCTIONS,
         name="grammar_agent",
         retries=2,
-        output_retries=2,
+        output_retries=3,
         instrument=False,
     )

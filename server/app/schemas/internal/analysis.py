@@ -23,7 +23,7 @@ TranslationStyle = Literal["exam", "natural", "academic", "literal_support", "nu
 GrammarGranularity = Literal["focused", "balanced", "structural", "explicit_split", "structural_logic", "explicit_exam", "speed_support", "rhetorical", "info_extraction"]
 VocabularyPolicy = Literal["high_value_only", "exam_priority", "academic_priority", "semantic_nuance", "exam_depth", "literary_depth", "academic_strategy"]
 
-BASE_MODEL_CONFIG = ConfigDict(extra="forbid", str_strip_whitespace=True)
+BASE_MODEL_CONFIG = ConfigDict(extra="ignore", str_strip_whitespace=True)
 PHRASE_TYPES = ("collocation", "phrasal_verb", "idiom", "proper_noun", "compound")
 
 
