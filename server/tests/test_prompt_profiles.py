@@ -81,6 +81,60 @@ class TestProfileVersion:
         assert not version.matches("2")
         assert not version.matches("1.3")
 
+    def test_exact_version_does_not_match_higher_version(self) -> None:
+        """测试精确版本匹配不会命中更高版本。
+
+        这是之前的 bug：请求 "1.0.0" 会错误地匹配 "1.1.0" 等更高版本。
+        现在的行为：精确版本匹配必须完全相同。
+        """
+        v100 = ProfileVersion(major=1, minor=0, patch=0)
+        v101 = ProfileVersion(major=1, minor=0, patch=1)
+        v110 = ProfileVersion(major=1, minor=1, patch=0)
+        v200 = ProfileVersion(major=2, minor=0, patch=0)
+
+        assert v100.matches("1.0.0")
+        assert not v101.matches("1.0.0")
+        assert not v110.matches("1.0.0")
+        assert not v200.matches("1.0.0")
+
+        assert v101.matches("1.0.1")
+        assert not v100.matches("1.0.1")
+        assert not v110.matches("1.0.1")
+
+    def test_major_only_matches_all_same_major(self) -> None:
+        """测试只指定 major 版本会匹配所有相同 major 的版本。"""
+        v100 = ProfileVersion(major=1, minor=0, patch=0)
+        v101 = ProfileVersion(major=1, minor=0, patch=1)
+        v110 = ProfileVersion(major=1, minor=1, patch=0)
+        v200 = ProfileVersion(major=2, minor=0, patch=0)
+
+        assert v100.matches("1")
+        assert v101.matches("1")
+        assert v110.matches("1")
+        assert not v200.matches("1")
+
+    def test_major_minor_matches_same_major_minor(self) -> None:
+        """测试指定 major.minor 会匹配所有相同 major.minor 的版本。"""
+        v100 = ProfileVersion(major=1, minor=0, patch=0)
+        v101 = ProfileVersion(major=1, minor=0, patch=1)
+        v110 = ProfileVersion(major=1, minor=1, patch=0)
+        v200 = ProfileVersion(major=2, minor=0, patch=0)
+
+        assert v100.matches("1.0")
+        assert v101.matches("1.0")
+        assert not v110.matches("1.0")
+        assert not v200.matches("1.0")
+
+        assert v110.matches("1.1")
+        assert not v100.matches("1.1")
+
+    def test_from_string_preserves_parts_count(self) -> None:
+        """测试 from_string 会正确记录原始版本字符串的部分数。"""
+        assert ProfileVersion.from_string("1").parts_count == 1
+        assert ProfileVersion.from_string("1.0").parts_count == 2
+        assert ProfileVersion.from_string("1.0.0").parts_count == 3
+        assert ProfileVersion.from_string("default").parts_count == 0
+
     def test_comparison(self) -> None:
         v1 = ProfileVersion(major=1, minor=0, patch=0)
         v2 = ProfileVersion(major=1, minor=1, patch=0)
