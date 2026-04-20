@@ -54,6 +54,7 @@ class _EntryRow:
         self.sections_json = []
         self.raw_html = None
         self.parse_version = "1"
+        self.exam_tags = []
 
 
 def _word_candidate(entry_id: int, label: str, match_kind: str = "headword", rank: int = 1) -> _CandidateRow:

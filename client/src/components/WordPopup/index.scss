@@ -216,6 +216,22 @@
     margin-top: 8rpx;
   }
 
+  .exam-tags-row {
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
+    margin-top: 8rpx;
+  }
+
+  .exam-tag {
+    font-size: var(--text-xs);
+    color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb, 59, 130, 246), 0.08);
+    padding: 2rpx 12rpx;
+    border-radius: var(--radius-xs, 4rpx);
+    font-weight: var(--weight-medium, 500);
+  }
+
   .header-right-actions {
     display: flex;
     gap: 30rpx;

@@ -723,6 +723,7 @@ export default function Result() {
         occurrence={wordPopup.occurrence}
         x={wordPopup.x}
         y={wordPopup.y}
+        readingVariant={sceneData?.request?.readingVariant}
         onClose={handleClosePopup}
         onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
         onAddVocab={async (w, dictResult) => {

@@ -69,6 +69,7 @@ class _EntryMock:
         sections_json: list,
         raw_html: str | None,
         parse_version: str,
+        exam_tags: list[str] | None = None,
     ) -> None:
         self.id = id
         self.source = source
@@ -84,6 +85,7 @@ class _EntryMock:
         self.sections_json = sections_json
         self.raw_html = raw_html
         self.parse_version = parse_version
+        self.exam_tags = exam_tags or []
 
 
 class TestTecd3ProviderLemmaFallback:

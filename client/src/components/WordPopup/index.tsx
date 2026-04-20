@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { AnyInlineMarkModel, type VisualTone, type AcademicVisualTone, type InlineGlossary, type AcademicInlineGlossary, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
 import { fetchDict, fetchDictEntry } from '../../services/api/client'
 import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
+import { filterExamTags } from '../../config/purpose'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 
@@ -16,6 +17,7 @@ interface WordPopupProps {
   occurrence?: number
   x?: number
   y?: number
+  readingVariant?: string
   onClose: () => void
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
@@ -91,7 +93,7 @@ const LOGIC_TYPE_LABELS: Record<string, string> = {
 }
 
 export default function WordPopup({
-  visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0,
+  visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant,
   onClose, onExpand, onAddVocab, onFavorite,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
@@ -260,6 +262,16 @@ export default function WordPopup({
                   <Text className='word-phonetic'>/{entry.phonetic}/</Text>
                 </View>
               )}
+              {(() => {
+                const displayTags = filterExamTags(entry?.tags || [], readingVariant)
+                return displayTags.length > 0 ? (
+                  <View className='exam-tags-row'>
+                    {displayTags.map(t => (
+                      <Text key={t} className='exam-tag'>{t}</Text>
+                    ))}
+                  </View>
+                ) : null
+              })()}
             </View>
           </View>
           <View className='header-right-actions'>

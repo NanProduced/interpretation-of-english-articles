@@ -126,6 +126,33 @@ export const normalizeServerAnalyzeParams = (
   return getApiParams(goal, readingVariant);
 };
 
+export const VARIANT_TO_EXAM_TAGS: Record<string, string[]> = {
+  cet: ['cet4', 'cet6'],
+  gaokao: ['gaokao'],
+  kaoyan: ['kaoyan'],
+  tem: ['tem4', 'tem8'],
+  ielts_toefl: ['ielts', 'toefl'],
+};
+
+export const EXAM_TAG_LABELS: Record<string, string> = {
+  cet4: 'CET-4',
+  cet6: 'CET-6',
+  gaokao: '高考',
+  kaoyan: '考研',
+  tem4: 'TEM-4',
+  tem8: 'TEM-8',
+  ielts: 'IELTS',
+  toefl: 'TOEFL',
+};
+
+export const filterExamTags = (tags: string[], readingVariant?: string | null): string[] => {
+  if (!tags.length) return [];
+  if (!readingVariant) return tags.map(t => EXAM_TAG_LABELS[t] || t);
+  const allowed = VARIANT_TO_EXAM_TAGS[readingVariant];
+  if (!allowed) return tags.map(t => EXAM_TAG_LABELS[t] || t);
+  return tags.filter(t => allowed.includes(t)).map(t => EXAM_TAG_LABELS[t] || t);
+};
+
 /**
  * 从服务器返回的原始字段获取友好的显示文本
  */

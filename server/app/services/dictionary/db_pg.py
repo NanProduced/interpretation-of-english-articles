@@ -31,6 +31,7 @@ class EntryRow:
     sections_json: list[dict[str, Any]]
     raw_html: str | None
     parse_version: str
+    exam_tags: list[str]
 
 
 @dataclass(frozen=True)
@@ -65,6 +66,7 @@ def _row_to_entry(row: Any) -> EntryRow | None:
         sections_json=_coerce_json_list(row["sections_json"]),
         raw_html=row["raw_html"],
         parse_version=row["parse_version"],
+        exam_tags=list(row["exam_tags"]) if row["exam_tags"] else [],
     )
 
 
