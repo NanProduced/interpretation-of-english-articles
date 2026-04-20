@@ -103,7 +103,10 @@ function mergeVocabCloudWithLocal(cloudItems: VocabEntry[], localItems: VocabEnt
 
 function getMasteryStatus(entry: VocabEntry): string {
   if (entry.mastered) return 'mastered'
-  return 'new'
+  const age = Date.now() - entry.addedAt
+  const oneDay = 24 * 60 * 60 * 1000
+  if (age < 7 * oneDay) return 'new'
+  return 'learning'
 }
 
 export default function VocabPage({ isSubView = false }: VocabPageProps) {
@@ -126,10 +129,18 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
 
     if (isLoggedIn) {
       try {
-        const result = await fetchCloudVocabulary(1, 100)
-        const cloudItems = result.items
+        let allCloudItems: VocabEntry[] = []
+        let page = 1
+        const pageSize = 100
+        let hasMore = true
+        while (hasMore) {
+          const result = await fetchCloudVocabulary(page, pageSize)
+          allCloudItems = allCloudItems.concat(result.items)
+          hasMore = allCloudItems.length < result.total
+          page++
+        }
         const localItems = getVocabulary()
-        const merged = mergeVocabCloudWithLocal(cloudItems, localItems)
+        const merged = mergeVocabCloudWithLocal(allCloudItems, localItems)
         setVocabList(merged)
         track('view_vocab', { count: merged.length, source: 'cloud_merged' })
         setLoading(false)

@@ -17,10 +17,11 @@ interface InlineMarkProps {
   text: string
   isActive?: boolean
   isSaved?: boolean
+  savedStatus?: string
   onWordClick?: (payload: WordClickPayload) => void
 }
 
-export default function InlineMark({ mark, text, isActive, isSaved, onWordClick }: InlineMarkProps) {
+export default function InlineMark({ mark, text, isActive, isSaved, savedStatus, onWordClick }: InlineMarkProps) {
   const toneClass = TONE_CLASSES[mark.visualTone]
 
   const handleClick = (e: any) => {
@@ -30,9 +31,13 @@ export default function InlineMark({ mark, text, isActive, isSaved, onWordClick 
     }
   }
 
+  const savedClass = isSaved
+    ? `saved ${savedStatus === 'mastered' ? 'saved-mastered' : ''}`
+    : ''
+
   return (
     <Text
-      className={`inline-mark ${mark.renderType} ${toneClass} ${mark.clickable ? 'clickable' : ''} ${isActive ? 'active' : ''} ${isSaved ? 'saved' : ''}`}
+      className={`inline-mark ${mark.renderType} ${toneClass} ${mark.clickable ? 'clickable' : ''} ${isActive ? 'active' : ''} ${savedClass}`}
       onClick={handleClick}
     >
       {text}

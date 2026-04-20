@@ -36,6 +36,7 @@ interface ParagraphBlockProps {
   tailEntries: AnySentenceEntryModel[]
   pageMode: 'immersive' | 'intensive'
   vocabList?: string[]
+  vocabSavedMap?: Record<string, string>
   onWordClick?: (payload: WordClickPayload) => void
   onSentenceClick?: (sentenceId: string) => void
 }
@@ -58,20 +59,22 @@ function renderPlainSegmentAsClickableWords(
   plainText: string,
   selectedWord?: string | null,
   vocabList?: string[],
-  onWordClick?: (payload: WordClickPayload) => void
+  onWordClick?: (payload: WordClickPayload) => void,
+  vocabSavedMap?: Record<string, string>,
 ): React.ReactNode[] {
   if (!plainText) return []
   const tokens = tokenizeText(plainText)
   return tokens.map((token, idx) => {
     if (token.type === 'word') {
       const isSaved = vocabList?.includes(token.text.toLowerCase())
-      const isSelected = selectedWord === token.text
+      const savedStatus = vocabSavedMap?.[token.text.toLowerCase()]
       return (
         <ClickableWord
           key={`cw-${idx}`}
           word={token.text}
           isSaved={isSaved}
-          className={isSelected ? 'active' : ''}
+          savedStatus={savedStatus}
+          className={selectedWord === token.text ? 'active' : ''}
           onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e })}
         />
       )
@@ -114,6 +117,7 @@ function renderTextWithMarks(
   onWordClick?: (payload: WordClickPayload) => void,
   isImmersive?: boolean,
   isHighlighted?: boolean,
+  vocabSavedMap?: Record<string, string>,
 ) {
   // 用于追踪单词在整句中的出现次数
   const wordOccurrenceMap: Record<string, number> = {}
@@ -145,7 +149,7 @@ function renderTextWithMarks(
         {renderPlainSegmentAsClickableWords(text, selectedWord, vocabList, (p) => {
           const occ = getNextOccurrence(p.word)
           onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
-        })}
+        }, vocabSavedMap)}
       </Text>
     )
   }
@@ -199,7 +203,7 @@ function renderTextWithMarks(
       resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, (p) => {
         const occ = getNextOccurrence(p.word)
         onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
-      }))
+      }, vocabSavedMap))
     }
 
     if (!item.mark.clickable) {
@@ -209,7 +213,7 @@ function renderTextWithMarks(
       const grammarWords = tokens.map((token, idx) => {
         if (token.type === 'word') {
           const isSaved = vocabList?.includes(token.text.toLowerCase())
-          const isSelected = selectedWord === token.text
+          const savedStatus = vocabSavedMap?.[token.text.toLowerCase()]
           
           const occ = getNextOccurrence(token.text)
           return (
@@ -217,7 +221,8 @@ function renderTextWithMarks(
               key={`gw-${item.mark.id}-${idx}`}
               word={token.text}
               isSaved={isSaved}
-              className={[toneClass, isSelected ? 'active' : ''].filter(Boolean).join(' ')}
+              savedStatus={savedStatus}
+              className={[toneClass, selectedWord === token.text ? 'active' : ''].filter(Boolean).join(' ')}
               onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e, contextSentence: text, occurrence: occ })}
             />
           )
@@ -233,6 +238,7 @@ function renderTextWithMarks(
     const isVocabulary = ['vocab', 'phrase', 'context', 'term'].includes(item.mark.visualTone)
     const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
     const isSaved = vocabList?.includes(item.text.toLowerCase())
+    const savedStatus = vocabSavedMap?.[item.text.toLowerCase()]
     
     // 词汇类标记整体点击时，由于它们通常是一个词或短语，我们也尝试计算它的 occurrence
     // 但标记类（InlineMark）通常本身就带有 anchor 信息，这里传 occurrence 是作为双重保险
@@ -250,6 +256,7 @@ function renderTextWithMarks(
         text={item.text}
         isActive={isActive}
         isSaved={isSaved}
+        savedStatus={savedStatus}
         onWordClick={(p) => onWordClick?.({ ...p, contextSentence: text, occurrence: markOcc })}
       />
     )
@@ -262,7 +269,7 @@ function renderTextWithMarks(
     resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, (p) => {
       const occ = getNextOccurrence(p.word)
       onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
-    }))
+    }, vocabSavedMap))
   }
 
   return <Text className={`sentence-text ${isHighlighted ? 'is-highlighted' : ''}`}>{resultElements}</Text>
@@ -278,6 +285,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   tailEntries,
   pageMode,
   vocabList,
+  vocabSavedMap,
   activeSentenceId,
   onWordClick,
   onSentenceClick,
@@ -342,7 +350,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                   className={`sentence-span ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                   onClick={() => onSentenceClick?.(sentence.sentenceId)}
                 >
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, true, activeSentenceId === sentence.sentenceId)}
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
@@ -465,7 +473,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                 ) : (
                   // 普通精读模式：使用马克笔涂抹模式
                   <Text className='english-flow'>
-                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, activeSentenceId === item.sentence.sentenceId)}
+                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap)}
                   </Text>
                 )}
               </View>
@@ -517,7 +525,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       className={`sentence-span ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                       onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
                     >
-                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, activeSentenceId === item.sentence.sentenceId)}
+                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap)}
                       {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
                     </Text>
                   ))}

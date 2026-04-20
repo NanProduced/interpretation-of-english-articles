@@ -57,11 +57,15 @@ def _merge_payload_on_conflict(
     if len(all_refs) > SOURCE_REFS_MAX:
         all_refs = all_refs[-SOURCE_REFS_MAX:]
 
-    collected = list(dict.fromkeys(existing.collected_forms + incoming.collected_forms))
-    if incoming_display_word and incoming_display_word.lower() not in [
-        f.lower() for f in collected
-    ]:
+    seen_lower: dict[str, str] = {}
+    for f in existing.collected_forms + incoming.collected_forms:
+        low = f.lower()
+        if low not in seen_lower:
+            seen_lower[low] = f
+    collected = list(seen_lower.values())
+    if incoming_display_word and incoming_display_word.lower() not in seen_lower:
         collected.append(incoming_display_word)
+        seen_lower[incoming_display_word.lower()] = incoming_display_word
 
     merged = existing.model_dump(exclude_none=True)
     merged["source_refs"] = all_refs

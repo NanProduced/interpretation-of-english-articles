@@ -22,6 +22,38 @@ import { getSafeDisplayLabel, ReadingGoal, SERVER_GOAL_TO_UI_GOAL, getApiParams 
 import BottomSheetSelect from '../../components/BottomSheetSelect'
 import './index.scss'
 
+function getSimpleLemmaCandidates(word: string): string[] {
+  const candidates: string[] = []
+  if (word.endsWith('ing')) {
+    candidates.push(word.slice(0, -3))
+    if (word.length > 5 && word[word.length - 4] === word[word.length - 5]) {
+      candidates.push(word.slice(0, -4))
+    }
+    candidates.push(word.slice(0, -3) + 'e')
+  } else if (word.endsWith('ed')) {
+    candidates.push(word.slice(0, -2))
+    candidates.push(word.slice(0, -1))
+    if (word.length > 4 && word[word.length - 3] === word[word.length - 4]) {
+      candidates.push(word.slice(0, -3))
+    }
+    candidates.push(word.slice(0, -2) + 'e' === word ? '' : word.slice(0, -1))
+  } else if (word.endsWith('ies')) {
+    candidates.push(word.slice(0, -3) + 'y')
+  } else if (word.endsWith('es')) {
+    candidates.push(word.slice(0, -2))
+    candidates.push(word.slice(0, -1))
+  } else if (word.endsWith('s') && !word.endsWith('ss')) {
+    candidates.push(word.slice(0, -1))
+  } else if (word.endsWith('er')) {
+    candidates.push(word.slice(0, -2))
+    candidates.push(word.slice(0, -1))
+  } else if (word.endsWith('est')) {
+    candidates.push(word.slice(0, -3))
+    candidates.push(word.slice(0, -2))
+  }
+  return candidates.filter(c => c.length >= 2)
+}
+
 /** 页面模式选项 */
 const PAGE_MODE_OPTIONS = [
   { value: 'immersive', label: '原文' },
@@ -69,6 +101,7 @@ export default function Result() {
   const { navBarHeight } = useLayoutStore()
   const [pageMode, setPageMode] = useState<PageMode>('intensive')
   const [vocabList, setVocabList] = useState<string[]>([])
+  const [vocabSavedMap, setVocabSavedMap] = useState<Record<string, string>>({})
   const [wordPopup, setWordPopup] = useState<{
     visible: boolean
     mode: 'mini' | 'full'
@@ -144,6 +177,17 @@ export default function Result() {
       return forms
     })
     setVocabList([...new Set(words)])
+
+    const savedMap: Record<string, string> = {}
+    all.forEach((v) => {
+      const status = v.mastered ? 'mastered' : 'new'
+      const key = (v.lemma || v.word).toLowerCase()
+      savedMap[key] = status
+      savedMap[v.word.toLowerCase()] = status
+      if (v.lemma) savedMap[v.lemma.toLowerCase()] = status
+      v.collectedForms?.forEach(f => { savedMap[f.toLowerCase()] = status })
+    })
+    setVocabSavedMap(savedMap)
   }, [recordId])
 
   // === 加载 vocab highlights（登录用户使用云端 API，匿名用户使用本地匹配） ===
@@ -168,6 +212,13 @@ export default function Result() {
           setVocabHighlights(matches)
           const highlightWords = matches.map(m => m.anchorText.toLowerCase())
           setVocabList(prev => [...new Set([...prev, ...highlightWords])])
+          setVocabSavedMap(prev => {
+            const next = { ...prev }
+            matches.forEach(m => {
+              next[m.anchorText.toLowerCase()] = m.masteryStatus
+            })
+            return next
+          })
         } catch {
           // API 失败时 fallback 到本地数据，vocabList 已在上面加载
         }
@@ -190,7 +241,17 @@ export default function Result() {
           for (const token of sent.tokens) {
             const cleaned = token.replace(/[.,;:!?'"(){}[\]]/g, '').toLowerCase()
             if (!cleaned) continue
-            const match = lemmaSet.get(cleaned) || [...lemmaSet.values()].find(e => e.collectedForms.includes(cleaned))
+
+            let match = lemmaSet.get(cleaned) || [...lemmaSet.values()].find(e => e.collectedForms.includes(cleaned))
+
+            if (!match) {
+              const candidates = getSimpleLemmaCandidates(cleaned)
+              for (const cand of candidates) {
+                const found = lemmaSet.get(cand)
+                if (found) { match = found; break }
+              }
+            }
+
             if (!match) continue
             occMap[match.lemma] = (occMap[match.lemma] || 0) + 1
             localMatches.push({
@@ -204,6 +265,13 @@ export default function Result() {
           }
         }
         setVocabHighlights(localMatches)
+        setVocabSavedMap(prev => {
+          const next = { ...prev }
+          localMatches.forEach(m => {
+            next[m.anchorText.toLowerCase()] = m.masteryStatus
+          })
+          return next
+        })
       }
     }, 500)
 
@@ -563,6 +631,7 @@ export default function Result() {
           activeMarkId={activeMarkId}
           selectedWord={selectedWord}
           vocabList={vocabList}
+          vocabSavedMap={vocabSavedMap}
           tailEntries={sceneData!.sentenceEntries}
           pageMode={pageMode}
           activeSentenceId={activeSentenceId}
