@@ -188,6 +188,10 @@
   - DTO → VM 转换
   - _Requirement: 7, 8_
 
+- [ ] C1.5 新建 `client/src/services/api/adapters/daily-reader-highlight.adapter.ts`
+  - DailyReaderHighlight → InlineMarkModel 适配（供 WordPopup 使用）
+  - _Requirement: 8_
+
 ### C2. 状态管理
 
 - [ ] C2.1 新建 `client/src/stores/daily-reader.ts`
@@ -218,9 +222,11 @@
   - 每个模块用图标+标题分隔
   - _Requirement: 8_
 
-- [ ] C3.5 新建 `client/src/components/DailyReaderBottomSheet/index.tsx`
-  - 底部弹窗：LLM 标注词（语境解释优先+词典补充）、普通词（词典详情）
-  - 复用 WordPopup 的词典展示逻辑
+- [ ] C3.5 复用 `client/src/components/WordPopup/index.tsx`
+  - 精读页集成 WordPopup（mode='mini' + mode='full'）
+  - 通过 daily-reader-highlight.adapter 将 DailyReaderHighlight 转为 InlineMarkModel
+  - 点击高亮词 → mini 卡片（AI 标注 + 词典摘要）→ 点击展开 → full 词典详情
+  - 点击非高亮词 → mini 卡片 → 调用 /dict API
   - _Requirement: 8_
 
 - [ ] C3.6 新建 `client/src/components/DailyReaderProgress/index.tsx`
@@ -230,13 +236,21 @@
 ### C4. 页面
 
 - [ ] C4.1 新建 `client/src/pages/daily-reader/index.tsx`
-  - 组合所有组件：Header → Body → FooterAnalysis
+  - 组合所有组件：Header → Body → FooterAnalysis → 往期精选入口
+  - 集成 WordPopup（mini + full 模式）
   - 进度条浮层
   - 分享配置（onShareAppMessage）
-  - _Requirement: 8, 11_
+  - _Requirement: 8, 10, 11_
 
-- [ ] C4.2 修改 `client/src/app.config.ts`
+- [ ] C4.2 新建 `client/src/pages/daily-reader-archive/index.tsx`
+  - 归档页：逆序分页列表，每条含标题/来源/日期/难度/时长/封面缩略图
+  - 使用 fetchArticleList API
+  - 点击跳转精读页
+  - _Requirement: 10_
+
+- [ ] C4.3 修改 `client/src/app.config.ts`
   - 注册 `pages/daily-reader/index`
+  - 注册 `pages/daily-reader-archive/index`
   - _Requirement: 8_
 
 ### C5. 首页入口
@@ -246,6 +260,7 @@
   - 展示 2-3 张杂志封面式卡片（横向滑动或纵向排列），每张含标题+来源+难度+封面图/渐变
   - 点击导航到 `pages/daily-reader/index?id={articleId}`
   - 无今日文章时优雅降级（隐藏卡片区域或显示 fallback）
+  - "每日精选"标题旁添加"更多 →"链接，导航到归档页
   - _Requirement: 9_
 
 ---

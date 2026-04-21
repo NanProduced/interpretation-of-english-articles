@@ -134,6 +134,7 @@
 2. While the home page renders the daily reader card, when the card is visually distinct from the main input area, the Claread system shall use a different visual treatment (e.g., card with image/gradient background vs. plain input area) to establish "this is curated content" perception.
 3. While a user taps the daily reader card, when the navigation triggers, the Claread system shall navigate directly to the daily reader page with the specific article ID (e.g., `pages/daily-reader/index?id={articleId}`) without intermediate pages.
 4. While the home page loads, when no daily article is available for today, the Claread system shall gracefully hide the daily reader card or show a fallback state (e.g., "Today's article is being prepared").
+5. While a user views the home page daily reader section, when the section header renders, the Claread system shall display a "更多 →" link navigating to the daily reader archive page.
 
 ### Requirement 10 - 阅读进度与往期入口
 
@@ -143,8 +144,8 @@
 
 1. While a user opens the daily reader page, when the page renders, the Claread system shall display a subtle reading progress indicator (scroll-based) at the top of the page.
 2. While a user scrolls through the article, when the progress indicator updates, the Claread system shall reflect the current scroll position as a percentage of total content height.
-3. While a user reaches the bottom of the daily reader page, when the footer analysis section completes, the Claread system shall display a "Past Reads" entry linking to the article list.
-4. While a user views the article list, when the page renders, the Claread system shall display published articles in reverse chronological order with: title, source, difficulty, read time, and cover thumbnail.
+3. While a user reaches the bottom of the daily reader page, when the footer analysis section completes, the Claread system shall display a "往期精选" entry linking to the archive page (`pages/daily-reader-archive/index`).
+4. While a user views the archive page, when the page renders, the Claread system shall display published articles in reverse chronological order with: title, source, difficulty, read time, and cover thumbnail.
 
 ### Requirement 11 - 分享
 
@@ -153,5 +154,5 @@
 #### Acceptance Criteria
 
 1. While a user views the daily reader page, when the share action is triggered, the Claread system shall generate a share card image containing: article title, key quote, source, and mini program QR code.
-2. While the share card is generated, when the image renders, the Claread system shall use the article's cover theme color as the card background.
+2. While the share card is generated, when the image renders, the Claread system shall use the article's cover theme color as the card background. (TODO: 上线前实现自定义分享卡片，当前使用微信默认截图)
 3. While a user shares via WeChat, when the share message renders, the Claread system shall set the share title to the article title and the share description to the article subtitle/summary.

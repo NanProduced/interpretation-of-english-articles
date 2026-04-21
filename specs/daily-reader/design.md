@@ -364,15 +364,29 @@ async def run_daily_pipeline():
 
     # Select top candidates with source/topic diversity and cover image priority
     scored.sort(key=lambda a: (a.get("cover_image_url") is not None, a["score"]), reverse=True)
-    selected = select_diverse_candidates(scored, max_count=3, max_same_source=2)
+    selected = select_diverse_candidates(scored, max_count=max_count + 2, max_same_source=2)
 
-    # Execute workflow for each selected article
+    # Execute workflow for each candidate (candidate queue mode)
+    # Oversample by 2 to allow for workflow failures/aborts
     results = []
     for candidate in selected:
+        if len(results) >= max_count:
+            break
         payload = await run_daily_reader_workflow(candidate)
         if payload is not None:
             await store_daily_reader(payload)
             results.append(payload)
+
+    # If not enough, try remaining candidates from scored list
+    if len(results) < max_count:
+        remaining = [s for s in scored if s not in selected]
+        for candidate in remaining:
+            if len(results) >= max_count:
+                break
+            payload = await run_daily_reader_workflow(candidate)
+            if payload is not None:
+                await store_daily_reader(payload)
+                results.append(payload)
 
     return results
 ```
@@ -673,9 +687,17 @@ class DailyReaderRetryRequest(BaseModel):
 | `DailyReaderHeader` | 页头：标题、来源、日期、难度、时长、标签、封面图/氛围渐变 |
 | `DailyReaderBody` | 正文：杂志式排版、高亮渲染、点词交互 |
 | `DailyReaderFooterAnalysis` | 文末解析：摘要、结构、关键表达、全篇解析（可折叠）、讨论问题、原文来源链接 |
-| `DailyReaderBottomSheet` | 底部弹窗：词典详情 / 语境解释 |
+| `DailyReaderBottomSheet` | 底部弹窗：词典详情 / 语境解释（已替换为复用 WordPopup） |
 | `DailyReaderProgress` | 阅读进度条 |
 | `DailyReaderHighlightWord` | 高亮词组件：轻量背景色块，点击触发 mini 卡片 |
+
+### 词典交互
+
+精读页复用现有 `WordPopup` 组件，通过 `daily-reader-highlight.adapter.ts` 将 `DailyReaderHighlight` 转换为 `InlineMarkModel`：
+
+- 点击高亮词 → `highlightToInlineMark()` 转换 → `WordPopup mode='mini'` 展示 AI 标注 + 词典摘要
+- 点击 mini 卡片展开 → `WordPopup mode='full'` 展示完整词典详情
+- 点击非高亮词 → `WordPopup mode='mini'` 直接调用 `/dict` API 查询
 
 ### 首页入口
 
@@ -686,6 +708,16 @@ class DailyReaderRetryRequest(BaseModel):
 - 卡片视觉：杂志封面式（非列表），与主线输入区视觉明显区分
 - 点击导航到 `pages/daily-reader/index?id={articleId}`
 - 无今日文章时优雅降级（隐藏卡片区域或显示 fallback）
+- "每日精选"标题旁显示"更多 →"链接，导航到归档页
+
+### 归档页
+
+新增 `pages/daily-reader-archive/index`：
+
+- 展示所有已发布文章（逆序分页），每条含标题、来源、日期、难度、阅读时长、封面缩略图
+- 使用 `GET /daily-reader` 分页 API
+- 点击文章跳转到精读页
+- 精读页底部也有"往期精选 →"入口指向归档页
 
 ### 状态管理
 
@@ -742,22 +774,24 @@ interface DailyReaderState {
 
 - `server/app/api/router.py` — 注册新路由
 - `server/app/llm/routes.py` — 新增 daily_annotation / daily_analysis / daily_review 路由
-- `server/requirements.txt` — 新增 feedparser、trafilatura
+- `server/requirements.txt` — 新增 feedparser、trafilatura（实际为 pyproject.toml）
 
 ### Frontend Modules
 
 新增文件：
 
 - `client/src/pages/daily-reader/index.tsx` — 每日精读页
+- `client/src/pages/daily-reader-archive/index.tsx` — 往期精选归档页
 - `client/src/components/DailyReaderHeader/index.tsx` — 页头组件
 - `client/src/components/DailyReaderBody/index.tsx` — 正文组件
 - `client/src/components/DailyReaderFooterAnalysis/index.tsx` — 文末解析组件
-- `client/src/components/DailyReaderBottomSheet/index.tsx` — 底部弹窗
+- `client/src/components/DailyReaderBottomSheet/index.tsx` — 底部弹窗（已替换为 WordPopup 复用）
 - `client/src/components/DailyReaderProgress/index.tsx` — 进度条
 - `client/src/components/DailyReaderHighlightWord/index.tsx` — 高亮词组件
 - `client/src/stores/daily-reader.ts` — Zustand store
 - `client/src/services/api/daily-reader.client.ts` — API client
 - `client/src/services/api/adapters/daily-reader.adapter.ts` — DTO → VM 转换
+- `client/src/services/api/adapters/daily-reader-highlight.adapter.ts` — Highlight → InlineMarkModel 适配
 - `client/src/types/api/daily-reader.dto.ts` — 后端 DTO
 - `client/src/types/view/daily-reader.vm.ts` — 前端 VM
 

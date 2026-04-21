@@ -183,6 +183,10 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
 
         <View className='section-header'>
           <Text className='section-title'>每日精选</Text>
+          <Text
+            className='section-more'
+            onClick={() => Taro.navigateTo({ url: '/pages/daily-reader-archive/index' })}
+          >更多 →</Text>
         </View>
 
         <View className='feed-content'>

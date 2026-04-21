@@ -10,7 +10,8 @@ export default {
     'pages/feedback/index',
     'pages/feedback/my-feedback',
     'pages/credit-detail/index',
-    'pages/daily-reader/index'
+    'pages/daily-reader/index',
+    'pages/daily-reader-archive/index'
   ],
   window: {
     backgroundTextStyle: 'light',

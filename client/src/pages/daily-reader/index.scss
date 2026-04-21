@@ -43,6 +43,30 @@
     background: linear-gradient(to right, transparent, #d8cfc4, transparent);
     margin: 0 40px 24px;
   }
+
+  &__archive-entry {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 32px 28px 40px;
+    padding: 16px;
+    background: #faf6f0;
+    border-radius: 10px;
+    border: 1px solid #ede4d8;
+  }
+
+  &__archive-text {
+    font-size: 15px;
+    font-weight: 600;
+    color: #6b5e52;
+    letter-spacing: 1px;
+  }
+
+  &__archive-arrow {
+    font-size: 15px;
+    color: #8b7355;
+  }
 }
 
 @keyframes daily-loading-pulse {

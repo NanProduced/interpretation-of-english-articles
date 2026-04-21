@@ -106,21 +106,40 @@ async def run_daily_pipeline(
     result.candidates_scored = len(scored)
     logger.info("Pipeline scoring: %d articles passed threshold", len(scored))
 
-    # Select diverse candidates
-    selected = select_diverse_candidates(scored, max_count=max_count)
+    # Select diverse candidates (oversample to allow for workflow failures)
+    selected = select_diverse_candidates(scored, max_count=max_count + 2)
     result.candidates_selected = len(selected)
-    logger.info("Pipeline selection: %d articles selected", len(selected))
+    logger.info("Pipeline selection: %d candidates selected (target: %d)", len(selected), max_count)
 
-    # Execute workflow for each selected article
+    # Execute workflow for each candidate until we have enough
+    success_count = 0
     for article, score, sec_result in selected:
+        if success_count >= max_count:
+            break
         try:
             payload = await _run_workflow_and_store(article, score, sec_result)
             if payload is not None:
                 result.articles.append(payload)
+                success_count += 1
         except Exception as e:
             error_msg = f"Workflow failed for '{article.title[:30]}': {e}"
             logger.error(error_msg)
             result.errors.append(error_msg)
+
+    if success_count < max_count and len(scored) > len(selected):
+        remaining = [s for s in scored if s not in selected]
+        for article, score, sec_result in remaining:
+            if success_count >= max_count:
+                break
+            try:
+                payload = await _run_workflow_and_store(article, score, sec_result)
+                if payload is not None:
+                    result.articles.append(payload)
+                    success_count += 1
+            except Exception as e:
+                error_msg = f"Workflow failed for '{article.title[:30]}': {e}"
+                logger.error(error_msg)
+                result.errors.append(error_msg)
 
     return result
 
