@@ -276,7 +276,8 @@ async def _get_existing_text_hashes() -> set[str]:
                 "SELECT original_text_hash FROM daily_readers WHERE original_text_hash IS NOT NULL"
             )
             return {row["original_text_hash"] for row in rows}
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to fetch existing text hashes: %s", e)
         return set()
 
 
@@ -292,7 +293,8 @@ async def _next_sequence_number(publish_date: date) -> int:
             )
             count = row["cnt"] if row else 0
             return count + 1
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to query sequence number for %s: %s", publish_date, e)
         return 1
 
 

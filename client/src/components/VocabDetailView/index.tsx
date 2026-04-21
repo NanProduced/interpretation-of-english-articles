@@ -60,18 +60,23 @@ export default function VocabDetailView({
     }
     const word = entry.lemma || entry.word
     try {
-      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
       if (!res.ok) return
       const data = await res.json()
       const phonetics = Array.isArray(data) ? data[0]?.phonetics : []
-      const withAudio = phonetics?.find((p: any) => p.audio && p.audio.trim() !== '')
+      const withAudio = phonetics?.find((p: { audio?: string }) => p.audio && p.audio.trim() !== '')
       if (withAudio?.audio) {
         let url = withAudio.audio as string
         if (url.startsWith('//')) url = 'https:' + url
         setAudioUrl(url)
       }
-    } catch {
-      // no audio available
+    } catch (e) {
+      console.error('VocabDetailView: audio fetch failed', e)
     }
   }, [entry])
 

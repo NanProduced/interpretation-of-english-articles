@@ -82,6 +82,7 @@ export default function DailyReaderArchivePage() {
                   className='archive-card__cover'
                   src={item.coverImageUrl}
                   mode='aspectFill'
+                  lazyLoad
                 />
               </View>
             )}

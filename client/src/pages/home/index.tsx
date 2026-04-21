@@ -8,6 +8,7 @@ import { useLayoutStore } from '../../stores/layout'
 import { useAuthStore } from '../../stores/auth'
 import { useDailyReaderStore } from '../../stores/daily-reader'
 import { ensureLoggedIn } from '../../services/auth'
+import { fetchAnonymousQuota } from '../../services/api/client'
 import './index.scss'
 
 const ANONYMOUS_DAILY_TRIAL_LIMIT = 3
@@ -34,18 +35,13 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
     const anonymousId = Taro.getStorageSync('anonymous_id') as string | undefined
     if (!anonymousId) return
 
-    Taro.request({
-      url: `${process.env.TARO_APP_API_BASE || 'http://localhost:8000'}/api/me/quota/anonymous`,
-      method: 'GET',
-      data: { anonymous_id: anonymousId },
-      header: { 'Content-Type': 'application/json' },
-    })
+    fetchAnonymousQuota(anonymousId)
       .then((res) => {
-        if (res.statusCode === 200 && res.data) {
-          setGuestTrials(res.data.remaining_trials)
-        }
+        setGuestTrials(res.remaining_trials)
       })
-      .catch(() => {})
+      .catch((e) => {
+        console.error('home/index.tsx: fetchAnonymousQuota failed', e)
+      })
   }, [isLoggedIn])
 
   useEffect(() => {
@@ -88,6 +84,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
             className='user-avatar-img'
             src={avatarUrl}
             mode='aspectFill'
+            lazyLoad
             onClick={() => Taro.navigateTo({ url: '/pages/profile/index' })}
           />
         )
@@ -199,7 +196,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
               >
                 <View className='card-cover-box'>
                   {article.coverImageUrl ? (
-                    <View className='card-cover' style={{ backgroundImage: `url(${article.coverImageUrl})` }} />
+                    <Image className='card-cover' src={article.coverImageUrl} mode='aspectFill' lazyLoad />
                   ) : (
                     <View className={`card-cover card-cover--${article.coverTheme}`} />
                   )}

@@ -201,8 +201,8 @@ export const useArticleStore = create<ArticleState>((set, get) => {
               })
               return
             }
-          } catch {
-            // 网络错误时静默放行，不阻塞用户体验
+          } catch (e) {
+            console.error('article.ts: anonymous quota check failed, allowing request', e)
           }
         }
       }

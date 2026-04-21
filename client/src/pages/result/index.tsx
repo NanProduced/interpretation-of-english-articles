@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useArticleStore } from '../../stores/article'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
@@ -154,14 +154,11 @@ export default function Result() {
 
   // === 回看模式：URL 带有 recordId 时从 storage 加载 ===
   useEffect(() => {
-    // 每次页面挂载时都检查 replay 参数，确保不会因为旧 state 导致闪现旧结果
-    const pages = Taro.getCurrentPages()
-    const current = pages[pages.length - 1]
-    const params = (current as any).options || {}
+    const instance = Taro.getCurrentInstance()
+    const params = instance.router?.params || {}
     const { recordId: urlRecordId, mode } = params
 
     if (mode === 'replay' && urlRecordId) {
-      // 进入回看模式前先重置，避免旧数据闪现
       useArticleStore.getState().reset()
       loadRecord(urlRecordId)
     }
@@ -220,8 +217,8 @@ export default function Result() {
             })
             return next
           })
-        } catch {
-          // API 失败时 fallback 到本地数据，vocabList 已在上面加载
+        } catch (e) {
+          console.error('result/index.tsx: vocab highlights API failed, using local fallback', e)
         }
       } else {
         const all = getVocabulary()
@@ -401,7 +398,7 @@ export default function Result() {
       text,
       reading_goal: apiParams.reading_goal,
       reading_variant: apiParams.reading_variant,
-      source_type: source_type as any,
+      source_type: source_type,
       extended: false,
     })
     
@@ -593,8 +590,9 @@ export default function Result() {
   const academicContentSummary = academicVm?.contentSummary ?? null
   const academicTitle = academicVm?.title ?? null
 
-  const renderArticleHeader = () => {
-    const { request } = sceneData!
+  const articleHeader = useMemo(() => {
+    if (!sceneData?.request) return null
+    const { request } = sceneData
     return (
       <View className='article-header'>
         {isAcademicMode && academicTitle && (
@@ -613,13 +611,13 @@ export default function Result() {
         </View>
       </View>
     )
-  }
+  }, [sceneData, isAcademicMode, academicTitle])
 
-  const renderParagraphs = () => {
+  const paragraphBlocks = useMemo(() => {
     if (!sceneData?.article?.paragraphs?.length) return null
-    return sceneData!.article.paragraphs.map((paragraph, idx) => {
+    return sceneData.article.paragraphs.map((paragraph, idx) => {
       const sentences = paragraph.sentenceIds
-        .map((id) => sceneData!.article.sentences.find((s) => s.sentenceId === id))
+        .map((id) => sceneData.article.sentences.find((s) => s.sentenceId === id))
         .filter((s): s is NonNullable<typeof s> => !!s)
 
       return (
@@ -627,13 +625,13 @@ export default function Result() {
           key={`${paragraph.paragraphId}-${idx}`}
           order={idx + 1}
           sentences={sentences}
-          translations={sceneData!.translations}
-          inlineMarks={sceneData!.inlineMarks}
+          translations={sceneData.translations}
+          inlineMarks={sceneData.inlineMarks}
           activeMarkId={activeMarkId}
           selectedWord={selectedWord}
           vocabList={vocabList}
           vocabSavedMap={vocabSavedMap}
-          tailEntries={sceneData!.sentenceEntries}
+          tailEntries={sceneData.sentenceEntries}
           pageMode={pageMode}
           recordId={recordId || undefined}
           activeSentenceId={activeSentenceId}
@@ -642,7 +640,7 @@ export default function Result() {
         />
       )
     })
-  }
+  }, [sceneData, activeMarkId, selectedWord, vocabList, vocabSavedMap, pageMode, recordId, activeSentenceId])
 
   return pageShell(
     <>
@@ -684,11 +682,11 @@ export default function Result() {
 
         <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={handleScroll}>
           <View className='article-container'>
-            {renderArticleHeader()}
+            {articleHeader}
             {academicContentSummary && (
               <ContentSummaryCard summary={academicContentSummary} />
             )}
-            {renderParagraphs()}
+            {paragraphBlocks}
             
             <View className='article-end-actions'>
               <View 

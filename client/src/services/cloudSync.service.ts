@@ -82,7 +82,8 @@ async function resolveCloudId(clientRecordId: string): Promise<string | null> {
         updateRecord(clientRecordId, { cloudId: cloudRecord.cloudId })
         return cloudRecord.cloudId
       }
-    } catch {
+    } catch (e) {
+    console.error("cloudSync.service.ts:", e)
     } finally {
       setTimeout(() => resolveCloudIdCache.delete(clientRecordId), 5000)
     }

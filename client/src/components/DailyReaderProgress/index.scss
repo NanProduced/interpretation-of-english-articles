@@ -3,7 +3,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
+  height: 4rpx;
   background: transparent;
   z-index: 100;
 
@@ -11,6 +11,6 @@
     height: 100%;
     background: linear-gradient(90deg, #c9b8a3, #8b7355);
     transition: width 0.1s ease-out;
-    border-radius: 0 1px 1px 0;
+    border-radius: 0 2rpx 2rpx 0;
   }
 }

@@ -1,24 +1,24 @@
 .daily-hl {
   display: inline;
-  border-radius: 3px;
-  padding: 1px 3px;
-  margin: 0 1px;
+  border-radius: 6rpx;
+  padding: 2rpx 6rpx;
+  margin: 0 2rpx;
   cursor: pointer;
   transition: background-color 0.2s ease;
 
   &--vocab {
     background-color: rgba(139, 115, 85, 0.12);
-    border-bottom: 1.5px solid rgba(139, 115, 85, 0.35);
+    border-bottom: 1.10rpx solid rgba(139, 115, 85, 0.35);
   }
 
   &--phrase {
     background-color: rgba(85, 115, 139, 0.10);
-    border-bottom: 1.5px solid rgba(85, 115, 139, 0.30);
+    border-bottom: 1.10rpx solid rgba(85, 115, 139, 0.30);
   }
 
   &--context {
     background-color: rgba(139, 85, 115, 0.10);
-    border-bottom: 1.5px solid rgba(139, 85, 115, 0.30);
+    border-bottom: 1.10rpx solid rgba(139, 85, 115, 0.30);
   }
 
   &--active {

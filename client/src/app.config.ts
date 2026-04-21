@@ -1,6 +1,5 @@
 export default {
   pages: [
-    'pages/onboarding/index',
     'pages/home/index',
     'pages/input/index',
     'pages/result/index',
@@ -11,7 +10,8 @@ export default {
     'pages/feedback/my-feedback',
     'pages/credit-detail/index',
     'pages/daily-reader/index',
-    'pages/daily-reader-archive/index'
+    'pages/daily-reader-archive/index',
+    'pages/onboarding/index'
   ],
   window: {
     backgroundTextStyle: 'light',

@@ -304,14 +304,13 @@ const ParagraphBlock = memo(function ParagraphBlock({
   // 监听分析卡片激活状态，自动定位锚点
   useEffect(() => {
     if (activeAnalysisId) {
-      // 延迟确保渲染完成
-      setTimeout(() => {
+      const scrollTimer = setTimeout(() => {
         const query = Taro.createSelectorQuery()
         query.select(`.sentence-text.is-analyzing`).boundingClientRect()
         query.selectViewport().scrollOffset()
         query.exec((res) => {
           if (res[0] && res[1]) {
-            const top = res[0].top + res[1].scrollTop - 200 // 偏移 200px 居中
+            const top = res[0].top + res[1].scrollTop - 200
             Taro.pageScrollTo({
               scrollTop: top,
               duration: 300
@@ -319,6 +318,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           }
         })
       }, 100)
+      return () => clearTimeout(scrollTimer)
     }
   }, [activeAnalysisId])
 

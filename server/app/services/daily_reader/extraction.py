@@ -55,13 +55,13 @@ async def extract_with_trafilatura(url: str) -> ExtractionResult | None:
 
         if metadata:
             try:
-                import json
+                import orjson
 
-                meta = json.loads(metadata)
+                meta = orjson.loads(metadata)
                 author = meta.get("author", "")
                 description = meta.get("description", "")
                 cover_image_url = meta.get("image")
-            except (json.JSONDecodeError, TypeError):
+            except (orjson.JSONDecodeError, TypeError):
                 pass
 
         word_count = len(result.split())

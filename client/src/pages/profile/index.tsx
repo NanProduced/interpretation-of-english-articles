@@ -211,7 +211,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
               aria-label={isLoggedIn ? '修改头像' : '点击登录'}
             >
               {userInfo?.avatar_url ? (
-                <Image className='avatar-img' src={userInfo.avatar_url} mode='aspectFill' />
+                <Image className='avatar-img' src={userInfo.avatar_url} mode='aspectFill' lazyLoad />
               ) : (
                 <LucideIcon name='user' size={64} color={isLoggedIn ? '#fff' : 'var(--text-muted)'} />
               )}

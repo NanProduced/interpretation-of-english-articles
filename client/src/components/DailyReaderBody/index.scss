@@ -1,8 +1,8 @@
 .daily-body {
-  padding: 0 28px;
+  padding: 0 56rpx;
 
   &__paragraph {
-    margin-bottom: 24px;
+    margin-bottom: 48rpx;
 
     &:last-child {
       margin-bottom: 0;
@@ -11,10 +11,10 @@
 
   &__text {
     font-family: 'Georgia', 'Noto Serif SC', serif;
-    font-size: 17px;
+    font-size: 34rpx;
     line-height: 1.8;
     color: #3a3330;
-    letter-spacing: 0.2px;
-    word-spacing: 0.5px;
+    letter-spacing: 0.4rpx;
+    word-spacing: 0.10rpx;
   }
 }

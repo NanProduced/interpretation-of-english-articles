@@ -4,7 +4,7 @@
 
   &__cover {
     position: relative;
-    height: 400px;
+    height: 800rpx;
     overflow: hidden;
   }
 
@@ -23,7 +23,7 @@
   }
 
   &__gradient {
-    height: 280px;
+    height: 560rpx;
 
     &--editorial_warm {
       background: linear-gradient(135deg, #f5e6d3 0%, #e8d5c4 30%, #d4c4b0 70%, #c9b8a3 100%);
@@ -37,65 +37,65 @@
   }
 
   &__content {
-    padding: 24px 28px 32px;
+    padding: 48rpx 56rpx 64rpx;
   }
 
   &__meta {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: 16rpx;
+    margin-bottom: 32rpx;
   }
 
   &__source {
-    font-size: 13px;
+    font-size: 26rpx;
     font-weight: 600;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.10rpx;
     text-transform: uppercase;
     color: #8b7355;
   }
 
   &__dot {
-    font-size: 13px;
+    font-size: 26rpx;
     color: #b8a898;
   }
 
   &__date {
-    font-size: 13px;
+    font-size: 26rpx;
     color: #9a8a7a;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.6rpx;
   }
 
   &__title {
     display: block;
     font-family: 'Georgia', 'Noto Serif SC', serif;
-    font-size: 28px;
+    font-size: 56rpx;
     font-weight: 700;
     line-height: 1.3;
     color: #2c2420;
-    letter-spacing: -0.3px;
-    margin-bottom: 8px;
+    letter-spacing: -0.6rpx;
+    margin-bottom: 16rpx;
   }
 
   &__subtitle {
     display: block;
-    font-size: 15px;
+    font-size: 30rpx;
     line-height: 1.5;
     color: #6b5e52;
-    margin-bottom: 20px;
+    margin-bottom: 40rpx;
   }
 
   &__badges {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 16rpx;
   }
 
   &__badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 10px;
-    border-radius: 4px;
+    padding: 8rpx 20rpx;
+    border-radius: 8rpx;
 
     &--difficulty {
       background: #f0e6d8;
@@ -109,9 +109,9 @@
   }
 
   &__badge-text {
-    font-size: 11px;
+    font-size: 22rpx;
     font-weight: 500;
     color: #6b5e52;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.6rpx;
   }
 }

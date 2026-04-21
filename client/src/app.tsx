@@ -9,21 +9,20 @@ import './app.scss'
 
 const INTERRUPTED_STATE_KEY = 'analysis_interrupted'
 const GUEST_DISMISSED_KEY = 'guest_dismissed'
+let _navigatingToOnboarding = false
 
 function App({ children }: PropsWithChildren<any>) {
   const [showLoginGuide, setShowLoginGuide] = useState(false)
 
-  // 启动时恢复认证状态
   useEffect(() => {
     const restoreState = async () => {
       await useAuthStore.getState().restore()
-      if ((Taro as any)._navigatingToOnboarding) return
-      ;(Taro as any)._navigatingToOnboarding = true
+      if (_navigatingToOnboarding) return
+      _navigatingToOnboarding = true
 
       const { isLoggedIn } = useAuthStore.getState()
 
       if (isLoggedIn && !Taro.getStorageSync('user_configured')) {
-        // 已登录但未设置过用户配置 → 跳转 onboarding
         Taro.navigateTo({ url: '/pages/onboarding/index' })
       } else if (!isLoggedIn) {
         // 未登录：检查是否已选择过游客模式（当天不重复弹窗）
@@ -64,8 +63,8 @@ function App({ children }: PropsWithChildren<any>) {
             interruptedAt: Date.now(),
             recordId,
           })
-        } catch {
-          // ignore
+        } catch (e) {
+        console.error("app.tsx:", e)
         }
       }
     }
@@ -81,8 +80,8 @@ function App({ children }: PropsWithChildren<any>) {
       try {
         interrupted = Taro.getStorageSync(INTERRUPTED_STATE_KEY)
         Taro.removeStorageSync(INTERRUPTED_STATE_KEY)
-      } catch {
-        // ignore
+      } catch (e) {
+      console.error("app.tsx:", e)
       }
 
       if (!interrupted) return

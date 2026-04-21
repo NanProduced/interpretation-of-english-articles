@@ -22,7 +22,7 @@ export interface TextSpan {
 // ============ 请求元信息 ============
 
 export type SourceType = 'user_input' | 'daily_article' | 'ocr'
-export type ReadingGoal = 'exam' | 'daily_reading' | 'academic'
+export type ServerReadingGoal = 'exam' | 'daily_reading' | 'academic'
 export type ReadingVariant =
   | 'gaokao' | 'cet' | 'kaoyan' | 'tem' | 'ielts_toefl'
   | 'beginner_reading' | 'intermediate_reading' | 'intensive_reading'
@@ -31,7 +31,7 @@ export type ReadingVariant =
 export interface AnalyzeRequestMeta {
   request_id: string
   source_type: SourceType
-  reading_goal: ReadingGoal
+  reading_goal: ServerReadingGoal
   reading_variant: ReadingVariant
   profile_id: string
 }

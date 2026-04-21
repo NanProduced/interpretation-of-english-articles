@@ -2,8 +2,9 @@ import { create } from 'zustand'
 import Taro from '@tarojs/taro'
 import { useAuthStore } from './auth'
 import { updateProfile } from '../services/api/client'
+import { ReadingGoal, SERVER_GOAL_TO_UI_GOAL } from '../config/purpose'
 
-export type UserPurpose = 'exam' | 'academic' | 'daily';
+export type UserPurpose = ReadingGoal
 
 interface ConfigState {
   purpose: UserPurpose;
@@ -57,10 +58,11 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     const { userInfo } = useAuthStore.getState()
     if (userInfo?.settings) {
       const { default_reading_goal, default_reading_variant } = userInfo.settings
-      const updates: any = {}
+      const updates: Partial<ConfigState> = {}
       if (default_reading_goal) {
-        updates.purpose = default_reading_goal
-        Taro.setStorageSync('user_purpose', default_reading_goal)
+        const uiGoal = SERVER_GOAL_TO_UI_GOAL[default_reading_goal] || default_reading_goal
+        updates.purpose = uiGoal as UserPurpose
+        Taro.setStorageSync('user_purpose', uiGoal)
       }
       if (default_reading_variant) {
         updates.level = default_reading_variant

@@ -75,7 +75,8 @@ export default function CreditDetailPage() {
       setEntries(prev => [...prev, ...res.items])
       setCursor(res.cursor)
       setHasMore(res.hasMore)
-    } catch {
+    } catch (e) {
+    console.error("index.tsx:", e)
     } finally {
       setLoading(false)
     }

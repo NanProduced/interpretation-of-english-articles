@@ -341,8 +341,7 @@ export interface AnalyzeRequest {
   text: string
   reading_goal: 'exam' | 'daily_reading' | 'academic'
   reading_variant: 'gaokao' | 'cet' | 'kaoyan' | 'tem' | 'ielts_toefl' | 'beginner_reading' | 'intermediate_reading' | 'intensive_reading' | 'academic_general'
-  /** 当前联调范围: 仅限 user_input */
-  source_type: 'user_input'
+  source_type: 'user_input' | 'daily_article' | 'ocr'
   /** 是否开启深度篇章分析 */
   extended?: boolean
 }

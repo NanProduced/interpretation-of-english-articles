@@ -90,8 +90,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         try {
           const userInfo = JSON.parse(userInfoRaw) as UserInfo
           set({ token, userInfo, isLoggedIn: true })
-        } catch {
-          // JSON 解析失败，只设置 token，等 /me 验证后补充 userInfo
+        } catch (e) {
+          console.error('auth.ts: JSON parse failed for userInfo', e)
           set({ token, userInfo: null, isLoggedIn: true })
         }
       } else {
@@ -129,7 +129,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
           // 其他错误（网络）静默忽略，保持当前状态
         })
-    } catch {
+    } catch (e) {
+      console.error('auth.ts: restore failed', e)
       set({ token: null, userInfo: null, isLoggedIn: false })
     }
   },
@@ -155,8 +156,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       import('./config').then(({ useConfigStore }) => {
         useConfigStore.getState().initializeFromCloud()
       })
-    } catch {
-      // 网络错误，静默忽略
+    } catch (e) {
+      console.error('auth.ts: fetchUserInfo failed', e)
     }
   },
 }))

@@ -25,6 +25,7 @@ const DailyReaderHeader = memo(function DailyReaderHeader({ article }: Props) {
             className='daily-header__cover-img'
             src={article.coverImageUrl!}
             mode='aspectFill'
+            lazyLoad
           />
           <View className='daily-header__cover-overlay' />
         </View>

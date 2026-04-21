@@ -14,26 +14,7 @@ import { useLayoutStore } from '../../stores/layout'
 import { getSafeDisplayLabel } from '../../config/purpose'
 import LucideIcon from '../../components/LucideIcon'
 import './index.scss'
-
-/** 格式化日期 */
-function formatDate(timestamp: number): string {
-  const now = Date.now()
-  const diff = now - timestamp
-  const oneDay = 24 * 60 * 60 * 1000
-
-  if (diff < oneDay) {
-    const hours = new Date(timestamp).getHours()
-    const minutes = new Date(timestamp).getMinutes()
-    return `今天 ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-  } else if (diff < 2 * oneDay) {
-    return '昨天'
-  } else {
-    const date = new Date(timestamp)
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    return `${month}月${day}日`
-  }
-}
+import { formatDate } from '../../utils/formatDate'
 
 /** 读取显示用的前 50 字 */
 function getDisplayTitle(record: AnalysisRecord): string {
@@ -102,7 +83,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
         setRecords([...cloudRecords, ...localOnlyRecords])
         setLoading(false)
         return
-      } catch {}
+      } catch (e) { console.error("index.tsx:", e) }
     }
     const allVocab = getVocabulary()
     const vocabCounts: Record<string, number> = {}

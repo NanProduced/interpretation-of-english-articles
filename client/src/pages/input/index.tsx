@@ -58,9 +58,10 @@ export default function InputPage() {
       if (text.length > 20 && isEnglish && text !== content) {
         setClipboardContent(text)
         setShowClipboardBubble(true)
-        setTimeout(() => setShowClipboardBubble(false), 8000)
+        const bubbleTimer = setTimeout(() => setShowClipboardBubble(false), 8000)
+        return () => clearTimeout(bubbleTimer)
       }
-    } catch (e) {}
+    } catch (e) { console.error("index.tsx:", e) }
   }
 
   useEffect(() => {
@@ -85,7 +86,7 @@ export default function InputPage() {
       const { reading_goal, reading_variant } = getApiParams(tempConfig.purpose, tempConfig.level)
       saveDraft({
         text: content,
-        reading_goal: reading_goal as any,
+        reading_goal: reading_goal,
         reading_variant: reading_variant,
         savedAt: Date.now(),
       })
@@ -137,7 +138,7 @@ export default function InputPage() {
     useArticleStore.getState().reset()
     analyze({
       text: content,
-      reading_goal: reading_goal as any,
+      reading_goal: reading_goal,
       reading_variant,
       source_type: 'user_input',
       extended: false,
