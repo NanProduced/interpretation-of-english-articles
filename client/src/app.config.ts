@@ -9,7 +9,8 @@ export default {
     'pages/profile/index',
     'pages/feedback/index',
     'pages/feedback/my-feedback',
-    'pages/credit-detail/index'
+    'pages/credit-detail/index',
+    'pages/daily-reader/index'
   ],
   window: {
     backgroundTextStyle: 'light',

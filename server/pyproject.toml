@@ -25,6 +25,9 @@ dependencies = [
     "redis>=5.2.0,<6.0.0",
     # 词典 lemma fallback
     "lemminflect>=0.2.3,<1.0.0",
+    # 每日精读文章拉取
+    "feedparser>=6.0.0,<7.0.0",
+    "trafilatura>=2.0.0,<3.0.0",
 ]
 
 [dependency-groups]

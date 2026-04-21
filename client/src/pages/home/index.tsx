@@ -6,6 +6,7 @@ import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
 import { useAuthStore } from '../../stores/auth'
+import { useDailyReaderStore } from '../../stores/daily-reader'
 import { ensureLoggedIn } from '../../services/auth'
 import './index.scss'
 
@@ -117,35 +118,18 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
     )
   }
 
-  const recommendations = [
-    {
-      id: '1',
-      title: 'Why We Sleep: The New Science of Sleep and Dreams',
-      source: 'Scientific American',
-      difficulty: 'CET-6',
-      readTime: '5 min',
-      cover:
-        'https://images.unsplash.com/photo-1541480601022-2308c0f02487?q=80&w=400&auto=format&fit=crop',
-    },
-    {
-      id: '2',
-      title: 'The Great Resignation: How Employers Drive Away Their Best People',
-      source: 'HBR',
-      difficulty: 'IELTS',
-      readTime: '8 min',
-      cover:
-        'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=400&auto=format&fit=crop',
-    },
-    {
-      id: '3',
-      title: 'A Brief History of Time',
-      source: 'Wikipedia',
-      difficulty: 'GRE',
-      readTime: '12 min',
-      cover:
-        'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop',
-    },
-  ]
+  const { todayArticles, fetchToday } = useDailyReaderStore()
+
+  useDidShow(() => {
+    fetchToday()
+  })
+
+  const DIFFICULTY_LABELS: Record<string, string> = {
+    A2: 'A2',
+    B1: 'B1',
+    B2: 'B2',
+    C1: 'C1',
+  }
 
   return (
     <View className='home-page'>
@@ -199,26 +183,39 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
 
         <View className='section-header'>
           <Text className='section-title'>每日精选</Text>
-          <Text className='section-more'>更多</Text>
         </View>
 
         <View className='feed-content'>
-          {recommendations.map((item) => (
-            <View key={item.id} className='feed-card'>
-              <View className='card-cover-box'>
-                <View className='card-cover' style={{ backgroundImage: `url(${item.cover})` }} />
-                <View className='card-badge'>{item.difficulty}</View>
-              </View>
-              <View className='card-info'>
-                <Text className='item-title'>{item.title}</Text>
-                <View className='item-meta'>
-                  <Text className='meta-text'>{item.source}</Text>
-                  <View className='meta-dot' />
-                  <Text className='meta-text'>{item.readTime}</Text>
+          {todayArticles.length > 0 ? (
+            todayArticles.map((article) => (
+              <View
+                key={article.id}
+                className='feed-card'
+                onClick={() => Taro.navigateTo({ url: `/pages/daily-reader/index?id=${article.id}` })}
+              >
+                <View className='card-cover-box'>
+                  {article.coverImageUrl ? (
+                    <View className='card-cover' style={{ backgroundImage: `url(${article.coverImageUrl})` }} />
+                  ) : (
+                    <View className={`card-cover card-cover--${article.coverTheme}`} />
+                  )}
+                  <View className='card-badge'>{DIFFICULTY_LABELS[article.difficulty] || article.difficulty}</View>
+                </View>
+                <View className='card-info'>
+                  <Text className='item-title'>{article.title}</Text>
+                  <View className='item-meta'>
+                    <Text className='meta-text'>{article.source}</Text>
+                    <View className='meta-dot' />
+                    <Text className='meta-text'>{article.readTimeMinutes} min</Text>
+                  </View>
                 </View>
               </View>
+            ))
+          ) : (
+            <View className='feed-empty'>
+              <Text className='feed-empty-text'>今日精读即将上线</Text>
             </View>
-          ))}
+          )}
         </View>
 
         <View className='list-footer' />

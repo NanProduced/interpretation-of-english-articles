@@ -2,6 +2,8 @@ from fastapi import APIRouter
 
 from app.api.routes.analyze import router as analyze_router
 from app.api.routes.auth import router as auth_router
+from app.api.routes.daily_reader import router as daily_reader_router
+from app.api.routes.daily_reader_admin import router as daily_reader_admin_router
 from app.api.routes.dict import router as dict_router
 from app.api.routes.favorites import router as favorites_router
 from app.api.routes.feedback import router as feedback_router
@@ -24,4 +26,6 @@ api_router.include_router(favorites_router)
 api_router.include_router(vocabulary_router)
 api_router.include_router(feedback_router)
 api_router.include_router(internal_feedback_router)
+api_router.include_router(daily_reader_router)
+api_router.include_router(daily_reader_admin_router)
 

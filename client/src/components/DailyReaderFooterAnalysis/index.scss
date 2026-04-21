@@ -1,0 +1,268 @@
+.daily-footer {
+  padding: 0 28px 40px;
+  margin-top: 16px;
+
+  &__divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 32px 0 28px;
+  }
+
+  &__divider-line {
+    flex: 1;
+    height: 1px;
+    background: #d8cfc4;
+  }
+
+  &__divider-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #8b7355;
+    letter-spacing: 2px;
+  }
+
+  &__section {
+    margin-bottom: 28px;
+  }
+
+  &__section-icon {
+    font-size: 16px;
+    margin-right: 6px;
+  }
+
+  &__section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #4a3f35;
+    margin-bottom: 12px;
+    display: inline;
+  }
+
+  &__summary {
+    display: block;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #5a4f45;
+    margin-top: 8px;
+  }
+
+  &__thesis-block {
+    margin-top: 8px;
+    padding: 12px 16px;
+    background: #faf6f0;
+    border-radius: 6px;
+    border-left: 3px solid #c9b8a3;
+  }
+
+  &__thesis-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #8b7355;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  &__thesis-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #4a3f35;
+    display: block;
+  }
+
+  &__structure {
+    margin-top: 8px;
+  }
+
+  &__structure-item {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  &__structure-marker {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f0e6d8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__structure-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #8b7355;
+  }
+
+  &__structure-content {
+    flex: 1;
+  }
+
+  &__structure-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #4a3f35;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  &__structure-summary {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #7a6f65;
+    display: block;
+  }
+
+  &__expressions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  &__expr-card {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 140px;
+    padding: 12px 14px;
+    background: #faf6f0;
+    border-radius: 8px;
+    border: 1px solid #ede4d8;
+  }
+
+  &__expr-en {
+    font-family: 'Georgia', serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #4a3f35;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  &__expr-zh {
+    font-size: 13px;
+    color: #6b5e52;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  &__expr-context {
+    font-size: 12px;
+    font-style: italic;
+    color: #9a8a7a;
+    display: block;
+    line-height: 1.4;
+  }
+
+  &__misreading {
+    padding: 12px 16px;
+    background: #fdf6f0;
+    border-radius: 6px;
+    border-left: 3px solid #d4a574;
+    margin-bottom: 8px;
+  }
+
+  &__misreading-point {
+    font-size: 14px;
+    font-weight: 500;
+    color: #8b5e3c;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  &__misreading-clarify {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #6b5e52;
+    display: block;
+  }
+
+  &__analysis {
+    max-height: 120px;
+    overflow: hidden;
+    position: relative;
+    margin-top: 8px;
+    transition: max-height 0.3s ease;
+
+    &--expanded {
+      max-height: none;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: linear-gradient(to bottom, transparent, #fffcf7);
+    }
+
+    &--expanded::after {
+      display: none;
+    }
+  }
+
+  &__analysis-text {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #4a3f35;
+  }
+
+  &__expand-btn {
+    display: block;
+    font-size: 13px;
+    color: #8b7355;
+    text-align: center;
+    margin-top: 8px;
+    padding: 4px 0;
+  }
+
+  &__question {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  &__question-num {
+    font-size: 14px;
+    font-weight: 600;
+    color: #8b7355;
+  }
+
+  &__question-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #4a3f35;
+    font-style: italic;
+  }
+
+  &__source {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid #e8e0d6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__source-label {
+    font-size: 12px;
+    color: #9a8a7a;
+  }
+
+  &__source-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b5e52;
+  }
+
+  &__source-link {
+    font-size: 13px;
+    color: #8b7355;
+    margin-left: 4px;
+  }
+}

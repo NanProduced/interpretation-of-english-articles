@@ -1,0 +1,20 @@
+.daily-body {
+  padding: 0 28px;
+
+  &__paragraph {
+    margin-bottom: 24px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__text {
+    font-family: 'Georgia', 'Noto Serif SC', serif;
+    font-size: 17px;
+    line-height: 1.8;
+    color: #3a3330;
+    letter-spacing: 0.2px;
+    word-spacing: 0.5px;
+  }
+}

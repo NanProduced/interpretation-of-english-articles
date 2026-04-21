@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     wechat_app_secret: str = ""
     auth_session_expiry_days: int = 30
 
+    # 每日精读
+    guardian_api_key: str = ""
+    daily_reader_admin_openid: str = ""
+    daily_reader_admin_api_key: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -1,0 +1,131 @@
+.daily-sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+}
+
+.daily-sheet {
+  width: 100%;
+  background: #fffcf7;
+  border-radius: 16px 16px 0 0;
+  padding: 12px 24px 40px;
+  max-height: 60vh;
+  overflow-y: auto;
+
+  &__handle {
+    width: 36px;
+    height: 4px;
+    background: #d8cfc4;
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  &__word {
+    font-family: 'Georgia', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #2c2420;
+  }
+
+  &__type-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+
+    &--vocab_highlight {
+      background: rgba(139, 115, 85, 0.12);
+    }
+    &--phrase_gloss {
+      background: rgba(85, 115, 139, 0.10);
+    }
+    &--context_gloss {
+      background: rgba(139, 85, 115, 0.10);
+    }
+  }
+
+  &__type-text {
+    font-size: 11px;
+    font-weight: 500;
+    color: #6b5e52;
+  }
+
+  &__gloss {
+    padding: 12px 16px;
+    background: #faf6f0;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+
+  &__gloss-text {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #4a3f35;
+  }
+
+  &__detail {
+    margin-bottom: 16px;
+  }
+
+  &__phonetic {
+    font-size: 14px;
+    color: #8b7355;
+    margin-right: 8px;
+  }
+
+  &__pos {
+    font-size: 13px;
+    color: #9a8a7a;
+    font-style: italic;
+  }
+
+  &__context {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #f5f0ea;
+    border-radius: 6px;
+    border-left: 3px solid #c9b8a3;
+  }
+
+  &__context-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #8b7355;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  &__context-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #4a3f35;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: center;
+  }
+
+  &__action-btn {
+    padding: 10px 24px;
+    background: #f0e6d8;
+    border-radius: 20px;
+  }
+
+  &__action-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b5e52;
+  }
+}

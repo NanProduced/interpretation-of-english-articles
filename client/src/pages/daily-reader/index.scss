@@ -1,0 +1,57 @@
+.daily-page {
+  min-height: 100vh;
+  background: #fffcf7;
+  padding-bottom: env(safe-area-inset-bottom);
+
+  &--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding-top: 50vh;
+  }
+
+  &__loading-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #c9b8a3;
+    animation: daily-loading-pulse 1.2s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    &:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+  }
+
+  &--error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 50vh;
+  }
+
+  &__error-text {
+    font-size: 15px;
+    color: #9a8a7a;
+  }
+
+  &__body-divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, #d8cfc4, transparent);
+    margin: 0 40px 24px;
+  }
+}
+
+@keyframes daily-loading-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
