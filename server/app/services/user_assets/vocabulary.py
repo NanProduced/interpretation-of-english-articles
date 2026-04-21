@@ -110,78 +110,81 @@ async def upsert_vocabulary(
         raise RuntimeError("Database pool not initialized")
 
     async with pool.acquire() as conn:
-        now = datetime.now(UTC)
+        async with conn.transaction():
+            now = datetime.now(UTC)
 
-        existing_row = await conn.fetchrow(
-            """
-            SELECT payload_json
-            FROM vocabulary_book
-            WHERE user_id = $1 AND LOWER(lemma) = LOWER($2)
-            """,
-            user_id,
-            lemma,
-        )
+            existing_row = await conn.fetchrow(
+                """
+                SELECT payload_json
+                FROM vocabulary_book
+                WHERE user_id = $1 AND LOWER(lemma) = LOWER($2)
+                FOR UPDATE
+                """,
+                user_id,
+                lemma,
+            )
 
-        if existing_row:
-            existing_payload = (
-                dict(existing_row["payload_json"])
-                if existing_row["payload_json"]
-                else {}
-            )
-            merged_payload = _merge_payload_on_conflict(
-                existing_payload=existing_payload,
-                incoming_payload=payload_json,
-                incoming_display_word=display_word,
-            )
-        else:
-            merged_payload = payload_json
+            if existing_row:
+                existing_payload = (
+                    dict(existing_row["payload_json"])
+                    if existing_row["payload_json"]
+                    else {}
+                )
+                merged_payload = _merge_payload_on_conflict(
+                    existing_payload=existing_payload,
+                    incoming_payload=payload_json,
+                    incoming_display_word=display_word,
+                )
+            else:
+                merged_payload = payload_json
 
-        row = await conn.fetchrow(
-            """
-            INSERT INTO vocabulary_book (
-                user_id, lemma, display_word, phonetic, part_of_speech,
-                short_meaning, meanings_json, tags, exchange, source_provider,
-                dict_entry_id, source_sentence, source_context,
-                mastery_status, payload_json, created_at, updated_at
+            row = await conn.fetchrow(
+                """
+                INSERT INTO vocabulary_book (
+                    user_id, lemma, display_word, phonetic, part_of_speech,
+                    short_meaning, meanings_json, tags, exchange, source_provider,
+                    dict_entry_id, source_sentence, source_context,
+                    mastery_status, payload_json, created_at, updated_at
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
+                ON CONFLICT (user_id, LOWER(lemma)) DO UPDATE SET
+                    display_word      = EXCLUDED.display_word,
+                    phonetic          = EXCLUDED.phonetic,
+                    part_of_speech    = EXCLUDED.part_of_speech,
+                    short_meaning     = EXCLUDED.short_meaning,
+                    meanings_json     = EXCLUDED.meanings_json,
+                    tags              = EXCLUDED.tags,
+                    exchange          = EXCLUDED.exchange,
+                    source_provider   = EXCLUDED.source_provider,
+                    dict_entry_id     = COALESCE(EXCLUDED.dict_entry_id, vocabulary_book.dict_entry_id),
+                    source_sentence   = EXCLUDED.source_sentence,
+                    source_context    = EXCLUDED.source_context,
+                    payload_json      = EXCLUDED.payload_json,
+                    updated_at        = $16
+                WHERE vocabulary_book.user_id = $1
+                RETURNING id, updated_at,
+                    (xmax = 0) AS created
+                """,
+                user_id,
+                lemma.lower(),
+                display_word,
+                phonetic,
+                part_of_speech,
+                short_meaning,
+                json.dumps(meanings_json),
+                tags,
+                exchange,
+                source_provider,
+                dict_entry_id,
+                source_sentence,
+                source_context,
+                mastery_status,
+                json.dumps(merged_payload),
+                now,
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
-            ON CONFLICT (user_id, LOWER(lemma)) DO UPDATE SET
-                display_word      = EXCLUDED.display_word,
-                phonetic          = EXCLUDED.phonetic,
-                part_of_speech    = EXCLUDED.part_of_speech,
-                short_meaning     = EXCLUDED.short_meaning,
-                meanings_json     = EXCLUDED.meanings_json,
-                tags              = EXCLUDED.tags,
-                exchange          = EXCLUDED.exchange,
-                source_provider   = EXCLUDED.source_provider,
-                dict_entry_id     = COALESCE(EXCLUDED.dict_entry_id, vocabulary_book.dict_entry_id),
-                source_sentence   = EXCLUDED.source_sentence,
-                source_context    = EXCLUDED.source_context,
-                payload_json      = EXCLUDED.payload_json,
-                updated_at        = $16
-            WHERE vocabulary_book.user_id = $1
-            RETURNING id, updated_at,
-                (xmax = 0) AS created
-            """,
-            user_id,
-            lemma.lower(),
-            display_word,
-            phonetic,
-            part_of_speech,
-            short_meaning,
-            json.dumps(meanings_json),
-            tags,
-            exchange,
-            source_provider,
-            dict_entry_id,
-            source_sentence,
-            source_context,
-            mastery_status,
-            json.dumps(merged_payload),
-            now,
-        )
-        assert row is not None
-        return UUID(str(row["id"])), bool(row["created"]), row["updated_at"]
+            if row is None:
+                raise RuntimeError("upsert_vocabulary failed: no row returned")
+            return UUID(str(row["id"])), bool(row["created"]), row["updated_at"]
 
 
 async def list_vocabulary(

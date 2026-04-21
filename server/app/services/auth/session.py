@@ -195,6 +195,7 @@ async def validate_session(token: str) -> SessionInfo | None:
         SessionInfo 或 None（无效/过期）
     """
     if db_connection.DB_POOL is None:
+        logger.warning("validate_session: database pool not initialized, returning None")
         return None
 
     token_hash = _hash_token(token)
@@ -249,6 +250,7 @@ async def revoke_session(token: str) -> bool:
         True 找到并失效，False 未找到
     """
     if db_connection.DB_POOL is None:
+        logger.warning("revoke_session: database pool not initialized, returning False")
         return False
 
     token_hash = _hash_token(token)

@@ -6,6 +6,7 @@ then selects diverse candidates and runs the Daily Reader Workflow.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 from collections import Counter
@@ -14,6 +15,7 @@ from datetime import date, datetime
 
 import orjson
 
+from app.database import connection as db_connection
 from app.services.daily_reader.discovery import DiscoveredArticle, discover_guardian, discover_rss_sources
 from app.services.daily_reader.extraction import apply_extraction_to_article, extract_with_trafilatura
 from app.services.daily_reader.content_security import check_content_security, is_content_safe
@@ -50,21 +52,25 @@ async def run_daily_pipeline(
 ) -> PipelineResult:
     result = PipelineResult()
 
-    # Layer 1: Discovery
-    guardian_articles = await discover_guardian()
-    rss_articles = await discover_rss_sources()
+    # Layer 1: Discovery (concurrent)
+    guardian_articles, rss_articles = await asyncio.gather(
+        discover_guardian(),
+        discover_rss_sources(),
+    )
     candidates = guardian_articles + rss_articles
     result.candidates_found = len(candidates)
     logger.info("Pipeline discovery: %d candidates", len(candidates))
 
-    # Layer 2: Extraction (for RSS-sourced articles)
-    for article in candidates:
+    # Layer 2: Extraction (concurrent for RSS-sourced articles)
+    async def _extract_one(article: DiscoveredArticle) -> None:
         if article.needs_extraction:
             extraction = await extract_with_trafilatura(article.url)
             if extraction:
                 apply_extraction_to_article(article, extraction)
             else:
                 article.text = ""
+
+    await asyncio.gather(*[_extract_one(a) for a in candidates])
 
     candidates = [a for a in candidates if a.text]
     result.candidates_extracted = len(candidates)
@@ -78,11 +84,15 @@ async def run_daily_pipeline(
     candidates = filter_by_word_count(candidates)
     logger.info("Pipeline word count filter: %d articles in range", len(candidates))
 
-    # Layer 2.5: Content Security Check
-    safe_candidates: list[tuple[DiscoveredArticle, dict]] = []
-    for article in candidates:
+    # Layer 2.5: Content Security Check (concurrent)
+    async def _check_security(article: DiscoveredArticle) -> tuple[DiscoveredArticle, dict]:
         sec_result = await check_content_security(article.title, article.text)
+        return article, sec_result
 
+    sec_results = await asyncio.gather(*[_check_security(a) for a in candidates])
+
+    safe_candidates: list[tuple[DiscoveredArticle, dict]] = []
+    for article, sec_result in sec_results:
         if is_content_safe(sec_result):
             safe_candidates.append((article, sec_result))
         else:
@@ -95,10 +105,19 @@ async def run_daily_pipeline(
     result.candidates_safe = len(safe_candidates)
     logger.info("Pipeline content security: %d safe articles", len(safe_candidates))
 
-    # Layer 3: AI Scoring
-    scored: list[tuple[DiscoveredArticle, ArticleScore, dict]] = []
-    for article, sec_result in safe_candidates:
+    # Layer 3: AI Scoring (concurrent)
+    async def _score_one(
+        article: DiscoveredArticle, sec_result: dict
+    ) -> tuple[DiscoveredArticle, ArticleScore | None, dict]:
         score = await score_article(article)
+        return article, score, sec_result
+
+    score_results = await asyncio.gather(
+        *[_score_one(a, s) for a, s in safe_candidates]
+    )
+
+    scored: list[tuple[DiscoveredArticle, ArticleScore, dict]] = []
+    for article, score, sec_result in score_results:
         if score and score.score >= SCORE_THRESHOLD:
             scored.append((article, score, sec_result))
 
@@ -248,9 +267,9 @@ async def _assemble_payload(
 
 
 async def _get_existing_text_hashes() -> set[str]:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     try:
         async with pool.acquire() as conn:
             rows = await conn.fetch(
@@ -262,9 +281,9 @@ async def _get_existing_text_hashes() -> set[str]:
 
 
 async def _next_sequence_number(publish_date: date) -> int:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     try:
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -278,9 +297,9 @@ async def _next_sequence_number(publish_date: date) -> int:
 
 
 async def _store_daily_reader(payload: dict) -> None:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     async with pool.acquire() as conn:
         await conn.execute(
             """

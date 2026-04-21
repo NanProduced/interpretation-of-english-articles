@@ -6,13 +6,12 @@
 
 from __future__ import annotations
 
-import json
 from logging import getLogger
-from typing import Any
 from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+from typing import Any
 
 from app.services.auth import (
     create_session,
@@ -20,6 +19,7 @@ from app.services.auth import (
     revoke_session,
 )
 from app.services.auth.dependencies import AuthUserDep
+from app.services.auth.profile import get_user_profile, update_user_profile
 from app.services.auth.wechat import WeChatAPIError, code2session
 
 logger = getLogger("app.api")
@@ -38,13 +38,36 @@ class LogoutRequest(BaseModel):
 
 
 class ProfileUpdateRequest(BaseModel):
-    """更新用户资料请求"""
     nickname: str | None = Field(default=None, max_length=50)
     avatar_url: str | None = Field(default=None, max_length=500)
     settings: dict[str, Any] | None = Field(default=None, description="用户设置 JSON")
 
 
-@router.post("/wechat/login")
+class WeChatLoginResponse(BaseModel):
+    user_id: str
+    session_token: str
+    expires_at: str
+
+
+class SessionInfoResponse(BaseModel):
+    user_id: str
+    session_id: str
+    nickname: str
+    avatar_url: str
+    cumulative_article_count: int
+    settings: dict[str, Any]
+
+
+class ProfileUpdateResponse(BaseModel):
+    ok: bool
+    updated: list[str]
+
+
+class LogoutResponse(BaseModel):
+    ok: bool
+
+
+@router.post("/wechat/login", response_model=WeChatLoginResponse)
 async def wechat_login(
     request: Request,
     body: WeChatLoginRequest,
@@ -107,7 +130,7 @@ async def wechat_login(
     }
 
 
-@router.post("/session/logout")
+@router.post("/session/logout", response_model=LogoutResponse)
 async def logout(
     body: LogoutRequest,
 ) -> dict:
@@ -122,94 +145,48 @@ async def logout(
     return {"ok": True}
 
 
-@router.get("/session/me")
+@router.get("/session/me", response_model=SessionInfoResponse)
 async def get_current_session_info(
     current_user: AuthUserDep,
 ) -> dict:
-    """
-    获取当前登录用户信息。
+    try:
+        profile = await get_user_profile(PyUUID(current_user.user_id))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
-    需要带有效的 Authorization: Bearer <session_token> header。
-    返回 user_id、session_id、nickname（display_name）、avatar_url。
-    """
-    from app.database import connection as db_connection
-
-    if db_connection.DB_POOL is None:
-        raise HTTPException(status_code=500, detail="Database not initialized")
-
-    async with db_connection.DB_POOL.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            SELECT id, display_name, avatar_url, cumulative_article_count, settings_json 
-            FROM users WHERE id = $1
-            """,
-            PyUUID(current_user.user_id),
-        )
-        if row is None:
-            raise HTTPException(status_code=404, detail="User not found")
+    if profile is None:
+        raise HTTPException(status_code=404, detail="User not found")
 
     return {
         "user_id": current_user.user_id,
         "session_id": current_user.session_id,
-        "nickname": row["display_name"] or "",
-        "avatar_url": row["avatar_url"] or "",
-        "cumulative_article_count": row["cumulative_article_count"] or 0,
-        "settings": json.loads(row["settings_json"]) if row["settings_json"] else {},
+        "nickname": profile["nickname"],
+        "avatar_url": profile["avatar_url"],
+        "cumulative_article_count": profile["cumulative_article_count"],
+        "settings": profile["settings"],
     }
 
 
-@router.patch("/profile")
+@router.patch("/profile", response_model=ProfileUpdateResponse)
 async def update_profile(
     current_user: AuthUserDep,
     body: ProfileUpdateRequest,
 ) -> dict:
-    """
-    更新当前用户的昵称、头像或设置。
-
-    settings 为 JSON 对象，会执行增量合并。
-    """
-    from app.database import connection as db_connection
-
-    if db_connection.DB_POOL is None:
-        raise HTTPException(status_code=500, detail="Database not initialized")
-
     user_id = PyUUID(current_user.user_id)
 
-    async with db_connection.DB_POOL.acquire() as conn:
-        async with conn.transaction():
-            # 1. Fetch current row for JSON merge if needed
-            if body.settings is not None:
-                current_settings_raw = await conn.fetchval(
-                    "SELECT settings_json FROM users WHERE id = $1", user_id
-                )
-                current_settings = json.loads(current_settings_raw) if current_settings_raw else {}
-                # Merge new settings into existing ones
-                current_settings.update(body.settings)
-                new_settings_json = json.dumps(current_settings, ensure_ascii=False)
-            else:
-                new_settings_json = None
+    try:
+        updated_fields = await update_user_profile(
+            user_id=user_id,
+            nickname=body.nickname,
+            avatar_url=body.avatar_url,
+            settings=body.settings,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
-            # 2. Build update query
-            updates: dict[str, Any] = {}
-            if body.nickname is not None:
-                updates["display_name"] = body.nickname
-            if body.avatar_url is not None:
-                updates["avatar_url"] = body.avatar_url
-            if new_settings_json is not None:
-                updates["settings_json"] = new_settings_json
+    if not updated_fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
 
-            if not updates:
-                raise HTTPException(status_code=400, detail="No fields to update")
+    logger.info("profile updated for user %s: %s", current_user.user_id, updated_fields)
 
-            set_clauses = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates.keys()))
-            values = list(updates.values())
-
-            await conn.execute(
-                f"UPDATE users SET {set_clauses} WHERE id = $1",
-                user_id,
-                *values,
-            )
-
-    logger.info("profile updated for user %s: %s", current_user.user_id, list(updates.keys()))
-
-    return {"ok": True, "updated": list(updates.keys())}
+    return {"ok": True, "updated": updated_fields}

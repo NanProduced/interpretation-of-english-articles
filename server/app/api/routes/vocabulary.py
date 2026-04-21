@@ -85,7 +85,7 @@ async def add_vocabulary(
         )
     except Exception as e:
         logger.error("add_vocabulary failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("", response_model=VocabularyListResponse)
@@ -113,7 +113,7 @@ async def get_vocabulary_list(
         )
     except Exception as e:
         logger.error("list_vocabulary failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.post("/highlights", response_model=VocabHighlightsResponse)
@@ -146,7 +146,7 @@ async def get_vocab_highlights(
         )
     except Exception as e:
         logger.error("get_vocab_highlights failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.patch("/{vocab_id}", response_model=VocabularyResponse)
@@ -171,7 +171,7 @@ async def update_vocabulary(
         raise
     except Exception as e:
         logger.error("update_vocabulary failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.delete("/{vocab_id}")
@@ -192,4 +192,4 @@ async def delete_vocabulary(
         raise
     except Exception as e:
         logger.error("delete_vocabulary failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e

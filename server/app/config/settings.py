@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     daily_reader_admin_openid: str = ""
     daily_reader_admin_api_key: str = ""
 
+    # 内部 API Key（云函数调用等）
+    internal_api_key: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

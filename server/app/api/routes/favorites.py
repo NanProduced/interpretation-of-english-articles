@@ -43,7 +43,7 @@ async def add_favorite(
         return {"id": str(fav_id), "ok": True}
     except Exception as e:
         logger.error("add_favorite failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("", response_model=FavoriteListResponse)
@@ -61,7 +61,7 @@ async def list_favorites(
         )
     except Exception as e:
         logger.error("list_favorites failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.delete("/{analysis_record_id}", response_model=FavoriteDeleteResponse)
@@ -78,4 +78,4 @@ async def remove_favorite(
         return FavoriteDeleteResponse(deleted=count > 0)
     except Exception as e:
         logger.error("remove_favorite failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e

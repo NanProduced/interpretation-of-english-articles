@@ -309,13 +309,14 @@ export async function fetchAnonymousQuota(anonymousId: string): Promise<Anonymou
 
 export interface QuotaCheckResponse {
   allowed: boolean
-  remaining_trials?: number
-  reason?: string
+  remaining: number
+  reset_at: string
+  quota_type: string
 }
 
 export async function checkAnonymousQuota(anonymousId: string): Promise<QuotaCheckResponse> {
   return request<QuotaCheckResponse>({
-    url: '/quota/check',
+    url: '/me/quota/check',
     method: 'POST',
     data: { anonymous_id: anonymousId },
   })

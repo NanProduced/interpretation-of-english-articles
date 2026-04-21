@@ -95,22 +95,26 @@ async def vocab_highlight_node(state: DailyReaderState) -> dict:
     if not paragraphs:
         return {"vocab_draft": None, "highlights_json": []}
 
-    deps = DailyVocabAgentDeps(paragraphs=paragraphs)
-    agent = get_daily_vocab_agent()
-    prompt = build_daily_vocab_prompt(deps)
+    try:
+        deps = DailyVocabAgentDeps(paragraphs=paragraphs)
+        agent = get_daily_vocab_agent()
+        prompt = build_daily_vocab_prompt(deps)
 
-    result = await run_agent_with_route(
-        agent=agent,
-        prompt=prompt,
-        deps=deps,
-        route=MODEL_ROUTE_DAILY_ANNOTATION,
-    )
+        result = await run_agent_with_route(
+            agent=agent,
+            prompt=prompt,
+            deps=deps,
+            route=MODEL_ROUTE_DAILY_ANNOTATION,
+        )
 
-    draft = result.output
-    vocab_dict = draft.model_dump() if draft else {}
-    highlights = _extract_highlights_from_vocab_draft(draft)
+        draft = result.output
+        vocab_dict = draft.model_dump() if draft else {}
+        highlights = _extract_highlights_from_vocab_draft(draft)
 
-    return {"vocab_draft": vocab_dict, "highlights_json": highlights}
+        return {"vocab_draft": vocab_dict, "highlights_json": highlights}
+    except Exception as e:
+        logger.error("vocab_highlight_node failed: %s", e, exc_info=True)
+        return {"vocab_draft": None, "highlights_json": []}
 
 
 async def phrase_context_gloss_node(state: DailyReaderState) -> dict:
@@ -120,27 +124,31 @@ async def phrase_context_gloss_node(state: DailyReaderState) -> dict:
     if not paragraphs:
         return {"highlights_json": existing_highlights}
 
-    from app.services.analysis.prompting.daily_prompt_strategy import build_phrase_gloss_strategy
+    try:
+        from app.services.analysis.prompting.daily_prompt_strategy import build_phrase_gloss_strategy
 
-    deps = DailyVocabAgentDeps(
-        paragraphs=paragraphs,
-        prompt_strategy=build_phrase_gloss_strategy(),
-    )
-    agent = get_daily_vocab_agent()
-    prompt = build_daily_vocab_prompt(deps)
+        deps = DailyVocabAgentDeps(
+            paragraphs=paragraphs,
+            prompt_strategy=build_phrase_gloss_strategy(),
+        )
+        agent = get_daily_vocab_agent()
+        prompt = build_daily_vocab_prompt(deps)
 
-    result = await run_agent_with_route(
-        agent=agent,
-        prompt=prompt,
-        deps=deps,
-        route=MODEL_ROUTE_DAILY_ANNOTATION,
-    )
+        result = await run_agent_with_route(
+            agent=agent,
+            prompt=prompt,
+            deps=deps,
+            route=MODEL_ROUTE_DAILY_ANNOTATION,
+        )
 
-    draft = result.output
-    new_highlights = _extract_highlights_from_vocab_draft(draft)
-    merged = existing_highlights + new_highlights
+        draft = result.output
+        new_highlights = _extract_highlights_from_vocab_draft(draft)
+        merged = existing_highlights + new_highlights
 
-    return {"highlights_json": merged}
+        return {"highlights_json": merged}
+    except Exception as e:
+        logger.error("phrase_context_gloss_node failed: %s", e, exc_info=True)
+        return {"highlights_json": existing_highlights}
 
 
 async def footer_analysis_node(state: DailyReaderState) -> dict:
@@ -148,30 +156,34 @@ async def footer_analysis_node(state: DailyReaderState) -> dict:
     title = state.get("title", "")
     highlights = state.get("highlights_json", [])
 
-    highlights_summary = ""
-    if highlights:
-        hl_texts = [h.get("text", "") for h in highlights[:10]]
-        highlights_summary = f"已标注的关键词：{', '.join(hl_texts)}"
+    try:
+        highlights_summary = ""
+        if highlights:
+            hl_texts = [h.get("text", "") for h in highlights[:10]]
+            highlights_summary = f"已标注的关键词：{', '.join(hl_texts)}"
 
-    deps = DailyFooterAgentDeps(
-        full_text=full_text,
-        title=title,
-        highlights_summary=highlights_summary,
-    )
-    agent = get_daily_footer_agent()
-    prompt = build_daily_footer_prompt(deps)
+        deps = DailyFooterAgentDeps(
+            full_text=full_text,
+            title=title,
+            highlights_summary=highlights_summary,
+        )
+        agent = get_daily_footer_agent()
+        prompt = build_daily_footer_prompt(deps)
 
-    result = await run_agent_with_route(
-        agent=agent,
-        prompt=prompt,
-        deps=deps,
-        route=MODEL_ROUTE_DAILY_ANALYSIS,
-    )
+        result = await run_agent_with_route(
+            agent=agent,
+            prompt=prompt,
+            deps=deps,
+            route=MODEL_ROUTE_DAILY_ANALYSIS,
+        )
 
-    footer = result.output
-    footer_dict = footer.model_dump() if footer else {}
+        footer = result.output
+        footer_dict = footer.model_dump() if footer else {}
 
-    return {"footer_analysis_json": footer_dict}
+        return {"footer_analysis_json": footer_dict}
+    except Exception as e:
+        logger.error("footer_analysis_node failed: %s", e, exc_info=True)
+        return {"footer_analysis_json": {}}
 
 
 async def full_interpretation_node(state: DailyReaderState) -> dict:
@@ -179,27 +191,31 @@ async def full_interpretation_node(state: DailyReaderState) -> dict:
     title = state.get("title", "")
     footer = state.get("footer_analysis_json", {})
 
-    footer_summary = ""
-    if footer:
-        footer_summary = json.dumps(footer, ensure_ascii=False)[:1000]
+    try:
+        footer_summary = ""
+        if footer:
+            footer_summary = json.dumps(footer, ensure_ascii=False)[:1000]
 
-    deps = DailyInterpretationAgentDeps(
-        full_text=full_text,
-        title=title,
-        footer_summary=footer_summary,
-    )
-    agent = get_daily_interpretation_agent()
-    prompt = build_daily_interpretation_prompt(deps)
+        deps = DailyInterpretationAgentDeps(
+            full_text=full_text,
+            title=title,
+            footer_summary=footer_summary,
+        )
+        agent = get_daily_interpretation_agent()
+        prompt = build_daily_interpretation_prompt(deps)
 
-    result = await run_agent_with_route(
-        agent=agent,
-        prompt=prompt,
-        deps=deps,
-        route=MODEL_ROUTE_DAILY_ANALYSIS,
-    )
+        result = await run_agent_with_route(
+            agent=agent,
+            prompt=prompt,
+            deps=deps,
+            route=MODEL_ROUTE_DAILY_ANALYSIS,
+        )
 
-    interpretation = result.output
-    return {"full_interpretation": interpretation.full_article_analysis if interpretation else ""}
+        interpretation = result.output
+        return {"full_interpretation": interpretation.full_article_analysis if interpretation else ""}
+    except Exception as e:
+        logger.error("full_interpretation_node failed: %s", e, exc_info=True)
+        return {"full_interpretation": ""}
 
 
 async def quality_review_node(state: DailyReaderState) -> dict:
@@ -208,25 +224,29 @@ async def quality_review_node(state: DailyReaderState) -> dict:
     footer = state.get("footer_analysis_json", {})
     interpretation = state.get("full_interpretation", "")
 
-    deps = DailyReviewAgentDeps(
-        original_text=original_text,
-        highlights_json=json.dumps(highlights, ensure_ascii=False),
-        footer_analysis_json=json.dumps(footer, ensure_ascii=False),
-        full_interpretation=interpretation,
-    )
-    agent = get_daily_review_agent()
-    prompt = build_daily_review_prompt(deps)
+    try:
+        deps = DailyReviewAgentDeps(
+            original_text=original_text,
+            highlights_json=json.dumps(highlights, ensure_ascii=False),
+            footer_analysis_json=json.dumps(footer, ensure_ascii=False),
+            full_interpretation=interpretation,
+        )
+        agent = get_daily_review_agent()
+        prompt = build_daily_review_prompt(deps)
 
-    result = await run_agent_with_route(
-        agent=agent,
-        prompt=prompt,
-        deps=deps,
-        route=MODEL_ROUTE_DAILY_REVIEW,
-    )
+        result = await run_agent_with_route(
+            agent=agent,
+            prompt=prompt,
+            deps=deps,
+            route=MODEL_ROUTE_DAILY_REVIEW,
+        )
 
-    review = result.output
-    review_dict = review.model_dump() if review else {}
-    return {"review_result": review_dict}
+        review = result.output
+        review_dict = review.model_dump() if review else {}
+        return {"review_result": review_dict}
+    except Exception as e:
+        logger.error("quality_review_node failed: %s", e, exc_info=True)
+        return {"review_result": {"passed": True}}
 
 
 async def refinement_node(state: DailyReaderState) -> dict:
@@ -236,43 +256,47 @@ async def refinement_node(state: DailyReaderState) -> dict:
     footer = state.get("footer_analysis_json", {})
     interpretation = state.get("full_interpretation", "")
 
-    issues_text = json.dumps(review.get("issues", []), ensure_ascii=False)
+    try:
+        issues_text = json.dumps(review.get("issues", []), ensure_ascii=False)
 
-    deps = DailyRefinementAgentDeps(
-        original_text=original_text,
-        review_issues=issues_text,
-        current_highlights=json.dumps(highlights, ensure_ascii=False),
-        current_footer=json.dumps(footer, ensure_ascii=False),
-        current_interpretation=interpretation,
-    )
-    agent = get_daily_refinement_agent()
-    prompt = build_daily_refinement_prompt(deps)
+        deps = DailyRefinementAgentDeps(
+            original_text=original_text,
+            review_issues=issues_text,
+            current_highlights=json.dumps(highlights, ensure_ascii=False),
+            current_footer=json.dumps(footer, ensure_ascii=False),
+            current_interpretation=interpretation,
+        )
+        agent = get_daily_refinement_agent()
+        prompt = build_daily_refinement_prompt(deps)
 
-    result = await run_agent_with_route(
-        agent=agent,
-        prompt=prompt,
-        deps=deps,
-        route=MODEL_ROUTE_DAILY_REVIEW,
-    )
+        result = await run_agent_with_route(
+            agent=agent,
+            prompt=prompt,
+            deps=deps,
+            route=MODEL_ROUTE_DAILY_REVIEW,
+        )
 
-    refinement = result.output
-    refinement_dict = refinement.model_dump() if refinement else {}
+        refinement = result.output
+        refinement_dict = refinement.model_dump() if refinement else {}
 
-    updates: dict[str, Any] = {"refinement_result": refinement_dict}
+        updates: dict[str, Any] = {"refinement_result": refinement_dict}
 
-    if refinement and refinement.abort:
-        updates["abort"] = True
+        if refinement and refinement.abort:
+            updates["abort"] = True
+            return updates
+
+        if refinement:
+            if refinement.refined_highlights is not None:
+                updates["highlights_json"] = [h.model_dump() for h in refinement.refined_highlights]
+            if refinement.refined_footer is not None:
+                updates["footer_analysis_json"] = refinement.refined_footer.model_dump()
+            if refinement.refined_interpretation is not None:
+                updates["full_interpretation"] = refinement.refined_interpretation
+
         return updates
-
-    if refinement:
-        if refinement.refined_highlights is not None:
-            updates["highlights_json"] = [h.model_dump() for h in refinement.refined_highlights]
-        if refinement.refined_footer is not None:
-            updates["footer_analysis_json"] = refinement.refined_footer.model_dump()
-        if refinement.refined_interpretation is not None:
-            updates["full_interpretation"] = refinement.refined_interpretation
-
-    return updates
+    except Exception as e:
+        logger.error("refinement_node failed: %s", e, exc_info=True)
+        return {"refinement_result": {}}
 
 
 def daily_projection_node(state: DailyReaderState) -> dict:

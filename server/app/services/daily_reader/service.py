@@ -7,6 +7,7 @@ from datetime import date
 
 import orjson
 
+from app.database import connection as db_connection
 from app.schemas.daily_reader import (
     DailyReaderArticleResponse,
     DailyReaderListItem,
@@ -17,9 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 async def get_today_articles() -> list[DailyReaderArticleResponse]:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     today = date.today()
     async with pool.acquire() as conn:
         rows = await conn.fetch(
@@ -34,9 +35,9 @@ async def get_today_articles() -> list[DailyReaderArticleResponse]:
 
 
 async def get_article_by_id(article_id: str) -> DailyReaderArticleResponse | None:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT * FROM daily_readers WHERE id = $1",
@@ -51,9 +52,9 @@ async def list_articles(
     cursor: str | None = None,
     limit: int = 10,
 ) -> DailyReaderListResponse:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     params: list[object] = [limit + 1]
 
     if cursor:
@@ -90,9 +91,9 @@ async def list_articles(
 
 
 async def publish_article(article_id: str) -> bool:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     async with pool.acquire() as conn:
         result = await conn.execute(
             """
@@ -106,9 +107,9 @@ async def publish_article(article_id: str) -> bool:
 
 
 async def unpublish_article(article_id: str) -> bool:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     async with pool.acquire() as conn:
         result = await conn.execute(
             """
@@ -122,9 +123,9 @@ async def unpublish_article(article_id: str) -> bool:
 
 
 async def delete_article(article_id: str) -> bool:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     async with pool.acquire() as conn:
         result = await conn.execute(
             "DELETE FROM daily_readers WHERE id = $1 AND status = 'draft'",
@@ -134,9 +135,9 @@ async def delete_article(article_id: str) -> bool:
 
 
 async def get_draft_articles(limit: int = 20) -> list[DailyReaderListItem]:
-    from app.db.pool import get_pool
-
-    pool = get_pool()
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             """

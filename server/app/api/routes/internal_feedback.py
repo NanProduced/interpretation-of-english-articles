@@ -7,12 +7,14 @@ Uses API Key authentication instead of user session.
 
 from __future__ import annotations
 
-import os
+import secrets
 from logging import getLogger
 from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException
+from pydantic import BaseModel
 
+from app.config.settings import get_settings
 from app.schemas.feedback import (
     FeedbackRewardRequest,
     FeedbackStatusUpdateRequest,
@@ -24,11 +26,19 @@ logger = getLogger("app.api")
 
 router = APIRouter(prefix="/internal/feedback", tags=["internal"])
 
-INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY", "claread_internal_2026")
+
+class FeedbackRewardResponse(BaseModel):
+    feedback_id: str
+    user_id: str
+    reward_points: int
+    granted: bool
 
 
 def _verify_internal_key(x_internal_key: str | None) -> None:
-    if x_internal_key != INTERNAL_API_KEY:
+    settings = get_settings()
+    if not settings.internal_api_key:
+        raise HTTPException(status_code=503, detail="Internal API not configured")
+    if x_internal_key is None or not secrets.compare_digest(x_internal_key, settings.internal_api_key):
         raise HTTPException(status_code=403, detail="Invalid internal API key")
 
 
@@ -50,7 +60,7 @@ async def update_feedback_status(
     return row
 
 
-@router.post("/{feedback_id}/reward")
+@router.post("/{feedback_id}/reward", response_model=FeedbackRewardResponse)
 async def reward_feedback(
     feedback_id: UUID,
     body: FeedbackRewardRequest,

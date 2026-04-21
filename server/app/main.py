@@ -114,21 +114,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # --- 全局异常处理器 ---
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-        """HTTPException 统一处理，记录错误日志"""
         logger.error(
             "HTTP %d | path=%s | detail=%s",
             exc.status_code,
             request.url.path,
             exc.detail,
         )
+        content: dict = {"detail": exc.detail}
+        if hasattr(exc, "error_code"):
+            content["error"] = exc.error_code  # type: ignore[attr-defined]
         return JSONResponse(
             status_code=exc.status_code,
-            content={"detail": exc.detail},
+            content=content,
         )
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        """未捕获的异常统一处理，记录完整堆栈"""
         tb = traceback.format_exc()
         logger.error(
             "Unhandled exception: %s | path=%s\n%s",
@@ -138,7 +139,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         return JSONResponse(
             status_code=500,
-            content={"detail": f"Internal server error: {type(exc).__name__}"},
+            content={"error": "internal_error", "detail": "Internal server error"},
         )
 
     @app.get("/", tags=["system"])

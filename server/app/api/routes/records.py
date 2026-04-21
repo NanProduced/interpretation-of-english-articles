@@ -63,7 +63,7 @@ async def create_record(
         )
     except Exception as e:
         logger.error("create_record failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("", response_model=RecordListResponse)
@@ -89,7 +89,7 @@ async def list_records(
         )
     except Exception as e:
         logger.error("list_records failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/by-client-id/{client_record_id}", response_model=RecordResponse)
@@ -110,7 +110,7 @@ async def get_record_by_client_id(
         raise
     except Exception as e:
         logger.error("get_record_by_client_id failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/{record_id}", response_model=RecordResponse)
@@ -131,7 +131,7 @@ async def get_record(
         raise
     except Exception as e:
         logger.error("get_record failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.patch("/{record_id}", response_model=RecordResponse)
@@ -154,7 +154,7 @@ async def update_record(
         raise
     except Exception as e:
         logger.error("update_record failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.delete("/{record_id}")
@@ -175,4 +175,4 @@ async def delete_record(
         raise
     except Exception as e:
         logger.error("delete_record failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e

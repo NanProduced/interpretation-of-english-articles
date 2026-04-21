@@ -18,7 +18,7 @@ async def check_content_security(title: str, text: str) -> dict:
     access_token = await _get_wechat_access_token()
     if not access_token:
         logger.warning("WeChat access token unavailable, skipping content security check")
-        return {"suggest": "pass", "label": 100, "trace_id": "", "detail": [], "skipped": True}
+        return {"suggest": "review", "label": 100, "trace_id": "", "detail": [], "skipped": True}
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -37,7 +37,7 @@ async def check_content_security(title: str, text: str) -> dict:
             data = resp.json()
     except (httpx.HTTPError, ValueError) as e:
         logger.warning("WeChat msgSecCheck API error: %s", e)
-        return {"suggest": "pass", "label": 100, "trace_id": "", "detail": [], "error": str(e)}
+        return {"suggest": "review", "label": 100, "trace_id": "", "detail": [], "error": str(e)}
 
     result = data.get("result", {})
     return {

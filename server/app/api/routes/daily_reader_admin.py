@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Header
@@ -18,6 +20,8 @@ from app.schemas.daily_reader import (
 )
 from app.services.daily_reader import service
 
+logger = logging.getLogger("app.api")
+
 router = APIRouter(prefix="/daily-reader/admin", tags=["daily-reader-admin"])
 
 
@@ -25,7 +29,7 @@ async def verify_admin_api_key(x_admin_api_key: str = Header(...)) -> str:
     settings = get_settings()
     if not settings.daily_reader_admin_api_key:
         raise HTTPException(status_code=503, detail="Admin API not configured")
-    if x_admin_api_key != settings.daily_reader_admin_api_key:
+    if not secrets.compare_digest(x_admin_api_key, settings.daily_reader_admin_api_key):
         raise HTTPException(status_code=401, detail="Invalid admin API key")
     return x_admin_api_key
 
@@ -50,11 +54,11 @@ async def generate_articles(
             message=f"Generated {len(result.articles)} articles, {len(result.errors)} errors",
         )
     except Exception as e:
-        return DailyReaderGenerateResponse(
-            task_id=task_id,
-            status="failed",
-            message=str(e),
-        )
+        logger.error("generate_articles pipeline failed: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Pipeline execution failed",
+        ) from e
 
 
 @router.post("/publish")

@@ -219,7 +219,7 @@ async def submit_analysis_task(
         raise
     except Exception as e:
         logger.error("submit_analysis_task failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/current", response_model=ActiveTaskResponse)
@@ -241,7 +241,7 @@ async def get_current_task(
         )
     except Exception as e:
         logger.error("get_current_task failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/{task_id}", response_model=TaskStatusResponse)
@@ -262,4 +262,4 @@ async def get_task(
         raise
     except Exception as e:
         logger.error("get_task failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e
