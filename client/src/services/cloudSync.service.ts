@@ -174,6 +174,9 @@ async function executeQueueItem(item: SyncQueueItem): Promise<void> {
     case 'UPDATE_VOCAB_MASTERY':
       await executeUpdateVocabMastery(item)
       break
+    case 'UPDATE_VOCAB_REVIEW':
+      await executeUpdateVocabReview(item)
+      break
     case 'DELETE_VOCAB':
       await executeDeleteVocab(item)
       break
@@ -278,6 +281,59 @@ async function executeUpdateVocabMastery(item: SyncQueueItem): Promise<void> {
   const currentId = resolveCurrentVocabId(lemma, item.entityId)
   if (!currentId) return
   await updateCloudVocabulary(currentId, { mastery_status: masteryStatus as any })
+}
+
+async function executeUpdateVocabReview(item: SyncQueueItem): Promise<void> {
+  const {
+    lemma,
+    masteryStatus,
+    nextReviewAt,
+    easeFactor,
+    repetitions,
+    reviewInterval,
+    reviewCount,
+    lastReviewedAt,
+  } = item.payload as {
+    lemma: string
+    masteryStatus?: string
+    nextReviewAt?: number
+    easeFactor?: number
+    repetitions?: number
+    reviewInterval?: number
+    reviewCount?: number
+    lastReviewedAt?: number
+  }
+
+  const currentId = resolveCurrentVocabId(lemma, item.entityId)
+  if (!currentId) return
+
+  const patch: Parameters<typeof updateCloudVocabulary>[1] = {}
+
+  if (masteryStatus !== undefined) {
+    patch.mastery_status = masteryStatus as any
+  }
+  if (nextReviewAt !== undefined) {
+    patch.next_review_at = new Date(nextReviewAt).toISOString()
+  }
+  if (easeFactor !== undefined) {
+    patch.ease_factor = easeFactor
+  }
+  if (repetitions !== undefined) {
+    patch.repetitions = repetitions
+  }
+  if (reviewInterval !== undefined) {
+    patch.review_interval = reviewInterval
+  }
+  if (reviewCount !== undefined) {
+    patch.review_count = reviewCount
+  }
+  if (lastReviewedAt !== undefined) {
+    patch.last_reviewed_at = new Date(lastReviewedAt).toISOString()
+  }
+
+  if (Object.keys(patch).length > 0) {
+    await updateCloudVocabulary(currentId, patch)
+  }
 }
 
 async function executeDeleteVocab(item: SyncQueueItem): Promise<void> {
@@ -387,6 +443,42 @@ export const CloudSyncService = {
       entityId: vocabId,
       action: 'UPDATE_VOCAB_MASTERY',
       payload: { lemma, masteryStatus },
+      status: 'pending',
+      retryCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+
+    flushQueue()
+  },
+
+  /**
+   * 同步生词复习状态到云端
+   */
+  async syncVocabReview(
+    vocabId: string,
+    lemma: string,
+    updates: {
+      masteryStatus?: string
+      nextReviewAt?: number
+      easeFactor?: number
+      repetitions?: number
+      reviewInterval?: number
+      reviewCount?: number
+      lastReviewedAt?: number
+    }
+  ): Promise<void> {
+    if (!useAuthStore.getState().isLoggedIn) return
+
+    enqueueSyncItem({
+      opId: generateOpId(),
+      entityType: 'vocab',
+      entityId: vocabId,
+      action: 'UPDATE_VOCAB_REVIEW',
+      payload: {
+        lemma,
+        ...updates,
+      },
       status: 'pending',
       retryCount: 0,
       createdAt: Date.now(),

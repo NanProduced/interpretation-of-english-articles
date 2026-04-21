@@ -16,11 +16,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { getVocabulary, removeVocabEntry, updateVocabEntry } from '../../services/storage'
 import { CloudSyncService } from '../../services/cloudSync.service'
-import {
-  fetchCloudVocabulary,
-  fetchReviewStats,
-} from '../../services/api/vocabulary.client'
-import { getLocalReviewStats } from '../../services/review.service'
+import { getMergedVocabulary, getMergedReviewStats } from '../../services/vocab.service'
 import type { VocabEntry, ReviewStats } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
@@ -190,25 +186,8 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const loadReviewStats = useCallback(async () => {
-    const { isLoggedIn } = useAuthStore.getState()
-
     try {
-      let stats: ReviewStats
-
-      if (isLoggedIn) {
-        stats = await fetchReviewStats()
-      } else {
-        const localStats = getLocalReviewStats()
-        stats = {
-          totalVocab: localStats.totalVocab,
-          dueToday: localStats.dueToday,
-          overdue: localStats.overdue,
-          newWords: localStats.newWords,
-          learning: localStats.learning,
-          mastered: localStats.mastered,
-        }
-      }
-
+      const stats = await getMergedReviewStats()
       setReviewStats(stats)
     } catch (e) {
       console.warn('[vocab] loadReviewStats failed:', e)
@@ -217,36 +196,20 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
 
   const loadVocab = useCallback(async () => {
     setLoading(true)
-    const { isLoggedIn } = useAuthStore.getState()
 
     loadReviewStats()
 
-    if (isLoggedIn) {
-      try {
-        let allCloudItems: VocabEntry[] = []
-        let page = 1
-        const pageSize = 100
-        let hasMore = true
-        while (hasMore) {
-          const result = await fetchCloudVocabulary(page, pageSize)
-          allCloudItems = allCloudItems.concat(result.items)
-          hasMore = allCloudItems.length < result.total
-          page++
-        }
-        const localItems = getVocabulary()
-        const merged = mergeVocabCloudWithLocal(allCloudItems, localItems)
-        setVocabList(merged)
-        track('view_vocab', { count: merged.length, source: 'cloud_merged' })
-        setLoading(false)
-        return
-      } catch {
-        // fallback to local
-      }
+    try {
+      const merged = await getMergedVocabulary()
+      setVocabList(merged)
+      track('view_vocab', { count: merged.length, source: 'merged' })
+    } catch (e) {
+      console.warn('[vocab] load merged vocab failed:', e)
+      const local = getVocabulary().filter(v => !v.tombstone)
+      setVocabList(local)
+      track('view_vocab', { count: local.length, source: 'local_fallback' })
     }
 
-    const local = getVocabulary()
-    setVocabList(local)
-    track('view_vocab', { count: local.length, source: 'local' })
     setLoading(false)
   }, [loadReviewStats])
 

@@ -17,20 +17,16 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useAuthStore } from '../../stores/auth'
-import {
-  fetchDueVocabulary,
-  submitReview,
-} from '../../services/api/vocabulary.client'
-import {
-  getAllLocalDueVocabulary,
-  submitLocalReview,
-} from '../../services/review.service'
+import { submitReview } from '../../services/api/vocabulary.client'
+import { submitLocalReview } from '../../services/review.service'
+import { getMergedAllDueVocabulary } from '../../services/vocab.service'
+import { CloudSyncService } from '../../services/cloudSync.service'
 import type { DueVocabItem, ReviewQuality, ReviewSubmitResult } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
 import LucideIcon from '../../components/LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
-import { updateVocabEntry, getVocabulary } from '../../services/storage'
+import { getVocabulary } from '../../services/storage'
 import './index.scss'
 
 type ReviewStep = 'loading' | 'showing' | 'revealed' | 'finished'
@@ -93,60 +89,15 @@ export default function ReviewPage() {
     return { total, correct, wrong, avgQuality: Math.round(avgQuality * 10) / 10 }
   }, [session.results])
 
-  function updateLocalVocabAfterReview(vocabId: string, result: ReviewSubmitResult) {
-    try {
-      const vocab = getVocabulary()
-      const index = vocab.findIndex(v => v.id === vocabId)
-      if (index === -1) return
-
-      const currentEntry = vocab[index]
-      const updatedReviewCount = (currentEntry.reviewCount || 0) + 1
-
-      updateVocabEntry(vocabId, {
-        masteryStatus: result.newMasteryStatus as any,
-        mastered: result.newMasteryStatus === 'mastered',
-        reviewCount: updatedReviewCount,
-        lastReviewedAt: Date.now(),
-        nextReviewAt: result.nextReviewAt,
-        easeFactor: result.newEaseFactor,
-        repetitions: result.newRepetitions,
-        reviewInterval: result.newInterval,
-      })
-    } catch (e) {
-      console.error('[review] update local vocab failed:', e)
-    }
-  }
-
   const loadReviewItems = useCallback(async () => {
     try {
-      let allItems: DueVocabItem[] = []
+      const result = await getMergedAllDueVocabulary(100)
+      const allItems = result.items
 
-      if (isLoggedIn) {
-        const overdueResult = await fetchDueVocabulary('overdue', 100)
-        const todayResult = await fetchDueVocabulary('today', 100)
-
-        allItems = [
-          ...overdueResult.items,
-          ...todayResult.items.filter(item =>
-            !overdueResult.items.some(o => o.id === item.id)
-          ),
-        ]
-
-        track('start_review_session', {
-          totalItems: allItems.length,
-          overdueCount: overdueResult.items.length,
-          todayCount: todayResult.items.length,
-          mode: 'cloud',
-        })
-      } else {
-        const localResult = getAllLocalDueVocabulary(100)
-        allItems = localResult.items
-
-        track('start_review_session', {
-          totalItems: allItems.length,
-          mode: 'local',
-        })
-      }
+      track('start_review_session', {
+        totalItems: allItems.length,
+        mode: isLoggedIn ? 'merged' : 'local',
+      })
 
       if (allItems.length === 0) {
         Taro.showModal({
@@ -189,23 +140,42 @@ export default function ReviewPage() {
     if (!currentItem) return
 
     try {
-      let result: ReviewSubmitResult
+      const localResult = submitLocalReview(currentItem.id, quality)
+      const result: ReviewSubmitResult = {
+        vocabId: localResult.vocabId,
+        success: localResult.success,
+        nextReviewAt: localResult.nextReviewAt,
+        newEaseFactor: localResult.newEaseFactor,
+        newInterval: localResult.newInterval,
+        newRepetitions: localResult.newRepetitions,
+        newMasteryStatus: localResult.newMasteryStatus,
+        quality: localResult.quality,
+        message: localResult.message,
+      }
 
       if (isLoggedIn) {
-        result = await submitReview(currentItem.id, quality)
-        updateLocalVocabAfterReview(currentItem.id, result)
-      } else {
-        const localResult = submitLocalReview(currentItem.id, quality)
-        result = {
-          vocabId: localResult.vocabId,
-          success: localResult.success,
-          nextReviewAt: localResult.nextReviewAt,
-          newEaseFactor: localResult.newEaseFactor,
-          newInterval: localResult.newInterval,
-          newRepetitions: localResult.newRepetitions,
-          newMasteryStatus: localResult.newMasteryStatus,
-          quality: localResult.quality,
-          message: localResult.message,
+        try {
+          CloudSyncService.syncVocabReview(
+            currentItem.id,
+            currentItem.lemma,
+            {
+              masteryStatus: result.newMasteryStatus,
+              nextReviewAt: result.nextReviewAt,
+              easeFactor: result.newEaseFactor,
+              repetitions: result.newRepetitions,
+              reviewInterval: result.newInterval,
+              reviewCount: (getVocabulary().find(v => v.id === currentItem.id)?.reviewCount || 0),
+              lastReviewedAt: Date.now(),
+            }
+          )
+        } catch (e) {
+          console.warn('[review] sync review to cloud failed:', e)
+        }
+
+        try {
+          await submitReview(currentItem.id, quality)
+        } catch (e) {
+          console.warn('[review] submit review to cloud API failed:', e)
         }
       }
 

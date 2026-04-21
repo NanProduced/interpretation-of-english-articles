@@ -279,9 +279,15 @@ async def get_vocabulary_by_id(
 async def update_vocabulary(
     user_id: UUID,
     vocab_id: UUID,
-    mastery_status: str | None,
-    short_meaning: str | None,
-    payload_json: dict[str, Any] | None,
+    mastery_status: str | None = None,
+    short_meaning: str | None = None,
+    payload_json: dict[str, Any] | None = None,
+    next_review_at: datetime | None = None,
+    ease_factor: float | None = None,
+    repetitions: int | None = None,
+    review_interval: int | None = None,
+    review_count: int | None = None,
+    last_reviewed_at: datetime | None = None,
 ) -> dict | None:
     """Partial update a vocabulary entry."""
     pool = db_connection.DB_POOL
@@ -290,13 +296,29 @@ async def update_vocabulary(
 
     now = datetime.now(UTC)
     updates: dict[str, Any] = {"updated_at": now}
+
     if mastery_status is not None:
         updates["mastery_status"] = mastery_status
-        updates["last_reviewed_at"] = now
+        if last_reviewed_at is None:
+            updates["last_reviewed_at"] = now
+
     if short_meaning is not None:
         updates["short_meaning"] = short_meaning
     if payload_json is not None:
         updates["payload_json"] = json.dumps(payload_json)
+
+    if next_review_at is not None:
+        updates["next_review_at"] = next_review_at
+    if ease_factor is not None:
+        updates["ease_factor"] = ease_factor
+    if repetitions is not None:
+        updates["repetitions"] = repetitions
+    if review_interval is not None:
+        updates["review_interval"] = review_interval
+    if review_count is not None:
+        updates["review_count"] = review_count
+    if last_reviewed_at is not None:
+        updates["last_reviewed_at"] = last_reviewed_at
 
     if len(updates) == 1:
         return await get_vocabulary_by_id(user_id, vocab_id)
