@@ -62,6 +62,14 @@ class VocabularyCreateRequest(BaseModel):
     source_context: str | None = Field(default=None)
     payload_json: dict[str, Any] = Field(default_factory=dict)
 
+    mastery_status: str = Field(default="new", description="掌握状态")
+    next_review_at: datetime | None = Field(default=None, description="下一次复习时间")
+    ease_factor: float | None = Field(default=None, ge=1.3, description="易度因子，SM-2算法核心参数")
+    repetitions: int | None = Field(default=None, ge=0, description="连续成功复习次数")
+    review_interval: int | None = Field(default=None, ge=1, description="当前复习间隔（天）")
+    review_count: int | None = Field(default=None, ge=0, description="累计复习次数")
+    last_reviewed_at: datetime | None = Field(default=None, description="最近一次复习时间")
+
 
 class VocabularyUpdateRequest(BaseModel):
     """PATCH /vocabulary/{id} — update a vocabulary entry."""
@@ -69,6 +77,13 @@ class VocabularyUpdateRequest(BaseModel):
     mastery_status: str | None = Field(default=None)
     short_meaning: str | None = Field(default=None)
     payload_json: dict[str, Any] | None = None
+
+    next_review_at: datetime | None = Field(default=None, description="下一次复习时间")
+    ease_factor: float | None = Field(default=None, ge=1.3, description="易度因子")
+    repetitions: int | None = Field(default=None, ge=0, description="连续成功复习次数")
+    review_interval: int | None = Field(default=None, ge=1, description="当前复习间隔")
+    review_count: int | None = Field(default=None, ge=0, description="累计复习次数")
+    last_reviewed_at: datetime | None = Field(default=None, description="最近一次复习时间")
 
 
 # ---------------------------------------------------------------------------

@@ -87,6 +87,13 @@ async def add_vocabulary(
             source_sentence=body.source_sentence,
             source_context=body.source_context,
             payload_json=body.payload_json,
+            mastery_status=body.mastery_status,
+            next_review_at=body.next_review_at,
+            ease_factor=body.ease_factor,
+            repetitions=body.repetitions,
+            review_interval=body.review_interval,
+            review_count=body.review_count,
+            last_reviewed_at=body.last_reviewed_at,
         )
         return VocabularyUpsertResponse(
             id=vocab_id,
@@ -174,6 +181,12 @@ async def update_vocabulary(
             mastery_status=body.mastery_status,
             short_meaning=body.short_meaning,
             payload_json=body.payload_json,
+            next_review_at=body.next_review_at,
+            ease_factor=body.ease_factor,
+            repetitions=body.repetitions,
+            review_interval=body.review_interval,
+            review_count=body.review_count,
+            last_reviewed_at=body.last_reviewed_at,
         )
         if updated is None:
             raise HTTPException(status_code=404, detail="Vocabulary entry not found")
