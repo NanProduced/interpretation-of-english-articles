@@ -171,6 +171,7 @@ export interface AcademicInlineMarkModel {
   visualTone: AcademicVisualTone
   clickable: boolean
   lookupText?: string
+  lookupKind?: PhraseKind
   glossary?: AcademicInlineGlossary
   parentId?: string
 }

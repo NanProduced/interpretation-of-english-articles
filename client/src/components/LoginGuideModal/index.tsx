@@ -55,7 +55,7 @@ export default function LoginGuideModal({ visible, onClose, onLogin }: LoginGuid
             src='https://miniprogram-1255574143.cos.ap-shanghai.myqcloud.com/assets/icons/claread-logo.png'
             mode='aspectFit'
             lazyLoad
-            fadeIn={300}
+            fadeIn
             onError={() => {
               // Fallback: 纯色图标
             }}

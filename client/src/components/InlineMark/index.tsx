@@ -1,6 +1,7 @@
 import { Text } from '@tarojs/components'
 import { AnyInlineMarkModel, VisualTone, AcademicVisualTone } from '../../types/view/render-scene.vm'
 import type { WordClickPayload } from '../ParagraphBlock'
+import type { ClickEvent } from '../../types/taro-events'
 import './index.scss'
 
 const TONE_CLASSES: Record<VisualTone | AcademicVisualTone, string> = {
@@ -24,7 +25,7 @@ interface InlineMarkProps {
 export default function InlineMark({ mark, text, isActive, isSaved, savedStatus, onWordClick }: InlineMarkProps) {
   const toneClass = TONE_CLASSES[mark.visualTone]
 
-  const handleClick = (e: any) => {
+  const handleClick = (e: ClickEvent) => {
     e.stopPropagation()
     if (mark.clickable && onWordClick) {
       onWordClick({ word: text, mark, event: e })

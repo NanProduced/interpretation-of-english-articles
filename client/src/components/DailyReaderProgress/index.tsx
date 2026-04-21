@@ -16,7 +16,8 @@ const DailyReaderProgress = memo(function DailyReaderProgress(_props: Props) {
       query.select('.daily-page').boundingClientRect()
       query.exec((rects) => {
         if (rects && rects[0]) {
-          const scrollHeight = (rects[0] as any).scrollHeight - (rects[0] as any).height
+          const node = rects[0] as { scrollHeight?: number; height?: number }
+          const scrollHeight = (node.scrollHeight ?? 0) - (node.height ?? 0)
           if (scrollHeight > 0) {
             setProgress(Math.min(100, (res.scrollTop / scrollHeight) * 100))
           }

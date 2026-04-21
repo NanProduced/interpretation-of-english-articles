@@ -132,7 +132,7 @@ async function flushQueue(): Promise<void> {
       try {
         await executeQueueItem(item)
         removeSyncQueueItem(item.opId)
-      } catch (err: any) {
+      } catch (err) {
         const retryCount = item.retryCount + 1
         const maxRetries = 5
         const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 60000)
@@ -141,14 +141,14 @@ async function flushQueue(): Promise<void> {
           updateSyncQueueItem(item.opId, {
             status: 'failed',
             retryCount,
-            lastError: err?.message || String(err),
+            lastError: err instanceof Error ? err.message : String(err),
           })
         } else {
           updateSyncQueueItem(item.opId, {
             status: 'pending',
             retryCount,
             nextRetryAt: Date.now() + backoffMs,
-            lastError: err?.message || String(err),
+            lastError: err instanceof Error ? err.message : String(err),
           })
         }
       }
@@ -215,10 +215,10 @@ async function executeAddFavorite(item: SyncQueueItem): Promise<void> {
   let cloudId = resolveCloudIdFromMap(clientRecordId)
   if (!cloudId) {
     const record = getRecord(clientRecordId)
-    cloudId = record?.cloudId || undefined
+    cloudId = record?.cloudId ?? null
   }
   if (!cloudId) {
-    cloudId = (await resolveCloudId(clientRecordId)) || undefined
+    cloudId = (await resolveCloudId(clientRecordId)) ?? null
   }
   if (!cloudId) {
     throw new Error(`Cannot resolve cloudId for favorite add: ${clientRecordId}`)
@@ -231,10 +231,10 @@ async function executeRemoveFavorite(item: SyncQueueItem): Promise<void> {
   let cloudId = resolveCloudIdFromMap(clientRecordId)
   if (!cloudId) {
     const record = getRecord(clientRecordId)
-    cloudId = record?.cloudId || undefined
+    cloudId = record?.cloudId ?? null
   }
   if (!cloudId) {
-    cloudId = (await resolveCloudId(clientRecordId)) || undefined
+    cloudId = (await resolveCloudId(clientRecordId)) ?? null
   }
   if (!cloudId) {
     throw new Error(`Cannot resolve cloudId for favorite remove: ${clientRecordId}`)
@@ -278,7 +278,7 @@ async function executeUpdateVocabMastery(item: SyncQueueItem): Promise<void> {
   const { lemma, masteryStatus } = item.payload as { lemma: string; masteryStatus: string }
   const currentId = resolveCurrentVocabId(lemma, item.entityId)
   if (!currentId) return
-  await updateCloudVocabulary(currentId, { mastery_status: masteryStatus as any })
+  await updateCloudVocabulary(currentId, { mastery_status: masteryStatus as 'new' | 'learning' | 'review' | 'mastered' | 'archived' })
 }
 
 async function executeDeleteVocab(item: SyncQueueItem): Promise<void> {

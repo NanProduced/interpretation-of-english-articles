@@ -1,297 +1,63 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useArticleStore } from '../../stores/article'
+import { useMemo } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
-import { InlineMarkModel, AnyInlineMarkModel, PageMode, AnyRenderSceneVm, ResultPageState, AcademicRenderSceneVm } from '../../types/view/render-scene.vm'
+import { PageMode, AnyRenderSceneVm, AcademicRenderSceneVm } from '../../types/view/render-scene.vm'
+import { getSafeDisplayLabel } from '../../config/purpose'
 import NavBar from '../../components/NavBar'
-import ParagraphBlock, { type WordClickPayload } from '../../components/ParagraphBlock'
+import ParagraphBlock from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
 import ContentSummaryCard from '../../components/ContentSummaryCard'
 import LucideIcon from '../../components/LucideIcon'
-import { LoadingIllustration, ErrorIllustration, EmptyIllustration } from '../../components/ResultIllustrations'
-import ActiveLoading from '../../components/ActiveLoading'
-import { useLayoutStore } from '../../stores/layout'
-import { useAuthStore } from '../../stores/auth'
-import { isFavorited, saveFavorite, removeFavorite, updateRecord, saveVocabEntry, getVocabulary } from '../../services/storage'
-import { CloudSyncService } from '../../services/cloudSync.service'
-import { fetchVocabHighlights } from '../../services/api/vocabulary.client'
-import { track } from '../../services/analytics'
-import type { FavoriteRecord } from '../../types/view/favorites.vm'
-import type { VocabEntry, SaveVocabResult, VocabHighlightMatch } from '../../types/view/vocabulary.vm'
-import { getSafeDisplayLabel, ReadingGoal, SERVER_GOAL_TO_UI_GOAL, getApiParams } from '../../config/purpose'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
 import FeedbackWidget from '../../components/FeedbackWidget'
+import { useResultState } from './hooks/useResultState'
+import { useResultEffects } from './hooks/useResultEffects'
+import { useResultActions } from './hooks/useResultActions'
+import { PAGE_MODE_OPTIONS, hasRenderableScene } from './utils'
+import DegradedBanner from './components/DegradedBanner'
+import SourceFallback from './components/SourceFallback'
+import StateViews from './components/StateViews'
 import './index.scss'
 
-function getSimpleLemmaCandidates(word: string): string[] {
-  const candidates: string[] = []
-  if (word.endsWith('ing')) {
-    candidates.push(word.slice(0, -3))
-    if (word.length > 5 && word[word.length - 4] === word[word.length - 5]) {
-      candidates.push(word.slice(0, -4))
-    }
-    candidates.push(word.slice(0, -3) + 'e')
-  } else if (word.endsWith('ed')) {
-    candidates.push(word.slice(0, -2))
-    candidates.push(word.slice(0, -1))
-    if (word.length > 4 && word[word.length - 3] === word[word.length - 4]) {
-      candidates.push(word.slice(0, -3))
-    }
-    candidates.push(word.slice(0, -2) + 'e' === word ? '' : word.slice(0, -1))
-  } else if (word.endsWith('ies')) {
-    candidates.push(word.slice(0, -3) + 'y')
-  } else if (word.endsWith('es')) {
-    candidates.push(word.slice(0, -2))
-    candidates.push(word.slice(0, -1))
-  } else if (word.endsWith('s') && !word.endsWith('ss')) {
-    candidates.push(word.slice(0, -1))
-  } else if (word.endsWith('er')) {
-    candidates.push(word.slice(0, -2))
-    candidates.push(word.slice(0, -1))
-  } else if (word.endsWith('est')) {
-    candidates.push(word.slice(0, -3))
-    candidates.push(word.slice(0, -2))
-  }
-  return candidates.filter(c => c.length >= 2)
-}
-
-/** 页面模式选项 */
-const PAGE_MODE_OPTIONS = [
-  { value: 'immersive', label: '原文' },
-  { value: 'intensive', label: '精读' },
-] as const
-
-/** pageState → 文案映射 */
-const PAGE_STATE_MESSAGES: Record<ResultPageState, { title: string; subtitle: string } | null> = {
-  loading: null,
-  normal: null,
-  degraded_light: null,
-  degraded_heavy: null,
-  empty: {
-    title: '未能解析出有效内容',
-    subtitle: '请输入至少一段完整的英文句子（建议 3 句以上），支持常见文章格式。',
-  },
-  failed: {
-    title: '分析失败',
-    subtitle: '请稍后重试',
-  },
-  timeout: {
-    title: '分析超时',
-    subtitle: '内容较长时需要更多处理时间，请稍后重试',
-  },
-  network_fail: {
-    title: '网络不给力',
-    subtitle: '请检查网络后重新尝试',
-  },
-}
-
-function hasRenderableScene(scene: AnyRenderSceneVm | null): boolean {
-  if (!scene) return false
-  if (scene.article?.paragraphs?.length) return true
-  return (scene.article?.sentences ?? []).some((sentence) => !!sentence.text?.trim())
-}
-
-function splitSourceParagraphs(text: string): string[] {
-  return text
-    .split(/\n{2,}/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-}
-
 export default function Result() {
-  const { navBarHeight } = useLayoutStore()
-  const [pageMode, setPageMode] = useState<PageMode>('intensive')
-  const [vocabList, setVocabList] = useState<string[]>([])
-  const [vocabSavedMap, setVocabSavedMap] = useState<Record<string, string>>({})
-  const [wordPopup, setWordPopup] = useState<{
-    visible: boolean
-    mode: 'mini' | 'full'
-    mark: AnyInlineMarkModel | null
-    word: string
-    contextSentence?: string
-    occurrence?: number
-    x: number
-    y: number
-  }>({ visible: false, mode: 'mini', mark: null, word: '', x: 0, y: 0 })
-  const [activeMarkId, setActiveMarkId] = useState<string | null>(null)
-  const [animTrigger, setAnimTrigger] = useState(0) // 用于触发弹跳动效
-  const [activeSentenceId, setActiveSentenceId] = useState<string | null>(null)
-  const [selectedWord, setSelectedWord] = useState<string | null>(null)
+  const state = useResultState()
+  const {
+    navBarHeight, pageMode, setPageMode,
+    vocabList, vocabSavedMap, wordPopup, setWordPopup,
+    activeMarkId, selectedWord, activeSentenceId,
+    animTrigger, favorited, vocabHighlights,
+    showModeSheet, setShowModeSheet, tempConfig,
+    pageState, sceneData, requestParams, errorCode, errorMsg,
+    recordId, cloudId, isReplayMode,
+  } = state
 
-  // 从 store 获取页面状态
-  const pageState = useArticleStore((s) => s.pageState)
-  const sceneData = useArticleStore((s) => s.sceneData)
-  const requestParams = useArticleStore((s) => s.requestParams)
-  const errorCode = useArticleStore((s) => s.errorCode)
-  const errorMsg = useArticleStore((s) => s.error)
-  const analyze = useArticleStore((s) => s.analyze)
-  const loadRecord = useArticleStore((s) => s.loadRecord)
-  const recoverActiveTask = useArticleStore((s) => s.recoverActiveTask)
-  const recordId = useArticleStore((s) => s.recordId)
-  const cloudId = useArticleStore((s) => s.cloudId)
-  const isReplayMode = useArticleStore((s) => s.isReplayMode)
-
-  const [showModeSheet, setShowModeSheet] = useState(false)
-  const [tempConfig, setTempConfig] = useState<{
-    purpose: ReadingGoal;
-    level: string | null;
-  }>({
-    purpose: 'daily',
-    level: 'intermediate_reading'
+  useResultEffects({
+    recordId, cloudId, sceneData, pageState,
+    setFavorited: state.setFavorited,
+    setVocabList: state.setVocabList,
+    setVocabSavedMap: state.setVocabSavedMap,
+    setVocabHighlights: state.setVocabHighlights,
+    loadRecord: state.loadRecord,
+    recoverActiveTask: state.recoverActiveTask,
+    setWordPopup,
   })
 
-
-
-  // 收藏状态
-  const [favorited, setFavorited] = useState(false)
-
-  // 同步收藏状态（recordId 变化时从 storage 读取）
-  useEffect(() => {
-    if (recordId) {
-      setFavorited(isFavorited(recordId))
-    }
-  }, [recordId])
-
-  // === 回看模式：URL 带有 recordId 时从 storage 加载 ===
-  useEffect(() => {
-    const instance = Taro.getCurrentInstance()
-    const params = instance.router?.params || {}
-    const { recordId: urlRecordId, mode } = params
-
-    if (mode === 'replay' && urlRecordId) {
-      useArticleStore.getState().reset()
-      loadRecord(urlRecordId)
-    }
-  }, [loadRecord])
-
-  // === 加载生词本：提取所有已收藏词形列表（用于结果页 saved-vocab overlay） ===
-  useEffect(() => {
-    if (!recordId) return
-    const all = getVocabulary()
-    const words = all.flatMap((v) => {
-      const forms = [v.word.toLowerCase()]
-      if (v.lemma) forms.push(v.lemma.toLowerCase())
-      if (v.collectedForms) forms.push(...v.collectedForms.map(f => f.toLowerCase()))
-      return forms
-    })
-    setVocabList([...new Set(words)])
-
-    const savedMap: Record<string, string> = {}
-    all.forEach((v) => {
-      const status = v.mastered ? 'mastered' : 'new'
-      const key = (v.lemma || v.word).toLowerCase()
-      savedMap[key] = status
-      savedMap[v.word.toLowerCase()] = status
-      if (v.lemma) savedMap[v.lemma.toLowerCase()] = status
-      v.collectedForms?.forEach(f => { savedMap[f.toLowerCase()] = status })
-    })
-    setVocabSavedMap(savedMap)
-  }, [recordId])
-
-  // === 加载 vocab highlights（登录用户使用云端 API，匿名用户使用本地匹配） ===
-  const [vocabHighlights, setVocabHighlights] = useState<VocabHighlightMatch[]>([])
-  const highlightsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (!sceneData || !hasRenderableScene(sceneData)) return
-
-    const isLoggedIn = useAuthStore.getState().isLoggedIn
-    const sentences = sceneData.article.sentences.map(s => ({
-      sentenceId: s.sentenceId,
-      tokens: s.text.split(/\s+/).filter(Boolean),
-    }))
-
-    if (highlightsTimerRef.current) clearTimeout(highlightsTimerRef.current)
-
-    highlightsTimerRef.current = setTimeout(async () => {
-      if (isLoggedIn) {
-        try {
-          const matches = await fetchVocabHighlights(sentences)
-          setVocabHighlights(matches)
-          const highlightWords = matches.map(m => m.anchorText.toLowerCase())
-          setVocabList(prev => [...new Set([...prev, ...highlightWords])])
-          setVocabSavedMap(prev => {
-            const next = { ...prev }
-            matches.forEach(m => {
-              next[m.anchorText.toLowerCase()] = m.masteryStatus
-            })
-            return next
-          })
-        } catch (e) {
-          console.error('result/index.tsx: vocab highlights API failed, using local fallback', e)
-        }
-      } else {
-        const all = getVocabulary()
-        const localMatches: VocabHighlightMatch[] = []
-        const lemmaSet = new Map<string, { id: string; lemma: string; masteryStatus: string; collectedForms: string[] }>()
-        all.forEach(v => {
-          const key = (v.lemma || v.word).toLowerCase()
-          lemmaSet.set(key, {
-            id: v.id,
-            lemma: v.lemma || v.word,
-            masteryStatus: v.mastered ? 'mastered' : 'new',
-            collectedForms: (v.collectedForms || []).map(f => f.toLowerCase()),
-          })
-        })
-
-        for (const sent of sentences) {
-          const occMap: Record<string, number> = {}
-          for (const token of sent.tokens) {
-            const cleaned = token.replace(/[.,;:!?'"(){}[\]]/g, '').toLowerCase()
-            if (!cleaned) continue
-
-            let match = lemmaSet.get(cleaned) || [...lemmaSet.values()].find(e => e.collectedForms.includes(cleaned))
-
-            if (!match) {
-              const candidates = getSimpleLemmaCandidates(cleaned)
-              for (const cand of candidates) {
-                const found = lemmaSet.get(cand)
-                if (found) { match = found; break }
-              }
-            }
-
-            if (!match) continue
-            occMap[match.lemma] = (occMap[match.lemma] || 0) + 1
-            localMatches.push({
-              vocabId: match.id,
-              lemma: match.lemma,
-              sentenceId: sent.sentenceId,
-              anchorText: token,
-              occurrence: occMap[match.lemma],
-              masteryStatus: match.masteryStatus,
-            })
-          }
-        }
-        setVocabHighlights(localMatches)
-        setVocabSavedMap(prev => {
-          const next = { ...prev }
-          localMatches.forEach(m => {
-            next[m.anchorText.toLowerCase()] = m.masteryStatus
-          })
-          return next
-        })
-      }
-    }, 500)
-
-    return () => {
-      if (highlightsTimerRef.current) clearTimeout(highlightsTimerRef.current)
-    }
-  }, [sceneData, recordId])
-
-  Taro.useDidShow(() => {
-    // 页面展示时，如果当前处于加载中或失败状态，且没有场景数据，尝试恢复活跃任务
-    // 主要是为了处理杀后台恢复或意外中断
-    if ((pageState === 'loading' || pageState === 'failed') && !sceneData) {
-      recoverActiveTask()
-    }
+  const actions = useResultActions({
+    recordId, cloudId, requestParams, isReplayMode, pageState,
+    favorited, wordPopup, activeSentenceId,
+    setFavorited: state.setFavorited,
+    setAnimTrigger: state.setAnimTrigger,
+    setActiveMarkId: state.setActiveMarkId,
+    setSelectedWord: state.setSelectedWord,
+    setActiveSentenceId: state.setActiveSentenceId,
+    setWordPopup,
+    setVocabList: state.setVocabList,
+    setShowModeSheet, setTempConfig: state.setTempConfig,
+    analyze: state.analyze,
   })
 
-
-  // === 分享能力 ===
   useShareAppMessage(() => {
-    const state = useArticleStore.getState()
-    const { recordId, sceneData } = state
     const academicVm = sceneData?.schemaVersion === '3.0.0-academic' ? sceneData as AcademicRenderSceneVm : null
     const academicTitle = academicVm?.title
     const firstSentence = sceneData?.article.sentences[0]?.text
@@ -304,286 +70,27 @@ export default function Result() {
     return { title, path }
   })
 
-  // === 事件处理 ===
-
-  const handleWordClick = ({ word, mark, event, contextSentence, occurrence }: WordClickPayload) => {
-    const initialMode = 'mini'
-    setActiveMarkId(mark?.id ?? null)
-    setSelectedWord(word)
-
-    const sysInfo = Taro.getSystemInfoSync()
-    const windowWidth = sysInfo.windowWidth || 375
-    
-    let clientX = windowWidth / 2 // 默认中线
-    let clientY = 300 // 默认中部
-
-    // 适配多端事件坐标获取
-    if (event) {
-      const touch = event.changedTouches?.[0] || (event.touches ? event.touches[0] : null)
-      if (touch) {
-        clientX = touch.clientX ?? touch.pageX
-        clientY = touch.clientY ?? touch.pageY
-      } else if (event.detail && (event.detail.x !== undefined || event.detail.clientX !== undefined)) {
-        clientX = event.detail.x ?? event.detail.clientX
-        clientY = event.detail.y ?? event.detail.clientY
-      }
-    }
-    
-    setWordPopup({ 
-      visible: true, 
-      mode: initialMode, 
-      mark: mark ?? null, 
-      word, 
-      contextSentence, 
-      occurrence,
-      x: clientX, 
-      y: clientY 
-    })
-  }
-
-  const handleSentenceClick = (sentenceId: string) => {
-    setActiveSentenceId(prev => prev === sentenceId ? null : sentenceId)
-  }
-
-  const handleClosePopup = () => {
-    setWordPopup((prev) => ({ ...prev, visible: false }))
-    setActiveMarkId(null)
-    setSelectedWord(null)
-    setActiveSentenceId(null)
-  }
-
-  const handleScroll = () => {
-    if (wordPopup.visible && wordPopup.mode === 'mini') {
-      handleClosePopup()
-    }
-  }
-
-  const handleToggleFavorite = async () => {
-    if (!recordId) return
-    const isAdding = !favorited
-
-    setAnimTrigger(prev => prev + 1)
-
-    if (isAdding) {
-      saveFavorite({ recordId, cloudId: cloudId || undefined, createdAt: Date.now() } as FavoriteRecord)
-      updateRecord(recordId, { isFavorited: true })
-      setFavorited(true)
-      track('favorite', { isFavorited: true })
-      Taro.showToast({ title: '已收藏', icon: 'success', duration: 1500 })
-
-      CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'add')
-    } else {
-      removeFavorite(recordId)
-      updateRecord(recordId, { isFavorited: false })
-      setFavorited(false)
-      track('favorite', { isFavorited: false })
-      Taro.showToast({ title: '已取消收藏', icon: 'none', duration: 1500 })
-
-      CloudSyncService.syncFavorite(cloudId || undefined, recordId, 'remove')
-    }
-  }
-
-  const handleModeSelect = (goal: ReadingGoal, level: string | null) => {
-    setShowModeSheet(false)
-    const text = requestParams?.text
-    const source_type = requestParams?.source_type || 'user_input'
-    
-    if (!text) {
-      Taro.showToast({ title: '无法获取原文', icon: 'none' })
-      return
-    }
-
-    // 重新发起分析（生成新记录）
-    const apiParams = getApiParams(goal, level)
-    analyze({
-      text,
-      reading_goal: apiParams.reading_goal,
-      reading_variant: apiParams.reading_variant,
-      source_type: source_type,
-      extended: false,
-    })
-    
-    // 跳转到干净的结果页（触发新任务的 loading 状态）
-    Taro.redirectTo({ url: ROUTES.RESULT })
-  }
-
-  const handleRetry = () => {
-    const { pageState, reset } = useArticleStore.getState()
-    
-    // 如果是回看模式，或者当前状态是失败/重型降级，点击按钮应触发“针对当前内容的策略调整”
-    const isErrorState = ['failed', 'timeout', 'network_fail', 'empty', 'degraded_heavy'].includes(pageState)
-    
-    if (isReplayMode || isErrorState) {
-      // 拉起策略选择弹窗
-      if (requestParams) {
-        setTempConfig({
-          purpose: SERVER_GOAL_TO_UI_GOAL[requestParams.reading_goal] || 'daily',
-          level: requestParams.reading_variant
-        })
-      }
-      setShowModeSheet(true)
-    } else {
-      // 正常成功态点击“再分析一篇”，回到输入页
-      reset()
-      Taro.redirectTo({ url: ROUTES.INPUT })
-    }
-  }
-
-  // === 通用页面外壳 ===
-  const pageShell = (extraContent: React.ReactNode) => {
-    return (
-      <View className='result-page'>
-        <NavBar
-          title='Claread透读'
-          showBack
-          showHome
-        />
-        <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
-        {extraContent}
-      </View>
-    )
-  }
-
-  // === 降级提示条（基于 pageState，不暴露技术细节） ===
-  const renderDegradedBanner = (state: ResultPageState) => {
-    if (state !== 'degraded_light' && state !== 'degraded_heavy') return null
-
-    const isHeavy = state === 'degraded_heavy'
-    const isAcademic = sceneData?.schemaVersion === '3.0.0-academic'
-
-    const message = isHeavy
-      ? isAcademic
-        ? '学术解析未能完整执行，部分术语标注或逻辑分析可能缺失。建议稍后重新解析。'
-        : '由于网络环境影响，当前为您呈现的是“极速分析”结果。部分深度解析可能暂不可用。'
-      : isAcademic
-        ? '学术解析部分节点轻量化运行，术语和逻辑标注已精简，核心内容不受影响。'
-        : '分析引擎正在轻量化运行，已为您精选了最重要的解读，细节稍有简化，不影响整体理解。'
-
-    return (
-      <View className={`degraded-banner ${isHeavy ? 'heavy' : ''} ${isAcademic ? 'academic' : ''}`}>
-        <LucideIcon name='info' size={14} color={isAcademic ? 'var(--term-accent)' : 'var(--color-focus)'} />
-        <View className='degraded-banner-content'>
-          <Text className='degraded-banner-text'>{message}</Text>
-        </View>
-        {isHeavy && (
-          <View className='degraded-retry-btn' onClick={handleRetry}>
-            <Text className='degraded-retry-text'>获取深度解析</Text>
-          </View>
-        )}
-      </View>
-    )
-  }
-
-  const renderSourceFallback = () => {
-    const sourceParagraphs = splitSourceParagraphs(requestParams?.text || '')
-    const isDegraded = pageState === 'degraded_light' || pageState === 'degraded_heavy'
-    const title = isDegraded ? '本次解析未完成' : '未生成可渲染内容'
-    const subtitle = isDegraded
-      ? '部分分析节点执行失败，结构化结果未能生成。已为您回退展示原文，建议稍后重新解析。'
-      : '当前记录没有生成可展示的结构化结果，建议调整原文后重试。'
-
-    return pageShell(
-      <>
-        {renderDegradedBanner(pageState)}
-        <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false}>
-          <View className='article-container fallback-article-container'>
-            <View className='fallback-panel'>
-              <Text className='fallback-title'>{title}</Text>
-              <Text className='fallback-subtitle'>{subtitle}</Text>
-            </View>
-
-            {sourceParagraphs.length > 0 && (
-              <View className='fallback-source-card'>
-                <Text className='fallback-source-label'>原文回退</Text>
-                {sourceParagraphs.map((paragraph, idx) => (
-                  <Text key={`fallback-${idx}`} className='fallback-source-paragraph'>
-                    {paragraph}
-                  </Text>
-                ))}
-              </View>
-            )}
-
-            <View className='article-end-actions'>
-              <View className='end-btn-primary' onClick={handleRetry}>
-                <LucideIcon name='plus' size={18} color='#fff' />
-                <Text>{isReplayMode ? '重新解析这篇' : '再分析一篇'}</Text>
-              </View>
-            </View>
-            <View className='bottom-spacer' />
-          </View>
-        </ScrollView>
-      </>
-    )
-  }
-
-  // === 状态分支 ===
-
-  // 全屏 Loading：仅在完全没有数据且状态为加载中时展示
-  if (pageState === 'loading' && !sceneData) {
-    return pageShell(
-      <View className='state-container'>
-        <ActiveLoading />
-      </View>
-    )
-  }
-
-  // 错误/空状态展示：仅在没有数据时展示
   if (!sceneData) {
+    if (pageState === 'loading') {
+      return <StateViews pageState='loading' errorCode={null} errorMsg={null} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
+    }
     if (pageState === 'empty') {
-      const msg = PAGE_STATE_MESSAGES.empty!
-      return pageShell(
-        <View className='state-container'>
-          <View className='state-vertical'>
-            <EmptyIllustration />
-            <Text className='state-title'>{msg.title}</Text>
-            <Text className='state-subtitle'>{msg.subtitle}</Text>
-          </View>
-          <View className='state-cta safe-area-bottom'>
-            <View className='btn-primary' onClick={handleRetry}>
-              <Text className='btn-primary-text'>修改重试</Text>
-            </View>
-          </View>
-        </View>
-      )
+      return <StateViews pageState='empty' errorCode={errorCode} errorMsg={errorMsg} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
     }
-
     if (pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail') {
-      const defaultMsg = PAGE_STATE_MESSAGES[pageState]!
-      const title = errorCode === 'INSUFFICIENT_CREDITS' ? '今日积分不足' : defaultMsg.title
-      const subtitle = errorCode === 'INSUFFICIENT_CREDITS' ? errorMsg || '您的积分已耗尽，请明天再试' : defaultMsg.subtitle
-
-      return pageShell(
-        <View className='state-container'>
-          <View className='state-vertical'>
-            <ErrorIllustration />
-            <Text className='state-title'>{title}</Text>
-            <Text className='state-subtitle'>{subtitle}</Text>
-          </View>
-          <View className='state-cta safe-area-bottom'>
-            <View className='btn-primary' onClick={handleRetry}>
-              <Text className='btn-primary-text'>重新分析</Text>
-            </View>
-          </View>
-        </View>
-      )
+      return <StateViews pageState={pageState} errorCode={errorCode} errorMsg={errorMsg} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
     }
-
-    // 默认保底 Loading
-    return pageShell(
-      <View className='state-container'>
-        <View className='state-vertical'>
-          <LoadingIllustration />
-          <Text className='state-title'>正在解析文章...</Text>
-          <Text className='state-subtitle-secondary'>首次解析可能需要 20-40 秒，请耐心等待</Text>
-        </View>
-      </View>
-    )
+    return <StateViews pageState='loading' errorCode={null} errorMsg={null} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
   }
-
-  // === 渲染核心交互层 (只要有 sceneData 就会执行到这里) ===
 
   if (!hasRenderableScene(sceneData)) {
-    return renderSourceFallback()
+    return (
+      <SourceFallback
+        pageState={pageState} sceneData={sceneData}
+        requestText={requestParams?.text} isReplayMode={isReplayMode}
+        navBarHeight={navBarHeight} onRetry={actions.handleRetry}
+      />
+    )
   }
 
   const isAcademicMode = sceneData?.schemaVersion === '3.0.0-academic'
@@ -636,15 +143,18 @@ export default function Result() {
           pageMode={pageMode}
           recordId={recordId || undefined}
           activeSentenceId={activeSentenceId}
-          onWordClick={handleWordClick}
-          onSentenceClick={handleSentenceClick}
+          onWordClick={actions.handleWordClick}
+          onSentenceClick={actions.handleSentenceClick}
         />
       )
     })
   }, [sceneData, activeMarkId, selectedWord, vocabList, vocabSavedMap, pageMode, recordId, activeSentenceId])
 
-  return pageShell(
-    <>
+  return (
+    <View className='result-page'>
+      <NavBar title='Claread透读' showBack showHome />
+      <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
+
       <View className='result-content-root'>
         <View className='mode-tabs-container' role='tablist' aria-label='阅读模式切换'>
           <View className='mode-tabs'>
@@ -666,10 +176,8 @@ export default function Result() {
           </View>
         </View>
 
-        {/* 降级提示条 */}
-        {renderDegradedBanner(pageState)}
+        <DegradedBanner pageState={pageState} sceneData={sceneData} onRetry={actions.handleRetry} />
 
-        {/* 学术模式信息性提示 */}
         {isAcademicMode && sceneData?.warnings?.some(w => w.level === 'info' || w.code === 'NON_ACADEMIC_TEXT_DETECTED' || w.code === 'FRAGMENT_INPUT_DETECTED') && (
           <View className='academic-info-banner'>
             <LucideIcon name='info' size={14} color='var(--term-accent)' />
@@ -681,28 +189,28 @@ export default function Result() {
           </View>
         )}
 
-        <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={handleScroll}>
+        <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={actions.handleScroll}>
           <View className='article-container'>
             {articleHeader}
             {academicContentSummary && (
               <ContentSummaryCard summary={academicContentSummary} />
             )}
             {paragraphBlocks}
-            
+
             <View className='article-end-actions'>
-              <View 
+              <View
                 key={`fav-btn-${animTrigger}`}
-                className={`end-btn-secondary ${favorited ? 'favorited' : ''} ${animTrigger > 0 ? 'animate-spring' : ''}`} 
-                onClick={handleToggleFavorite}
+                className={`end-btn-secondary ${favorited ? 'favorited' : ''} ${animTrigger > 0 ? 'animate-spring' : ''}`}
+                onClick={actions.handleToggleFavorite}
                 role='button'
                 aria-label={favorited ? '取消收藏' : '加入收藏'}
               >
                 <LucideIcon name='bookmark' size={18} color={favorited ? 'var(--color-warn)' : 'var(--text-main)'} />
                 <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏'}</Text>
               </View>
-              <View 
-                className='end-btn-primary' 
-                onClick={handleRetry}
+              <View
+                className='end-btn-primary'
+                onClick={actions.handleRetry}
                 role='button'
                 aria-label='分析新文章'
               >
@@ -734,67 +242,10 @@ export default function Result() {
         x={wordPopup.x}
         y={wordPopup.y}
         readingVariant={sceneData?.request?.readingVariant}
-        onClose={handleClosePopup}
+        onClose={actions.handleClosePopup}
         onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
-        onAddVocab={async (w, dictResult) => {
-          if (!recordId || !dictResult || dictResult.resultType !== 'entry') return
-          const detailEntry = dictResult.entry
-          const detailMeanings = detailEntry.meanings
-          const derivedMeaning = detailMeanings[0]?.definitions
-            ?.map((d) => d.meaning)
-            .filter(Boolean)
-            .join('；') || ''
-          const lemma = detailEntry.baseWord ?? detailEntry.word
-          const vocabEntry: VocabEntry = {
-            id: `${recordId}_${lemma.toLowerCase()}_${Date.now()}`,
-            lemma,
-            word: w,
-            partOfSpeech: detailMeanings[0]?.partOfSpeech || '',
-            meaning: derivedMeaning.slice(0, 200),
-            addedAt: Date.now(),
-            mastered: false,
-            dictEntryId: detailEntry.id,
-            phonetic: detailEntry.phonetic,
-            provider: dictResult.provider || 'tecd3',
-            sentence: wordPopup.contextSentence,
-            detailMeanings: detailMeanings.map(m => ({
-              pos: m.partOfSpeech || '',
-              definitions: m.definitions.map(d => d.meaning).filter(Boolean)
-            })).filter(m => m.definitions.length > 0),
-            exchange: detailEntry.exchange || [],
-            tags: detailEntry.tags || [],
-            sourceRefs: [{
-              clientRecordId: recordId,
-              cloudRecordId: cloudId || undefined,
-              sourceSentence: wordPopup.contextSentence || undefined,
-              sourceAnchorText: w,
-              sourceOccurrence: wordPopup.occurrence,
-              collectedAt: new Date().toISOString(),
-            }],
-          }
-          const result: SaveVocabResult = saveVocabEntry(vocabEntry)
-          if (result.merged) {
-            Taro.showToast({
-              title: `${w} 已添加到 ${lemma}（第 ${result.totalSourceCount} 个语境）`,
-              icon: 'none',
-              duration: 2000,
-            })
-          } else {
-            Taro.showToast({ title: `${w} 已记入生词本`, icon: 'success' })
-          }
-          const allVocabAfter = getVocabulary()
-          const wordsAfter = allVocabAfter.flatMap((v) => {
-            const forms = [v.word.toLowerCase()]
-            if (v.lemma) forms.push(v.lemma.toLowerCase())
-            if (v.collectedForms) forms.push(...v.collectedForms.map(f => f.toLowerCase()))
-            return forms
-          })
-          setVocabList([...new Set(wordsAfter)])
-          track('add_vocab', { word: w, merged: result.merged })
-
-          CloudSyncService.syncVocab(result.entry)
-        }}
-        onFavorite={(w) => { track('favorite_word', { word: w }) }}
+        onAddVocab={actions.handleAddVocab}
+        onFavorite={(w) => { import('../../services/analytics').then(m => m.track('favorite_word', { word: w })) }}
       />
 
       <BottomSheetSelect
@@ -802,8 +253,8 @@ export default function Result() {
         currentGoal={tempConfig.purpose}
         currentLevel={tempConfig.level}
         onClose={() => setShowModeSheet(false)}
-        onSelect={handleModeSelect}
+        onSelect={actions.handleModeSelect}
       />
-    </>
+    </View>
   )
 }

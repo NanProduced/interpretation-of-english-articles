@@ -65,7 +65,7 @@ function dtoToVm(dto: RecordResponseDto): AnalysisRecord {
 
   let renderSceneVm = null
   if (dto.render_scene_json) {
-    const rawScene = dto.render_scene_json as any
+    const rawScene = dto.render_scene_json as Record<string, unknown>
     const isObject = typeof rawScene === 'object' && rawScene !== null && !Array.isArray(rawScene)
     const isEmptyObject = isObject && Object.keys(rawScene).length === 0
 
@@ -79,10 +79,9 @@ function dtoToVm(dto: RecordResponseDto): AnalysisRecord {
 
       try {
         if (isSnakeCase) {
-          renderSceneVm = analyzeResponseDtoToVm(rawScene as AnyAnalyzeResponseDto)
+          renderSceneVm = analyzeResponseDtoToVm(rawScene as unknown as AnyAnalyzeResponseDto)
         } else if (looksLikeVm) {
-          // 认为是已经转换过的 camelCase 格式
-          renderSceneVm = rawScene as AnalysisRecord['renderScene']
+          renderSceneVm = rawScene as unknown as AnalysisRecord['renderScene']
         }
       } catch {
         renderSceneVm = null
@@ -127,7 +126,7 @@ export interface SaveRecordParams {
   requestPayload: {
     reading_goal: AnalyzeRequest['reading_goal']
     reading_variant: AnalyzeRequest['reading_variant']
-    source_type: 'user_input'
+    source_type: AnalyzeRequest['source_type']
   }
   renderScene: AnalysisRecord['renderScene']
   pageState: string
@@ -147,7 +146,7 @@ export async function saveRecordToCloud(
     method: 'POST',
     data: {
       client_record_id: params.clientRecordId,
-      source_type: 'user_input',
+      source_type: params.requestPayload.source_type,
       title: params.title ?? null,
       source_text: params.sourceText,
       source_text_hash: params.sourceTextHash,

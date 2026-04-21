@@ -2,6 +2,7 @@ import { View, Text } from '@tarojs/components'
 import { memo, useCallback } from 'react'
 import type { DailyReaderBody as DailyReaderBodyType, DailyReaderHighlight } from '../../types/view/daily-reader.vm'
 import DailyReaderHighlightWord from '../DailyReaderHighlightWord'
+import type { ClickEvent } from '../../types/taro-events'
 import './index.scss'
 
 interface Props {
@@ -18,7 +19,7 @@ const DailyReaderBody = memo(function DailyReaderBody({
   onWordClick,
 }: Props) {
   const handleTextClick = useCallback(
-    (e: any) => {
+    (e: ClickEvent) => {
       const target = e.target as HTMLElement
       if (!target || !target.dataset?.word) return
       onWordClick?.(target.dataset.word)

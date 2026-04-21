@@ -31,7 +31,7 @@ export interface AnalysisRecord {
   requestPayload: {
     reading_goal: AnalyzeRequest['reading_goal']
     reading_variant: AnalyzeRequest['reading_variant']
-    source_type: 'user_input'
+    source_type: AnalyzeRequest['source_type']
   }
   /** 分析结果快照（null 表示分析失败/异常） */
   renderScene: AnyRenderSceneVm | null

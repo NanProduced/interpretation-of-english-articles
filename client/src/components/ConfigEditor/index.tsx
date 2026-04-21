@@ -81,7 +81,7 @@ export default function ConfigEditor({
                   onClick={() => handleGoalSelect(g)}
                 >
                   <View className='card-icon'>
-                    <LucideIcon name={config.icon as any} size={isDetailed ? 64 : 40} color={isSelected ? '#fff' : 'var(--text-main)'} />
+                    <LucideIcon name={config.icon} size={isDetailed ? 64 : 40} color={isSelected ? '#fff' : 'var(--text-main)'} />
                   </View>
                   <View className='card-content'>
                     <Text className='card-label'>{config.label}</Text>

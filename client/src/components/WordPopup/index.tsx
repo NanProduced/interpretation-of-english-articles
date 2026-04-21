@@ -108,7 +108,7 @@ export default function WordPopup({
   const toneMeta = mark ? TONE_META[mark.visualTone] : null
   
   const effectivePhraseKind = isLearningGlossary(glossary) ? glossary.phraseType : undefined
-  const effectiveLookupKind = 'lookupKind' in (mark ?? {}) ? (mark as any).lookupKind : undefined
+  const effectiveLookupKind = 'lookupKind' in (mark ?? {}) ? mark!.lookupKind : undefined
   const professionalLabel = ((effectivePhraseKind || effectiveLookupKind) && PHRASE_KIND_LABELS[effectivePhraseKind || effectiveLookupKind || ''])
     ? PHRASE_KIND_LABELS[effectivePhraseKind || effectiveLookupKind || '']
     : (toneMeta?.label || 'AI 解析')

@@ -51,7 +51,7 @@ interface VocabularyUpsertDto {
 
 function parseSourceRefs(payload: Record<string, unknown> | undefined): SourceRef[] {
   if (!payload?.source_refs || !Array.isArray(payload.source_refs)) return []
-  return payload.source_refs.map((ref: any) => ({
+  return payload.source_refs.map((ref: { client_record_id?: string; cloud_record_id?: string; source_sentence?: string; source_context?: string; source_sentence_id?: string; source_anchor_text?: string; source_occurrence?: number; collected_at?: string }) => ({
     clientRecordId: ref.client_record_id || '',
     cloudRecordId: ref.cloud_record_id || undefined,
     sourceSentence: ref.source_sentence || undefined,
@@ -65,10 +65,10 @@ function parseSourceRefs(payload: Record<string, unknown> | undefined): SourceRe
 
 function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
   const detailMeanings = Array.isArray(dto.meanings_json)
-    ? dto.meanings_json.map((m: any) => ({
+    ? dto.meanings_json.map((m: { partOfSpeech?: string; part_of_speech?: string; definitions?: Array<{ meaning?: string } | string> }) => ({
         pos: m.partOfSpeech || m.part_of_speech || '',
         definitions: Array.isArray(m.definitions)
-          ? m.definitions.map((d: any) => d.meaning || d)
+          ? m.definitions.map((d: { meaning?: string } | string) => typeof d === 'string' ? d : d.meaning || '')
           : [],
       })).filter(m => m.definitions.length > 0)
     : undefined

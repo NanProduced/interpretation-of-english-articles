@@ -3,20 +3,37 @@ export default {
     'pages/home/index',
     'pages/input/index',
     'pages/result/index',
-    'pages/history/index',
-    'pages/vocab/index',
-    'pages/profile/index',
-    'pages/feedback/index',
-    'pages/feedback/my-feedback',
-    'pages/credit-detail/index',
-    'pages/daily-reader/index',
-    'pages/daily-reader-archive/index',
-    'pages/onboarding/index'
+  ],
+  subPackages: [
+    {
+      root: 'packageA',
+      pages: [
+        'history/index',
+        'vocab/index',
+        'profile/index',
+        'credit-detail/index',
+      ],
+    },
+    {
+      root: 'packageB',
+      pages: [
+        'daily-reader/index',
+        'daily-reader-archive/index',
+      ],
+    },
+    {
+      root: 'packageC',
+      pages: [
+        'feedback/index',
+        'feedback/my-feedback',
+        'onboarding/index',
+      ],
+    },
   ],
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',
     navigationBarTitleText: 'Claread透读',
-    navigationBarTextStyle: 'black'
-  }
+    navigationBarTextStyle: 'black',
+  },
 }

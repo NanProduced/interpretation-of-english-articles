@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
+import type { StopPropagationEvent } from '../../types/taro-events'
 import { getRecordIds, getRecord, deleteRecord, getVocabulary } from '../../services/storage'
 import { useAuthStore } from '../../stores/auth'
 import { fetchCloudRecords } from '../../services/api/records.client'
@@ -117,7 +118,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     setSelectedIds(new Set())
   }
 
-  const toggleSelect = (id: string, e: any) => {
+  const toggleSelect = (id: string, e: { stopPropagation: () => void }) => {
     e.stopPropagation()
     const next = new Set(selectedIds)
     if (next.has(id)) next.delete(id)
@@ -192,7 +193,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     return groups.filter(g => g.items.length > 0)
   })()
 
-  const handleDelete = (record: AnalysisRecord, e: any) => {
+  const handleDelete = (record: AnalysisRecord, e: StopPropagationEvent) => {
     e.stopPropagation()
     Taro.showModal({
       title: '删除记录',

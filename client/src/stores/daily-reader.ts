@@ -32,8 +32,8 @@ export const useDailyReaderStore = create<DailyReaderState>((set, get) => ({
     try {
       const articles = await fetchTodayArticles()
       set({ todayArticles: articles, loading: false })
-    } catch (e: any) {
-      set({ error: e?.message || 'Failed to fetch today articles', loading: false })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Failed to fetch today articles', loading: false })
     }
   },
 
@@ -42,8 +42,8 @@ export const useDailyReaderStore = create<DailyReaderState>((set, get) => ({
     try {
       const article = await fetchArticleById(id)
       set({ currentArticle: article, loading: false })
-    } catch (e: any) {
-      set({ error: e?.message || 'Failed to fetch article', loading: false })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Failed to fetch article', loading: false })
     }
   },
 
@@ -67,8 +67,8 @@ export const useDailyReaderStore = create<DailyReaderState>((set, get) => ({
           loading: false,
         })
       }
-    } catch (e: any) {
-      set({ error: e?.message || 'Failed to fetch article list', loading: false })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Failed to fetch article list', loading: false })
     }
   },
 

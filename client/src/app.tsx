@@ -1,6 +1,7 @@
 import { PropsWithChildren, useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { ROUTES } from './config/routes'
+import { isNavigatingToOnboarding, setNavigatingToOnboarding } from './utils/navigationState'
 import { useAuthStore } from './stores/auth'
 import { useArticleStore } from './stores/article'
 import { CloudSyncService } from './services/cloudSync.service'
@@ -10,16 +11,15 @@ import './app.scss'
 
 const INTERRUPTED_STATE_KEY = 'analysis_interrupted'
 const GUEST_DISMISSED_KEY = 'guest_dismissed'
-let _navigatingToOnboarding = false
 
-function App({ children }: PropsWithChildren<any>) {
+function App({ children }: PropsWithChildren) {
   const [showLoginGuide, setShowLoginGuide] = useState(false)
 
   useEffect(() => {
     const restoreState = async () => {
       await useAuthStore.getState().restore()
-      if (_navigatingToOnboarding) return
-      _navigatingToOnboarding = true
+      if (isNavigatingToOnboarding()) return
+      setNavigatingToOnboarding(true)
 
       const { isLoggedIn } = useAuthStore.getState()
 
@@ -71,7 +71,7 @@ function App({ children }: PropsWithChildren<any>) {
     }
 
     // 切前台：恢复状态 + 尝试同步 pending 数据
-    const showHandler = async (options: any) => {
+    const showHandler = async (options: { path?: string; scene?: number; referrerInfo?: { appId?: string } }) => {
       if (useAuthStore.getState().isLoggedIn) {
         CloudSyncService.flush()
       }

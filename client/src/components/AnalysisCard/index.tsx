@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import LucideIcon from '../LucideIcon'
+import type { StopPropagationEvent } from '../../types/taro-events'
 import { useConfigStore } from '../../stores/config'
 import './index.scss'
 
@@ -20,7 +21,7 @@ export interface AnalysisCardProps {
   isExpanded?: boolean
   onToggle?: (expanded: boolean) => void
   onFeedback?: () => void
-  structuredData?: any
+  structuredData?: { summary?: string; chunks?: AnalysisChunk[] }
 }
 
 const TYPE_CONFIG: Record<AnalysisCardType, { icon: string; colorClass: string; accentColor: string; defaultLabel: string }> = {
@@ -112,7 +113,7 @@ export default function AnalysisCard({
   // 如果是句式解析，进行结构化解析（优先使用外部传入的数据）
   const structuredData = externalStructuredData || (type === 'sentence' ? parseSentenceAnalysis(content) : null)
 
-  const handleToggle = (e: any) => {
+  const handleToggle = (e: StopPropagationEvent) => {
     e?.stopPropagation?.()
     const nextState = !isExpanded
     if (controlledIsExpanded === undefined) {

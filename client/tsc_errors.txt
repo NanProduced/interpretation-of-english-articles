@@ -1,0 +1,42 @@
+src/components/InlineMark/index.tsx(31,39): error TS2739: Type 'BaseEventOrig<any>' is missing the following properties from type 'BaseTouchEvent<ITouch, any>': touches, changedTouches
+src/components/LoginGuideModal/index.tsx(58,13): error TS2322: Type 'number' is not assignable to type 'boolean | undefined'.
+src/components/ParagraphBlock/index.tsx(260,9): error TS2322: Type 'boolean | "" | undefined' is not assignable to type 'boolean | undefined'.
+  Type '""' is not assignable to type 'boolean | undefined'.
+src/packageA/history/index.tsx(131,37): error TS2345: Argument of type '{ stopPropagation: () => void; }' is not assignable to parameter of type 'StopPropagationEvent'.
+  Type '{ stopPropagation: () => void; }' is missing the following properties from type 'BaseEventOrig<any>': type, timeStamp, target, currentTarget, and 2 more.
+src/packageA/profile/index.tsx(356,29): error TS2339: Property 'value' does not exist on type '{ label: string; value: string; icon: string; onClick: () => void; color: string; url?: undefined; } | { label: string; value: string; icon: string; url: "/packageA/vocab/index"; color: string; onClick?: undefined; } | { ...; } | { ...; }'.
+  Property 'value' does not exist on type '{ label: string; icon: string; url: "/packageC/feedback/index"; color: string; }'.
+src/packageA/profile/index.tsx(356,72): error TS2339: Property 'value' does not exist on type '{ label: string; value: string; icon: string; onClick: () => void; color: string; url?: undefined; } | { label: string; value: string; icon: string; url: "/packageA/vocab/index"; color: string; onClick?: undefined; } | { ...; } | { ...; }'.
+  Property 'value' does not exist on type '{ label: string; icon: string; url: "/packageC/feedback/index"; color: string; }'.
+src/packageA/profile/index.tsx(357,29): error TS2339: Property 'url' does not exist on type '{ label: string; value: string; icon: string; onClick: () => void; color: string; url?: undefined; } | { label: string; value: string; icon: string; url: "/packageA/vocab/index"; color: string; onClick?: undefined; } | { ...; } | { ...; }'.
+  Property 'url' does not exist on type '{ label: string; icon: string; color: string; }'.
+src/pages/result/hooks/useResultActions.ts(30,12): error TS2749: 'useArticleStore' refers to a value, but is being used as a type here. Did you mean 'typeof useArticleStore'?
+src/pages/result/hooks/useResultActions.ts(69,25): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+src/pages/result/hooks/useResultActions.ts(69,25): error TS2345: Argument of type '(prev: any) => string | null' is not assignable to parameter of type 'string'.
+src/pages/result/hooks/useResultEffects.ts(97,24): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+src/pages/result/hooks/useResultEffects.ts(97,24): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'string[]'.
+src/pages/result/index.tsx(56,23): error TS2552: Cannot find name 'setTempConfig'. Did you mean 'tempConfig'?
+src/services/api/records.client.ts(82,50): error TS2352: Conversion of type 'Record<string, unknown> | (Record<string, unknown> & any[])' to type 'AnyAnalyzeResponseDto' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Record<string, unknown> & any[]' is not comparable to type 'AnyAnalyzeResponseDto'.
+    Type 'Record<string, unknown> & any[]' is missing the following properties from type 'AcademicAnalyzeResponseDto': schema_version, request, article, user_facing_state, and 5 more.
+src/services/api/records.client.ts(85,27): error TS2352: Conversion of type 'Record<string, unknown>' to type 'AnyRenderSceneVm | null' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Record<string, unknown>' is missing the following properties from type 'AcademicRenderSceneVm': schemaVersion, request, article, userFacingState, and 5 more.
+src/services/api/records.client.ts(108,7): error TS2322: Type '"user_input" | "daily_article" | "ocr"' is not assignable to type '"user_input"'.
+  Type '"daily_article"' is not assignable to type '"user_input"'.
+src/services/cloudSync.service.ts(218,5): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+src/services/cloudSync.service.ts(221,5): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+src/services/cloudSync.service.ts(234,5): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+src/services/cloudSync.service.ts(237,5): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+src/stores/article.ts(41,17): error TS2367: This comparison appears to be unintentional because the types 'ContentResultState' and '"loading"' have no overlap.
+src/stores/article.ts(231,15): error TS2322: Type '"user_input" | "daily_article" | "ocr"' is not assignable to type '"user_input"'.
+  Type '"daily_article"' is not assignable to type '"user_input"'.
+src/stores/article.ts(280,15): error TS2322: Type '"user_input" | "daily_article" | "ocr"' is not assignable to type '"user_input"'.
+  Type '"daily_article"' is not assignable to type '"user_input"'.
+src/stores/article.ts(315,13): error TS2322: Type '"user_input" | "daily_article" | "ocr"' is not assignable to type '"user_input"'.
+  Type '"daily_article"' is not assignable to type '"user_input"'.
+src/stores/article.ts(371,32): error TS2339: Property 'message' does not exist on type '{}'.
+src/stores/article.ts(372,29): error TS2339: Property 'code' does not exist on type '{}'.

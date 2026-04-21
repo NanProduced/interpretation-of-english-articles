@@ -8,6 +8,17 @@
 import { View, Text, ScrollView, Image, Button, Input } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
+import { setNavigatingToOnboarding } from '../../utils/navigationState'
+import type { ChooseAvatarEvent, InputEvent } from '../../types/taro-events'
+
+interface MenuItem {
+  label: string
+  value?: string
+  icon: string
+  url?: string
+  onClick?: () => void
+  color: string
+}
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useConfigStore } from '../../stores/config'
 import { useAuthStore } from '../../stores/auth'
@@ -106,7 +117,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   }, [isLoggedIn])
 
   const handleLogin = async () => {
-    ;(Taro as any)._navigatingToOnboarding = true
+    setNavigatingToOnboarding(true)
     const result = await ensureLoggedIn()
     if (result.success && result.isFirstLogin) {
       Taro.navigateTo({ url: ROUTES.ONBOARDING })
@@ -123,7 +134,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     })
   }
 
-  const onChooseAvatar = (e: any) => {
+  const onChooseAvatar = (e: ChooseAvatarEvent) => {
     const { avatarUrl } = e.detail
     updateUserInfo({ avatar_url: avatarUrl })
     updateProfile({ avatar_url: avatarUrl }).catch(() => {
@@ -131,7 +142,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     })
   }
 
-  const onNicknameChange = (e: any) => {
+  const onNicknameChange = (e: InputEvent) => {
     const nickname = e.detail.value
     updateUserInfo({ nickname })
     if (nicknameTimerRef.current) clearTimeout(nicknameTimerRef.current)
@@ -148,7 +159,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     Taro.showToast({ title: '默认配置已更新', icon: 'success' })
   }
 
-  const menuGroups = [
+  const menuGroups: { title: string; items: MenuItem[] }[] = [
     {
       title: "学习管理",
       items: [
@@ -188,7 +199,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     }
   ]
 
-  const handleMenuClick = (item: any) => {
+  const handleMenuClick = (item: MenuItem) => {
     if (item.onClick) item.onClick()
     else if (item.url) Taro.navigateTo({ url: item.url })
   }
@@ -305,7 +316,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
             <View className='dashboard-footer' onClick={() => setShowAchievementSheet(true)}>
               <View className='achievement-badge'>
                 <View className='medal-icon' style={{ borderColor: tier.color + '40' }}>
-                  <LucideIcon name={tier.icon as any} size={36} color={tier.color} />
+                  <LucideIcon name={tier.icon} size={36} color={tier.color} />
                 </View>
                 <View className='text-group'>
                   <Text className='history-label'>阅读成就</Text>
@@ -337,7 +348,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                   <View key={iIdx} className='menu-item' onClick={() => handleMenuClick(item)}>
                     <View className='item-left'>
                       <View className={`icon-box ${item.color}`}>
-                        <LucideIcon name={item.icon as any} size={36} color='currentColor' />
+                        <LucideIcon name={item.icon} size={36} color='currentColor' />
                       </View>
                       <Text className='label'>{item.label}</Text>
                     </View>
@@ -393,7 +404,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
             {allTiers.map((t) => (
               <View key={t.level} className={`tier-item ${tier.level === t.level ? 'current' : ''}`}>
                 <View className='tier-icon-box' style={{ color: t.color, backgroundColor: t.color + '15' }}>
-                  <LucideIcon name={t.icon as any} size={42} color={t.color} />
+                  <LucideIcon name={t.icon} size={42} color={t.color} />
                 </View>
                 <View className='tier-info'>
                   <View className='tier-main'>

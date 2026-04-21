@@ -8,6 +8,7 @@
 import { View, Text, ScrollView, Input } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
+import type { InputEvent, StopPropagationEvent } from '../../types/taro-events'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { getVocabulary, removeVocabEntry, updateVocabEntry } from '../../services/storage'
@@ -148,16 +149,11 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
 
   useDidShow(loadVocab)
 
-  useEffect(() => {
+  Taro.usePullDownRefresh(() => {
     if (isSubView) return
-    const handler = () => {
-      loadVocabRef.current?.()
-      Taro.stopPullDownRefresh()
-    }
-    const page = Taro.getCurrentInstance().page
-    if (!page) return
-    ;(page as any).onPullDownRefresh(handler)
-  }, [isSubView])
+    loadVocabRef.current?.()
+    Taro.stopPullDownRefresh()
+  })
 
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
@@ -194,7 +190,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     return list
   }, [vocabList, debouncedQuery, filterStatus, sortMode])
 
-  const goToResult = (recordId: string, sentenceId?: string, e?: any) => {
+  const goToResult = (recordId: string, sentenceId?: string, e?: StopPropagationEvent) => {
     if (e) e.stopPropagation()
     if (!recordId) return
     let url = `${ROUTES.RESULT}?recordId=${recordId}&mode=replay`
@@ -203,7 +199,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     if (popupEntry) setPopupEntry(null)
   }
 
-  const handleDelete = (entry: VocabEntry, e: any) => {
+  const handleDelete = (entry: VocabEntry, e: StopPropagationEvent) => {
     e.stopPropagation()
     Taro.showModal({
       title: '删除生词',
@@ -241,7 +237,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     Taro.navigateTo({ url: ROUTES.INPUT })
   }
 
-  const handleSearchInput = (e: any) => {
+  const handleSearchInput = (e: InputEvent) => {
     setSearchQuery(e.detail.value || '')
   }
 

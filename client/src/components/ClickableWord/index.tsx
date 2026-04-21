@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { Text } from '@tarojs/components'
+import type { ClickEvent } from '../../types/taro-events'
 import './index.scss'
 
 interface ClickableWordProps {
@@ -7,7 +8,7 @@ interface ClickableWordProps {
   isSaved?: boolean
   savedStatus?: string
   className?: string
-  onClick: (word: string, event: any) => void
+  onClick: (word: string, event: ClickEvent) => void
 }
 
 const ClickableWord = memo(function ClickableWord({ word, isSaved, savedStatus, className, onClick }: ClickableWordProps) {

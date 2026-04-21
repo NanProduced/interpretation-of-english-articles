@@ -7,6 +7,7 @@ import ClickableWord from '../ClickableWord'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
 import AnnotationFeedback from '../AnnotationFeedback'
 import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis } from './utils'
+import type { ClickEvent } from '../../types/taro-events'
 import './index.scss'
 
 const TONE_PRIORITY: Record<VisualTone | AcademicVisualTone, number> = {
@@ -21,7 +22,7 @@ const TONE_PRIORITY: Record<VisualTone | AcademicVisualTone, number> = {
 export interface WordClickPayload {
   word: string
   mark: AnyInlineMarkModel | null
-  event?: any
+  event?: ClickEvent
   contextSentence?: string
   occurrence?: number
 }
@@ -238,7 +239,7 @@ function renderTextWithMarks(
     }
 
     const isVocabulary = ['vocab', 'phrase', 'context', 'term'].includes(item.mark.visualTone)
-    const isActive = activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId)
+    const isActive = !!(activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId))
     const isSaved = vocabList?.includes(item.text.toLowerCase())
     const savedStatus = vocabSavedMap?.[item.text.toLowerCase()]
     

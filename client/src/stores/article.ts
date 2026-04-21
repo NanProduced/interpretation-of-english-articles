@@ -38,7 +38,7 @@ function derivePageState(
   if (phase === 'empty') return 'empty'
   
   const state = vm?.userFacingState
-  if (!state || (state as any) === 'loading') return 'normal'
+  if (!state || state === ('loading' as string)) return 'normal'
   return state
 }
 
@@ -142,12 +142,12 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         const errorCode = statusRes.failure_code || 'UNKNOWN'
         throw new ApiError(statusRes.failure_message || '分析失败', errorCode, 500)
 
-      } catch (err: any) {
+      } catch (err) {
         if (currentAbortFlag) break
         if (get().phase === 'success' || get().phase === 'empty') break
 
-        const message = err?.message || '网络或服务异常，请稍后重试'
-        const code = err?.code || 'UNKNOWN'
+        const message = err instanceof Error ? err.message : '网络或服务异常，请稍后重试'
+        const code = (err instanceof ApiError ? err.code : 'UNKNOWN') || 'UNKNOWN'
         const phase: ArticlePhase = 'error'
         const pageState = derivePageState(phase, code, null)
 
@@ -326,7 +326,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         }
 
         set({ phase: 'polling', pageState, recordId: clientRecordId, cloudId: serverRecordId })
-      } catch (err: any) {
+      } catch (err) {
         if (err instanceof ApiError && err.statusCode === 409) {
           const current = await getCurrentTask()
           if (current.has_active && current.task) {
@@ -368,8 +368,8 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           })
           return
         } else {
-          const message = err?.message || '网络或服务异常，请稍后重试'
-          const code = err?.code || 'UNKNOWN'
+          const message = err instanceof Error ? err.message : '网络或服务异常，请稍后重试'
+          const code = (err instanceof ApiError ? err.code : 'UNKNOWN') || 'UNKNOWN'
           const phase: ArticlePhase = 'error'
           const pageState = derivePageState(phase, code, null)
           set({ error: message, errorCode: code, phase, pageState })

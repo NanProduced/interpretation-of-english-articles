@@ -28,7 +28,7 @@ function extractApiErrorMessage(statusCode: number, responseData: unknown): stri
     return `请求失败: ${statusCode}`
   }
 
-  const detail = (responseData as any).detail
+  const detail = (responseData as { detail?: string }).detail
   if (typeof detail === 'string' && detail.trim()) {
     return `请求失败: ${statusCode} - ${detail}`
   }
