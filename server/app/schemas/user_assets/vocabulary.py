@@ -121,6 +121,12 @@ class VocabularyUpsertResponse(BaseModel):
     updated_at: datetime
 
 
+class VocabularyDeleteResponse(BaseModel):
+    """DELETE /vocabulary/{vocab_id} — result."""
+
+    deleted: bool
+
+
 # ---------------------------------------------------------------------------
 # Highlights (Result Page Overlay)
 # ---------------------------------------------------------------------------

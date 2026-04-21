@@ -1,6 +1,7 @@
 import { View, Text } from '@tarojs/components'
 import { useCallback, useEffect, useState } from 'react'
 import Taro, { usePageScroll, useShareAppMessage } from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import { useDailyReaderStore } from '../../stores/daily-reader'
 import DailyReaderHeader from '../../components/DailyReaderHeader'
 import DailyReaderBody from '../../components/DailyReaderBody'
@@ -42,10 +43,10 @@ export default function DailyReaderPage() {
   // TODO: 上线前需为分享卡片生成自定义 imageUrl，使用 cover_theme 渐变 + 标题 + 来源绘制
   // 参见 specs/daily-reader/requirements.md Req 11.2
   useShareAppMessage(() => {
-    if (!article) return { title: 'Claread 透读', path: '/pages/home/index' }
+    if (!article) return { title: 'Claread 透读', path: ROUTES.HOME }
     return {
       title: `${article.title} — Claread 每日精读`,
-      path: `/pages/daily-reader/index?id=${article.id}`,
+      path: `${ROUTES.DAILY_READER}?id=${article.id}`,
     }
   })
 
@@ -120,7 +121,7 @@ export default function DailyReaderPage() {
       />
       <View
         className='daily-page__archive-entry'
-        onClick={() => Taro.navigateTo({ url: '/pages/daily-reader-archive/index' })}
+        onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
       >
         <Text className='daily-page__archive-text'>往期精选</Text>
         <Text className='daily-page__archive-arrow'>→</Text>

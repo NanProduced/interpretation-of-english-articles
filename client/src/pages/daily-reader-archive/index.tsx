@@ -1,6 +1,7 @@
 import { View, Text, Image } from '@tarojs/components'
 import { useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import { useDailyReaderStore } from '../../stores/daily-reader'
 import './index.scss'
 
@@ -31,7 +32,7 @@ export default function DailyReaderArchivePage() {
   }, [fetchList, listHasMore, loading])
 
   const handleArticleClick = useCallback((id: string) => {
-    Taro.navigateTo({ url: `/pages/daily-reader/index?id=${id}` })
+    Taro.navigateTo({ url: `${ROUTES.DAILY_READER}?id=${id}` })
   }, [])
 
   return (

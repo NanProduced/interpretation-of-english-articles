@@ -41,7 +41,7 @@ async def check_content_security(title: str, text: str) -> dict:
 
     result = data.get("result", {})
     return {
-        "suggest": result.get("suggest", "pass"),
+        "suggest": result.get("suggest", "review"),
         "label": result.get("label", 100),
         "trace_id": data.get("trace_id", ""),
         "detail": data.get("detail", []),
@@ -49,7 +49,7 @@ async def check_content_security(title: str, text: str) -> dict:
 
 
 def is_content_safe(sec_check_result: dict) -> bool:
-    suggest = sec_check_result.get("suggest", "pass")
+    suggest = sec_check_result.get("suggest", "review")
     if suggest in ("risky", "review"):
         return False
     return True

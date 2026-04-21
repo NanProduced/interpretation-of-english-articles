@@ -73,3 +73,12 @@ class DailyReaderUnpublishRequest(BaseModel):
 
 class DailyReaderRetryRequest(BaseModel):
     id: str
+
+
+class ArticleActionResponse(BaseModel):
+    status: str
+
+
+class RetryWorkflowResponse(BaseModel):
+    status: str
+    message: str

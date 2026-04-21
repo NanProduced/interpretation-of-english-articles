@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Image, Text, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
@@ -85,14 +86,14 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
             src={avatarUrl}
             mode='aspectFill'
             lazyLoad
-            onClick={() => Taro.navigateTo({ url: '/pages/profile/index' })}
+            onClick={() => Taro.navigateTo({ url: ROUTES.PROFILE })}
           />
         )
       }
       return (
         <View
           className='user-avatar logged'
-          onClick={() => Taro.navigateTo({ url: '/pages/profile/index' })}
+          onClick={() => Taro.navigateTo({ url: ROUTES.PROFILE })}
         >
           <Text className='avatar-initial'>{initial}</Text>
         </View>
@@ -106,7 +107,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
         onClick={async () => {
           const result = await ensureLoggedIn()
           if (result.success && result.isFirstLogin) {
-            Taro.navigateTo({ url: '/pages/profile/index' })
+            Taro.navigateTo({ url: ROUTES.PROFILE })
           }
         }}
       >
@@ -141,7 +142,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
             onClick={async () => {
               const result = await ensureLoggedIn()
               if (result.success && result.isFirstLogin) {
-                Taro.navigateTo({ url: '/pages/profile/index' })
+                Taro.navigateTo({ url: ROUTES.PROFILE })
               }
             }}
           >
@@ -161,7 +162,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
           <Text className='sub-greeting'>{greeting.sub}</Text>
         </View>
 
-        <View className='light-portal' onClick={() => Taro.navigateTo({ url: '/pages/input/index' })}>
+        <View className='light-portal' onClick={() => Taro.navigateTo({ url: ROUTES.INPUT })}>
           <View className='portal-inner'>
             <View className='portal-text-area'>
               <Text className='portal-label'>输入文本</Text>
@@ -182,7 +183,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
           <Text className='section-title'>每日精选</Text>
           <Text
             className='section-more'
-            onClick={() => Taro.navigateTo({ url: '/pages/daily-reader-archive/index' })}
+            onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
           >更多 →</Text>
         </View>
 
@@ -192,7 +193,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
               <View
                 key={article.id}
                 className='feed-card'
-                onClick={() => Taro.navigateTo({ url: `/pages/daily-reader/index?id=${article.id}` })}
+                onClick={() => Taro.navigateTo({ url: `${ROUTES.DAILY_READER}?id=${article.id}` })}
               >
                 <View className='card-cover-box'>
                   {article.coverImageUrl ? (

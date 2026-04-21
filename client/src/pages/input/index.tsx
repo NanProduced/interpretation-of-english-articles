@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import { useConfigStore, UserPurpose } from '../../stores/config'
 import { useArticleStore } from '../../stores/article'
 import { useLayoutStore } from '../../stores/layout'
@@ -75,7 +76,7 @@ export default function InputPage() {
     recoverActiveTask().then(() => {
       const phase = useArticleStore.getState().phase
       if (phase === 'polling' || phase === 'loading') {
-        Taro.navigateTo({ url: '/pages/result/index' })
+        Taro.navigateTo({ url: ROUTES.RESULT })
       }
     })
   })
@@ -144,7 +145,7 @@ export default function InputPage() {
       extended: false,
     })
     // redirectTo 销毁当前页，防止用户通过返回键回到未重置的 Input 页
-    Taro.redirectTo({ url: '/pages/result/index' })
+    Taro.redirectTo({ url: ROUTES.RESULT })
   }
 
   return (

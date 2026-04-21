@@ -99,3 +99,9 @@ class RecordUpsertResponse(BaseModel):
     client_record_id: str
     created: bool  # True if new, False if updated
     updated_at: datetime
+
+
+class RecordDeleteResponse(BaseModel):
+    """DELETE /records/{record_id} — result."""
+
+    deleted: bool

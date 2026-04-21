@@ -41,6 +41,7 @@
 2. While the content security check runs, when the API is called, the Claread system shall use `scene=3` (forum scenario) as the closest match for "platform publishing content for users to read".
 3. While the content security check returns a result, when the `suggest` field is `risky` or `review`, the Claread system shall reject the article and not proceed to AI scoring or workflow processing.
 4. While the content security check returns a result, when the `suggest` field is `pass`, the Claread system shall allow the article to proceed to AI scoring.
+5. While the content security check API call fails or returns an unexpected result without a `suggest` field, the Claread system shall treat the article as unsafe (default to `suggest=review`) and reject it from proceeding to AI scoring.
 5. While the pipeline stores article data, when it records the security check result, the Claread system shall store the full check result (trace_id, suggest, label, detail) in the `content_sec_check` JSONB field for audit trail.
 
 ### Requirement 3 - AI 筛选与评分

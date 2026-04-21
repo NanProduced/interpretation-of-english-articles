@@ -16,6 +16,7 @@ from app.schemas.user_assets.vocabulary import (
     VocabHighlightsResponse,
     VocabMatchItem,
     VocabularyCreateRequest,
+    VocabularyDeleteResponse,
     VocabularyListResponse,
     VocabularyResponse,
     VocabularyUpdateRequest,
@@ -174,7 +175,7 @@ async def update_vocabulary(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.delete("/{vocab_id}")
+@router.delete("/{vocab_id}", response_model=VocabularyDeleteResponse)
 async def delete_vocabulary(
     current_user: AuthUserDep,
     vocab_id: UUID,

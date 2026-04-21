@@ -12,8 +12,15 @@ from logging import getLogger
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
+from app.schemas.quota import (
+    AnonymousQuotaResponse,
+    LedgerEntryResponse,
+    LedgerListResponse,
+    QuotaCheckRequest,
+    QuotaCheckResponse,
+    QuotaResponse,
+)
 from app.services.analysis.credit_service import ensure_credit_account, get_quota_info
 from app.services.auth.dependencies import AuthUserDep, OptionalAuthUserDep
 from app.services.quota import get_anonymous_quota_info, check_and_consume_anonymous_trial
@@ -22,47 +29,6 @@ from app.services.quota.ledger import get_credit_ledger
 logger = getLogger("app.api")
 
 router = APIRouter(prefix="/me", tags=["user"])
-
-
-class QuotaResponse(BaseModel):
-    daily_free_points: int
-    daily_used_points: int
-    bonus_points: int
-    remaining_points: int
-
-
-class AnonymousQuotaResponse(BaseModel):
-    remaining_trials: int
-    max_trials_per_day: int
-    reset_at: str
-
-
-class QuotaCheckRequest(BaseModel):
-    anonymous_id: str | None = None
-
-
-class QuotaCheckResponse(BaseModel):
-    allowed: bool
-    remaining: int
-    reset_at: str
-    quota_type: str
-
-
-class LedgerEntryResponse(BaseModel):
-    id: str
-    entry_type: str
-    points: int
-    bucket_type: str
-    balance_after: int
-    description: str
-    article_title: str | None
-    created_at: datetime
-
-
-class LedgerListResponse(BaseModel):
-    items: list[LedgerEntryResponse]
-    cursor: str | None
-    has_more: bool
 
 
 @router.get("/quota", response_model=QuotaResponse)

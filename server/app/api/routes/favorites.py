@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.user_assets.favorites import (
     FavoriteCreateRequest,
+    FavoriteCreateResponse,
     FavoriteDeleteResponse,
     FavoriteListResponse,
     FavoriteResponse,
@@ -25,7 +26,7 @@ logger = getLogger("app.api")
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 
 
-@router.post("", response_model=dict)
+@router.post("", response_model=FavoriteCreateResponse)
 async def add_favorite(
     current_user: AuthUserDep,
     body: FavoriteCreateRequest,

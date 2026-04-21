@@ -7,6 +7,7 @@
 
 import { View, Text, ScrollView, Input } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { getVocabulary, removeVocabEntry, updateVocabEntry } from '../../services/storage'
@@ -196,7 +197,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const goToResult = (recordId: string, sentenceId?: string, e?: any) => {
     if (e) e.stopPropagation()
     if (!recordId) return
-    let url = `/pages/result/index?recordId=${recordId}&mode=replay`
+    let url = `${ROUTES.RESULT}?recordId=${recordId}&mode=replay`
     if (sentenceId) url += `&sentenceId=${sentenceId}`
     Taro.navigateTo({ url })
     if (popupEntry) setPopupEntry(null)
@@ -237,7 +238,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   }
 
   const goToInput = () => {
-    Taro.navigateTo({ url: '/pages/input/index' })
+    Taro.navigateTo({ url: ROUTES.INPUT })
   }
 
   const handleSearchInput = (e: any) => {

@@ -35,7 +35,7 @@
 - [ ] A5.1 新建 `server/app/services/daily_reader/content_security.py`
   - `check_content_security()` — 微信 msgSecCheck API 调用
   - `get_wechat_access_token()` — 复用现有微信认证逻辑
-  - 结果判定：pass 放行，review/risky 拒绝
+  - 结果判定：pass 放行，review/risky 拒绝；API 异常或字段缺失时默认 review（fail-closed）
   - 结果存储到 content_sec_check JSONB
   - _Requirement: 2_
 

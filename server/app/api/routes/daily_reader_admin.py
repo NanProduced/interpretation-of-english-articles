@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 
 from app.config.settings import get_settings
 from app.schemas.daily_reader import (
+    ArticleActionResponse,
     DailyReaderGenerateRequest,
     DailyReaderGenerateResponse,
     DailyReaderListItem,
@@ -17,6 +18,7 @@ from app.schemas.daily_reader import (
     DailyReaderPublishRequest,
     DailyReaderRetryRequest,
     DailyReaderUnpublishRequest,
+    RetryWorkflowResponse,
 )
 from app.services.daily_reader import service
 
@@ -61,7 +63,7 @@ async def generate_articles(
         ) from e
 
 
-@router.post("/publish")
+@router.post("/publish", response_model=ArticleActionResponse)
 async def publish_article(
     request: DailyReaderPublishRequest,
     _auth: str = Depends(verify_admin_api_key),
@@ -72,7 +74,7 @@ async def publish_article(
     return {"status": "published"}
 
 
-@router.post("/unpublish")
+@router.post("/unpublish", response_model=ArticleActionResponse)
 async def unpublish_article(
     request: DailyReaderUnpublishRequest,
     _auth: str = Depends(verify_admin_api_key),
@@ -83,7 +85,7 @@ async def unpublish_article(
     return {"status": "unpublished"}
 
 
-@router.delete("/{article_id}")
+@router.delete("/{article_id}", response_model=ArticleActionResponse)
 async def delete_article(
     article_id: str,
     _auth: str = Depends(verify_admin_api_key),
@@ -103,7 +105,7 @@ async def list_drafts(
     return DailyReaderListResponse(items=items, has_more=False)
 
 
-@router.post("/retry")
+@router.post("/retry", response_model=RetryWorkflowResponse)
 async def retry_workflow(
     request: DailyReaderRetryRequest,
     _auth: str = Depends(verify_admin_api_key),

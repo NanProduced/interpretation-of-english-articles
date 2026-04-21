@@ -1,5 +1,6 @@
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 
@@ -10,9 +11,9 @@ interface TabBarProps {
 
 export default function TabBar({ current, onTabChange }: TabBarProps) {
   const tabs = [
-    { key: 'home', text: '首页', icon: 'home' as const, path: '/pages/home/index' },
-    { key: 'history', text: '记录', icon: 'bookOpen' as const, path: '/pages/history/index' },
-    { key: 'profile', text: '我的', icon: 'smile' as const, path: '/pages/profile/index' },
+    { key: 'home', text: '首页', icon: 'home' as const, path: ROUTES.HOME },
+    { key: 'history', text: '记录', icon: 'bookOpen' as const, path: ROUTES.HISTORY },
+    { key: 'profile', text: '我的', icon: 'smile' as const, path: ROUTES.PROFILE },
   ]
 
   const switchTab = (tab: typeof tabs[0]) => {

@@ -14,6 +14,18 @@
   只定义 agent blueprint、deps、prompt，不做模型选择和运行封装。
 - `app/services/analysis`
   负责输入清洗、用户规则映射、锚点解析、结果组装和 agent 执行封装。
+- `app/services/quota/`
+  负责配额查询、额度校验、积分扣减与发放。
+- `app/services/auth/`
+  负责微信登录、会话管理、用户资料更新（session.py, profile.py）。
+- `app/services/feedback/`
+  负责反馈提交、查询、状态更新与奖励发放。
+- `app/services/user_assets/`
+  负责用户资产（records, vocabulary, favorites）的 CRUD 操作。
+- `app/services/daily_reader/`
+  负责每日精读的 Pipeline 编排、文章 CRUD 与内容安全检测。
+- `app/services/dictionary/`
+  负责词典查询、lemma 归并、短语候选与缓存。
 - `app/workflow/`
   只负责编排、节点状态流转、trace metadata。
 - `app/schemas/common.py`
@@ -21,7 +33,21 @@
 - `app/schemas/internal/`
   放 agent 与 node 之间的内部 DTO。
 - `app/schemas/analysis.py`
-  放对外 API schema。
+  放分析任务 API schema。
+- `app/schemas/quota.py`
+  放配额与积分明细 schema。
+- `app/schemas/auth.py`
+  放认证相关 schema。
+- `app/schemas/feedback.py`
+  放反馈相关 schema。
+- `app/schemas/health.py`
+  放健康检查 schema。
+- `app/schemas/daily_reader.py`
+  放每日精读 schema。
+- `app/schemas/tasks.py`
+  放任务相关 schema。
+- `app/schemas/user_assets/`
+  放用户资产 schema 子目录（records.py, vocabulary.py, favorites.py）。
 
 ## 设计规则
 
@@ -32,6 +58,11 @@
 - 新增模型时，只追加 profile，不复制 route/agent 逻辑。
 - 运行时实验统一通过请求里的 `model_selection` 或服务端 `MODEL_PRESETS_JSON`，不通过改 legacy env。
 - 对外 schema 和内部 schema 必须分层，内部 agent DTO 不直接暴露给 API。
+- Pydantic 模型必须放在 `app/schemas/` 对应文件中，不允许在路由文件中定义 BaseModel 子类。
+- 所有 API 端点必须声明 `response_model`，不允许省略或使用 `response_model=dict`。
+- HTTP 异常的 `detail` 字段禁止暴露内部异常信息（如 `detail=str(e)`），统一使用 `detail="Internal server error"`。原始异常仅通过日志记录。
+- API Key 比较必须使用 `secrets.compare_digest()` 进行常量时间比较，禁止使用 `!=` 或 `==` 直接比较（防止时序攻击）。
+- 内容安全检测必须采用 fail-closed 策略：API 调用失败、返回异常或字段缺失时，默认拒绝放行（`suggest=review`），不允许 fail-open 默认放行。
 - `MODEL_PROFILES_JSON` 支持两种方式：外部 JSON 文件（推荐）或内联 JSON。
 
 ## 新增模型流程

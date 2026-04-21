@@ -99,8 +99,20 @@ psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/rese
   负责 profile registry、route resolution、provider factory、agent runtime injection
 - `app/agents`
   只放 agent blueprint
-- `app/services`
-  放纯业务逻辑和 agent runner
+- `app/services/analysis`
+  分析任务业务逻辑和 agent runner
+- `app/services/quota/`
+  配额查询、额度校验、积分扣减与发放
+- `app/services/auth/`
+  微信登录、会话管理、用户资料更新
+- `app/services/feedback/`
+  反馈提交、查询、状态更新与奖励发放
+- `app/services/user_assets/`
+  用户资产（records, vocabulary, favorites）CRUD
+- `app/services/daily_reader/`
+  每日精读 Pipeline、文章 CRUD、内容安全检测
+- `app/services/dictionary/`
+  词典查询、lemma 归并、短语候选、缓存
 - `app/workflow`
   只做 LangGraph 编排与 tracing
 - `app/schemas/common.py`
@@ -108,7 +120,21 @@ psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/rese
 - `app/schemas/internal`
   放内部 DTO
 - `app/schemas/analysis.py`
-  放对外 API schema
+  放分析任务 API schema
+- `app/schemas/quota.py`
+  放配额与积分明细 schema
+- `app/schemas/auth.py`
+  放认证 schema
+- `app/schemas/feedback.py`
+  放反馈 schema
+- `app/schemas/health.py`
+  放健康检查 schema
+- `app/schemas/daily_reader.py`
+  放每日精读 schema
+- `app/schemas/tasks.py`
+  放任务 schema
+- `app/schemas/user_assets/`
+  放用户资产 schema 子目录（records, vocabulary, favorites）
 
 详细规范见 `ARCHITECTURE.md`。
 

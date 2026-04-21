@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import { useConfigStore, UserPurpose } from '../../stores/config'
 import ConfigEditor from '../../components/ConfigEditor'
 import './index.scss'
@@ -16,7 +17,7 @@ export default function Onboarding() {
     const hasConfig = Taro.getStorageSync('user_configured')
     
     if (hasConfig && !fromProfile) {
-      Taro.reLaunch({ url: '/pages/home/index' })
+      Taro.reLaunch({ url: ROUTES.HOME })
       return
     }
     setIsReady(true)
@@ -29,13 +30,13 @@ export default function Onboarding() {
     
     Taro.showToast({ title: '配置已更新', icon: 'success', duration: 1000 })
     setTimeout(() => {
-      Taro.reLaunch({ url: '/pages/home/index' })
+      Taro.reLaunch({ url: ROUTES.HOME })
     }, 1000)
   }
 
   const skip = () => {
     Taro.setStorageSync('user_configured', true)
-    Taro.reLaunch({ url: '/pages/home/index' })
+    Taro.reLaunch({ url: ROUTES.HOME })
   }
 
   if (!isReady) return null

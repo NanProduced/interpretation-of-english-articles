@@ -169,3 +169,30 @@ class FeedbackRewardRequest(BaseModel):
     """POST /internal/feedback/{id}/reward — grant reward points."""
 
     points: int = Field(gt=0, le=500)
+
+
+class FeedbackRewardResponse(BaseModel):
+    """POST /internal/feedback/{id}/reward — reward result."""
+
+    feedback_id: str
+    user_id: str
+    reward_points: int
+    granted: bool
+
+
+class FeedbackStatusUpdateResponse(BaseModel):
+    """PATCH /internal/feedback/{id}/status — update result."""
+
+    id: str
+    status: str
+    admin_note: str | None = None
+
+
+class FeedbackStatsResponse(BaseModel):
+    """GET /internal/feedback/stats — statistics."""
+
+    total: int
+    pending: int
+    adopted: int
+    resolved: int
+    dismissed: int

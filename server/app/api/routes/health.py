@@ -4,12 +4,13 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.config.settings import get_settings
 from app.database.connection import is_db_ready, is_redis_ready
+from app.schemas.health import DbHealthResponse, HealthCheckResponse, ReadinessCheckResponse
 
 router = APIRouter(prefix="/health", tags=["health"])
 
 
-@router.get("")
-async def health_check(request: Request) -> dict[str, str | bool | int]:
+@router.get("", response_model=HealthCheckResponse)
+async def health_check(request: Request) -> HealthCheckResponse:
     """
     健康检查端点。
 
@@ -33,8 +34,8 @@ async def health_check(request: Request) -> dict[str, str | bool | int]:
     }
 
 
-@router.get("/db")
-async def db_health() -> dict[str, str | bool]:
+@router.get("/db", response_model=DbHealthResponse)
+async def db_health() -> DbHealthResponse:
     """数据库连接健康检查。"""
     db_ready = await is_db_ready()
     return {
@@ -43,8 +44,8 @@ async def db_health() -> dict[str, str | bool]:
     }
 
 
-@router.get("/ready")
-async def readiness_check(request: Request) -> dict[str, str | bool | int]:
+@router.get("/ready", response_model=ReadinessCheckResponse)
+async def readiness_check(request: Request) -> ReadinessCheckResponse:
     """
     Readiness probe.
 

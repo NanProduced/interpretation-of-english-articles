@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import LucideIcon from '../LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
 import './index.scss'
@@ -55,7 +56,7 @@ export default function NavBar({
       Taro.navigateBack() 
     }
   }
-  const handleHome = () => { Taro.reLaunch({ url: '/pages/home/index' }) }
+  const handleHome = () => { Taro.reLaunch({ url: ROUTES.HOME }) }
 
   return (
     <View className='custom-navbar-container' style={{ background }}>

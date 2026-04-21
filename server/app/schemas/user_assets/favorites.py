@@ -59,3 +59,10 @@ class FavoriteDeleteResponse(BaseModel):
     """DELETE /favorites/{analysis_record_id} — result."""
 
     deleted: bool
+
+
+class FavoriteCreateResponse(BaseModel):
+    """POST /favorites — add result."""
+
+    id: str
+    ok: bool

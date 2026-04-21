@@ -1,6 +1,7 @@
 import { View, Text, Input, Textarea } from '@tarojs/components'
 import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import { submitFeedback, fetchFeedbackList } from '../../services/api/feedback.client'
 import './index.scss'
 
@@ -50,7 +51,7 @@ export default function FeedbackPage() {
   }
 
   const goToMyFeedback = () => {
-    Taro.navigateTo({ url: '/pages/feedback/my-feedback' })
+    Taro.navigateTo({ url: ROUTES.FEEDBACK_MY })
   }
 
   return (

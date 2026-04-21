@@ -1,5 +1,6 @@
 import { PropsWithChildren, useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
+import { ROUTES } from './config/routes'
 import { useAuthStore } from './stores/auth'
 import { useArticleStore } from './stores/article'
 import { CloudSyncService } from './services/cloudSync.service'
@@ -23,7 +24,7 @@ function App({ children }: PropsWithChildren<any>) {
       const { isLoggedIn } = useAuthStore.getState()
 
       if (isLoggedIn && !Taro.getStorageSync('user_configured')) {
-        Taro.navigateTo({ url: '/pages/onboarding/index' })
+        Taro.navigateTo({ url: ROUTES.ONBOARDING })
       } else if (!isLoggedIn) {
         // 未登录：检查是否已选择过游客模式（当天不重复弹窗）
         const dismissed = Taro.getStorageSync(GUEST_DISMISSED_KEY)
@@ -42,7 +43,7 @@ function App({ children }: PropsWithChildren<any>) {
     const result = await ensureLoggedIn(true)
     if (result.success && result.isFirstLogin) {
       // 首次登录 → 跳转到 Profile 引导填写头像昵称
-      Taro.navigateTo({ url: '/pages/profile/index' })
+      Taro.navigateTo({ url: ROUTES.PROFILE })
     }
   }
 

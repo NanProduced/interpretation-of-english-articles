@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useArticleStore } from '../../stores/article'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import { InlineMarkModel, AnyInlineMarkModel, PageMode, AnyRenderSceneVm, ResultPageState, AcademicRenderSceneVm } from '../../types/view/render-scene.vm'
 import NavBar from '../../components/NavBar'
 import ParagraphBlock, { type WordClickPayload } from '../../components/ParagraphBlock'
@@ -298,8 +299,8 @@ export default function Result() {
       || (firstSentence ? firstSentence.split('\n')[0].slice(0, 30) + '...' : null)
       || 'Claread透读 - AI 英语深度解析'
     const path = recordId
-      ? `/pages/result/index?recordId=${recordId}&mode=replay`
-      : '/pages/result/index'
+      ? `${ROUTES.RESULT}?recordId=${recordId}&mode=replay`
+      : ROUTES.RESULT
     return { title, path }
   })
 
@@ -403,7 +404,7 @@ export default function Result() {
     })
     
     // 跳转到干净的结果页（触发新任务的 loading 状态）
-    Taro.redirectTo({ url: '/pages/result/index' })
+    Taro.redirectTo({ url: ROUTES.RESULT })
   }
 
   const handleRetry = () => {
@@ -424,7 +425,7 @@ export default function Result() {
     } else {
       // 正常成功态点击“再分析一篇”，回到输入页
       reset()
-      Taro.redirectTo({ url: '/pages/input/index' })
+      Taro.redirectTo({ url: ROUTES.INPUT })
     }
   }
 

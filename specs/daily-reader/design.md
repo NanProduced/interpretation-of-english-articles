@@ -302,7 +302,7 @@ async def check_content_security(title: str, text: str) -> dict:
     )
     result = response.json()
     return {
-        "suggest": result.get("result", {}).get("suggest", "pass"),
+        "suggest": result.get("result", {}).get("suggest", "review"),
         "label": result.get("result", {}).get("label", 100),
         "trace_id": result.get("trace_id", ""),
         "detail": result.get("detail", []),
@@ -314,7 +314,7 @@ async def check_content_security(title: str, text: str) -> dict:
 - **scene=3**（论坛场景）：最接近"平台发布内容供用户阅读"的场景
 - **openid**：使用小程序管理员账号的 openid，通过定时任务（每 90 分钟自动触发一次小程序访问）保活该 openid
 - **content 限制**：2500 字上限，英文文章通常不会超限；如超限则截取前 2500 字
-- **结果判定**：`suggest=pass` 放行，`suggest=review` 或 `suggest=risky` 拒绝
+- **结果判定**：`suggest=pass` 放行，`suggest=review` 或 `suggest=risky` 拒绝；API 调用失败或返回异常时默认 `suggest=review`（fail-closed）
 - **检测时机**：在提取全文后、AI 评分前执行，避免对违规文章浪费 LLM token
 - **结果存储**：`content_sec_check` JSONB 字段存储完整检测结果，便于追溯
 
@@ -349,7 +349,7 @@ async def run_daily_pipeline():
     for article in candidates:
         sec_result = await check_content_security(article["title"], article["text"])
         article["content_sec_check"] = sec_result
-        if sec_result["suggest"] == "pass":
+        if sec_result.get("suggest", "review") == "pass":
             safe_candidates.append(article)
 
     # Layer 3: AI Scoring

@@ -10,9 +10,16 @@ from logging import getLogger
 from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
-from typing import Any
 
+from app.schemas.auth import (
+    LogoutRequest,
+    LogoutResponse,
+    ProfileUpdateRequest,
+    ProfileUpdateResponse,
+    SessionInfoResponse,
+    WeChatLoginRequest,
+    WeChatLoginResponse,
+)
 from app.services.auth import (
     create_session,
     get_or_create_user_by_wechat,
@@ -25,46 +32,6 @@ from app.services.auth.wechat import WeChatAPIError, code2session
 logger = getLogger("app.api")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-class WeChatLoginRequest(BaseModel):
-    """微信登录请求"""
-    code: str = Field(min_length=1)
-
-
-class LogoutRequest(BaseModel):
-    """登出请求"""
-    session_token: str = Field(min_length=1)
-
-
-class ProfileUpdateRequest(BaseModel):
-    nickname: str | None = Field(default=None, max_length=50)
-    avatar_url: str | None = Field(default=None, max_length=500)
-    settings: dict[str, Any] | None = Field(default=None, description="用户设置 JSON")
-
-
-class WeChatLoginResponse(BaseModel):
-    user_id: str
-    session_token: str
-    expires_at: str
-
-
-class SessionInfoResponse(BaseModel):
-    user_id: str
-    session_id: str
-    nickname: str
-    avatar_url: str
-    cumulative_article_count: int
-    settings: dict[str, Any]
-
-
-class ProfileUpdateResponse(BaseModel):
-    ok: bool
-    updated: list[str]
-
-
-class LogoutResponse(BaseModel):
-    ok: bool
 
 
 @router.post("/wechat/login", response_model=WeChatLoginResponse)

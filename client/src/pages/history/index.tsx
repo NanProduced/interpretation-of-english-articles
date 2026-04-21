@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import { getRecordIds, getRecord, deleteRecord, getVocabulary } from '../../services/storage'
 import { useAuthStore } from '../../stores/auth'
 import { fetchCloudRecords } from '../../services/api/records.client'
@@ -211,11 +212,11 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
   }
 
   const goToResult = (recordId: string) => {
-    Taro.navigateTo({ url: `/pages/result/index?recordId=${recordId}&mode=replay` })
+    Taro.navigateTo({ url: `${ROUTES.RESULT}?recordId=${recordId}&mode=replay` })
   }
 
   const goToInput = () => {
-    Taro.navigateTo({ url: '/pages/input/index' })
+    Taro.navigateTo({ url: ROUTES.INPUT })
   }
 
   return (

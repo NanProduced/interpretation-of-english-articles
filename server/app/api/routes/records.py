@@ -157,7 +157,7 @@ async def update_record(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.delete("/{record_id}")
+@router.delete("/{record_id}", response_model=RecordDeleteResponse)
 async def delete_record(
     current_user: AuthUserDep,
     record_id: UUID,

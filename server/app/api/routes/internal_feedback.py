@@ -12,12 +12,14 @@ from logging import getLogger
 from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel
 
 from app.config.settings import get_settings
 from app.schemas.feedback import (
     FeedbackRewardRequest,
+    FeedbackRewardResponse,
+    FeedbackStatsResponse,
     FeedbackStatusUpdateRequest,
+    FeedbackStatusUpdateResponse,
 )
 from app.services.analysis.credit_service import grant_bonus_credits
 from app.services.feedback import service as feedback_svc
@@ -25,13 +27,6 @@ from app.services.feedback import service as feedback_svc
 logger = getLogger("app.api")
 
 router = APIRouter(prefix="/internal/feedback", tags=["internal"])
-
-
-class FeedbackRewardResponse(BaseModel):
-    feedback_id: str
-    user_id: str
-    reward_points: int
-    granted: bool
 
 
 def _verify_internal_key(x_internal_key: str | None) -> None:
@@ -42,7 +37,7 @@ def _verify_internal_key(x_internal_key: str | None) -> None:
         raise HTTPException(status_code=403, detail="Invalid internal API key")
 
 
-@router.patch("/{feedback_id}/status")
+@router.patch("/{feedback_id}/status", response_model=FeedbackStatusUpdateResponse)
 async def update_feedback_status(
     feedback_id: UUID,
     body: FeedbackStatusUpdateRequest,
@@ -92,7 +87,7 @@ async def reward_feedback(
     }
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=FeedbackStatsResponse)
 async def get_feedback_stats(
     x_internal_key: str | None = Header(default=None),
 ) -> dict:

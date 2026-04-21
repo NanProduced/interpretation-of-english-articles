@@ -7,6 +7,7 @@
 
 import { View, Text, ScrollView, Image, Button, Input } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
+import { ROUTES } from '../../config/routes'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useConfigStore } from '../../stores/config'
 import { useAuthStore } from '../../stores/auth'
@@ -108,7 +109,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     ;(Taro as any)._navigatingToOnboarding = true
     const result = await ensureLoggedIn()
     if (result.success && result.isFirstLogin) {
-      Taro.navigateTo({ url: '/pages/onboarding/index' })
+      Taro.navigateTo({ url: ROUTES.ONBOARDING })
     }
   }
 
@@ -162,7 +163,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           label: "我的生词本",
           value: wordCount > 0 ? `${wordCount}词` : "暂无生词",
           icon: 'bookmark',
-          url: '/pages/vocab/index',
+          url: ROUTES.VOCAB,
           color: 'yellow',
         },
       ]
@@ -173,7 +174,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
         {
           label: "意见反馈",
           icon: 'messageSquare',
-          url: '/pages/feedback/index',
+          url: ROUTES.FEEDBACK,
           color: 'green',
         },
       ]
@@ -260,7 +261,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
           </View>
 
           {/* Account Metrics Portfolio */}
-          <View className='stats-dashboard' onClick={() => Taro.navigateTo({ url: '/pages/credit-detail/index' })}>
+          <View className='stats-dashboard' onClick={() => Taro.navigateTo({ url: ROUTES.CREDIT_DETAIL })}>
             <View className='dashboard-header'>
               <View className='panel-label'>
                 <LucideIcon name='ticket' size={28} color='var(--text-muted)' />
