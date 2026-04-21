@@ -3,6 +3,11 @@
  *
  * 展示用户收藏的单词列表，支持搜索、筛选和云端同步。
  * 点击单词弹出详情视图。
+ *
+ * 扩展功能：基于艾宾浩斯遗忘曲线的复习系统
+ * - 显示今日待复习数和逾期数
+ * - 提供复习入口
+ * - 区分今日待复习和逾期待复习的词汇
  */
 
 import { View, Text, ScrollView, Input } from '@tarojs/components'
@@ -11,8 +16,11 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAuthStore } from '../../stores/auth'
 import { getVocabulary, removeVocabEntry, updateVocabEntry } from '../../services/storage'
 import { CloudSyncService } from '../../services/cloudSync.service'
-import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
-import type { VocabEntry } from '../../types/view/vocabulary.vm'
+import {
+  fetchCloudVocabulary,
+  fetchReviewStats,
+} from '../../services/api/vocabulary.client'
+import type { VocabEntry, ReviewStats } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
@@ -26,12 +34,14 @@ interface VocabPageProps {
 }
 
 type SortMode = 'time' | 'alpha'
-type FilterStatus = 'all' | 'new' | 'learning' | 'mastered'
+type FilterStatus = 'all' | 'new' | 'learning' | 'mastered' | 'due' | 'overdue'
 
 const FILTER_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'new', label: '新词' },
   { value: 'learning', label: '学习中' },
+  { value: 'due', label: '今日待复习' },
+  { value: 'overdue', label: '逾期' },
   { value: 'mastered', label: '已掌握' },
 ]
 
@@ -109,10 +119,33 @@ function getMasteryStatus(entry: VocabEntry): string {
   return 'learning'
 }
 
+function isDueToday(entry: VocabEntry): boolean {
+  if (!entry.nextReviewAt) return false
+  const now = Date.now()
+  const oneDay = 24 * 60 * 60 * 1000
+  const todayStart = new Date(now).setHours(0, 0, 0, 0)
+  const todayEnd = todayStart + oneDay
+  return entry.nextReviewAt >= todayStart && entry.nextReviewAt < todayEnd
+}
+
+function isOverdue(entry: VocabEntry): boolean {
+  if (!entry.nextReviewAt) return false
+  const now = Date.now()
+  const todayStart = new Date(now).setHours(0, 0, 0, 0)
+  return entry.nextReviewAt < todayStart
+}
+
+function getReviewStatus(entry: VocabEntry): 'due' | 'overdue' | 'normal' {
+  if (isOverdue(entry)) return 'overdue'
+  if (isDueToday(entry)) return 'due'
+  return 'normal'
+}
+
 export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const [vocabList, setVocabList] = useState<VocabEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [popupEntry, setPopupEntry] = useState<VocabEntry | null>(null)
+  const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null)
   const { navBarHeight } = useLayoutStore()
   const loadVocabRef = useRef<() => Promise<void>>()
 
@@ -123,11 +156,25 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const loadReviewStats = useCallback(async () => {
+    const { isLoggedIn } = useAuthStore.getState()
+    if (!isLoggedIn) return
+
+    try {
+      const stats = await fetchReviewStats()
+      setReviewStats(stats)
+    } catch (e) {
+      console.warn('[vocab] loadReviewStats failed:', e)
+    }
+  }, [])
+
   const loadVocab = useCallback(async () => {
     setLoading(true)
     const { isLoggedIn } = useAuthStore.getState()
 
     if (isLoggedIn) {
+      loadReviewStats()
+
       try {
         let allCloudItems: VocabEntry[] = []
         let page = 1
@@ -154,7 +201,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     setVocabList(local)
     track('view_vocab', { count: local.length, source: 'local' })
     setLoading(false)
-  }, [])
+  }, [loadReviewStats])
 
   useEffect(() => {
     loadVocabRef.current = loadVocab
@@ -202,7 +249,13 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     }
 
     if (filterStatus !== 'all') {
-      list = list.filter((v) => getMasteryStatus(v) === filterStatus)
+      if (filterStatus === 'due') {
+        list = list.filter((v) => isDueToday(v))
+      } else if (filterStatus === 'overdue') {
+        list = list.filter((v) => isOverdue(v))
+      } else {
+        list = list.filter((v) => getMasteryStatus(v) === filterStatus)
+      }
     }
 
     if (sortMode === 'alpha') {
@@ -259,6 +312,11 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     Taro.navigateTo({ url: '/pages/input/index' })
   }
 
+  const goToReview = () => {
+    Taro.navigateTo({ url: '/pages/review/index' })
+    track('start_review', { totalDue: reviewStats?.dueToday || 0 })
+  }
+
   const handleSearchInput = (e: any) => {
     setSearchQuery(e.detail.value || '')
   }
@@ -272,6 +330,39 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     <View className={`vocab-page ${isSubView ? 'sub-view' : ''}`}>
       {!isSubView && <NavBar title='生词本' />}
       {!isSubView && <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />}
+
+      {reviewStats && (reviewStats.dueToday > 0 || reviewStats.overdue > 0) && (
+        <View className='review-stats-card'>
+          <View className='stats-row'>
+            {reviewStats.dueToday > 0 && (
+              <View className='stat-item due' onClick={goToReview}>
+                <Text className='stat-value'>{reviewStats.dueToday}</Text>
+                <Text className='stat-label'>今日待复习</Text>
+              </View>
+            )}
+            {reviewStats.overdue > 0 && (
+              <View className='stat-item overdue' onClick={goToReview}>
+                <Text className='stat-value'>{reviewStats.overdue}</Text>
+                <Text className='stat-label'>逾期</Text>
+              </View>
+            )}
+            <View className='stat-item'>
+              <Text className='stat-value'>{reviewStats.mastered}</Text>
+              <Text className='stat-label'>已掌握</Text>
+            </View>
+            <View className='stat-item total'>
+              <Text className='stat-value'>{reviewStats.totalVocab}</Text>
+              <Text className='stat-label'>总生词</Text>
+            </View>
+          </View>
+          {(reviewStats.dueToday > 0 || reviewStats.overdue > 0) && (
+            <View className='review-action' onClick={goToReview}>
+              <LucideIcon name='play' size={16} color='#fff' />
+              <Text className='review-action-text'>开始复习</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View className='search-bar'>
         <View className='search-input-wrap'>
@@ -384,6 +475,12 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
                   <View className='card-header-right'>
                     {sourceCount > 1 && (
                       <Text className='source-count-badge'>{sourceCount} 篇</Text>
+                    )}
+                    {isOverdue(entry) && (
+                      <Text className='review-tag overdue-tag'>逾期</Text>
+                    )}
+                    {isDueToday(entry) && !isOverdue(entry) && (
+                      <Text className='review-tag due-tag'>待复习</Text>
                     )}
                     {entry.mastered && (
                       <Text className='mastered-tag'>已掌握</Text>
