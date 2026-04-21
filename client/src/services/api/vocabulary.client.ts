@@ -187,6 +187,13 @@ export async function addVocabToCloud(
       source_sentence: entry.sentence || null,
       source_context: entry.context || null,
       payload_json: payloadJson,
+      mastery_status: entry.masteryStatus || 'new',
+      next_review_at: entry.nextReviewAt ? new Date(entry.nextReviewAt).toISOString() : null,
+      ease_factor: entry.easeFactor || null,
+      repetitions: entry.repetitions || null,
+      review_interval: entry.reviewInterval || null,
+      review_count: entry.reviewCount || null,
+      last_reviewed_at: entry.lastReviewedAt ? new Date(entry.lastReviewedAt).toISOString() : null,
     },
   })
   return { id: res.id, created: res.created }

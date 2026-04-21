@@ -92,6 +92,12 @@ async def upsert_vocabulary(
     source_context: str | None,
     payload_json: dict[str, Any],
     mastery_status: str = "new",
+    next_review_at: datetime | None = None,
+    ease_factor: float | None = None,
+    repetitions: int | None = None,
+    review_interval: int | None = None,
+    review_count: int | None = None,
+    last_reviewed_at: datetime | None = None,
 ) -> tuple[UUID, bool, datetime]:
     """
     Upsert a vocabulary entry (by user_id + lemma).
@@ -101,6 +107,7 @@ async def upsert_vocabulary(
     - meanings_json / tags / exchange / short_meaning are updated to latest
     - source_sentence / source_context are updated to latest (most recent context)
     - dict_entry_id is updated if provided
+    - Review fields: compare last_reviewed_at, use the newer one
 
     Returns:
         (id, created, updated_at)
@@ -114,7 +121,8 @@ async def upsert_vocabulary(
 
         existing_row = await conn.fetchrow(
             """
-            SELECT payload_json
+            SELECT payload_json, mastery_status, last_reviewed_at,
+                   next_review_at, ease_factor, repetitions, review_interval, review_count
             FROM vocabulary_book
             WHERE user_id = $1 AND LOWER(lemma) = LOWER($2)
             """,
@@ -133,8 +141,35 @@ async def upsert_vocabulary(
                 incoming_payload=payload_json,
                 incoming_display_word=display_word,
             )
+
+            existing_last_reviewed = existing_row["last_reviewed_at"]
+            incoming_last_reviewed = last_reviewed_at
+
+            use_incoming_review = False
+            if incoming_last_reviewed and existing_last_reviewed:
+                use_incoming_review = incoming_last_reviewed > existing_last_reviewed
+            elif incoming_last_reviewed:
+                use_incoming_review = True
+
+            final_mastery_status = mastery_status
+            if existing_last_reviewed and not use_incoming_review:
+                final_mastery_status = existing_row["mastery_status"] or "new"
+
+            final_next_review_at = next_review_at if use_incoming_review else existing_row["next_review_at"]
+            final_ease_factor = ease_factor if use_incoming_review else existing_row["ease_factor"]
+            final_repetitions = repetitions if use_incoming_review else existing_row["repetitions"]
+            final_review_interval = review_interval if use_incoming_review else existing_row["review_interval"]
+            final_review_count = review_count if use_incoming_review else existing_row["review_count"]
+            final_last_reviewed = incoming_last_reviewed if use_incoming_review else existing_last_reviewed
         else:
             merged_payload = payload_json
+            final_mastery_status = mastery_status
+            final_next_review_at = next_review_at
+            final_ease_factor = ease_factor
+            final_repetitions = repetitions
+            final_review_interval = review_interval
+            final_review_count = review_count
+            final_last_reviewed = last_reviewed_at
 
         row = await conn.fetchrow(
             """
@@ -142,9 +177,18 @@ async def upsert_vocabulary(
                 user_id, lemma, display_word, phonetic, part_of_speech,
                 short_meaning, meanings_json, tags, exchange, source_provider,
                 dict_entry_id, source_sentence, source_context,
-                mastery_status, payload_json, created_at, updated_at
+                mastery_status, payload_json,
+                next_review_at, ease_factor, repetitions, review_interval, review_count, last_reviewed_at,
+                created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
+            VALUES (
+                $1, $2, $3, $4, $5,
+                $6, $7, $8, $9, $10,
+                $11, $12, $13,
+                $14, $15,
+                $16, $17, $18, $19, $20, $21,
+                $22, $22
+            )
             ON CONFLICT (user_id, LOWER(lemma)) DO UPDATE SET
                 display_word      = EXCLUDED.display_word,
                 phonetic          = EXCLUDED.phonetic,
@@ -158,7 +202,14 @@ async def upsert_vocabulary(
                 source_sentence   = EXCLUDED.source_sentence,
                 source_context    = EXCLUDED.source_context,
                 payload_json      = EXCLUDED.payload_json,
-                updated_at        = $16
+                mastery_status    = EXCLUDED.mastery_status,
+                next_review_at    = EXCLUDED.next_review_at,
+                ease_factor       = EXCLUDED.ease_factor,
+                repetitions       = EXCLUDED.repetitions,
+                review_interval   = EXCLUDED.review_interval,
+                review_count      = EXCLUDED.review_count,
+                last_reviewed_at  = EXCLUDED.last_reviewed_at,
+                updated_at        = $22
             WHERE vocabulary_book.user_id = $1
             RETURNING id, updated_at,
                 (xmax = 0) AS created
@@ -176,8 +227,14 @@ async def upsert_vocabulary(
             dict_entry_id,
             source_sentence,
             source_context,
-            mastery_status,
+            final_mastery_status,
             json.dumps(merged_payload),
+            final_next_review_at,
+            final_ease_factor,
+            final_repetitions,
+            final_review_interval,
+            final_review_count,
+            final_last_reviewed,
             now,
         )
         assert row is not None
@@ -208,6 +265,7 @@ async def list_vocabulary(
             v.id, v.user_id, v.lemma, v.display_word, v.phonetic, v.part_of_speech,
             v.short_meaning, v.tags, v.exchange, v.source_provider,
             v.dict_entry_id, v.mastery_status, v.review_count, v.last_reviewed_at,
+            v.next_review_at, v.ease_factor, v.repetitions, v.review_interval,
             v.created_at, v.updated_at
         """
         if not lite:
@@ -264,6 +322,7 @@ async def get_vocabulary_by_id(
                    v.short_meaning, v.meanings_json, v.tags, v.exchange, v.source_provider,
                    v.dict_entry_id, v.source_sentence, v.source_context,
                    v.mastery_status, v.review_count, v.last_reviewed_at,
+                   v.next_review_at, v.ease_factor, v.repetitions, v.review_interval,
                    v.payload_json, v.created_at, v.updated_at
             FROM vocabulary_book v
             WHERE v.id = $1 AND v.user_id = $2
