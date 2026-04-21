@@ -198,6 +198,12 @@ export async function updateCloudVocabulary(
     mastery_status?: 'new' | 'learning' | 'review' | 'mastered' | 'archived'
     short_meaning?: string
     payload_json?: Record<string, unknown>
+    next_review_at?: string
+    ease_factor?: number
+    repetitions?: number
+    review_interval?: number
+    review_count?: number
+    last_reviewed_at?: string
   }
 ): Promise<void> {
   await request<VocabularyResponseDto>({
