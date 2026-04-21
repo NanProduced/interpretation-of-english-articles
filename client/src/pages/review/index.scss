@@ -334,6 +334,16 @@
       color: var(--color-ink);
     }
 
+    .mode-hint {
+      font-size: 24rpx;
+      color: var(--color-primary);
+      background-color: rgba(var(--color-primary-rgb), 0.08);
+      padding: 12rpx 24rpx;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      line-height: 1.5;
+    }
+
     .finished-stats {
       display: grid;
       grid-template-columns: repeat(2, 1fr);

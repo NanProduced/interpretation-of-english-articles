@@ -7,6 +7,10 @@
  * - 5级评分系统：0-5分，影响下次复习时间
  * - 进度追踪
  * - 跳转回原文语境
+ *
+ * 支持两种模式：
+ * - 本地模式：未登录用户使用本地生词本
+ * - 云端模式：已登录用户同步到云端
  */
 
 import { View, Text } from '@tarojs/components'
@@ -17,7 +21,11 @@ import {
   fetchDueVocabulary,
   submitReview,
 } from '../../services/api/vocabulary.client'
-import type { DueVocabItem, ReviewQuality } from '../../types/view/vocabulary.vm'
+import {
+  getAllLocalDueVocabulary,
+  submitLocalReview,
+} from '../../services/review.service'
+import type { DueVocabItem, ReviewQuality, ReviewSubmitResult } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
 import LucideIcon from '../../components/LucideIcon'
@@ -55,6 +63,7 @@ const REVIEW_QUALITY_OPTIONS: Array<{
 
 export default function ReviewPage() {
   const { navBarHeight } = useLayoutStore()
+  const { isLoggedIn } = useAuthStore()
   const [session, setSession] = useState<ReviewSession>({
     items: [],
     currentIndex: 0,
@@ -84,7 +93,7 @@ export default function ReviewPage() {
     return { total, correct, wrong, avgQuality: Math.round(avgQuality * 10) / 10 }
   }, [session.results])
 
-  function updateLocalVocabAfterReview(vocabId: string, result: Awaited<ReturnType<typeof submitReview>>) {
+  function updateLocalVocabAfterReview(vocabId: string, result: ReviewSubmitResult) {
     try {
       const vocab = getVocabulary()
       const index = vocab.findIndex(v => v.id === vocabId)
@@ -109,34 +118,35 @@ export default function ReviewPage() {
   }
 
   const loadReviewItems = useCallback(async () => {
-    const { isLoggedIn } = useAuthStore.getState()
-    if (!isLoggedIn) {
-      Taro.showModal({
-        title: '提示',
-        content: '登录后才能使用复习功能',
-        confirmText: '去登录',
-        cancelText: '返回',
-        success: (res) => {
-          if (res.confirm) {
-            Taro.navigateTo({ url: '/pages/profile/index' })
-          } else {
-            Taro.navigateBack()
-          }
-        },
-      })
-      return
-    }
-
     try {
-      const overdueResult = await fetchDueVocabulary('overdue', 100)
-      const todayResult = await fetchDueVocabulary('today', 100)
+      let allItems: DueVocabItem[] = []
 
-      const allItems: DueVocabItem[] = [
-        ...overdueResult.items,
-        ...todayResult.items.filter(item =>
-          !overdueResult.items.some(o => o.id === item.id)
-        ),
-      ]
+      if (isLoggedIn) {
+        const overdueResult = await fetchDueVocabulary('overdue', 100)
+        const todayResult = await fetchDueVocabulary('today', 100)
+
+        allItems = [
+          ...overdueResult.items,
+          ...todayResult.items.filter(item =>
+            !overdueResult.items.some(o => o.id === item.id)
+          ),
+        ]
+
+        track('start_review_session', {
+          totalItems: allItems.length,
+          overdueCount: overdueResult.items.length,
+          todayCount: todayResult.items.length,
+          mode: 'cloud',
+        })
+      } else {
+        const localResult = getAllLocalDueVocabulary(100)
+        allItems = localResult.items
+
+        track('start_review_session', {
+          totalItems: allItems.length,
+          mode: 'local',
+        })
+      }
 
       if (allItems.length === 0) {
         Taro.showModal({
@@ -158,17 +168,11 @@ export default function ReviewPage() {
         step: 'showing',
         results: [],
       })
-
-      track('start_review_session', {
-        totalItems: allItems.length,
-        overdueCount: overdueResult.items.length,
-        todayCount: todayResult.items.length,
-      })
     } catch (e) {
       console.error('[review] load items failed:', e)
       Taro.showToast({ title: '加载失败', icon: 'error' })
     }
-  }, [])
+  }, [isLoggedIn])
 
   useEffect(() => {
     loadReviewItems()
@@ -185,14 +189,31 @@ export default function ReviewPage() {
     if (!currentItem) return
 
     try {
-      const result = await submitReview(currentItem.id, quality)
+      let result: ReviewSubmitResult
 
-      updateLocalVocabAfterReview(currentItem.id, result)
+      if (isLoggedIn) {
+        result = await submitReview(currentItem.id, quality)
+        updateLocalVocabAfterReview(currentItem.id, result)
+      } else {
+        const localResult = submitLocalReview(currentItem.id, quality)
+        result = {
+          vocabId: localResult.vocabId,
+          success: localResult.success,
+          nextReviewAt: localResult.nextReviewAt,
+          newEaseFactor: localResult.newEaseFactor,
+          newInterval: localResult.newInterval,
+          newRepetitions: localResult.newRepetitions,
+          newMasteryStatus: localResult.newMasteryStatus,
+          quality: localResult.quality,
+          message: localResult.message,
+        }
+      }
 
       track('review_answer_submit', {
         vocabId: currentItem.id,
         quality,
         success: result.success,
+        mode: isLoggedIn ? 'cloud' : 'local',
       })
 
       setSession(prev => {
@@ -212,6 +233,7 @@ export default function ReviewPage() {
             totalItems: prev.items.length,
             correctCount: newResults.filter(r => r.quality >= 3).length,
             avgQuality: newResults.reduce((sum, r) => sum + r.quality, 0) / newResults.length,
+            mode: isLoggedIn ? 'cloud' : 'local',
           })
 
           return {
@@ -238,7 +260,7 @@ export default function ReviewPage() {
       console.error('[review] submit failed:', e)
       Taro.showToast({ title: '提交失败', icon: 'error' })
     }
-  }, [currentItem])
+  }, [currentItem, isLoggedIn])
 
   const goToResult = useCallback(() => {
     if (!currentItem?.sourceRefs?.[0]?.clientRecordId) return
@@ -273,6 +295,12 @@ export default function ReviewPage() {
         <LucideIcon name='trophy' size={80} color='#f59e0b' />
       </View>
       <Text className='finished-title'>复习完成！</Text>
+
+      {!isLoggedIn && (
+        <Text className='mode-hint'>
+          💡 登录后可同步复习数据到云端，多设备共享
+        </Text>
+      )}
 
       <View className='finished-stats'>
         <View className='stat-card'>

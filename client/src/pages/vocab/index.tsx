@@ -20,6 +20,7 @@ import {
   fetchCloudVocabulary,
   fetchReviewStats,
 } from '../../services/api/vocabulary.client'
+import { getLocalReviewStats } from '../../services/review.service'
 import type { VocabEntry, ReviewStats } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
@@ -97,7 +98,39 @@ function mergeVocabCloudWithLocal(cloudItems: VocabEntry[], localItems: VocabEnt
       continue
     }
 
-    result.push({ ...cloud, mastered: local.mastered !== cloud.mastered ? local.mastered : cloud.mastered })
+    const localLastReviewed = local.lastReviewedAt || 0
+    const cloudLastReviewed = cloud.lastReviewedAt || 0
+
+    if (localLastReviewed > cloudLastReviewed) {
+      result.push({
+        ...cloud,
+        mastered: local.mastered,
+        masteryStatus: local.masteryStatus,
+        reviewCount: local.reviewCount,
+        lastReviewedAt: local.lastReviewedAt,
+        nextReviewAt: local.nextReviewAt,
+        easeFactor: local.easeFactor,
+        repetitions: local.repetitions,
+        reviewInterval: local.reviewInterval,
+      })
+    } else if (cloudLastReviewed > localLastReviewed) {
+      result.push({
+        ...cloud,
+        mastered: cloud.mastered,
+      })
+    } else {
+      result.push({
+        ...cloud,
+        mastered: local.mastered !== cloud.mastered ? local.mastered : cloud.mastered,
+        masteryStatus: local.masteryStatus || cloud.masteryStatus,
+        reviewCount: local.reviewCount || cloud.reviewCount,
+        lastReviewedAt: local.lastReviewedAt || cloud.lastReviewedAt,
+        nextReviewAt: local.nextReviewAt || cloud.nextReviewAt,
+        easeFactor: local.easeFactor || cloud.easeFactor,
+        repetitions: local.repetitions || cloud.repetitions,
+        reviewInterval: local.reviewInterval || cloud.reviewInterval,
+      })
+    }
   }
 
   for (const local of localItems) {
@@ -158,10 +191,24 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
 
   const loadReviewStats = useCallback(async () => {
     const { isLoggedIn } = useAuthStore.getState()
-    if (!isLoggedIn) return
 
     try {
-      const stats = await fetchReviewStats()
+      let stats: ReviewStats
+
+      if (isLoggedIn) {
+        stats = await fetchReviewStats()
+      } else {
+        const localStats = getLocalReviewStats()
+        stats = {
+          totalVocab: localStats.totalVocab,
+          dueToday: localStats.dueToday,
+          overdue: localStats.overdue,
+          newWords: localStats.newWords,
+          learning: localStats.learning,
+          mastered: localStats.mastered,
+        }
+      }
+
       setReviewStats(stats)
     } catch (e) {
       console.warn('[vocab] loadReviewStats failed:', e)
@@ -172,9 +219,9 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     setLoading(true)
     const { isLoggedIn } = useAuthStore.getState()
 
-    if (isLoggedIn) {
-      loadReviewStats()
+    loadReviewStats()
 
+    if (isLoggedIn) {
       try {
         let allCloudItems: VocabEntry[] = []
         let page = 1
