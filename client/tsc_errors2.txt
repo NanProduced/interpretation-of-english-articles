@@ -1,2 +1,0 @@
-src/components/InlineMark/index.tsx(31,39): error TS2739: Type 'BaseEventOrig<any>' is missing the following properties from type 'BaseTouchEvent<ITouch, any>': touches, changedTouches
-src/pages/result/hooks/useResultActions.ts(123,7): error TS2322: Type 'string' is not assignable to type '"user_input" | "daily_article" | "ocr"'.

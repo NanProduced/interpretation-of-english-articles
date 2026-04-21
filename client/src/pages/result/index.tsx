@@ -153,7 +153,7 @@ export default function Result() {
   return (
     <View className='result-page'>
       <NavBar title='Claread透读' showBack showHome />
-      <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />
+      <View className='result-nav-spacer' style={{ height: navBarHeight + 'px' }} />
 
       <View className='result-content-root'>
         <View className='mode-tabs-container' role='tablist' aria-label='阅读模式切换'>
@@ -214,7 +214,7 @@ export default function Result() {
                 role='button'
                 aria-label='分析新文章'
               >
-                <LucideIcon name='plus' size={18} color='#fff' />
+                <LucideIcon name='plus' size={18} color='var(--color-white)' />
                 <Text>再分析一篇</Text>
               </View>
             </View>

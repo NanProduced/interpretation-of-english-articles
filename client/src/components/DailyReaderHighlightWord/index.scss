@@ -7,29 +7,29 @@
   transition: background-color 0.2s ease;
 
   &--vocab {
-    background-color: rgba(139, 115, 85, 0.12);
-    border-bottom: 1.10rpx solid rgba(139, 115, 85, 0.35);
+    background-color: var(--dr-tone-vocab-bg);
+    border-bottom: 1.10rpx solid var(--dr-tone-vocab-border);
   }
 
   &--phrase {
-    background-color: rgba(85, 115, 139, 0.10);
-    border-bottom: 1.10rpx solid rgba(85, 115, 139, 0.30);
+    background-color: var(--dr-tone-phrase-bg);
+    border-bottom: 1.10rpx solid var(--dr-tone-phrase-border);
   }
 
   &--context {
-    background-color: rgba(139, 85, 115, 0.10);
-    border-bottom: 1.10rpx solid rgba(139, 85, 115, 0.30);
+    background-color: var(--dr-tone-context-bg);
+    border-bottom: 1.10rpx solid var(--dr-tone-context-border);
   }
 
   &--active {
     &.daily-hl--vocab {
-      background-color: rgba(139, 115, 85, 0.25);
+      background-color: var(--dr-tone-vocab-bg-active);
     }
     &.daily-hl--phrase {
-      background-color: rgba(85, 115, 139, 0.22);
+      background-color: var(--dr-tone-phrase-bg-active);
     }
     &.daily-hl--context {
-      background-color: rgba(139, 85, 115, 0.22);
+      background-color: var(--dr-tone-context-bg-active);
     }
   }
 }

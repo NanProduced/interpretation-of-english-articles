@@ -19,20 +19,20 @@
     left: 0;
     right: 0;
     height: 60%;
-    background: linear-gradient(to top, rgba(255, 252, 247, 1) 0%, rgba(255, 252, 247, 0.6) 50%, transparent 100%);
+    background: linear-gradient(to top, var(--dr-bg) 0%, color-mix(in srgb, var(--dr-bg) 60%, transparent) 50%, transparent 100%);
   }
 
   &__gradient {
     height: 560rpx;
 
     &--editorial_warm {
-      background: linear-gradient(135deg, #f5e6d3 0%, #e8d5c4 30%, #d4c4b0 70%, #c9b8a3 100%);
+      background: var(--dr-gradient-warm);
     }
     &--editorial_cool {
-      background: linear-gradient(135deg, #dce8f0 0%, #c8d8e8 30%, #b0c8d8 70%, #98b8c8 100%);
+      background: var(--dr-gradient-cool);
     }
     &--editorial_night {
-      background: linear-gradient(135deg, #2c2c3a 0%, #3a3a4a 30%, #484858 70%, #565666 100%);
+      background: var(--dr-gradient-night);
     }
   }
 
@@ -52,17 +52,17 @@
     font-weight: 600;
     letter-spacing: 0.10rpx;
     text-transform: uppercase;
-    color: #8b7355;
+    color: var(--dr-accent);
   }
 
   &__dot {
     font-size: 26rpx;
-    color: #b8a898;
+    color: var(--dr-divider);
   }
 
   &__date {
     font-size: 26rpx;
-    color: #9a8a7a;
+    color: var(--dr-text-muted);
     letter-spacing: 0.6rpx;
   }
 
@@ -72,7 +72,7 @@
     font-size: 56rpx;
     font-weight: 700;
     line-height: 1.3;
-    color: #2c2420;
+    color: var(--dr-text-heading);
     letter-spacing: -0.6rpx;
     margin-bottom: 16rpx;
   }
@@ -81,7 +81,7 @@
     display: block;
     font-size: 30rpx;
     line-height: 1.5;
-    color: #6b5e52;
+    color: var(--dr-text-sub);
     margin-bottom: 40rpx;
   }
 
@@ -98,20 +98,20 @@
     border-radius: 8rpx;
 
     &--difficulty {
-      background: #f0e6d8;
+      background: var(--dr-badge-bg);
     }
     &--time {
-      background: #e8e4df;
+      background: var(--dr-badge-time-bg);
     }
     &--tag {
-      background: #f5f0ea;
+      background: var(--dr-badge-tag-bg);
     }
   }
 
   &__badge-text {
     font-size: 22rpx;
     font-weight: 500;
-    color: #6b5e52;
+    color: var(--dr-text-sub);
     letter-spacing: 0.6rpx;
   }
 }

@@ -223,7 +223,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
   return (
     <View className={`history-page ${isSubView ? 'sub-view' : ''} ${isEditMode ? 'is-edit-mode' : ''}`}>
       {!isSubView && <NavBar title='历史解读' />}
-      {!isSubView && <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />}
+      {!isSubView && <View className='nav-spacer' style={{ height: navBarHeight + 'px' }} />}
 
       <View className='filter-tabs'>
         <View className='tabs-main'>
@@ -336,7 +336,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
               </View>
             ))
           )}
-        <View style={{ height: isEditMode ? '240rpx' : '160rpx' }} />
+        <View className={`bottom-spacer ${isEditMode ? 'bottom-spacer--edit' : ''}`} />
       </ScrollView>
 
       {isEditMode && selectedIds.size > 0 && (

@@ -120,6 +120,59 @@ page {
   --purple-bg: rgba(109, 40, 217, 0.05);
   --purple-text: var(--color-phrase);
 
+  // --- Daily Reader 主题 (Editorial Warm - 纸质杂志阅读体验) ---
+  --dr-bg: #fffcf7;
+  --dr-surface: #faf6f0;
+  --dr-surface-warning: #fdf6f0;
+  --dr-overlay: rgba(0, 0, 0, 0.3);
+  --dr-text-heading: #2c2420;
+  --dr-text-reading: #3a3330;
+  --dr-text-body: #4a3f35;
+  --dr-text-sub: #6b5e52;
+  --dr-text-muted: #9a8a7a;
+  --dr-text-tertiary: #7a6f65;
+  --dr-text-warning: #8b5e3c;
+  --dr-accent: #8b7355;
+  --dr-divider: #d8cfc4;
+  --dr-border-accent: #c9b8a3;
+  --dr-border-light: #ede4d8;
+  --dr-border-subtle: #e8e0d6;
+  --dr-border-warning: #d4a574;
+  --dr-badge-bg: #f0e6d8;
+  --dr-badge-time-bg: #e8e4df;
+  --dr-badge-tag-bg: #f5f0ea;
+  --dr-gradient-warm: linear-gradient(135deg, #f5e6d3 0%, #e8d5c4 30%, #d4c4b0 70%, var(--dr-border-accent) 100%);
+  --dr-gradient-cool: linear-gradient(135deg, #dce8f0 0%, #c8d8e8 30%, #b0c8d8 70%, #98b8c8 100%);
+  --dr-gradient-night: linear-gradient(135deg, #2c2c3a 0%, #3a3a4a 30%, #484858 70%, #565666 100%);
+  --dr-tone-vocab-bg: rgba(139, 115, 85, 0.12);
+  --dr-tone-vocab-border: rgba(139, 115, 85, 0.35);
+  --dr-tone-vocab-bg-active: rgba(139, 115, 85, 0.25);
+  --dr-tone-phrase-bg: rgba(85, 115, 139, 0.10);
+  --dr-tone-phrase-border: rgba(85, 115, 139, 0.30);
+  --dr-tone-phrase-bg-active: rgba(85, 115, 139, 0.22);
+  --dr-tone-context-bg: rgba(139, 85, 115, 0.10);
+  --dr-tone-context-border: rgba(139, 85, 115, 0.30);
+  --dr-tone-context-bg-active: rgba(139, 85, 115, 0.22);
+
+  // --- Tone 色系 (WordPopup / InlineMark 标注) ---
+  --tone-vocab-color: #B45309;
+  --tone-vocab-bg: #FFD166;
+  --tone-phrase-color: #6D28D9;
+  --tone-phrase-bg: #B2A4FF;
+  --tone-context-color: #0369A1;
+  --tone-context-bg: #90E0EF;
+  --tone-grammar-color: #047857;
+  --tone-grammar-bg: #6EE7B7;
+  --tone-term-color: #1D4ED8;
+  --tone-term-bg: #BFDBFE;
+  --tone-logic-color: #C2410C;
+  --tone-logic-bg: #FED7AA;
+
+  // --- 状态色 ---
+  --color-success: #16A34A;
+  --color-danger: #DC2626;
+  --color-pending: #F59E0B;
+
   background-color: var(--bg-color);
   color: var(--text-main);
   font-family: var(--font-sans);

@@ -85,7 +85,7 @@ export default function NavBar({
           )}
         </View>
         <Text className='navbar-title' style={{ color }}>{title}</Text>
-        <View className='navbar-right' style={{ width: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <View className='navbar-right'>
           {renderRight}
         </View>
       </View>

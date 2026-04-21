@@ -218,7 +218,7 @@ export default function InputPage() {
             <View className='btn-divider' />
             <Text className='btn-stats'>{wordsCount} words</Text>
           </View>
-          <LucideIcon name='sparkles' size={18} color={wordsCount >= 10 ? '#fff' : 'var(--text-muted)'} />
+          <LucideIcon name='sparkles' size={18} color={wordsCount >= 10 ? 'var(--color-white)' : 'var(--text-muted)'} />
         </View>
       </View>
 

@@ -12,10 +12,10 @@ const SCOPE_LABELS: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending: { label: '待处理', color: '#f5a623' },
-  adopted: { label: '已采纳', color: '#4caf50' },
-  resolved: { label: '已解决', color: '#2196f3' },
-  dismissed: { label: '已关闭', color: '#999' },
+  pending: { label: '待处理', color: 'var(--color-pending)' },
+  adopted: { label: '已采纳', color: 'var(--color-success)' },
+  resolved: { label: '已解决', color: 'var(--color-info)' },
+  dismissed: { label: '已关闭', color: 'var(--text-muted)' },
 }
 
 export default function MyFeedbackPage() {

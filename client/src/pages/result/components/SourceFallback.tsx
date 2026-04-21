@@ -47,7 +47,7 @@ export default function SourceFallback({ pageState, sceneData, requestText, isRe
 
           <View className='article-end-actions'>
             <View className='end-btn-primary' onClick={onRetry}>
-              <LucideIcon name='plus' size={18} color='#fff' />
+              <LucideIcon name='plus' size={18} color='var(--color-white)' />
               <Text>{isReplayMode ? '重新解析这篇' : '再分析一篇'}</Text>
             </View>
           </View>

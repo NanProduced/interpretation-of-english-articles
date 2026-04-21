@@ -1,6 +1,6 @@
 .daily-page {
   min-height: 100vh;
-  background: #fffcf7;
+  background: var(--dr-bg);
   padding-bottom: env(safe-area-inset-bottom);
 
   &--loading {
@@ -15,7 +15,7 @@
     width: 16rpx;
     height: 16rpx;
     border-radius: 50%;
-    background: #c9b8a3;
+    background: var(--dr-border-accent);
     animation: daily-loading-pulse 1.2s ease-in-out infinite;
 
     &:nth-child(2) {
@@ -35,12 +35,12 @@
 
   &__error-text {
     font-size: 30rpx;
-    color: #9a8a7a;
+    color: var(--dr-text-muted);
   }
 
   &__body-divider {
     height: 2rpx;
-    background: linear-gradient(to right, transparent, #d8cfc4, transparent);
+    background: linear-gradient(to right, transparent, var(--dr-divider), transparent);
     margin: 0 80rpx 48rpx;
   }
 
@@ -51,21 +51,21 @@
     gap: 16rpx;
     margin: 64rpx 56rpx 80rpx;
     padding: 32rpx;
-    background: #faf6f0;
+    background: var(--dr-surface);
     border-radius: 20rpx;
-    border: 1px solid #ede4d8;
+    border: 1px solid var(--dr-border-light);
   }
 
   &__archive-text {
     font-size: 30rpx;
     font-weight: 600;
-    color: #6b5e52;
+    color: var(--dr-text-sub);
     letter-spacing: 2rpx;
   }
 
   &__archive-arrow {
     font-size: 30rpx;
-    color: #8b7355;
+    color: var(--dr-accent);
   }
 }
 

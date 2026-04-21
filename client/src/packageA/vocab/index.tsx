@@ -249,7 +249,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   return (
     <View className={`vocab-page ${isSubView ? 'sub-view' : ''}`}>
       {!isSubView && <NavBar title='生词本' />}
-      {!isSubView && <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />}
+      {!isSubView && <View className='nav-spacer' style={{ height: navBarHeight + 'px' }} />}
 
       <View className='search-bar'>
         <View className='search-input-wrap'>
@@ -403,7 +403,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
             )
           })
         )}
-        <View style={{ height: '160rpx' }} />
+        <View className='bottom-spacer' />
       </ScrollView>
 
       {!isSubView && <TabBar current='profile' />}

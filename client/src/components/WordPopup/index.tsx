@@ -42,12 +42,12 @@ function isLearningGlossary(g: InlineGlossary | AcademicInlineGlossary | undefin
 }
 
 const TONE_META: Record<VisualTone | AcademicVisualTone, { label: string; color: string; bg: string }> = {
-  vocab: { label: '词汇', color: '#B45309', bg: '#FFD166' },
-  phrase: { label: '短语', color: '#6D28D9', bg: '#B2A4FF' },
-  context: { label: '语境', color: '#0369A1', bg: '#90E0EF' },
-  grammar: { label: '语法', color: '#047857', bg: '#6EE7B7' },
-  term: { label: '术语', color: '#1D4ED8', bg: '#BFDBFE' },
-  logic: { label: '逻辑', color: '#C2410C', bg: '#FED7AA' },
+  vocab: { label: '词汇', color: 'var(--tone-vocab-color)', bg: 'var(--tone-vocab-bg)' },
+  phrase: { label: '短语', color: 'var(--tone-phrase-color)', bg: 'var(--tone-phrase-bg)' },
+  context: { label: '语境', color: 'var(--tone-context-color)', bg: 'var(--tone-context-bg)' },
+  grammar: { label: '语法', color: 'var(--tone-grammar-color)', bg: 'var(--tone-grammar-bg)' },
+  term: { label: '术语', color: 'var(--tone-term-color)', bg: 'var(--tone-term-bg)' },
+  logic: { label: '逻辑', color: 'var(--tone-logic-color)', bg: 'var(--tone-logic-bg)' },
 }
 
 const PHRASE_KIND_LABELS: Record<string, string> = {
@@ -106,6 +106,11 @@ export default function WordPopup({
   const lookupText = mark?.lookupText || word
   const glossary = mark?.glossary
   const toneMeta = mark ? TONE_META[mark.visualTone] : null
+
+  const handleFavorite = () => {
+    onFavorite?.(entry?.word || lookupText)
+    Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 })
+  }
   
   const effectivePhraseKind = isLearningGlossary(glossary) ? glossary.phraseType : undefined
   const effectiveLookupKind = 'lookupKind' in (mark ?? {}) ? mark!.lookupKind : undefined
@@ -428,7 +433,7 @@ export default function WordPopup({
         </ScrollView>
 
         <View className='popup-footer-actions safe-area-bottom'>
-          <View className='footer-action-btn secondary' onClick={() => { onFavorite?.(entry?.word || lookupText); Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 }); }}>
+          <View className='footer-action-btn secondary' onClick={handleFavorite}>
             <LucideIcon name='star' size={18} color='var(--text-sub)' />
             <Text>收藏</Text>
           </View>

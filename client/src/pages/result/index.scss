@@ -6,6 +6,10 @@
   position: relative;
 }
 
+.result-nav-spacer {
+  flex-shrink: 0;
+}
+
 // === 核心交互内容根节点 ===
 .result-content-root {
   flex: 1;

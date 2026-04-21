@@ -110,8 +110,24 @@ async def retry_workflow(
     request: DailyReaderRetryRequest,
     _auth: str = Depends(verify_admin_api_key),
 ) -> dict:
+    from app.services.daily_reader.pipeline import run_workflow_only
+
     article = await service.get_article_by_id(request.id)
     if article is None:
         raise HTTPException(status_code=404, detail="Article not found")
 
-    return {"status": "retry_not_implemented", "message": "Retry workflow will be implemented in future iteration"}
+    try:
+        result = await run_workflow_only(request.id)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception as e:
+        logger.error("retry_workflow failed for %s: %s", request.id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Workflow execution failed",
+        ) from e
+
+    if result is None:
+        return {"status": "retry_aborted", "message": "Workflow aborted; content may not be suitable"}
+
+    return {"status": "retry_completed", "message": "Workflow re-executed successfully; content updated"}

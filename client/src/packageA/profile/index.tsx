@@ -209,7 +209,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   return (
     <View className={`profile-page ${isSubView ? 'sub-view' : ''}`}>
       {!isSubView && <NavBar title='我的' />}
-      {!isSubView && <View style={{ height: navBarHeight + 'px', flexShrink: 0 }} />}
+      {!isSubView && <View className='nav-spacer' style={{ height: navBarHeight + 'px' }} />}
       <ScrollView scrollY className='profile-scroll'>
 
         {/* User Card */}
@@ -225,7 +225,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
               {userInfo?.avatar_url ? (
                 <Image className='avatar-img' src={userInfo.avatar_url} mode='aspectFill' lazyLoad />
               ) : (
-                <LucideIcon name='user' size={64} color={isLoggedIn ? '#fff' : 'var(--text-muted)'} />
+                <LucideIcon name='user' size={64} color={isLoggedIn ? 'var(--color-white)' : 'var(--text-muted)'} />
               )}
             </Button>
 
@@ -241,7 +241,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                       type='nickname'
                       value={userInfo?.nickname || ''}
                       placeholder='点击设置昵称'
-                      placeholderStyle='color: #a1a1aa; font-weight: 500;'
+                      placeholderStyle='color: var(--text-muted); font-weight: 500;'
                       maxlength={20}
                       onInput={onNicknameChange}
                       onBlur={onNicknameChange}
@@ -354,7 +354,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
                     </View>
                     <View className='item-right'>
                       {item.value && <Text className='value-tag'>{item.value}</Text>}
-                      {item.url && <LucideIcon name='chevronRight' size={32} color='#ccc' />}
+                      {item.url && <LucideIcon name='chevronRight' size={32} color='var(--text-muted)' />}
                     </View>
                   </View>
                 ))}
@@ -367,7 +367,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
         <View className='version-tag'>
           <Text>AI Reader v1.0.0</Text>
         </View>
-        <View style={{ height: '160rpx' }} />
+        <View className='bottom-spacer' />
       </ScrollView>
 
       {!isSubView && <TabBar current='profile' />}

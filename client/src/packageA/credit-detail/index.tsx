@@ -4,12 +4,12 @@ import { fetchCreditLedger, LedgerEntry } from '../../services/api/credit.client
 import './index.scss'
 
 const ENTRY_TYPE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-  analysis_deduct: { label: '分析扣减', color: '#e53935', icon: '🔴' },
-  feedback_reward: { label: '反馈奖励', color: '#4caf50', icon: '🟢' },
-  daily_grant: { label: '每日发放', color: '#4caf50', icon: '🟢' },
-  bonus_grant: { label: '奖励到账', color: '#4caf50', icon: '🟢' },
-  refund: { label: '积分退回', color: '#2196f3', icon: '🔵' },
-  manual_adjust: { label: '管理员调整', color: '#999', icon: '⚪' },
+  analysis_deduct: { label: '分析扣减', color: 'var(--color-danger)', icon: '🔴' },
+  feedback_reward: { label: '反馈奖励', color: 'var(--color-success)', icon: '🟢' },
+  daily_grant: { label: '每日发放', color: 'var(--color-success)', icon: '🟢' },
+  bonus_grant: { label: '奖励到账', color: 'var(--color-success)', icon: '🟢' },
+  refund: { label: '积分退回', color: 'var(--color-info)', icon: '🔵' },
+  manual_adjust: { label: '管理员调整', color: 'var(--text-muted)', icon: '⚪' },
 }
 
 function formatDateGroup(dateStr: string): string {
@@ -92,7 +92,7 @@ export default function CreditDetailPage() {
             <Text className='credit-detail__date-label'>{group.dateLabel}</Text>
           </View>
           {group.entries.map(entry => {
-            const config = ENTRY_TYPE_CONFIG[entry.entryType] || { label: entry.entryType, color: '#999', icon: '⚪' }
+            const config = ENTRY_TYPE_CONFIG[entry.entryType] || { label: entry.entryType, color: 'var(--text-muted)', icon: '⚪' }
             const isPositive = entry.points > 0
             return (
               <View key={entry.id} className='credit-detail__entry'>
@@ -107,7 +107,7 @@ export default function CreditDetailPage() {
                   </View>
                 </View>
                 <View className='credit-detail__entry-right'>
-                  <Text className='credit-detail__entry-points' style={{ color: isPositive ? '#4caf50' : '#e53935' }}>
+                  <Text className='credit-detail__entry-points' style={{ color: isPositive ? 'var(--color-success)' : 'var(--color-danger)' }}>
                     {isPositive ? '+' : ''}{entry.points}
                   </Text>
                   <Text className='credit-detail__entry-time'>{formatTime(entry.createdAt)}</Text>

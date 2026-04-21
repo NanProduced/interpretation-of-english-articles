@@ -580,4 +580,12 @@
     50% { transform: scale(1.05); box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06); }
     100% { transform: scale(1); box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03); }
   }
+
+  .nav-spacer {
+    flex-shrink: 0;
+  }
+
+  .bottom-spacer {
+    height: 160rpx;
+  }
 }

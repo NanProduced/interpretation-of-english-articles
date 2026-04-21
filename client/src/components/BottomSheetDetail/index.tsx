@@ -30,11 +30,11 @@ function renderMarkdownSegment(segment: ReturnType<typeof parseMarkdown>[number]
   if (bold) style.fontWeight = 'bold'
   if (italic) style.fontStyle = 'italic'
   if (code) {
-    style.backgroundColor = '#f3f4f6'
+    style.backgroundColor = 'var(--dr-surface)'
     style.padding = '2rpx 8rpx'
     style.borderRadius = '8rpx'
     style.fontFamily = 'var(--font-mono)'
-    style.color = '#e11d48'
+    style.color = 'var(--color-danger)'
   }
 
   // For spacing, if it's the end of a line (we inserted \n in the parser)
@@ -90,7 +90,7 @@ export default function BottomSheetDetail({ visible, entry, onClose, onFavorite,
             <Text className='btn-text'>收藏此项</Text>
           </View>
           <View className='footer-action-btn primary' onClick={handleHelpful}>
-            <LucideIcon name='thumbsUp' size={18} color='#fff' />
+            <LucideIcon name='thumbsUp' size={18} color='var(--color-white)' />
             <Text className='btn-text'>非常有帮助</Text>
           </View>
         </View>

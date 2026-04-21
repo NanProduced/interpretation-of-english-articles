@@ -344,7 +344,7 @@ export default function VocabDetailView({
             ) : null}
           </View>
 
-          <View style={{ height: '200rpx' }} />
+          <View className='vocab-detail-bottom-spacer' />
         </ScrollView>
 
         {/* Footer Actions */}
@@ -353,7 +353,7 @@ export default function VocabDetailView({
             className={`footer-btn mastery-btn ${entry.mastered ? 'is-mastered' : ''}`}
             onClick={() => onToggleMastery?.(entry)}
           >
-            <LucideIcon name='checkCircle2' size={20} color={entry.mastered ? '#10b981' : 'var(--text-main)'} />
+            <LucideIcon name='checkCircle2' size={20} color={entry.mastered ? 'var(--color-success)' : 'var(--text-main)'} />
             <Text>{entry.mastered ? '已掌握' : '标为已掌握'}</Text>
           </View>
 
@@ -362,7 +362,7 @@ export default function VocabDetailView({
               className='footer-btn source-btn'
               onClick={() => handleGoToResult(sourceRefs[0])}
             >
-              <LucideIcon name='bookOpen' size={20} color='#fff' />
+              <LucideIcon name='bookOpen' size={20} color='var(--color-white)' />
               <Text>查看原文</Text>
             </View>
           )}

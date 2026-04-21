@@ -81,7 +81,7 @@ export default function ConfigEditor({
                   onClick={() => handleGoalSelect(g)}
                 >
                   <View className='card-icon'>
-                    <LucideIcon name={config.icon} size={isDetailed ? 64 : 40} color={isSelected ? '#fff' : 'var(--text-main)'} />
+                    <LucideIcon name={config.icon} size={isDetailed ? 64 : 40} color={isSelected ? 'var(--color-white)' : 'var(--text-main)'} />
                   </View>
                   <View className='card-content'>
                     <Text className='card-label'>{config.label}</Text>
@@ -130,7 +130,7 @@ export default function ConfigEditor({
                     )}
                   </View>
                   <View className='check-box'>
-                    {isSelected && <LucideIcon name='check' size={28} color='#fff' strokeWidth={3} />}
+                    {isSelected && <LucideIcon name='check' size={28} color='var(--color-white)' strokeWidth={3} />}
                   </View>
                 </View>
               )

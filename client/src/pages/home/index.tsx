@@ -174,7 +174,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
               </View>
             </View>
             <View className='portal-action-btn'>
-              <LucideIcon name='plus' size={24} color='#fff' />
+              <LucideIcon name='plus' size={24} color='var(--color-white)' />
             </View>
           </View>
         </View>

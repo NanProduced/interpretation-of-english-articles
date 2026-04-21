@@ -237,6 +237,73 @@ async def _run_workflow_and_store(
     return payload
 
 
+async def run_workflow_only(article_id: str) -> dict | None:
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM daily_readers WHERE id = $1",
+            article_id,
+        )
+    if row is None:
+        return None
+
+    original_text = row.get("original_text")
+    if not original_text:
+        raise ValueError(f"Article {article_id} has no original_text stored; retry not possible")
+
+    from app.workflow.daily_reader_workflow import build_daily_reader_graph
+    graph = build_daily_reader_graph()
+
+    input_state = {
+        "original_text": original_text,
+        "title": row["title"],
+        "subtitle": row["subtitle"],
+        "source": row["source"],
+        "source_url": row["source_url"],
+        "cover_image_url": row["cover_image_url"],
+        "tags": orjson.loads(row["tags"]) if isinstance(row["tags"], (str, bytes)) else row["tags"],
+        "difficulty": row["difficulty"],
+        "read_time_minutes": row["read_time_minutes"],
+        "pipeline_source": row.get("pipeline_source", row["source"]),
+        "pipeline_meta": orjson.loads(row["pipeline_meta"]) if isinstance(row["pipeline_meta"], (str, bytes)) else row["pipeline_meta"],
+    }
+
+    try:
+        final_state = await graph.ainvoke(input_state)
+    except Exception as e:
+        logger.error("Retry workflow execution failed for %s: %s", article_id, e)
+        raise
+
+    if final_state.get("abort"):
+        logger.info("Retry workflow aborted for: %s", article_id)
+        return None
+
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE daily_readers
+            SET body_json = $1, highlights_json = $2, footer_analysis_json = $3,
+                updated_at = NOW()
+            WHERE id = $4
+            """,
+            orjson.dumps(final_state.get("body_json", {"paragraphs": []})),
+            orjson.dumps(final_state.get("highlights_json", [])),
+            orjson.dumps(final_state.get("footer_analysis_json", {})),
+            article_id,
+        )
+
+    return {
+        "id": article_id,
+        "status": "retry_completed",
+        "body_updated": True,
+        "highlights_updated": True,
+        "footer_analysis_updated": True,
+    }
+
+
 async def _assemble_payload(
     article: DiscoveredArticle, score: ArticleScore, sec_check_result: dict, state: dict
 ) -> dict:
@@ -261,6 +328,7 @@ async def _assemble_payload(
         "score": score.score,
         "content_sec_check": sec_check_result,
         "original_text_hash": hashlib.sha256(article.text.encode()).hexdigest(),
+        "original_text": article.text,
         "pipeline_source": article.source,
         "pipeline_meta": state.get("pipeline_meta", {}),
     }
@@ -309,10 +377,10 @@ async def _store_daily_reader(payload: dict) -> None:
                 id, title, subtitle, source, source_url, publish_date,
                 difficulty, read_time_minutes, tags, cover_image_url, cover_theme,
                 body_json, highlights_json, footer_analysis_json,
-                status, score, content_sec_check, original_text_hash,
+                status, score, content_sec_check, original_text_hash, original_text,
                 pipeline_source, pipeline_meta
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-                      $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                      $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
             """,
             payload["id"],
             payload["title"],
@@ -332,6 +400,7 @@ async def _store_daily_reader(payload: dict) -> None:
             payload["score"],
             orjson.dumps(payload["content_sec_check"]),
             payload["original_text_hash"],
+            payload.get("original_text"),
             payload["pipeline_source"],
             orjson.dumps(payload["pipeline_meta"]),
         )
