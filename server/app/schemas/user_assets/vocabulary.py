@@ -96,6 +96,10 @@ class VocabularyResponse(BaseModel):
     mastery_status: str
     review_count: int
     last_reviewed_at: datetime | None
+    next_review_at: datetime | None = Field(default=None, description="下一次复习时间")
+    ease_factor: float = Field(default=2.5, description="易度因子，SM-2算法核心参数")
+    repetitions: int = Field(default=0, description="连续成功复习次数")
+    review_interval: int = Field(default=1, description="当前复习间隔（天）")
     payload_json: dict[str, Any] | None = Field(default=None)
     created_at: datetime
     updated_at: datetime
@@ -154,3 +158,82 @@ class VocabHighlightsResponse(BaseModel):
     """POST /vocabulary/highlights — 匹配结果。"""
 
     matches: list[VocabMatchItem]
+
+
+# ---------------------------------------------------------------------------
+# Review System Models
+# ---------------------------------------------------------------------------
+
+
+class ReviewQuality(str):
+    """复习质量评分，采用 SM-2 算法的 0-5 分制。
+
+    - 0: 完全忘记 (Complete Blackout)
+    - 1: 几乎忘记 (Wrong Response)
+    - 2: 模糊记得 (Wrong Response, On The Tip Of The Tongue)
+    - 3: 记住了 (Correct Response, With Serious Difficulty)
+    - 4: 熟练掌握 (Correct Response, With Some Hesitation)
+    - 5: 完全掌握 (Perfect Response)
+    """
+
+    pass
+
+
+class ReviewSubmitRequest(BaseModel):
+    """提交复习结果请求。"""
+
+    vocab_id: UUID = Field(description="生词记录ID")
+    quality: int = Field(ge=0, le=5, description="复习质量评分 0-5")
+
+
+class ReviewSubmitResponse(BaseModel):
+    """提交复习结果响应。"""
+
+    vocab_id: UUID
+    success: bool
+    next_review_at: datetime | None
+    new_ease_factor: float
+    new_interval: int
+    new_repetitions: int
+    new_mastery_status: str
+    quality: int
+    message: str
+
+
+class ReviewStatsResponse(BaseModel):
+    """复习统计数据。"""
+
+    total_vocab: int = Field(description="生词总数")
+    due_today: int = Field(description="今日待复习数量")
+    overdue: int = Field(description="逾期未复习数量")
+    new_words: int = Field(description="新词数量（从未复习过）")
+    learning: int = Field(description="学习中数量")
+    mastered: int = Field(description="已掌握数量")
+
+
+class DueVocabItem(BaseModel):
+    """待复习生词条目。"""
+
+    id: UUID
+    lemma: str
+    display_word: str
+    phonetic: str | None
+    part_of_speech: str | None
+    short_meaning: str
+    mastery_status: str
+    repetitions: int
+    ease_factor: float
+    review_interval: int
+    next_review_at: datetime | None
+    source_sentence: str | None = Field(default=None)
+    source_refs: list[dict[str, Any]] | None = Field(default=None, description="来源语境列表")
+    meanings_json: list[dict[str, Any]] | None = Field(default=None)
+    payload_json: dict[str, Any] | None = Field(default=None)
+
+
+class DueVocabListResponse(BaseModel):
+    """待复习单词列表响应。"""
+
+    items: list[DueVocabItem]
+    total: int
+    due_type: str = Field(description="due_type: today/overdue/new")

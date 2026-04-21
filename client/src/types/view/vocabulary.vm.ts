@@ -3,6 +3,10 @@
  *
  * 记录从结果页"记入生词本"的词条。
  * 以 lemma 为唯一标识，同 lemma 多次收藏会合并 sourceRefs。
+ *
+ * 基于艾宾浩斯遗忘曲线的复习系统扩展：
+ * - 实现 SM-2 算法（SuperMemo 2）进行科学复习调度
+ * - 根据复习质量动态调整下次复习时间
  */
 
 /** 单次收藏来源的语境记录 */
@@ -25,6 +29,18 @@ export interface SourceRef {
   collectedAt?: string
 }
 
+/**
+ * 复习质量评分（SM-2 算法的 0-5 分制）
+ *
+ * - 0: 完全忘记 (Complete Blackout)
+ * - 1: 几乎忘记 (Wrong Response)
+ * - 2: 模糊记得 (Wrong Response, On The Tip Of The Tongue)
+ * - 3: 记住了 (Correct Response, With Serious Difficulty)
+ * - 4: 熟练掌握 (Correct Response, With Some Hesitation)
+ * - 5: 完全掌握 (Perfect Response)
+ */
+export type ReviewQuality = 0 | 1 | 2 | 3 | 4 | 5
+
 export interface VocabEntry {
   id: string
   /** 同步状态 */
@@ -46,7 +62,7 @@ export interface VocabEntry {
   meaning: string
   /** 加入时间 */
   addedAt: number
-  /** 是否已掌握 */
+  /** 是否已掌握（兼容旧字段，实际由 masteryStatus 决定） */
   mastered: boolean
 
   /** 词典词条稳定引用 ID（用于按需加载完整词条） */
@@ -76,6 +92,50 @@ export interface VocabEntry {
   collectedForms?: string[]
   /** Free Dictionary API 音频 URL 缓存 */
   audioUrl?: string
+
+  // ---------------------------------------------------------------------------
+  // 艾宾浩斯复习系统字段
+  // ---------------------------------------------------------------------------
+
+  /**
+   * 掌握状态
+   * - new: 新词（从未复习过）
+   * - learning: 学习中
+   * - review: 需要复习
+   * - mastered: 已掌握
+   * - archived: 已归档
+   */
+  masteryStatus?: 'new' | 'learning' | 'review' | 'mastered' | 'archived'
+
+  /** 累计复习次数 */
+  reviewCount?: number
+
+  /** 最近一次复习时间（时间戳毫秒） */
+  lastReviewedAt?: number
+
+  /** 下一次复习时间（时间戳毫秒），基于艾宾浩斯遗忘曲线计算 */
+  nextReviewAt?: number
+
+  /**
+   * 易度因子 (Ease Factor, EF)
+   * SM-2 算法核心参数，默认 2.5，最低 1.3
+   * 表示单词的难易程度，值越大表示越容易记住
+   */
+  easeFactor?: number
+
+  /**
+   * 连续成功复习次数
+   * 用于计算下一次复习间隔
+   * - 0 表示从未成功复习过或刚失败重置
+   * - >= 5 且 easeFactor >= 2.5 时标记为 mastered
+   */
+  repetitions?: number
+
+  /**
+   * 当前复习间隔（天）
+   * 上一次成功复习后计算出的间隔
+   */
+  reviewInterval?: number
 }
 
 /** saveVocabEntry 的返回结果，用于 toast 反馈 */
@@ -95,4 +155,63 @@ export interface VocabHighlightMatch {
   anchorText: string
   occurrence: number
   masteryStatus: string
+}
+
+// ---------------------------------------------------------------------------
+// 艾宾浩斯复习系统相关类型
+// ---------------------------------------------------------------------------
+
+/** 复习统计数据 */
+export interface ReviewStats {
+  /** 生词总数 */
+  totalVocab: number
+  /** 今日待复习数量 */
+  dueToday: number
+  /** 逾期未复习数量 */
+  overdue: number
+  /** 新词数量（从未复习过） */
+  newWords: number
+  /** 学习中数量 */
+  learning: number
+  /** 已掌握数量 */
+  mastered: number
+}
+
+/** 待复习单词列表项 */
+export interface DueVocabItem {
+  id: string
+  lemma: string
+  displayWord: string
+  phonetic?: string
+  partOfSpeech?: string
+  shortMeaning: string
+  masteryStatus: 'new' | 'learning' | 'review' | 'mastered' | 'archived'
+  repetitions: number
+  easeFactor: number
+  reviewInterval: number
+  nextReviewAt?: number
+  sourceSentence?: string
+  sourceRefs?: SourceRef[]
+  meaningsJson?: Array<Record<string, unknown>>
+  payloadJson?: Record<string, unknown>
+}
+
+/** 提交复习结果的响应 */
+export interface ReviewSubmitResult {
+  vocabId: string
+  success: boolean
+  /** 下一次复习时间（时间戳毫秒） */
+  nextReviewAt?: number
+  /** 新的易度因子 */
+  newEaseFactor: number
+  /** 新的复习间隔（天） */
+  newInterval: number
+  /** 新的连续成功复习次数 */
+  newRepetitions: number
+  /** 新的掌握状态 */
+  newMasteryStatus: string
+  /** 本次复习质量评分 */
+  quality: number
+  /** 提示消息 */
+  message: string
 }

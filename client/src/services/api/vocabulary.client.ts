@@ -3,10 +3,22 @@
  *
  * 对应后端 GET/POST/PATCH/DELETE /vocabulary
  * 需要认证，自动附带 Authorization header
+ *
+ * 扩展：艾宾浩斯遗忘曲线复习系统
+ * - /vocabulary/review-stats: 复习统计
+ * - /vocabulary/due: 待复习单词列表
+ * - /vocabulary/review: 提交复习结果
  */
 
 import { request } from './client'
-import type { VocabEntry, SourceRef, VocabHighlightMatch } from '../../types/view/vocabulary.vm'
+import type {
+  VocabEntry,
+  SourceRef,
+  VocabHighlightMatch,
+  ReviewStats,
+  DueVocabItem,
+  ReviewSubmitResult,
+} from '../../types/view/vocabulary.vm'
 
 // ---------------------------------------------------------------------------
 // 后端 DTO（snake_case）
@@ -30,6 +42,10 @@ interface VocabularyResponseDto {
   mastery_status: string
   review_count: number
   last_reviewed_at: string | null
+  next_review_at: string | null
+  ease_factor: number
+  repetitions: number
+  review_interval: number
   payload_json?: Record<string, unknown>
   created_at: string
   updated_at: string
@@ -99,6 +115,13 @@ function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
     sourceRefs,
     collectedForms,
     audioUrl,
+    masteryStatus: dto.mastery_status as VocabEntry['masteryStatus'],
+    reviewCount: dto.review_count,
+    lastReviewedAt: dto.last_reviewed_at ? new Date(dto.last_reviewed_at).getTime() : undefined,
+    nextReviewAt: dto.next_review_at ? new Date(dto.next_review_at).getTime() : undefined,
+    easeFactor: dto.ease_factor,
+    repetitions: dto.repetitions,
+    reviewInterval: dto.review_interval,
   }
 }
 
@@ -223,4 +246,156 @@ export async function fetchVocabHighlights(
     occurrence: m.occurrence,
     masteryStatus: m.mastery_status,
   }))
+}
+
+// ---------------------------------------------------------------------------
+// 艾宾浩斯复习系统 API
+// ---------------------------------------------------------------------------
+
+interface ReviewStatsDto {
+  total_vocab: number
+  due_today: number
+  overdue: number
+  new_words: number
+  learning: number
+  mastered: number
+}
+
+interface DueVocabItemDto {
+  id: string
+  lemma: string
+  display_word: string
+  phonetic: string | null
+  part_of_speech: string | null
+  short_meaning: string
+  mastery_status: string
+  repetitions: number
+  ease_factor: number
+  review_interval: number
+  next_review_at: string | null
+  source_sentence: string | null
+  source_refs?: Array<Record<string, unknown>>
+  meanings_json?: Array<Record<string, unknown>>
+  payload_json?: Record<string, unknown>
+}
+
+interface DueVocabListDto {
+  items: DueVocabItemDto[]
+  total: number
+  due_type: string
+}
+
+interface ReviewSubmitResponseDto {
+  vocab_id: string
+  success: boolean
+  next_review_at: string | null
+  new_ease_factor: number
+  new_interval: number
+  new_repetitions: number
+  new_mastery_status: string
+  quality: number
+  message: string
+}
+
+function dueVocabDtoToVm(dto: DueVocabItemDto): DueVocabItem {
+  return {
+    id: dto.id,
+    lemma: dto.lemma,
+    displayWord: dto.display_word,
+    phonetic: dto.phonetic || undefined,
+    partOfSpeech: dto.part_of_speech || undefined,
+    shortMeaning: dto.short_meaning,
+    masteryStatus: dto.mastery_status as DueVocabItem['masteryStatus'],
+    repetitions: dto.repetitions,
+    easeFactor: dto.ease_factor,
+    reviewInterval: dto.review_interval,
+    nextReviewAt: dto.next_review_at ? new Date(dto.next_review_at).getTime() : undefined,
+    sourceSentence: dto.source_sentence || undefined,
+    sourceRefs: dto.source_refs?.map((ref: any) => ({
+      clientRecordId: ref.client_record_id || '',
+      cloudRecordId: ref.cloud_record_id || undefined,
+      sourceSentence: ref.source_sentence || undefined,
+      sourceContext: ref.source_context || undefined,
+      sourceSentenceId: ref.source_sentence_id || undefined,
+      sourceAnchorText: ref.source_anchor_text || undefined,
+      sourceOccurrence: ref.source_occurrence || undefined,
+      collectedAt: ref.collected_at || undefined,
+    })),
+    meaningsJson: dto.meanings_json,
+    payloadJson: dto.payload_json,
+  }
+}
+
+/**
+ * 获取复习统计数据
+ */
+export async function fetchReviewStats(): Promise<ReviewStats> {
+  const res = await request<ReviewStatsDto>({
+    url: '/vocabulary/review-stats',
+    method: 'GET',
+  })
+  return {
+    totalVocab: res.total_vocab,
+    dueToday: res.due_today,
+    overdue: res.overdue,
+    newWords: res.new_words,
+    learning: res.learning,
+    mastered: res.mastered,
+  }
+}
+
+/**
+ * 获取待复习单词列表
+ * @param dueType 'today' | 'overdue' | 'new'
+ * @param limit 返回数量限制
+ */
+export async function fetchDueVocabulary(
+  dueType: 'today' | 'overdue' | 'new' = 'today',
+  limit = 100
+): Promise<{ items: DueVocabItem[]; total: number; dueType: string }> {
+  const res = await request<DueVocabListDto>({
+    url: `/vocabulary/due?due_type=${dueType}&limit=${limit}`,
+    method: 'GET',
+  })
+  return {
+    items: res.items.map(dueVocabDtoToVm),
+    total: res.total,
+    dueType: res.due_type,
+  }
+}
+
+/**
+ * 提交复习结果
+ * @param vocabId 生词记录ID
+ * @param quality 复习质量评分 (0-5)
+ *   - 0: 完全忘记
+ *   - 1: 几乎忘记
+ *   - 2: 模糊记得
+ *   - 3: 记住了
+ *   - 4: 熟练掌握
+ *   - 5: 完全掌握
+ */
+export async function submitReview(
+  vocabId: string,
+  quality: 0 | 1 | 2 | 3 | 4 | 5
+): Promise<ReviewSubmitResult> {
+  const res = await request<ReviewSubmitResponseDto>({
+    url: '/vocabulary/review',
+    method: 'POST',
+    data: {
+      vocab_id: vocabId,
+      quality,
+    },
+  })
+  return {
+    vocabId: res.vocab_id,
+    success: res.success,
+    nextReviewAt: res.next_review_at ? new Date(res.next_review_at).getTime() : undefined,
+    newEaseFactor: res.new_ease_factor,
+    newInterval: res.new_interval,
+    newRepetitions: res.new_repetitions,
+    newMasteryStatus: res.new_mastery_status,
+    quality: res.quality as 0 | 1 | 2 | 3 | 4 | 5,
+    message: res.message,
+  }
 }

@@ -7,11 +7,17 @@ Provides endpoints for managing vocabulary entries.
 from __future__ import annotations
 
 from logging import getLogger
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.user_assets.vocabulary import (
+    DueVocabItem,
+    DueVocabListResponse,
+    ReviewStatsResponse,
+    ReviewSubmitRequest,
+    ReviewSubmitResponse,
     VocabHighlightsRequest,
     VocabHighlightsResponse,
     VocabMatchItem,
@@ -23,6 +29,7 @@ from app.schemas.user_assets.vocabulary import (
 )
 from app.services.auth.dependencies import AuthUserDep
 from app.services.user_assets import vocabulary as vocab_svc
+from app.services.user_assets import review_system as review_svc
 
 logger = getLogger("app.api")
 
@@ -48,6 +55,10 @@ def _vocab_row_to_response(row: dict) -> VocabularyResponse:
         mastery_status=row.get("mastery_status", "new"),
         review_count=row.get("review_count", 0),
         last_reviewed_at=row.get("last_reviewed_at"),
+        next_review_at=row.get("next_review_at"),
+        ease_factor=float(row.get("ease_factor", 2.5)),
+        repetitions=row.get("repetitions", 0),
+        review_interval=row.get("review_interval", 1),
         payload_json=row.get("payload_json"),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
@@ -192,4 +203,135 @@ async def delete_vocabulary(
         raise
     except Exception as e:
         logger.error("delete_vocabulary failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ---------------------------------------------------------------------------
+# Review System Endpoints (艾宾浩斯遗忘曲线复习系统)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/review-stats", response_model=ReviewStatsResponse)
+async def get_review_stats(
+    current_user: AuthUserDep,
+) -> ReviewStatsResponse:
+    """
+    获取复习统计数据。
+
+    返回用户生词本的复习统计，包括：
+    - 总生词数
+    - 今日待复习数
+    - 逾期未复习数
+    - 各掌握状态数量
+    """
+    try:
+        stats = await review_svc.get_review_stats(
+            user_id=UUID(current_user.user_id),
+        )
+        return ReviewStatsResponse(**stats)
+    except Exception as e:
+        logger.error("get_review_stats failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/due", response_model=DueVocabListResponse)
+async def get_due_vocabulary(
+    current_user: AuthUserDep,
+    due_type: str = Query(default="today", description="待复习类型: today/overdue/new"),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> DueVocabListResponse:
+    """
+    获取待复习单词列表。
+
+    Args:
+        due_type: 待复习类型
+            - today: 今日待复习
+            - overdue: 逾期未复习
+            - new: 从未复习过的新词
+        limit: 返回数量限制
+    """
+    try:
+        items, total = await review_svc.get_due_vocabulary(
+            user_id=UUID(current_user.user_id),
+            due_type=due_type,
+            limit=limit,
+        )
+
+        response_items: list[DueVocabItem] = []
+        for row in items:
+            response_items.append(
+                DueVocabItem(
+                    id=row["id"],
+                    lemma=row["lemma"],
+                    display_word=row["display_word"],
+                    phonetic=row.get("phonetic"),
+                    part_of_speech=row.get("part_of_speech"),
+                    short_meaning=row["short_meaning"],
+                    mastery_status=row["mastery_status"],
+                    repetitions=row["repetitions"],
+                    ease_factor=float(row["ease_factor"]),
+                    review_interval=row["review_interval"],
+                    next_review_at=row.get("next_review_at"),
+                    source_sentence=row.get("source_sentence"),
+                    source_refs=row.get("source_refs"),
+                    meanings_json=row.get("meanings_json"),
+                    payload_json=row.get("payload_json"),
+                )
+            )
+
+        return DueVocabListResponse(
+            items=response_items,
+            total=total,
+            due_type=due_type,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("get_due_vocabulary failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/review", response_model=ReviewSubmitResponse)
+async def submit_review(
+    current_user: AuthUserDep,
+    body: ReviewSubmitRequest,
+) -> ReviewSubmitResponse:
+    """
+    提交复习结果。
+
+    根据 SM-2 算法（基于艾宾浩斯遗忘曲线）更新复习调度。
+
+    Args:
+        body: 包含 vocab_id 和 quality（0-5分）
+            - 0: 完全忘记
+            - 1: 几乎忘记
+            - 2: 模糊记得
+            - 3: 记住了
+            - 4: 熟练掌握
+            - 5: 完全掌握
+
+    Returns:
+        更新后的复习状态，包括下次复习时间和新的掌握状态
+    """
+    try:
+        result = await review_svc.submit_review(
+            user_id=UUID(current_user.user_id),
+            vocab_id=body.vocab_id,
+            quality=body.quality,
+        )
+        return ReviewSubmitResponse(
+            vocab_id=result["vocab_id"],
+            success=result["success"],
+            next_review_at=result.get("next_review_at"),
+            new_ease_factor=result["new_ease_factor"],
+            new_interval=result["new_interval"],
+            new_repetitions=result["new_repetitions"],
+            new_mastery_status=result["new_mastery_status"],
+            quality=result["quality"],
+            message=result["message"],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("submit_review failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
