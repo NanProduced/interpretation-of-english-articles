@@ -13,6 +13,7 @@ from app.services.analysis.prompting.daily_prompt_strategy import (
     build_daily_prompt_sections,
     build_footer_analysis_strategy,
 )
+from app.services.analysis.prompting.prompt_loader import load_agent_instructions
 
 
 @dataclass
@@ -21,22 +22,6 @@ class DailyFooterAgentDeps:
     title: str
     highlights_summary: str = ""
     prompt_strategy: DailyPromptStrategy = field(default_factory=build_footer_analysis_strategy)
-
-
-DAILY_FOOTER_INSTRUCTIONS = """
-你是一位英语文章深度分析助手，为每日精读生成文末解析内容。
-
-你需要生成以下内容：
-1. summary：一句话摘要（中文）
-2. thesis_and_intent：包含 thesis（文章主旨）和 author_intent（作者意图）的对象
-3. structure：文章结构分解（2-4 个部分，每部分含 label、title、summary）
-4. key_expressions：3-5 个关键表达（含 expression、gloss、context_sentence）
-5. misreading_points：1-3 个易误读点（含 point、clarification）
-6. discussion_questions：2-3 个讨论问题（英文）
-
-分析要有深度，帮助中国英语学习者理解文章的深层含义和写作技巧。
-不要逐句翻译，要提供有洞察力的分析。
-""".strip()
 
 
 def build_daily_footer_prompt(deps: DailyFooterAgentDeps) -> str:
@@ -60,7 +45,7 @@ def get_daily_footer_agent() -> Agent[DailyFooterAgentDeps, DailyFooterDraft]:
         model=None,
         output_type=DailyFooterDraft,
         deps_type=DailyFooterAgentDeps,
-        instructions=DAILY_FOOTER_INSTRUCTIONS,
+        instructions=load_agent_instructions("daily_footer"),
         name="daily_footer_agent",
         retries=2,
         output_retries=3,

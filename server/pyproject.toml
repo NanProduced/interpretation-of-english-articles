@@ -28,6 +28,8 @@ dependencies = [
     # 每日精读文章拉取
     "feedparser>=6.0.0,<7.0.0",
     "trafilatura>=2.0.0,<3.0.0",
+    # Prompt YAML 加载
+    "pyyaml>=6.0,<7.0",
 ]
 
 [dependency-groups]

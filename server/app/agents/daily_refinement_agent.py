@@ -13,6 +13,7 @@ from app.services.analysis.prompting.daily_prompt_strategy import (
     build_daily_prompt_sections,
     build_refinement_strategy,
 )
+from app.services.analysis.prompting.prompt_loader import load_agent_instructions
 
 
 @dataclass
@@ -23,20 +24,6 @@ class DailyRefinementAgentDeps:
     current_footer: str = ""
     current_interpretation: str = ""
     prompt_strategy: DailyPromptStrategy = field(default_factory=build_refinement_strategy)
-
-
-DAILY_REFINEMENT_INSTRUCTIONS = """
-你是一位内容修正助手，根据质量审核结果修正每日精读内容。
-
-只修正审核指出的具体问题，不要重新生成全部内容。
-如果问题无法修正（如文章本身不适合精读），设置 abort=true。
-仅执行一轮修正，不进行二次审核。
-
-对于需要修正的高亮，输出 refined_highlights（完整的修正后高亮列表）。
-对于需要修正的文末解析，输出 refined_footer（完整的修正后解析）。
-对于需要修正的全篇讲解，输出 refined_interpretation（修正后的讲解文本）。
-不需要修正的部分，对应字段留空。
-""".strip()
 
 
 def build_daily_refinement_prompt(deps: DailyRefinementAgentDeps) -> str:
@@ -62,7 +49,7 @@ def get_daily_refinement_agent() -> Agent[DailyRefinementAgentDeps, DailyRefinem
         model=None,
         output_type=DailyRefinementDraft,
         deps_type=DailyRefinementAgentDeps,
-        instructions=DAILY_REFINEMENT_INSTRUCTIONS,
+        instructions=load_agent_instructions("daily_refinement"),
         name="daily_refinement_agent",
         retries=2,
         output_retries=3,

@@ -34,29 +34,32 @@ class StrategyBundle:
 
 def build_vocabulary_bundle(
     plan: GoalExecutionPlan,
+    sentences: list[dict] | None = None,
 ) -> StrategyBundle:
     """构建 vocabulary agent 的 strategy bundle。"""
     return StrategyBundle(
         prompt_strategy=build_vocabulary_prompt_strategy(plan),
-        example_strategy=get_vocabulary_example_strategy(plan),
+        example_strategy=get_vocabulary_example_strategy(plan, sentences=sentences),
     )
 
 
 def build_grammar_bundle(
     plan: GoalExecutionPlan,
+    sentences: list[dict] | None = None,
 ) -> StrategyBundle:
     """构建 grammar agent 的 strategy bundle。"""
     return StrategyBundle(
         prompt_strategy=build_grammar_prompt_strategy(plan),
-        example_strategy=get_grammar_example_strategy(plan),
+        example_strategy=get_grammar_example_strategy(plan, sentences=sentences),
     )
 
 
 def build_translation_bundle(
     plan: GoalExecutionPlan,
+    sentences: list[dict] | None = None,
 ) -> StrategyBundle:
     """构建 translation agent 的 strategy bundle。"""
     return StrategyBundle(
         prompt_strategy=build_translation_prompt_strategy(plan),
-        example_strategy=get_translation_example_strategy(plan),
+        example_strategy=get_translation_example_strategy(plan, sentences=sentences),
     )

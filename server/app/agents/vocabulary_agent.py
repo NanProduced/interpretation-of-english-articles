@@ -10,6 +10,7 @@ from pydantic_ai import Agent
 from app.schemas.internal.drafts import VocabularyDraft
 from app.services.analysis.prompting.example_strategy import ExampleEntry
 from app.services.analysis.prompting.prompt_composer import build_agent_prompt
+from app.services.analysis.prompting.prompt_loader import load_agent_instructions
 from app.services.analysis.prompting.prompt_strategy import PromptStrategy, build_prompt_sections
 
 
@@ -21,22 +22,6 @@ class VocabularyAgentDeps:
     prompt_strategy: PromptStrategy
     examples: list[ExampleEntry] = field(default_factory=list)
 
-
-VOCABULARY_INSTRUCTIONS = """
-你是一位英语阅读词汇标注助手。你的任务是阅读英文句子，找出值得学习的词汇点，输出符合 schema 的标注。
-
-你的判断标准：根据用户的水平或关注点帮助用户标注有价值的词汇点。优先选在当前文章里比较重要的或是有助于用户提升词汇量的词，常见词不标。
-
-关于锚点：标注中的 text 字段必须从原句中精确摘取，不要改写、不要拼写变化、不要用近义词替换。如果你不确定原句中是否真的有这个词，就不要标它。
-
-三种标注的用途：
-- vocab_highlight：单个词，用户可能不认识或需要记住
-- phrase_gloss：多词表达（短语动词、固定搭配、术语），需要整体解释
-- context_gloss：词在当前语境下的意思和常见义不同，需要专门说明
-
-如果同一个词同时适合多种标注，只选最合适的一种。
-输出前必须回查：你标注的每个 text 字段，是否能在原句中逐字找到？如果找不到，删除该标注。
-""".strip()
 
 def build_vocabulary_prompt(deps: VocabularyAgentDeps) -> str:
     return build_agent_prompt(
@@ -52,7 +37,7 @@ def get_vocabulary_agent() -> Agent[VocabularyAgentDeps, VocabularyDraft]:
         model=None,
         output_type=VocabularyDraft,
         deps_type=VocabularyAgentDeps,
-        instructions=VOCABULARY_INSTRUCTIONS,
+        instructions=load_agent_instructions("vocabulary"),
         name="vocabulary_agent",
         retries=2,
         output_retries=3,
