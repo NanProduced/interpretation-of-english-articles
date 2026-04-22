@@ -1,9 +1,4 @@
-"""
-Internal Feedback Management API.
-
-Provides endpoints for cloud backend to manage feedback status and rewards.
-Uses API Key authentication instead of user session.
-"""
+"""内部反馈管理接口，供云后台调用，使用 API Key 认证。"""
 
 from __future__ import annotations
 
@@ -37,12 +32,13 @@ def _verify_internal_key(x_internal_key: str | None) -> None:
         raise HTTPException(status_code=403, detail="Invalid internal API key")
 
 
-@router.patch("/{feedback_id}/status", response_model=FeedbackStatusUpdateResponse)
+@router.patch("/{feedback_id}/status", response_model=FeedbackStatusUpdateResponse, summary="更新反馈状态")
 async def update_feedback_status(
     feedback_id: UUID,
     body: FeedbackStatusUpdateRequest,
     x_internal_key: str | None = Header(default=None),
 ) -> dict:
+    """更新反馈的处理状态（如标记为已采纳、已拒绝等）。"""
     _verify_internal_key(x_internal_key)
     row = await feedback_svc.update_feedback_status(
         feedback_id=feedback_id,
@@ -55,12 +51,13 @@ async def update_feedback_status(
     return row
 
 
-@router.post("/{feedback_id}/reward", response_model=FeedbackRewardResponse)
+@router.post("/{feedback_id}/reward", response_model=FeedbackRewardResponse, summary="奖励反馈")
 async def reward_feedback(
     feedback_id: UUID,
     body: FeedbackRewardRequest,
     x_internal_key: str | None = Header(default=None),
 ) -> dict:
+    """对已采纳的反馈发放积分奖励。"""
     _verify_internal_key(x_internal_key)
     row = await feedback_svc.reward_feedback(
         feedback_id=feedback_id,
@@ -87,9 +84,10 @@ async def reward_feedback(
     }
 
 
-@router.get("/stats", response_model=FeedbackStatsResponse)
+@router.get("/stats", response_model=FeedbackStatsResponse, summary="反馈统计")
 async def get_feedback_stats(
     x_internal_key: str | None = Header(default=None),
 ) -> dict:
+    """获取反馈的汇总统计数据。"""
     _verify_internal_key(x_internal_key)
     return await feedback_svc.get_feedback_stats()

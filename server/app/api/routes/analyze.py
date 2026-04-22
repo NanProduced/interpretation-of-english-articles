@@ -11,8 +11,9 @@ logger = getLogger("app.api")
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 
 
-@router.post("", response_model=AnyRenderSceneModel)
+@router.post("", response_model=AnyRenderSceneModel, summary="分析文章")
 async def analyze(payload: AnalyzeRequest) -> AnyRenderSceneModel:
+    """提交文章分析任务，返回标注结果。"""
     try:
         return await run_article_analysis(payload)
     except ModelSelectionError as exc:

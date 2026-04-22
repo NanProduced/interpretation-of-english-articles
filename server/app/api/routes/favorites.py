@@ -1,8 +1,4 @@
-"""
-Favorites API.
-
-Provides endpoints for managing favorite records.
-"""
+"""收藏管理接口。"""
 
 from __future__ import annotations
 
@@ -26,12 +22,12 @@ logger = getLogger("app.api")
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 
 
-@router.post("", response_model=FavoriteCreateResponse)
+@router.post("", response_model=FavoriteCreateResponse, summary="添加收藏")
 async def add_favorite(
     current_user: AuthUserDep,
     body: FavoriteCreateRequest,
 ) -> dict:
-    """Add a favorite (upsert by target_type + target_key)."""
+    """收藏一条分析记录，按 target_type + target_key 去重。"""
     try:
         fav_id = await fav_svc.add_favorite(
             user_id=UUID(current_user.user_id),
@@ -47,11 +43,11 @@ async def add_favorite(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.get("", response_model=FavoriteListResponse)
+@router.get("", response_model=FavoriteListResponse, summary="收藏列表")
 async def list_favorites(
     current_user: AuthUserDep,
 ) -> FavoriteListResponse:
-    """List all favorites for the current user."""
+    """获取当前用户的所有收藏记录。"""
     try:
         items = await fav_svc.list_favorites(
             user_id=UUID(current_user.user_id),
@@ -65,12 +61,12 @@ async def list_favorites(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.delete("/{analysis_record_id}", response_model=FavoriteDeleteResponse)
+@router.delete("/{analysis_record_id}", response_model=FavoriteDeleteResponse, summary="取消收藏")
 async def remove_favorite(
     current_user: AuthUserDep,
     analysis_record_id: UUID,
 ) -> FavoriteDeleteResponse:
-    """Remove a favorite by analysis_record_id."""
+    """根据分析记录 ID 取消收藏。"""
     try:
         count = await fav_svc.remove_favorite_by_analysis_record(
             user_id=UUID(current_user.user_id),

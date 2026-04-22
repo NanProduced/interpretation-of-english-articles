@@ -1,8 +1,4 @@
-"""
-Vocabulary Book API.
-
-Provides endpoints for managing vocabulary entries.
-"""
+"""生词本管理接口。"""
 
 from __future__ import annotations
 
@@ -55,12 +51,12 @@ def _vocab_row_to_response(row: dict) -> VocabularyResponse:
     )
 
 
-@router.post("", response_model=VocabularyUpsertResponse)
+@router.post("", response_model=VocabularyUpsertResponse, summary="添加生词")
 async def add_vocabulary(
     current_user: AuthUserDep,
     body: VocabularyCreateRequest,
 ) -> VocabularyUpsertResponse:
-    """Add a word/phrase to vocabulary book (upsert by lemma)."""
+    """添加单词或短语到生词本，按 lemma 去重。"""
     try:
         vocab_id, created, updated_at = await vocab_svc.upsert_vocabulary(
             user_id=UUID(current_user.user_id),
@@ -89,7 +85,7 @@ async def add_vocabulary(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.get("", response_model=VocabularyListResponse)
+@router.get("", response_model=VocabularyListResponse, summary="生词列表")
 async def get_vocabulary_list(
     current_user: AuthUserDep,
     page: int = Query(default=1, ge=1),
@@ -97,7 +93,7 @@ async def get_vocabulary_list(
     mastery_status: str | None = Query(default=None),
     lite: bool = Query(default=False, description="是否仅返回轻量字段用于列表展示"),
 ) -> VocabularyListResponse:
-    """List vocabulary entries for the current user."""
+    """分页获取当前用户的生词列表。"""
     try:
         items, total = await vocab_svc.list_vocabulary(
             user_id=UUID(current_user.user_id),
@@ -117,7 +113,7 @@ async def get_vocabulary_list(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.post("/highlights", response_model=VocabHighlightsResponse)
+@router.post("/highlights", response_model=VocabHighlightsResponse, summary="生词高亮匹配")
 async def get_vocab_highlights(
     current_user: AuthUserDep,
     body: VocabHighlightsRequest,
@@ -150,13 +146,13 @@ async def get_vocab_highlights(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.patch("/{vocab_id}", response_model=VocabularyResponse)
+@router.patch("/{vocab_id}", response_model=VocabularyResponse, summary="更新生词")
 async def update_vocabulary(
     current_user: AuthUserDep,
     vocab_id: UUID,
     body: VocabularyUpdateRequest,
 ) -> VocabularyResponse:
-    """Update a vocabulary entry (e.g., mastery status)."""
+    """更新生词条目，如掌握状态等。"""
     try:
         updated = await vocab_svc.update_vocabulary(
             user_id=UUID(current_user.user_id),
@@ -175,12 +171,12 @@ async def update_vocabulary(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.delete("/{vocab_id}", response_model=VocabularyDeleteResponse)
+@router.delete("/{vocab_id}", response_model=VocabularyDeleteResponse, summary="删除生词")
 async def delete_vocabulary(
     current_user: AuthUserDep,
     vocab_id: UUID,
 ) -> dict:
-    """Delete a vocabulary entry."""
+    """删除一条生词记录。"""
     try:
         deleted = await vocab_svc.delete_vocabulary(
             user_id=UUID(current_user.user_id),

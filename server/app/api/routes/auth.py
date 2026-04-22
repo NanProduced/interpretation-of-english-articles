@@ -34,21 +34,12 @@ logger = getLogger("app.api")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/wechat/login", response_model=WeChatLoginResponse)
+@router.post("/wechat/login", response_model=WeChatLoginResponse, summary="微信登录")
 async def wechat_login(
     request: Request,
     body: WeChatLoginRequest,
 ) -> dict:
-    """
-    微信小程序登录。
-
-    流程：
-    1. 校验 code
-    2. 调用微信 code2Session 获取 openid
-    3. 查找或创建用户（新建用户时会生成默认昵称 Claread_xxxx）
-    4. 创建业务 session
-    5. 返回 session_token
-    """
+    """微信小程序登录，校验 code 并返回 session_token。"""
     code = body.code
 
     # 微信 code2Session
@@ -97,25 +88,22 @@ async def wechat_login(
     }
 
 
-@router.post("/session/logout", response_model=LogoutResponse)
+@router.post("/session/logout", response_model=LogoutResponse, summary="登出")
 async def logout(
     body: LogoutRequest,
 ) -> dict:
-    """
-    登出（主动失效当前 session）。
-
-    幂等：token 无效或已失效时也返回成功。
-    """
+    """登出当前 session，幂等操作。"""
     token = body.session_token
 
     await revoke_session(token)
     return {"ok": True}
 
 
-@router.get("/session/me", response_model=SessionInfoResponse)
+@router.get("/session/me", response_model=SessionInfoResponse, summary="获取当前用户信息")
 async def get_current_session_info(
     current_user: AuthUserDep,
 ) -> dict:
+    """获取当前登录用户的会话信息和资料。"""
     try:
         profile = await get_user_profile(PyUUID(current_user.user_id))
     except RuntimeError as e:
@@ -134,11 +122,12 @@ async def get_current_session_info(
     }
 
 
-@router.patch("/profile", response_model=ProfileUpdateResponse)
+@router.patch("/profile", response_model=ProfileUpdateResponse, summary="更新用户资料")
 async def update_profile(
     current_user: AuthUserDep,
     body: ProfileUpdateRequest,
 ) -> dict:
+    """更新当前用户的昵称、头像或设置。"""
     user_id = PyUUID(current_user.user_id)
 
     try:

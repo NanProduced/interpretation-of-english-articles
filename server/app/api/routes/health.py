@@ -9,14 +9,9 @@ from app.schemas.health import DbHealthResponse, HealthCheckResponse, ReadinessC
 router = APIRouter(prefix="/health", tags=["health"])
 
 
-@router.get("", response_model=HealthCheckResponse)
+@router.get("", response_model=HealthCheckResponse, summary="健康检查")
 async def health_check(request: Request) -> HealthCheckResponse:
-    """
-    健康检查端点。
-
-    返回应用状态、PostgreSQL 连接状态、Redis 连接状态、worker 状态。
-    Redis 状态仅供参考，不影响整体状态（因为 Redis 是可选增强）。
-    """
+    """检查应用、数据库、Redis 和 Worker 的运行状态。"""
     settings = get_settings()
     db_ready = await is_db_ready()
     redis_ready = await is_redis_ready()
@@ -34,9 +29,9 @@ async def health_check(request: Request) -> HealthCheckResponse:
     }
 
 
-@router.get("/db", response_model=DbHealthResponse)
+@router.get("/db", response_model=DbHealthResponse, summary="数据库健康检查")
 async def db_health() -> DbHealthResponse:
-    """数据库连接健康检查。"""
+    """检查 PostgreSQL 连接是否正常。"""
     db_ready = await is_db_ready()
     return {
         "status": "ok" if db_ready else "unavailable",
@@ -44,14 +39,9 @@ async def db_health() -> DbHealthResponse:
     }
 
 
-@router.get("/ready", response_model=ReadinessCheckResponse)
+@router.get("/ready", response_model=ReadinessCheckResponse, summary="就绪探针")
 async def readiness_check(request: Request) -> ReadinessCheckResponse:
-    """
-    Readiness probe.
-
-    仅当 PostgreSQL 和 analysis task worker 都健康时返回 200。
-    否则返回 503，供容器 / LB 摘流。
-    """
+    """就绪探针，数据库和 Worker 都健康时返回 200，否则 503。"""
     db_ready = await is_db_ready()
     worker_snapshot = _get_worker_snapshot(request)
     worker_ready = bool(worker_snapshot["healthy"])

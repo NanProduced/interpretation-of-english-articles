@@ -1,4 +1,4 @@
-"""Debug endpoint for prompt preview and inspection."""
+"""Prompt 调试接口，用于预览和检查完整 prompt 模板。"""
 
 from __future__ import annotations
 
@@ -243,11 +243,12 @@ def _build_academic_preview(
     )
 
 
-@router.post("/prompt-preview", response_model=PromptPreviewResponse)
+@router.post("/prompt-preview", response_model=PromptPreviewResponse, summary="预览 Prompt 模板")
 async def prompt_preview(
     request: PromptPreviewRequest,
     _auth: str = Header(..., alias="x-debug-api-key"),
 ) -> PromptPreviewResponse:
+    """根据阅读目标和变体预览完整 prompt 模板，支持 learning/daily/academic 三种工作流。"""
     await _verify_debug_key(_auth)
 
     agent_type = request.agent_type

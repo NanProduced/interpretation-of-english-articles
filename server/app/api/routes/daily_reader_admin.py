@@ -1,4 +1,4 @@
-"""Daily Reader admin API routes."""
+"""每日精读管理端接口。"""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from app.schemas.daily_reader import (
     ArticleActionResponse,
     DailyReaderGenerateRequest,
     DailyReaderGenerateResponse,
-    DailyReaderListItem,
     DailyReaderListResponse,
     DailyReaderPublishRequest,
     DailyReaderRetryRequest,
@@ -36,11 +35,12 @@ async def verify_admin_api_key(x_admin_api_key: str = Header(...)) -> str:
     return x_admin_api_key
 
 
-@router.post("/generate", response_model=DailyReaderGenerateResponse)
+@router.post("/generate", response_model=DailyReaderGenerateResponse, summary="生成精读文章")
 async def generate_articles(
     request: DailyReaderGenerateRequest,
     _auth: str = Depends(verify_admin_api_key),
 ) -> DailyReaderGenerateResponse:
+    """执行精读文章生成流水线，抓取素材并调用 AI 生成内容。"""
     from app.services.daily_reader.pipeline import run_daily_pipeline
 
     task_id = f"dr_gen_{uuid.uuid4().hex[:8]}"
@@ -63,53 +63,58 @@ async def generate_articles(
         ) from e
 
 
-@router.post("/publish", response_model=ArticleActionResponse)
+@router.post("/publish", response_model=ArticleActionResponse, summary="发布精读文章")
 async def publish_article(
     request: DailyReaderPublishRequest,
     _auth: str = Depends(verify_admin_api_key),
 ) -> dict:
+    """将草稿状态的精读文章发布上线。"""
     success = await service.publish_article(request.id)
     if not success:
         raise HTTPException(status_code=404, detail="Article not found or not in draft status")
     return {"status": "published"}
 
 
-@router.post("/unpublish", response_model=ArticleActionResponse)
+@router.post("/unpublish", response_model=ArticleActionResponse, summary="下架精读文章")
 async def unpublish_article(
     request: DailyReaderUnpublishRequest,
     _auth: str = Depends(verify_admin_api_key),
 ) -> dict:
+    """将已发布的精读文章下架为草稿。"""
     success = await service.unpublish_article(request.id)
     if not success:
         raise HTTPException(status_code=404, detail="Article not found or not published")
     return {"status": "unpublished"}
 
 
-@router.delete("/{article_id}", response_model=ArticleActionResponse)
+@router.delete("/{article_id}", response_model=ArticleActionResponse, summary="删除精读文章")
 async def delete_article(
     article_id: str,
     _auth: str = Depends(verify_admin_api_key),
 ) -> dict:
+    """删除草稿状态的精读文章。"""
     success = await service.delete_article(article_id)
     if not success:
         raise HTTPException(status_code=404, detail="Article not found or not in draft status")
     return {"status": "deleted"}
 
 
-@router.get("/drafts", response_model=DailyReaderListResponse)
+@router.get("/drafts", response_model=DailyReaderListResponse, summary="草稿列表")
 async def list_drafts(
     limit: int = 20,
     _auth: str = Depends(verify_admin_api_key),
 ) -> DailyReaderListResponse:
+    """获取草稿状态的精读文章列表。"""
     items = await service.get_draft_articles(limit=limit)
     return DailyReaderListResponse(items=items, has_more=False)
 
 
-@router.post("/retry", response_model=RetryWorkflowResponse)
+@router.post("/retry", response_model=RetryWorkflowResponse, summary="重试工作流")
 async def retry_workflow(
     request: DailyReaderRetryRequest,
     _auth: str = Depends(verify_admin_api_key),
 ) -> dict:
+    """对已有素材的精读文章重新执行 AI 工作流。"""
     from app.services.daily_reader.pipeline import run_workflow_only
 
     article = await service.get_article_by_id(request.id)

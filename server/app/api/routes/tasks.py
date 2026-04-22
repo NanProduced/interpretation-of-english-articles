@@ -1,8 +1,4 @@
-"""
-Analysis Tasks API.
-
-Provides endpoints for submitting, querying, and managing analysis tasks.
-"""
+"""分析任务接口。"""
 
 from __future__ import annotations
 
@@ -103,19 +99,12 @@ def _parse_render_scene(record: dict | None) -> AnyRenderSceneModel | None:
         return None
 
 
-@router.post("", response_model=TaskSubmitResponse, status_code=202)
+@router.post("", response_model=TaskSubmitResponse, status_code=202, summary="提交分析任务")
 async def submit_analysis_task(
     current_user: AuthUserDep,
     body: TaskSubmitRequest,
 ) -> JSONResponse:
-    """
-    Submit an analysis task.
-
-    - 402 if user has insufficient credits
-    - 409 if user already has an active task (queued/running/finalizing)
-    - Returns 202 Accepted with task_id and record_id by default
-    - If wait_for_result=true and task finishes in time, returns 200 + render_scene
-    """
+    """提交文章分析任务。额度不足返回 402，已有进行中任务返回 409，默认返回 202。"""
     user_id = UUID(current_user.user_id)
 
     try:
@@ -222,15 +211,11 @@ async def submit_analysis_task(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.get("/current", response_model=ActiveTaskResponse)
+@router.get("/current", response_model=ActiveTaskResponse, summary="当前进行中任务")
 async def get_current_task(
     current_user: AuthUserDep,
 ) -> ActiveTaskResponse:
-    """
-    Get the user's current active task (queued/running/finalizing).
-
-    Returns has_active=false if no active task exists.
-    """
+    """获取用户当前进行中的分析任务，无则返回 has_active=false。"""
     try:
         task = await get_active_task(UUID(current_user.user_id))
         if task is None:
@@ -244,12 +229,12 @@ async def get_current_task(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.get("/{task_id}", response_model=TaskStatusResponse)
+@router.get("/{task_id}", response_model=TaskStatusResponse, summary="任务状态查询")
 async def get_task(
     current_user: AuthUserDep,
     task_id: UUID,
 ) -> TaskStatusResponse:
-    """Get the status of a specific task."""
+    """查询指定分析任务的状态。"""
     try:
         task = await get_task_status(
             user_id=UUID(current_user.user_id),

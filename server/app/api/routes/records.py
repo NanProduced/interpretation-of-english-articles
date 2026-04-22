@@ -1,8 +1,4 @@
-"""
-Analysis Records API.
-
-Provides endpoints for saving, retrieving, and managing analysis records.
-"""
+"""分析记录管理接口。"""
 
 from __future__ import annotations
 
@@ -13,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.user_assets.records import (
     RecordCreateRequest,
+    RecordDeleteResponse,
     RecordListResponse,
     RecordResponse,
     RecordUpdateRequest,
@@ -26,14 +23,13 @@ logger = getLogger("app.api")
 router = APIRouter(prefix="/records", tags=["records"])
 
 
-@router.post("", response_model=RecordUpsertResponse)
+@router.post("", response_model=RecordUpsertResponse, summary="保存分析记录")
 async def create_record(
     current_user: AuthUserDep,
     body: RecordCreateRequest,
 ) -> RecordUpsertResponse:
-    """Save an analysis record (upsert by client_record_id)."""
+    """保存分析记录，按 client_record_id 去重更新。"""
     try:
-        # 兼容性处理：优先从根字段取，其次从 request_payload_json 提取
         reading_goal = body.reading_goal or body.request_payload_json.get("reading_goal")
         reading_variant = body.reading_variant or body.request_payload_json.get("reading_variant")
         extended = body.extended or body.request_payload_json.get("extended", False)
@@ -66,14 +62,14 @@ async def create_record(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.get("", response_model=RecordListResponse)
+@router.get("", response_model=RecordListResponse, summary="分析记录列表")
 async def list_records(
     current_user: AuthUserDep,
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
     include_render_scene: bool = Query(default=False),
 ) -> RecordListResponse:
-    """List analysis records for the current user."""
+    """分页获取当前用户的分析记录列表。"""
     try:
         items, total = await records_svc.list_records(
             user_id=UUID(current_user.user_id),
@@ -92,12 +88,12 @@ async def list_records(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.get("/by-client-id/{client_record_id}", response_model=RecordResponse)
+@router.get("/by-client-id/{client_record_id}", response_model=RecordResponse, summary="按客户端ID查询记录")
 async def get_record_by_client_id(
     current_user: AuthUserDep,
     client_record_id: str,
 ) -> RecordResponse:
-    """Get a single analysis record by client_record_id."""
+    """根据 client_record_id 获取单条分析记录。"""
     try:
         record = await records_svc.get_record_by_client_id(
             user_id=UUID(current_user.user_id),
@@ -113,12 +109,12 @@ async def get_record_by_client_id(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.get("/{record_id}", response_model=RecordResponse)
+@router.get("/{record_id}", response_model=RecordResponse, summary="分析记录详情")
 async def get_record(
     current_user: AuthUserDep,
     record_id: UUID,
 ) -> RecordResponse:
-    """Get a single analysis record by id."""
+    """根据 ID 获取单条分析记录。"""
     try:
         record = await records_svc.get_record_by_id(
             user_id=UUID(current_user.user_id),
@@ -134,13 +130,13 @@ async def get_record(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.patch("/{record_id}", response_model=RecordResponse)
+@router.patch("/{record_id}", response_model=RecordResponse, summary="更新分析记录")
 async def update_record(
     current_user: AuthUserDep,
     record_id: UUID,
     body: RecordUpdateRequest,
 ) -> RecordResponse:
-    """Partial update of an analysis record."""
+    """部分更新分析记录的字段。"""
     try:
         updated = await records_svc.update_record(
             user_id=UUID(current_user.user_id),
@@ -157,12 +153,12 @@ async def update_record(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
-@router.delete("/{record_id}", response_model=RecordDeleteResponse)
+@router.delete("/{record_id}", response_model=RecordDeleteResponse, summary="删除分析记录")
 async def delete_record(
     current_user: AuthUserDep,
     record_id: UUID,
 ) -> dict:
-    """Delete an analysis record."""
+    """删除一条分析记录。"""
     try:
         deleted = await records_svc.delete_record(
             user_id=UUID(current_user.user_id),

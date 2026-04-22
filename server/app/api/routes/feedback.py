@@ -1,8 +1,4 @@
-"""
-Feedback API.
-
-Provides endpoints for submitting and managing user feedback.
-"""
+"""用户反馈接口。"""
 
 from __future__ import annotations
 
@@ -25,11 +21,12 @@ logger = getLogger("app.api")
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
-@router.post("", response_model=FeedbackResponse)
+@router.post("", response_model=FeedbackResponse, summary="提交反馈")
 async def submit_feedback(
     current_user: AuthUserDep,
     body: FeedbackCreateRequest,
 ) -> FeedbackResponse:
+    """提交一条用户反馈。"""
     user_id = UUID(current_user.user_id)
     row = await feedback_svc.submit_feedback(
         user_id=user_id,
@@ -54,13 +51,14 @@ async def submit_feedback(
     )
 
 
-@router.get("", response_model=FeedbackListResponse)
+@router.get("", response_model=FeedbackListResponse, summary="反馈列表")
 async def list_feedback(
     current_user: AuthUserDep,
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     feedback_scope: str | None = Query(default=None),
 ) -> FeedbackListResponse:
+    """分页获取当前用户的反馈列表。"""
     user_id = UUID(current_user.user_id)
     items, next_cursor, has_more = await feedback_svc.list_user_feedback(
         user_id=user_id,
@@ -87,11 +85,12 @@ async def list_feedback(
     )
 
 
-@router.delete("/{feedback_id}", status_code=204)
+@router.delete("/{feedback_id}", status_code=204, summary="删除反馈")
 async def delete_feedback(
     current_user: AuthUserDep,
     feedback_id: UUID,
 ) -> Response:
+    """删除一条待处理状态的反馈。"""
     user_id = UUID(current_user.user_id)
     deleted = await feedback_svc.delete_feedback(user_id=user_id, feedback_id=feedback_id)
     if not deleted:
