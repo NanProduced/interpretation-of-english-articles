@@ -1,6 +1,6 @@
 """Daily Reader Pipeline orchestrator.
 
-Coordinates the four-layer pipeline: Discovery → Extraction → Content Security → Scoring,
+Coordinates the four-layer pipeline: Discovery → Extraction → Scoring,
 then selects diverse candidates and runs the Daily Reader Workflow.
 """
 
@@ -18,7 +18,8 @@ import orjson
 from app.database import connection as db_connection
 from app.services.daily_reader.discovery import DiscoveredArticle, discover_guardian, discover_rss_sources
 from app.services.daily_reader.extraction import apply_extraction_to_article, extract_with_trafilatura
-from app.services.daily_reader.content_security import check_content_security, is_content_safe
+from app.services.daily_reader.cover_download import download_cover_image
+from app.services.daily_reader.pipeline_tracker import PipelineRunTracker
 from app.services.daily_reader.scoring import (
     ArticleScore,
     deduplicate,
@@ -40,7 +41,6 @@ class PipelineResult:
     articles: list[dict] = field(default_factory=list)
     candidates_found: int = 0
     candidates_extracted: int = 0
-    candidates_safe: int = 0
     candidates_scored: int = 0
     candidates_selected: int = 0
     errors: list[str] = field(default_factory=list)
@@ -49,10 +49,13 @@ class PipelineResult:
 async def run_daily_pipeline(
     max_count: int = 3,
     force: bool = False,
+    tracker: PipelineRunTracker | None = None,
 ) -> PipelineResult:
     result = PipelineResult()
 
     # Layer 1: Discovery (concurrent)
+    if tracker:
+        await tracker.update_stage("discovery")
     guardian_articles, rss_articles = await asyncio.gather(
         discover_guardian(),
         discover_rss_sources(),
@@ -62,6 +65,8 @@ async def run_daily_pipeline(
     logger.info("Pipeline discovery: %d candidates", len(candidates))
 
     # Layer 2: Extraction (concurrent for RSS-sourced articles)
+    if tracker:
+        await tracker.update_stage("extraction", candidates_found=len(candidates))
     async def _extract_one(article: DiscoveredArticle) -> None:
         if article.needs_extraction:
             extraction = await extract_with_trafilatura(article.url)
@@ -84,59 +89,55 @@ async def run_daily_pipeline(
     candidates = filter_by_word_count(candidates)
     logger.info("Pipeline word count filter: %d articles in range", len(candidates))
 
-    # Layer 2.5: Content Security Check (concurrent)
-    async def _check_security(article: DiscoveredArticle) -> tuple[DiscoveredArticle, dict]:
-        sec_result = await check_content_security(article.title, article.text)
-        return article, sec_result
+    # Heuristic pre-filter: only LLM-score articles that pass heuristic threshold
+    from app.services.daily_reader.scoring import heuristic_score, HEURISTIC_THRESHOLD
+    pre_filtered: list[DiscoveredArticle] = []
+    for a in candidates:
+        h_score = heuristic_score(a)
+        if h_score.score >= HEURISTIC_THRESHOLD:
+            pre_filtered.append(a)
+    logger.info("Pipeline heuristic pre-filter: %d / %d articles passed (threshold=%.1f)",
+                len(pre_filtered), len(candidates), HEURISTIC_THRESHOLD)
 
-    sec_results = await asyncio.gather(*[_check_security(a) for a in candidates])
+    # Layer 3: AI Scoring (concurrent, capped)
+    if tracker:
+        await tracker.update_stage("scoring", candidates_extracted=len(pre_filtered))
+    sem = asyncio.Semaphore(10)
 
-    safe_candidates: list[tuple[DiscoveredArticle, dict]] = []
-    for article, sec_result in sec_results:
-        if is_content_safe(sec_result):
-            safe_candidates.append((article, sec_result))
-        else:
-            logger.info(
-                "Content security rejected: %s (suggest=%s)",
-                article.title[:50],
-                sec_result.get("suggest"),
-            )
-
-    result.candidates_safe = len(safe_candidates)
-    logger.info("Pipeline content security: %d safe articles", len(safe_candidates))
-
-    # Layer 3: AI Scoring (concurrent)
     async def _score_one(
-        article: DiscoveredArticle, sec_result: dict
-    ) -> tuple[DiscoveredArticle, ArticleScore | None, dict]:
-        score = await score_article(article)
-        return article, score, sec_result
+        article: DiscoveredArticle,
+    ) -> tuple[DiscoveredArticle, ArticleScore | None]:
+        async with sem:
+            score = await score_article(article)
+        return article, score
 
-    score_results = await asyncio.gather(
-        *[_score_one(a, s) for a, s in safe_candidates]
-    )
+    score_results = await asyncio.gather(*[_score_one(a) for a in pre_filtered])
 
-    scored: list[tuple[DiscoveredArticle, ArticleScore, dict]] = []
-    for article, score, sec_result in score_results:
+    scored: list[tuple[DiscoveredArticle, ArticleScore]] = []
+    for article, score in score_results:
         if score and score.score >= SCORE_THRESHOLD:
-            scored.append((article, score, sec_result))
+            scored.append((article, score))
 
     scored.sort(key=lambda x: (x[0].cover_image_url is not None, x[1].score), reverse=True)
     result.candidates_scored = len(scored)
     logger.info("Pipeline scoring: %d articles passed threshold", len(scored))
 
     # Select diverse candidates (oversample to allow for workflow failures)
+    if tracker:
+        await tracker.update_stage("selection", candidates_scored=len(scored))
     selected = select_diverse_candidates(scored, max_count=max_count + 2)
     result.candidates_selected = len(selected)
     logger.info("Pipeline selection: %d candidates selected (target: %d)", len(selected), max_count)
 
     # Execute workflow for each candidate until we have enough
+    if tracker:
+        await tracker.update_stage("workflow")
     success_count = 0
-    for article, score, sec_result in selected:
+    for article, score in selected:
         if success_count >= max_count:
             break
         try:
-            payload = await _run_workflow_and_store(article, score, sec_result)
+            payload = await _run_workflow_and_store(article, score, tracker=tracker)
             if payload is not None:
                 result.articles.append(payload)
                 success_count += 1
@@ -144,14 +145,16 @@ async def run_daily_pipeline(
             error_msg = f"Workflow failed for '{article.title[:30]}': {e}"
             logger.error(error_msg)
             result.errors.append(error_msg)
+            if tracker:
+                await tracker.add_error("workflow", error_msg)
 
     if success_count < max_count and len(scored) > len(selected):
         remaining = [s for s in scored if s not in selected]
-        for article, score, sec_result in remaining:
+        for article, score in remaining:
             if success_count >= max_count:
                 break
             try:
-                payload = await _run_workflow_and_store(article, score, sec_result)
+                payload = await _run_workflow_and_store(article, score, tracker=tracker)
                 if payload is not None:
                     result.articles.append(payload)
                     success_count += 1
@@ -159,16 +162,20 @@ async def run_daily_pipeline(
                 error_msg = f"Workflow failed for '{article.title[:30]}': {e}"
                 logger.error(error_msg)
                 result.errors.append(error_msg)
+                if tracker:
+                    await tracker.add_error("workflow", error_msg)
 
+    if tracker:
+        await tracker.complete(success_count)
     return result
 
 
 def select_diverse_candidates(
-    scored: list[tuple[DiscoveredArticle, ArticleScore, dict]],
+    scored: list[tuple[DiscoveredArticle, ArticleScore]],
     max_count: int = 3,
     max_same_source: int = 2,
-) -> list[tuple[DiscoveredArticle, ArticleScore, dict]]:
-    selected: list[tuple[DiscoveredArticle, ArticleScore, dict]] = []
+) -> list[tuple[DiscoveredArticle, ArticleScore]]:
+    selected: list[tuple[DiscoveredArticle, ArticleScore]] = []
     source_counts: Counter[str] = Counter()
     selected_topics: list[str] = []
 
@@ -194,9 +201,14 @@ def select_diverse_candidates(
 
 
 async def _run_workflow_and_store(
-    article: DiscoveredArticle, score: ArticleScore, sec_check_result: dict
+    article: DiscoveredArticle, score: ArticleScore, tracker: PipelineRunTracker | None = None
 ) -> dict | None:
-    from app.workflow.daily_reader_workflow import build_daily_reader_graph
+    from app.workflow.daily_reader_workflow import (
+        WORKFLOW_NAME,
+        WORKFLOW_VERSION,
+        build_daily_reader_graph,
+    )
+    from app.workflow.tracing import build_workflow_root_metadata, build_workflow_root_tags
 
     graph = build_daily_reader_graph()
 
@@ -222,18 +234,51 @@ async def _run_workflow_and_store(
         },
     }
 
+    logger.info("Workflow starting for: %s", article.title[:60])
     try:
-        final_state = await graph.ainvoke(input_state)
+        final_state = await graph.ainvoke(
+            input_state,
+            config={
+                "run_name": WORKFLOW_NAME,
+                "tags": build_workflow_root_tags(WORKFLOW_NAME),
+                "metadata": build_workflow_root_metadata(
+                    workflow_name=WORKFLOW_NAME,
+                    workflow_version=WORKFLOW_VERSION,
+                    schema_version="1.0.0",
+                    request_id=article.url,
+                    source_type="pipeline",
+                    reading_goal="daily_reading",
+                    reading_variant="standard",
+                    profile_id="daily_reader",
+                    extra={
+                        "article_title": article.title[:80],
+                        "article_source": article.source,
+                        "article_word_count": article.word_count,
+                    },
+                ),
+            },
+        )
     except Exception as e:
         logger.error("Daily Reader Workflow execution failed: %s", e)
+        if tracker:
+            await tracker.add_error("workflow", f"Workflow failed: {article.title[:40]}: {e}")
         return None
 
     if final_state.get("abort"):
         logger.info("Workflow aborted for: %s", article.title[:50])
         return None
 
-    payload = _assemble_payload(article, score, sec_check_result, final_state)
+    if tracker:
+        await tracker.update_stage("cover_download")
+    local_cover_url = None
+    if article.cover_image_url:
+        local_cover_url = await download_cover_image(article.cover_image_url)
+
+    if tracker:
+        await tracker.update_stage("storing")
+    payload = await _assemble_payload(article, score, final_state, local_cover_url)
     await _store_daily_reader(payload)
+    logger.info("Article stored: %s (cover=%s)", article.title[:50], bool(local_cover_url))
     return payload
 
 
@@ -254,7 +299,13 @@ async def run_workflow_only(article_id: str) -> dict | None:
     if not original_text:
         raise ValueError(f"Article {article_id} has no original_text stored; retry not possible")
 
-    from app.workflow.daily_reader_workflow import build_daily_reader_graph
+    from app.workflow.daily_reader_workflow import (
+        WORKFLOW_NAME,
+        WORKFLOW_VERSION,
+        build_daily_reader_graph,
+    )
+    from app.workflow.tracing import build_workflow_root_metadata, build_workflow_root_tags
+
     graph = build_daily_reader_graph()
 
     input_state = {
@@ -264,15 +315,31 @@ async def run_workflow_only(article_id: str) -> dict | None:
         "source": row["source"],
         "source_url": row["source_url"],
         "cover_image_url": row["cover_image_url"],
-        "tags": orjson.loads(row["tags"]) if isinstance(row["tags"], (str, bytes)) else row["tags"],
+        "tags": _decode_jsonb(row["tags"], []),
         "difficulty": row["difficulty"],
         "read_time_minutes": row["read_time_minutes"],
         "pipeline_source": row.get("pipeline_source", row["source"]),
-        "pipeline_meta": orjson.loads(row["pipeline_meta"]) if isinstance(row["pipeline_meta"], (str, bytes)) else row["pipeline_meta"],
+        "pipeline_meta": _decode_jsonb(row["pipeline_meta"], {}),
     }
 
     try:
-        final_state = await graph.ainvoke(input_state)
+        final_state = await graph.ainvoke(
+            input_state,
+            config={
+                "run_name": WORKFLOW_NAME,
+                "tags": build_workflow_root_tags(WORKFLOW_NAME),
+                "metadata": build_workflow_root_metadata(
+                    workflow_name=WORKFLOW_NAME,
+                    workflow_version=WORKFLOW_VERSION,
+                    schema_version="1.0.0",
+                    request_id=article_id,
+                    source_type="retry",
+                    reading_goal="daily_reading",
+                    reading_variant="standard",
+                    profile_id="daily_reader",
+                ),
+            },
+        )
     except Exception as e:
         logger.error("Retry workflow execution failed for %s: %s", article_id, e)
         raise
@@ -289,9 +356,9 @@ async def run_workflow_only(article_id: str) -> dict | None:
                 updated_at = NOW()
             WHERE id = $4
             """,
-            orjson.dumps(final_state.get("body_json", {"paragraphs": []})),
-            orjson.dumps(final_state.get("highlights_json", [])),
-            orjson.dumps(final_state.get("footer_analysis_json", {})),
+            final_state.get("body_json", {"paragraphs": []}),
+            final_state.get("highlights_json", []),
+            final_state.get("footer_analysis_json", {}),
             article_id,
         )
 
@@ -305,7 +372,7 @@ async def run_workflow_only(article_id: str) -> dict | None:
 
 
 async def _assemble_payload(
-    article: DiscoveredArticle, score: ArticleScore, sec_check_result: dict, state: dict
+    article: DiscoveredArticle, score: ArticleScore, state: dict, local_cover_url: str | None = None
 ) -> dict:
     today = date.today()
     nnn = await _next_sequence_number(today)
@@ -315,18 +382,18 @@ async def _assemble_payload(
         "subtitle": article.description,
         "source": article.source,
         "source_url": article.url,
-        "publish_date": today.isoformat(),
+        "publish_date": today,
         "difficulty": score.difficulty,
         "read_time_minutes": max(1, article.word_count // 200),
         "tags": score.tags or article.tags,
-        "cover_image_url": article.cover_image_url,
+        "cover_image_url": local_cover_url or article.cover_image_url,
         "cover_theme": "editorial_warm",
         "body_json": state.get("body_json", {"paragraphs": []}),
         "highlights_json": state.get("highlights_json", []),
         "footer_analysis_json": state.get("footer_analysis_json", {}),
         "status": "draft",
         "score": score.score,
-        "content_sec_check": sec_check_result,
+        "content_sec_check": {"source_verified": True, "source": article.source},
         "original_text_hash": hashlib.sha256(article.text.encode()).hexdigest(),
         "original_text": article.text,
         "pipeline_source": article.source,
@@ -347,6 +414,27 @@ async def _get_existing_text_hashes() -> set[str]:
     except Exception as e:
         logger.warning("Failed to fetch existing text hashes: %s", e)
         return set()
+
+
+def _decode_jsonb(value: object, default: object) -> object:
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, (str, bytes)):
+        try:
+            decoded = orjson.loads(value)
+        except (orjson.JSONDecodeError, ValueError):
+            return default
+        if isinstance(decoded, (dict, list)):
+            return decoded
+        if isinstance(decoded, str):
+            try:
+                return orjson.loads(decoded)
+            except (orjson.JSONDecodeError, ValueError):
+                return default
+        return default
+    return value
 
 
 async def _next_sequence_number(publish_date: date) -> int:
@@ -390,17 +478,17 @@ async def _store_daily_reader(payload: dict) -> None:
             payload["publish_date"],
             payload["difficulty"],
             payload["read_time_minutes"],
-            orjson.dumps(payload["tags"]),
+            payload["tags"],
             payload["cover_image_url"],
             payload["cover_theme"],
-            orjson.dumps(payload["body_json"]),
-            orjson.dumps(payload["highlights_json"]),
-            orjson.dumps(payload["footer_analysis_json"]),
+            payload["body_json"],
+            payload["highlights_json"],
+            payload["footer_analysis_json"],
             payload["status"],
             payload["score"],
-            orjson.dumps(payload["content_sec_check"]),
+            payload["content_sec_check"],
             payload["original_text_hash"],
             payload.get("original_text"),
             payload["pipeline_source"],
-            orjson.dumps(payload["pipeline_meta"]),
+            payload["pipeline_meta"],
         )

@@ -17,6 +17,7 @@ import re
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langsmith import get_current_run_tree, traceable
 
 from app.agents.daily_footer_agent import (
     DailyFooterAgentDeps,
@@ -43,7 +44,7 @@ from app.agents.daily_vocab_agent import (
     build_daily_vocab_prompt,
     get_daily_vocab_agent,
 )
-from app.llm.agent_runner import run_agent_with_route
+from app.llm.agent_runner import extract_run_usage, run_agent_with_route
 from app.llm.routes import (
     MODEL_ROUTE_DAILY_ANALYSIS,
     MODEL_ROUTE_DAILY_ANNOTATION,
@@ -51,6 +52,9 @@ from app.llm.routes import (
 )
 
 logger = logging.getLogger(__name__)
+
+WORKFLOW_NAME = "daily_reader"
+WORKFLOW_VERSION = "1.0.0"
 
 
 class DailyReaderState(TypedDict, total=False):
@@ -78,6 +82,58 @@ class DailyReaderState(TypedDict, total=False):
     body_json: dict
     content_sec_check: dict
 
+    usage_summary: dict | None
+
+
+def _set_current_run(
+    *,
+    run_tree: Any,
+    metadata: dict[str, object],
+    outputs: dict[str, object] | None = None,
+    usage_metadata: dict[str, object] | None = None,
+) -> None:
+    kwargs: dict[str, object] = {"metadata": metadata}
+    if outputs is not None:
+        kwargs["outputs"] = outputs
+    if usage_metadata is not None:
+        kwargs["usage_metadata"] = usage_metadata
+    run_tree.set(**kwargs)
+
+
+def _aggregate_usage(state: DailyReaderState) -> dict[str, Any]:
+    per_agent: dict[str, dict[str, object]] = {}
+    for key in (
+        "vocab_usage", "phrase_gloss_usage", "footer_usage",
+        "interpretation_usage", "review_usage", "refinement_usage",
+    ):
+        usage = state.get(key)
+        if usage and isinstance(usage, dict):
+            per_agent[key.replace("_usage", "")] = usage
+
+    if not per_agent:
+        return {
+            "available": False,
+            "per_agent": {},
+            "aggregate": {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+            },
+        }
+
+    def _sum(field: str) -> int:
+        return sum(int(u.get(field, 0) or 0) for u in per_agent.values())
+
+    return {
+        "available": True,
+        "per_agent": per_agent,
+        "aggregate": {
+            "input_tokens": _sum("input_tokens"),
+            "output_tokens": _sum("output_tokens"),
+            "total_tokens": _sum("total_tokens"),
+        },
+    }
+
 
 def light_normalize_node(state: DailyReaderState) -> dict:
     text = state.get("original_text", "")
@@ -90,6 +146,24 @@ def light_normalize_node(state: DailyReaderState) -> dict:
     return {"normalized_paragraphs": normalized}
 
 
+@traceable(name="vocab_highlight_llm_call", run_type="llm")
+async def _vocab_highlight_llm_span(
+    *, agent: Any, prompt: str, deps: Any, route: str, metadata: dict[str, object],
+) -> dict[str, Any]:
+    result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
+    usage = extract_run_usage(result)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        draft = result.output if hasattr(result, "output") else None
+        hl_count = len(_extract_highlights_from_vocab_draft(draft)) if draft else 0
+        _set_current_run(
+            run_tree=current_run,
+            metadata={**metadata, "highlight_count": hl_count},
+            usage_metadata=usage,
+        )
+    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+
+
 async def vocab_highlight_node(state: DailyReaderState) -> dict:
     paragraphs = state.get("normalized_paragraphs", [])
     if not paragraphs:
@@ -99,22 +173,43 @@ async def vocab_highlight_node(state: DailyReaderState) -> dict:
         deps = DailyVocabAgentDeps(paragraphs=paragraphs)
         agent = get_daily_vocab_agent()
         prompt = build_daily_vocab_prompt(deps)
+        metadata = {"workflow": WORKFLOW_NAME, "node": "vocab_highlight", "model_route": MODEL_ROUTE_DAILY_ANNOTATION}
 
-        result = await run_agent_with_route(
-            agent=agent,
-            prompt=prompt,
-            deps=deps,
-            route=MODEL_ROUTE_DAILY_ANNOTATION,
+        span_result = await _vocab_highlight_llm_span(
+            agent=agent, prompt=prompt, deps=deps,
+            route=MODEL_ROUTE_DAILY_ANNOTATION, metadata=metadata,
         )
+        draft = span_result["output"]
+        usage = span_result.get("usage")
 
-        draft = result.output
         vocab_dict = draft.model_dump() if draft else {}
         highlights = _extract_highlights_from_vocab_draft(draft)
 
-        return {"vocab_draft": vocab_dict, "highlights_json": highlights}
+        updates: dict[str, Any] = {"vocab_draft": vocab_dict, "highlights_json": highlights}
+        if usage:
+            updates["vocab_usage"] = usage
+        return updates
     except Exception as e:
         logger.error("vocab_highlight_node failed: %s", e, exc_info=True)
         return {"vocab_draft": None, "highlights_json": []}
+
+
+@traceable(name="phrase_gloss_llm_call", run_type="llm")
+async def _phrase_gloss_llm_span(
+    *, agent: Any, prompt: str, deps: Any, route: str, metadata: dict[str, object],
+) -> dict[str, Any]:
+    result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
+    usage = extract_run_usage(result)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        draft = result.output if hasattr(result, "output") else None
+        hl_count = len(_extract_highlights_from_vocab_draft(draft)) if draft else 0
+        _set_current_run(
+            run_tree=current_run,
+            metadata={**metadata, "highlight_count": hl_count},
+            usage_metadata=usage,
+        )
+    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
 async def phrase_context_gloss_node(state: DailyReaderState) -> dict:
@@ -133,22 +228,42 @@ async def phrase_context_gloss_node(state: DailyReaderState) -> dict:
         )
         agent = get_daily_vocab_agent()
         prompt = build_daily_vocab_prompt(deps)
+        metadata = {"workflow": WORKFLOW_NAME, "node": "phrase_context_gloss", "model_route": MODEL_ROUTE_DAILY_ANNOTATION}
 
-        result = await run_agent_with_route(
-            agent=agent,
-            prompt=prompt,
-            deps=deps,
-            route=MODEL_ROUTE_DAILY_ANNOTATION,
+        span_result = await _phrase_gloss_llm_span(
+            agent=agent, prompt=prompt, deps=deps,
+            route=MODEL_ROUTE_DAILY_ANNOTATION, metadata=metadata,
         )
+        draft = span_result["output"]
+        usage = span_result.get("usage")
 
-        draft = result.output
         new_highlights = _extract_highlights_from_vocab_draft(draft)
         merged = existing_highlights + new_highlights
 
-        return {"highlights_json": merged}
+        updates: dict[str, Any] = {"highlights_json": merged}
+        if usage:
+            updates["phrase_gloss_usage"] = usage
+        return updates
     except Exception as e:
         logger.error("phrase_context_gloss_node failed: %s", e, exc_info=True)
         return {"highlights_json": existing_highlights}
+
+
+@traceable(name="footer_analysis_llm_call", run_type="llm")
+async def _footer_analysis_llm_span(
+    *, agent: Any, prompt: str, deps: Any, route: str, metadata: dict[str, object],
+) -> dict[str, Any]:
+    result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
+    usage = extract_run_usage(result)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        footer = result.output if hasattr(result, "output") else None
+        _set_current_run(
+            run_tree=current_run,
+            metadata={**metadata, "has_footer": footer is not None},
+            usage_metadata=usage,
+        )
+    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
 async def footer_analysis_node(state: DailyReaderState) -> dict:
@@ -169,21 +284,42 @@ async def footer_analysis_node(state: DailyReaderState) -> dict:
         )
         agent = get_daily_footer_agent()
         prompt = build_daily_footer_prompt(deps)
+        metadata = {"workflow": WORKFLOW_NAME, "node": "footer_analysis", "model_route": MODEL_ROUTE_DAILY_ANALYSIS}
 
-        result = await run_agent_with_route(
-            agent=agent,
-            prompt=prompt,
-            deps=deps,
-            route=MODEL_ROUTE_DAILY_ANALYSIS,
+        span_result = await _footer_analysis_llm_span(
+            agent=agent, prompt=prompt, deps=deps,
+            route=MODEL_ROUTE_DAILY_ANALYSIS, metadata=metadata,
         )
+        footer = span_result["output"]
+        usage = span_result.get("usage")
 
-        footer = result.output
         footer_dict = footer.model_dump() if footer else {}
 
-        return {"footer_analysis_json": footer_dict}
+        updates: dict[str, Any] = {"footer_analysis_json": footer_dict}
+        if usage:
+            updates["footer_usage"] = usage
+        return updates
     except Exception as e:
         logger.error("footer_analysis_node failed: %s", e, exc_info=True)
         return {"footer_analysis_json": {}}
+
+
+@traceable(name="full_interpretation_llm_call", run_type="llm")
+async def _full_interpretation_llm_span(
+    *, agent: Any, prompt: str, deps: Any, route: str, metadata: dict[str, object],
+) -> dict[str, Any]:
+    result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
+    usage = extract_run_usage(result)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        interp = result.output if hasattr(result, "output") else None
+        text_len = len(getattr(interp, "full_article_analysis", "")) if interp else 0
+        _set_current_run(
+            run_tree=current_run,
+            metadata={**metadata, "interpretation_length": text_len},
+            usage_metadata=usage,
+        )
+    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
 async def full_interpretation_node(state: DailyReaderState) -> dict:
@@ -203,19 +339,42 @@ async def full_interpretation_node(state: DailyReaderState) -> dict:
         )
         agent = get_daily_interpretation_agent()
         prompt = build_daily_interpretation_prompt(deps)
+        metadata = {"workflow": WORKFLOW_NAME, "node": "full_interpretation", "model_route": MODEL_ROUTE_DAILY_ANALYSIS}
 
-        result = await run_agent_with_route(
-            agent=agent,
-            prompt=prompt,
-            deps=deps,
-            route=MODEL_ROUTE_DAILY_ANALYSIS,
+        span_result = await _full_interpretation_llm_span(
+            agent=agent, prompt=prompt, deps=deps,
+            route=MODEL_ROUTE_DAILY_ANALYSIS, metadata=metadata,
         )
+        interpretation = span_result["output"]
+        usage = span_result.get("usage")
 
-        interpretation = result.output
-        return {"full_interpretation": interpretation.full_article_analysis if interpretation else ""}
+        updates: dict[str, Any] = {
+            "full_interpretation": interpretation.full_article_analysis if interpretation else "",
+        }
+        if usage:
+            updates["interpretation_usage"] = usage
+        return updates
     except Exception as e:
         logger.error("full_interpretation_node failed: %s", e, exc_info=True)
         return {"full_interpretation": ""}
+
+
+@traceable(name="quality_review_llm_call", run_type="llm")
+async def _quality_review_llm_span(
+    *, agent: Any, prompt: str, deps: Any, route: str, metadata: dict[str, object],
+) -> dict[str, Any]:
+    result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
+    usage = extract_run_usage(result)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        review = result.output if hasattr(result, "output") else None
+        passed = getattr(review, "passed", True) if review else True
+        _set_current_run(
+            run_tree=current_run,
+            metadata={**metadata, "review_passed": passed},
+            usage_metadata=usage,
+        )
+    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
 async def quality_review_node(state: DailyReaderState) -> dict:
@@ -233,20 +392,41 @@ async def quality_review_node(state: DailyReaderState) -> dict:
         )
         agent = get_daily_review_agent()
         prompt = build_daily_review_prompt(deps)
+        metadata = {"workflow": WORKFLOW_NAME, "node": "quality_review", "model_route": MODEL_ROUTE_DAILY_REVIEW}
 
-        result = await run_agent_with_route(
-            agent=agent,
-            prompt=prompt,
-            deps=deps,
-            route=MODEL_ROUTE_DAILY_REVIEW,
+        span_result = await _quality_review_llm_span(
+            agent=agent, prompt=prompt, deps=deps,
+            route=MODEL_ROUTE_DAILY_REVIEW, metadata=metadata,
         )
+        review = span_result["output"]
+        usage = span_result.get("usage")
 
-        review = result.output
         review_dict = review.model_dump() if review else {}
-        return {"review_result": review_dict}
+        updates: dict[str, Any] = {"review_result": review_dict}
+        if usage:
+            updates["review_usage"] = usage
+        return updates
     except Exception as e:
         logger.error("quality_review_node failed: %s", e, exc_info=True)
         return {"review_result": {"passed": True}}
+
+
+@traceable(name="refinement_llm_call", run_type="llm")
+async def _refinement_llm_span(
+    *, agent: Any, prompt: str, deps: Any, route: str, metadata: dict[str, object],
+) -> dict[str, Any]:
+    result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
+    usage = extract_run_usage(result)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        refinement = result.output if hasattr(result, "output") else None
+        aborted = getattr(refinement, "abort", False) if refinement else False
+        _set_current_run(
+            run_tree=current_run,
+            metadata={**metadata, "refinement_aborted": aborted},
+            usage_metadata=usage,
+        )
+    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
 async def refinement_node(state: DailyReaderState) -> dict:
@@ -268,21 +448,23 @@ async def refinement_node(state: DailyReaderState) -> dict:
         )
         agent = get_daily_refinement_agent()
         prompt = build_daily_refinement_prompt(deps)
+        metadata = {"workflow": WORKFLOW_NAME, "node": "refinement", "model_route": MODEL_ROUTE_DAILY_REVIEW}
 
-        result = await run_agent_with_route(
-            agent=agent,
-            prompt=prompt,
-            deps=deps,
-            route=MODEL_ROUTE_DAILY_REVIEW,
+        span_result = await _refinement_llm_span(
+            agent=agent, prompt=prompt, deps=deps,
+            route=MODEL_ROUTE_DAILY_REVIEW, metadata=metadata,
         )
+        refinement = span_result["output"]
+        usage = span_result.get("usage")
 
-        refinement = result.output
         refinement_dict = refinement.model_dump() if refinement else {}
 
         updates: dict[str, Any] = {"refinement_result": refinement_dict}
 
         if refinement and refinement.abort:
             updates["abort"] = True
+            if usage:
+                updates["refinement_usage"] = usage
             return updates
 
         if refinement:
@@ -293,6 +475,8 @@ async def refinement_node(state: DailyReaderState) -> dict:
             if refinement.refined_interpretation is not None:
                 updates["full_interpretation"] = refinement.refined_interpretation
 
+        if usage:
+            updates["refinement_usage"] = usage
         return updates
     except Exception as e:
         logger.error("refinement_node failed: %s", e, exc_info=True)
@@ -314,7 +498,12 @@ def daily_projection_node(state: DailyReaderState) -> dict:
             "highlights": para_highlights,
         })
 
-    return {"body_json": {"paragraphs": body_paragraphs}}
+    usage_summary = _aggregate_usage(state)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        current_run.set(outputs={"usage_summary": usage_summary})
+
+    return {"body_json": {"paragraphs": body_paragraphs}, "usage_summary": usage_summary}
 
 
 def _should_refine(state: DailyReaderState) -> bool:
@@ -354,7 +543,21 @@ def build_daily_reader_graph() -> Any:
 
 
 def _split_into_paragraphs(text: str) -> list[str]:
-    parts = re.split(r"\n\s*\n|\r\n\s*\r\n", text)
+    if re.search(r"\n\s*\n", text):
+        parts = re.split(r"\n\s*\n", text)
+    elif "\n" in text:
+        parts = re.split(r"\n", text)
+    else:
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+        parts: list[str] = []
+        chunk: list[str] = []
+        for s in sentences:
+            chunk.append(s)
+            if len(chunk) >= 3 or len(" ".join(chunk)) > 300:
+                parts.append(" ".join(chunk))
+                chunk = []
+        if chunk:
+            parts.append(" ".join(chunk))
     return [p.strip() for p in parts if p.strip()]
 
 

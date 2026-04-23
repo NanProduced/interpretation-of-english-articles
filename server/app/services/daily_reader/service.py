@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+import asyncpg
 import orjson
 
 from app.database import connection as db_connection
@@ -22,15 +23,19 @@ async def get_today_articles() -> list[DailyReaderArticleResponse]:
     if pool is None:
         raise RuntimeError("Database pool not initialized")
     today = date.today()
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT * FROM daily_readers
-            WHERE status = 'published' AND publish_date = $1
-            ORDER BY score DESC
-            """,
-            today,
-        )
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT * FROM daily_readers
+                WHERE status = 'published' AND publish_date = $1
+                ORDER BY score DESC
+                """,
+                today,
+            )
+    except asyncpg.UndefinedTableError:
+        logger.warning("daily_readers table does not exist, returning empty list")
+        return []
     return [_row_to_article_response(row) for row in rows]
 
 
@@ -38,11 +43,15 @@ async def get_article_by_id(article_id: str) -> DailyReaderArticleResponse | Non
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM daily_readers WHERE id = $1",
-            article_id,
-        )
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM daily_readers WHERE id = $1",
+                article_id,
+            )
+    except asyncpg.UndefinedTableError:
+        logger.warning("daily_readers table does not exist, returning None")
+        return None
     if row is None:
         return None
     return _row_to_article_response(row)
@@ -77,8 +86,12 @@ async def list_articles(
             LIMIT $1
         """
 
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(query, *params)
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query, *params)
+    except asyncpg.UndefinedTableError:
+        logger.warning("daily_readers table does not exist, returning empty list")
+        return DailyReaderListResponse(items=[], cursor=None, has_more=False)
 
     has_more = len(rows) > limit
     items = [_row_to_list_item(row) for row in rows[:limit]]
@@ -94,15 +107,19 @@ async def publish_article(article_id: str) -> bool:
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
-    async with pool.acquire() as conn:
-        result = await conn.execute(
-            """
-            UPDATE daily_readers
-            SET status = 'published', published_at = NOW()
-            WHERE id = $1 AND status = 'draft'
-            """,
-            article_id,
-        )
+    try:
+        async with pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE daily_readers
+                SET status = 'published', published_at = NOW()
+                WHERE id = $1 AND status = 'draft'
+                """,
+                article_id,
+            )
+    except asyncpg.UndefinedTableError:
+        logger.warning("daily_readers table does not exist, publish skipped")
+        return False
     return result == "UPDATE 1"
 
 
@@ -110,15 +127,19 @@ async def unpublish_article(article_id: str) -> bool:
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
-    async with pool.acquire() as conn:
-        result = await conn.execute(
-            """
-            UPDATE daily_readers
-            SET status = 'draft', published_at = NULL
-            WHERE id = $1 AND status = 'published'
-            """,
-            article_id,
-        )
+    try:
+        async with pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE daily_readers
+                SET status = 'draft', published_at = NULL
+                WHERE id = $1 AND status = 'published'
+                """,
+                article_id,
+            )
+    except asyncpg.UndefinedTableError:
+        logger.warning("daily_readers table does not exist, unpublish skipped")
+        return False
     return result == "UPDATE 1"
 
 
@@ -126,11 +147,15 @@ async def delete_article(article_id: str) -> bool:
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
-    async with pool.acquire() as conn:
-        result = await conn.execute(
-            "DELETE FROM daily_readers WHERE id = $1 AND status = 'draft'",
-            article_id,
-        )
+    try:
+        async with pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM daily_readers WHERE id = $1 AND status = 'draft'",
+                article_id,
+            )
+    except asyncpg.UndefinedTableError:
+        logger.warning("daily_readers table does not exist, delete skipped")
+        return False
     return result == "DELETE 1"
 
 
@@ -138,18 +163,22 @@ async def get_draft_articles(limit: int = 20) -> list[DailyReaderListItem]:
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT id, title, subtitle, source, publish_date, difficulty,
-                   read_time_minutes, tags, cover_image_url, cover_theme
-            FROM daily_readers
-            WHERE status = 'draft'
-            ORDER BY created_at DESC
-            LIMIT $1
-            """,
-            limit,
-        )
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, title, subtitle, source, publish_date, difficulty,
+                       read_time_minutes, tags, cover_image_url, cover_theme
+                FROM daily_readers
+                WHERE status = 'draft'
+                ORDER BY created_at DESC
+                LIMIT $1
+                """,
+                limit,
+            )
+    except asyncpg.UndefinedTableError:
+        logger.warning("daily_readers table does not exist, returning empty list")
+        return []
     return [_row_to_list_item(row) for row in rows]
 
 
@@ -163,12 +192,12 @@ def _row_to_article_response(row: object) -> DailyReaderArticleResponse:
         publish_date=row["publish_date"],
         difficulty=row["difficulty"],
         read_time_minutes=row["read_time_minutes"],
-        tags=orjson.loads(row["tags"]) if isinstance(row["tags"], str) else row["tags"],
+        tags=_decode_jsonb(row["tags"], []),
         cover_image_url=row["cover_image_url"],
         cover_theme=row["cover_theme"],
-        body=orjson.loads(row["body_json"]) if isinstance(row["body_json"], str) else row["body_json"],
-        highlights=orjson.loads(row["highlights_json"]) if isinstance(row["highlights_json"], str) else row["highlights_json"],
-        footer_analysis=orjson.loads(row["footer_analysis_json"]) if isinstance(row["footer_analysis_json"], str) else row["footer_analysis_json"],
+        body=_decode_jsonb(row["body_json"], {}),
+        highlights=_decode_jsonb(row["highlights_json"], []),
+        footer_analysis=_decode_jsonb(row["footer_analysis_json"], {}),
     )
 
 
@@ -181,7 +210,28 @@ def _row_to_list_item(row: object) -> DailyReaderListItem:
         publish_date=row["publish_date"],
         difficulty=row["difficulty"],
         read_time_minutes=row["read_time_minutes"],
-        tags=orjson.loads(row["tags"]) if isinstance(row["tags"], str) else row["tags"],
+        tags=_decode_jsonb(row["tags"], []),
         cover_image_url=row["cover_image_url"],
         cover_theme=row["cover_theme"],
     )
+
+
+def _decode_jsonb(value: object, default: object) -> object:
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, (str, bytes)):
+        try:
+            decoded = orjson.loads(value)
+        except (orjson.JSONDecodeError, ValueError):
+            return default
+        if isinstance(decoded, (dict, list)):
+            return decoded
+        if isinstance(decoded, str):
+            try:
+                return orjson.loads(decoded)
+            except (orjson.JSONDecodeError, ValueError):
+                return default
+        return default
+    return value

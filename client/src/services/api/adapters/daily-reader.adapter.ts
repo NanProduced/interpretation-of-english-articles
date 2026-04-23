@@ -21,17 +21,19 @@ export function dtoToDailyReaderArticle(dto: DailyReaderArticleDto): DailyReader
     publishDate: dto.publish_date,
     difficulty: dto.difficulty,
     readTimeMinutes: dto.read_time_minutes,
-    tags: dto.tags,
+    tags: Array.isArray(dto.tags) ? dto.tags : [],
     coverImageUrl: dto.cover_image_url,
     coverTheme: dto.cover_theme,
     body: {
-      paragraphs: dto.body.paragraphs.map((p) => ({
-        id: p.id,
-        text: p.text,
-        highlights: p.highlights.map(dtoToHighlight),
-      })),
+      paragraphs: Array.isArray(dto.body?.paragraphs)
+        ? dto.body.paragraphs.map((p) => ({
+            id: p.id,
+            text: p.text,
+            highlights: Array.isArray(p.highlights) ? p.highlights.map(dtoToHighlight) : [],
+          }))
+        : [],
     },
-    highlights: dto.highlights.map(dtoToHighlight),
+    highlights: Array.isArray(dto.highlights) ? dto.highlights.map(dtoToHighlight) : [],
     footerAnalysis: dtoToFooterAnalysis(dto.footer_analysis),
   }
 }
@@ -71,27 +73,28 @@ function dtoToHighlight(dto: DailyReaderArticleDto['highlights'][0]): DailyReade
 }
 
 function dtoToFooterAnalysis(dto: DailyReaderArticleDto['footer_analysis']): DailyReaderFooterAnalysis {
+  const thesisAndIntent = dto?.thesis_and_intent
   return {
-    summary: dto.summary,
+    summary: dto?.summary ?? '',
     thesisAndIntent: {
-      thesis: dto.thesis_and_intent.thesis,
-      authorIntent: dto.thesis_and_intent.author_intent,
+      thesis: thesisAndIntent?.thesis ?? '',
+      authorIntent: thesisAndIntent?.author_intent ?? '',
     },
-    structure: dto.structure.map((s) => ({
+    structure: Array.isArray(dto?.structure) ? dto.structure.map((s) => ({
       label: s.label,
       title: s.title,
       summary: s.summary,
-    })),
-    keyExpressions: dto.key_expressions.map((e) => ({
+    })) : [],
+    keyExpressions: Array.isArray(dto?.key_expressions) ? dto.key_expressions.map((e) => ({
       expression: e.expression,
       gloss: e.gloss,
       contextSentence: e.context_sentence,
-    })),
-    misreadingPoints: dto.misreading_points.map((m) => ({
+    })) : [],
+    misreadingPoints: Array.isArray(dto?.misreading_points) ? dto.misreading_points.map((m) => ({
       point: m.point,
       clarification: m.clarification,
-    })),
-    fullArticleAnalysis: dto.full_article_analysis,
-    discussionQuestions: dto.discussion_questions,
+    })) : [],
+    fullArticleAnalysis: dto?.full_article_analysis ?? '',
+    discussionQuestions: Array.isArray(dto?.discussion_questions) ? dto.discussion_questions : [],
   }
 }

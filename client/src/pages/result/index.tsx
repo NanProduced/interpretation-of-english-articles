@@ -70,29 +70,6 @@ export default function Result() {
     return { title, path }
   })
 
-  if (!sceneData) {
-    if (pageState === 'loading') {
-      return <StateViews pageState='loading' errorCode={null} errorMsg={null} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
-    }
-    if (pageState === 'empty') {
-      return <StateViews pageState='empty' errorCode={errorCode} errorMsg={errorMsg} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
-    }
-    if (pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail') {
-      return <StateViews pageState={pageState} errorCode={errorCode} errorMsg={errorMsg} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
-    }
-    return <StateViews pageState='loading' errorCode={null} errorMsg={null} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
-  }
-
-  if (!hasRenderableScene(sceneData)) {
-    return (
-      <SourceFallback
-        pageState={pageState} sceneData={sceneData}
-        requestText={requestParams?.text} isReplayMode={isReplayMode}
-        navBarHeight={navBarHeight} onRetry={actions.handleRetry}
-      />
-    )
-  }
-
   const isAcademicMode = sceneData?.schemaVersion === '3.0.0-academic'
   const academicVm = isAcademicMode ? (sceneData as AcademicRenderSceneVm) : null
   const academicContentSummary = academicVm?.contentSummary ?? null
@@ -149,6 +126,29 @@ export default function Result() {
       )
     })
   }, [sceneData, activeMarkId, selectedWord, vocabList, vocabSavedMap, pageMode, recordId, activeSentenceId])
+
+  if (!sceneData) {
+    if (pageState === 'loading') {
+      return <StateViews pageState='loading' errorCode={null} errorMsg={null} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
+    }
+    if (pageState === 'empty') {
+      return <StateViews pageState='empty' errorCode={errorCode} errorMsg={errorMsg} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
+    }
+    if (pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail') {
+      return <StateViews pageState={pageState} errorCode={errorCode} errorMsg={errorMsg} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
+    }
+    return <StateViews pageState='loading' errorCode={null} errorMsg={null} navBarHeight={navBarHeight} onRetry={actions.handleRetry} />
+  }
+
+  if (!hasRenderableScene(sceneData)) {
+    return (
+      <SourceFallback
+        pageState={pageState} sceneData={sceneData}
+        requestText={requestParams?.text} isReplayMode={isReplayMode}
+        navBarHeight={navBarHeight} onRetry={actions.handleRetry}
+      />
+    )
+  }
 
   return (
     <View className='result-page'>

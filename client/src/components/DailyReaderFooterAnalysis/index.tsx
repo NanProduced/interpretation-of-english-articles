@@ -10,11 +10,39 @@ interface Props {
   source: string
 }
 
+const EMPTY_FOOTER: FooterAnalysisType = {
+  summary: '',
+  thesisAndIntent: { thesis: '', authorIntent: '' },
+  structure: [],
+  keyExpressions: [],
+  misreadingPoints: [],
+  fullArticleAnalysis: '',
+  discussionQuestions: [],
+}
+
+function safeFooter(raw: FooterAnalysisType | null | undefined): FooterAnalysisType {
+  if (!raw || typeof raw !== 'object') return EMPTY_FOOTER
+  return {
+    summary: raw.summary ?? '',
+    thesisAndIntent: raw.thesisAndIntent
+      ? { thesis: raw.thesisAndIntent.thesis ?? '', authorIntent: raw.thesisAndIntent.authorIntent ?? '' }
+      : { thesis: '', authorIntent: '' },
+    structure: Array.isArray(raw.structure) ? raw.structure : [],
+    keyExpressions: Array.isArray(raw.keyExpressions) ? raw.keyExpressions : [],
+    misreadingPoints: Array.isArray(raw.misreadingPoints) ? raw.misreadingPoints : [],
+    fullArticleAnalysis: raw.fullArticleAnalysis ?? '',
+    discussionQuestions: Array.isArray(raw.discussionQuestions) ? raw.discussionQuestions : [],
+  }
+}
+
 const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
   footerAnalysis,
   sourceUrl,
   source,
 }: Props) {
+  const fa = safeFooter(footerAnalysis)
+  const hasContent = fa.summary || fa.thesisAndIntent.thesis || fa.fullArticleAnalysis
+
   const [analysisExpanded, setAnalysisExpanded] = useState(false)
   const toggleAnalysis = useCallback(() => setAnalysisExpanded((v) => !v), [])
 
@@ -26,31 +54,45 @@ const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
         <View className='daily-footer__divider-line' />
       </View>
 
-      <View className='daily-footer__section'>
-        <Text className='daily-footer__section-icon'>📝</Text>
-        <Text className='daily-footer__section-title'>摘要</Text>
-        <Text className='daily-footer__summary'>{footerAnalysis.summary}</Text>
-      </View>
-
-      <View className='daily-footer__section'>
-        <Text className='daily-footer__section-icon'>🎯</Text>
-        <Text className='daily-footer__section-title'>主旨与意图</Text>
-        <View className='daily-footer__thesis-block'>
-          <Text className='daily-footer__thesis-label'>主旨</Text>
-          <Text className='daily-footer__thesis-text'>{footerAnalysis.thesisAndIntent.thesis}</Text>
+      {!hasContent && (
+        <View className='daily-footer__section'>
+          <Text className='daily-footer__empty-text'>解析内容生成中，请稍后再来阅读</Text>
         </View>
-        <View className='daily-footer__thesis-block'>
-          <Text className='daily-footer__thesis-label'>作者意图</Text>
-          <Text className='daily-footer__thesis-text'>{footerAnalysis.thesisAndIntent.authorIntent}</Text>
-        </View>
-      </View>
+      )}
 
-      {footerAnalysis.structure.length > 0 && (
+      {fa.summary && (
+        <View className='daily-footer__section'>
+          <Text className='daily-footer__section-icon'>📝</Text>
+          <Text className='daily-footer__section-title'>摘要</Text>
+          <Text className='daily-footer__summary'>{fa.summary}</Text>
+        </View>
+      )}
+
+      {fa.thesisAndIntent.thesis && (
+        <View className='daily-footer__section'>
+          <Text className='daily-footer__section-icon'>🎯</Text>
+          <Text className='daily-footer__section-title'>主旨与意图</Text>
+          {fa.thesisAndIntent.thesis && (
+            <View className='daily-footer__thesis-block'>
+              <Text className='daily-footer__thesis-label'>主旨</Text>
+              <Text className='daily-footer__thesis-text'>{fa.thesisAndIntent.thesis}</Text>
+            </View>
+          )}
+          {fa.thesisAndIntent.authorIntent && (
+            <View className='daily-footer__thesis-block'>
+              <Text className='daily-footer__thesis-label'>作者意图</Text>
+              <Text className='daily-footer__thesis-text'>{fa.thesisAndIntent.authorIntent}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {fa.structure.length > 0 && (
         <View className='daily-footer__section'>
           <Text className='daily-footer__section-icon'>🏗</Text>
           <Text className='daily-footer__section-title'>文章结构</Text>
           <View className='daily-footer__structure'>
-            {footerAnalysis.structure.map((part, idx) => (
+            {fa.structure.map((part, idx) => (
               <View key={idx} className='daily-footer__structure-item'>
                 <View className='daily-footer__structure-marker'>
                   <Text className='daily-footer__structure-label'>{part.label}</Text>
@@ -65,12 +107,12 @@ const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
         </View>
       )}
 
-      {footerAnalysis.keyExpressions.length > 0 && (
+      {fa.keyExpressions.length > 0 && (
         <View className='daily-footer__section'>
           <Text className='daily-footer__section-icon'>💡</Text>
           <Text className='daily-footer__section-title'>关键表达</Text>
           <View className='daily-footer__expressions'>
-            {footerAnalysis.keyExpressions.map((expr, idx) => (
+            {fa.keyExpressions.map((expr, idx) => (
               <View key={idx} className='daily-footer__expr-card'>
                 <Text className='daily-footer__expr-en'>{expr.expression}</Text>
                 <Text className='daily-footer__expr-zh'>{expr.gloss}</Text>
@@ -81,11 +123,11 @@ const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
         </View>
       )}
 
-      {footerAnalysis.misreadingPoints.length > 0 && (
+      {fa.misreadingPoints.length > 0 && (
         <View className='daily-footer__section'>
           <Text className='daily-footer__section-icon'>⚠️</Text>
           <Text className='daily-footer__section-title'>易误读点</Text>
-          {footerAnalysis.misreadingPoints.map((point, idx) => (
+          {fa.misreadingPoints.map((point, idx) => (
             <View key={idx} className='daily-footer__misreading'>
               <Text className='daily-footer__misreading-point'>{point.point}</Text>
               <Text className='daily-footer__misreading-clarify'>{point.clarification}</Text>
@@ -94,29 +136,31 @@ const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
         </View>
       )}
 
-      <View className='daily-footer__section'>
-        <Text className='daily-footer__section-icon'>📖</Text>
-        <Text className='daily-footer__section-title'>全篇讲解</Text>
-        <View
-          className={`daily-footer__analysis ${analysisExpanded ? 'daily-footer__analysis--expanded' : ''}`}
-          onClick={toggleAnalysis}
-        >
-          <Text className='daily-footer__analysis-text'>
-            {footerAnalysis.fullArticleAnalysis}
-          </Text>
+      {fa.fullArticleAnalysis && (
+        <View className='daily-footer__section'>
+          <Text className='daily-footer__section-icon'>📖</Text>
+          <Text className='daily-footer__section-title'>全篇讲解</Text>
+          <View
+            className={`daily-footer__analysis ${analysisExpanded ? 'daily-footer__analysis--expanded' : ''}`}
+            onClick={toggleAnalysis}
+          >
+            <Text className='daily-footer__analysis-text'>
+              {fa.fullArticleAnalysis}
+            </Text>
+          </View>
+          {!analysisExpanded && fa.fullArticleAnalysis.length > 200 && (
+            <Text className='daily-footer__expand-btn' onClick={toggleAnalysis}>
+              展开全文 ↓
+            </Text>
+          )}
         </View>
-        {!analysisExpanded && footerAnalysis.fullArticleAnalysis.length > 200 && (
-          <Text className='daily-footer__expand-btn' onClick={toggleAnalysis}>
-            展开全文 ↓
-          </Text>
-        )}
-      </View>
+      )}
 
-      {footerAnalysis.discussionQuestions.length > 0 && (
+      {fa.discussionQuestions.length > 0 && (
         <View className='daily-footer__section'>
           <Text className='daily-footer__section-icon'>💬</Text>
           <Text className='daily-footer__section-title'>讨论问题</Text>
-          {footerAnalysis.discussionQuestions.map((q, idx) => (
+          {fa.discussionQuestions.map((q, idx) => (
             <View key={idx} className='daily-footer__question'>
               <Text className='daily-footer__question-num'>{idx + 1}.</Text>
               <Text className='daily-footer__question-text'>{q}</Text>

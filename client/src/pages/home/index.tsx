@@ -180,7 +180,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
         </View>
 
         <View className='section-header'>
-          <Text className='section-title'>每日精选</Text>
+          <Text className='section-title'>每日精读</Text>
           <Text
             className='section-more'
             onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
@@ -215,7 +215,13 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
             ))
           ) : (
             <View className='feed-empty'>
-              <Text className='feed-empty-text'>今日精读即将上线</Text>
+              <View className='feed-empty-cover'>
+                <View className='feed-empty-spine' />
+                <View className='feed-empty-pages' />
+                <View className='feed-empty-page-top' />
+              </View>
+              <Text className='feed-empty-title'>今日精读正在准备中</Text>
+              <Text className='feed-empty-desc'>每天精选一篇优质英文文章，带你深度阅读</Text>
             </View>
           )}
         </View>

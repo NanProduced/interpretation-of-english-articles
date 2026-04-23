@@ -6,6 +6,7 @@ Fetches candidate articles from Guardian API and RSS feeds (BBC, NPR).
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -36,18 +37,16 @@ ARTICLE_SOURCES = {
     "guardian": {
         "type": "api",
         "base_url": "https://content.guardianapis.com",
-        "sections": ["science", "technology", "culture", "lifeandstyle", "society"],
+        "sections": ["science", "technology", "culture"],
         "show_fields": "headline,standfirst,thumbnail,wordcount,body,byline",
         "wordcount_range": (500, 2000),
-        "page_size": 20,
+        "page_size": 10,
     },
     "bbc": {
         "type": "rss",
         "feeds": {
             "science": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
             "technology": "https://feeds.bbci.co.uk/news/technology/rss.xml",
-            "culture": "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
-            "health": "https://feeds.bbci.co.uk/news/health/rss.xml",
             "business": "https://feeds.bbci.co.uk/news/business/rss.xml",
         },
         "image_width_upgrade": {"from": 240, "to": 640},
@@ -57,7 +56,6 @@ ARTICLE_SOURCES = {
         "feeds": {
             "science": "https://feeds.npr.org/1007/rss.xml",
             "technology": "https://feeds.npr.org/1019/rss.xml",
-            "culture": "https://feeds.npr.org/1008/rss.xml",
         },
     },
 }
@@ -140,12 +138,12 @@ async def discover_rss_sources() -> list[DiscoveredArticle]:
 
 
 def _parse_rss_feed(
-    source_name: str, section: str, feed_url: str
+    source_name: str, section: str, feed_url: str, max_entries: int = 10,
 ) -> list[DiscoveredArticle]:
     feed = feedparser.parse(feed_url)
     articles: list[DiscoveredArticle] = []
 
-    for entry in feed.entries:
+    for entry in feed.entries[:max_entries]:
         url = entry.get("link", "")
         title = entry.get("title", "")
         if not url or not title:
@@ -178,12 +176,19 @@ def _parse_rss_feed(
 
 
 def _extract_rss_thumbnail(entry: object) -> str | None:
+    media_thumbnail = getattr(entry, "media_thumbnail", None)
+    if media_thumbnail:
+        for thumb in media_thumbnail:
+            url = thumb.get("url", "")
+            if url:
+                return _upgrade_image_url(url, entry)
+
     media_content = getattr(entry, "media_content", None)
     if media_content:
         for media in media_content:
             url = media.get("url", "")
             if url and ("image" in media.get("type", "image")):
-                return url
+                return _upgrade_image_url(url, entry)
 
     enclosures = getattr(entry, "enclosures", [])
     for enc in enclosures:
@@ -193,9 +198,27 @@ def _extract_rss_thumbnail(entry: object) -> str | None:
     return None
 
 
+def _upgrade_image_url(url: str, entry: object) -> str:
+    source_name = ""
+    if hasattr(entry, "source") and hasattr(entry.source, "title"):
+        source_name = entry.source.title
+
+    if "bbc" in source_name.lower() or "bbci" in url:
+        url = re.sub(r"/\d+_(width|height)/", "/640_width/", url)
+        if "_width" not in url and "_height" not in url:
+            url = re.sub(r"\.jpg$", "_640.jpg", url, flags=re.IGNORECASE)
+            url = re.sub(r"\.png$", "_640.png", url, flags=re.IGNORECASE)
+
+    return url
+
+
 def _strip_html(html: str) -> str:
     import re
 
-    text = re.sub(r"<[^>]+>", "", html)
-    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"<br\s*/?>", "\n", html, flags=re.IGNORECASE)
+    text = re.sub(r"</(p|h[1-6]|li|div|blockquote|section|article)>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = text.strip()
     return text

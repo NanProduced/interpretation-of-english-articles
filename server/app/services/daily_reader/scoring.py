@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 MIN_WORD_COUNT = 400
 MAX_WORD_COUNT = 2500
 SCORE_THRESHOLD = 7.0
+HEURISTIC_THRESHOLD = 6.0
 
 
 @dataclass
@@ -45,7 +46,7 @@ async def score_article(article: DiscoveredArticle) -> ArticleScore | None:
         model, model_config = build_model_for_route(settings, "daily_analysis")
         if model is None:
             logger.warning("daily_analysis model not available, using heuristic scoring")
-            return _heuristic_score(article)
+            return heuristic_score(article)
 
         from pydantic_ai import Agent
 
@@ -80,7 +81,7 @@ async def score_article(article: DiscoveredArticle) -> ArticleScore | None:
         )
     except Exception as e:
         logger.warning("LLM scoring failed, falling back to heuristic: %s", e)
-        return _heuristic_score(article)
+        return heuristic_score(article)
 
 
 def deduplicate(
@@ -132,7 +133,7 @@ def _similarity(a: str, b: str) -> float:
     return len(intersection) / len(union)
 
 
-def _heuristic_score(article: DiscoveredArticle) -> ArticleScore:
+def heuristic_score(article: DiscoveredArticle) -> ArticleScore:
     wc = article.word_count
     if wc < 400:
         score = 4.0

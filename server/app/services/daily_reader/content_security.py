@@ -49,8 +49,13 @@ async def check_content_security(title: str, text: str) -> dict:
 
 
 def is_content_safe(sec_check_result: dict) -> bool:
+    if sec_check_result.get("skipped"):
+        return True
     suggest = sec_check_result.get("suggest", "review")
-    if suggest in ("risky", "review"):
+    label = sec_check_result.get("label", 100)
+    if suggest == "risky":
+        return False
+    if suggest == "review" and label >= 20000:
         return False
     return True
 

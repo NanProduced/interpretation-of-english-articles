@@ -126,7 +126,7 @@ async def upsert_vocabulary(
 
             if existing_row:
                 existing_payload = (
-                    dict(existing_row["payload_json"])
+                    json.loads(existing_row["payload_json"])
                     if existing_row["payload_json"]
                     else {}
                 )
@@ -352,7 +352,7 @@ async def _load_user_vocab_lemmas(
     )
     lemma_map: dict[str, dict[str, Any]] = {}
     for row in rows:
-        payload = dict(row["payload_json"]) if row["payload_json"] else {}
+        payload = json.loads(row["payload_json"]) if row["payload_json"] else {}
         collected_forms: list[str] = payload.get("collected_forms", [])
         lemma_map[row["lemma"].lower()] = {
             "vocab_id": row["id"],

@@ -9,9 +9,11 @@ import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from logging import getLogger
+from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.config.logging_config import setup_logging
@@ -110,6 +112,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(api_router)
+
+    static_dir = Path(__file__).resolve().parent.parent / "static"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     # --- 全局异常处理器 ---
     @app.exception_handler(HTTPException)

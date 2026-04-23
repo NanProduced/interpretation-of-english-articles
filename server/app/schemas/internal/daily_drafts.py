@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+import json
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DailyVocabHighlight(BaseModel):
@@ -114,3 +116,22 @@ class DailyRefinementDraft(BaseModel):
     refined_highlights: list[DailyHighlightDetail] | None = None
     refined_footer: DailyFooterDraft | None = None
     refined_interpretation: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_json_strings(cls, data: dict) -> dict:
+        if not isinstance(data, dict):
+            return data
+        highlights = data.get("refined_highlights")
+        if isinstance(highlights, str):
+            try:
+                data["refined_highlights"] = json.loads(highlights)
+            except (json.JSONDecodeError, ValueError):
+                data["refined_highlights"] = None
+        footer = data.get("refined_footer")
+        if isinstance(footer, str):
+            try:
+                data["refined_footer"] = json.loads(footer)
+            except (json.JSONDecodeError, ValueError):
+                data["refined_footer"] = None
+        return data

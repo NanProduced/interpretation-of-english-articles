@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import secrets
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Header
 
@@ -40,27 +39,66 @@ async def generate_articles(
     request: DailyReaderGenerateRequest,
     _auth: str = Depends(verify_admin_api_key),
 ) -> DailyReaderGenerateResponse:
-    """执行精读文章生成流水线，抓取素材并调用 AI 生成内容。"""
+    """执行精读文章生成流水线（异步），立即返回 task_id，可通过 /status 查询进度。"""
+    import asyncio
+
     from app.services.daily_reader.pipeline import run_daily_pipeline
+    from app.services.daily_reader.pipeline_tracker import PipelineRunTracker
 
-    task_id = f"dr_gen_{uuid.uuid4().hex[:8]}"
+    tracker = PipelineRunTracker()
+    await tracker.start()
 
-    try:
-        result = await run_daily_pipeline(
-            max_count=request.max_count,
-            force=request.force,
+    async def _run():
+        try:
+            await run_daily_pipeline(
+                max_count=request.max_count,
+                force=request.force,
+                tracker=tracker,
+            )
+        except Exception as e:
+            logger.error("Async pipeline failed for run %s: %s", tracker.run_id, e, exc_info=True)
+            await tracker.fail("pipeline", str(e))
+
+    asyncio.create_task(_run())
+
+    return DailyReaderGenerateResponse(
+        task_id=tracker.run_id,
+        status="running",
+        message="Pipeline started, use /status to track progress",
+    )
+
+
+@router.get("/status/{run_id}", summary="查询 pipeline 执行进度")
+async def pipeline_status(
+    run_id: str,
+    _auth: str = Depends(verify_admin_api_key),
+) -> dict:
+    """查询 pipeline 异步任务的执行进度。"""
+    from app.database import connection as db_connection
+
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM pipeline_runs WHERE id = $1",
+            run_id,
         )
-        return DailyReaderGenerateResponse(
-            task_id=task_id,
-            status="completed",
-            message=f"Generated {len(result.articles)} articles, {len(result.errors)} errors",
-        )
-    except Exception as e:
-        logger.error("generate_articles pipeline failed: %s", e, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Pipeline execution failed",
-        ) from e
+    if row is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return {
+        "id": row["id"],
+        "status": row["status"],
+        "stage": row["stage"],
+        "stage_detail": row["stage_detail"],
+        "candidates_found": row["candidates_found"],
+        "candidates_extracted": row["candidates_extracted"],
+        "candidates_scored": row["candidates_scored"],
+        "articles_generated": row["articles_generated"],
+        "errors": row["errors"],
+        "started_at": str(row["started_at"]) if row["started_at"] else None,
+        "finished_at": str(row["finished_at"]) if row["finished_at"] else None,
+    }
 
 
 @router.post("/publish", response_model=ArticleActionResponse, summary="发布精读文章")

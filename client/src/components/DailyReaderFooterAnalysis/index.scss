@@ -26,6 +26,12 @@
     margin-bottom: 56rpx;
   }
 
+  &__empty-text {
+    font-size: 28rpx;
+    color: var(--dr-text-muted);
+    line-height: 1.6;
+  }
+
   &__section-icon {
     font-size: 32rpx;
     margin-right: 12rpx;
