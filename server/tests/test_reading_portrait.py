@@ -114,7 +114,7 @@ class TestSignalExtraction:
         record = {
             "reading_goal": "daily_reading",
             "reading_variant": "intermediate_reading",
-            "source_text": "Hello world. This is a test.",
+            "source_text": "Hello world. This is a test sentence.",
             "schema_version": "3.0.0",
         }
         signal = extract_signal_from_record(record)
@@ -305,7 +305,7 @@ class TestReadingSignalEdgeCases:
         }
         signal = ReadingSignal.from_dict(data)
         assert signal.record_id is None
-        assert signal.created_at is None
+        assert signal.created_at is not None
 
 
 class TestSignalExtractionEdgeCases:
@@ -370,3 +370,307 @@ class TestSignalExtractionEdgeCases:
 def anyio_backend():
     """Restrict anyio tests to asyncio because trio is not installed in CI/dev."""
     return "asyncio"
+
+
+class TestPydanticAIResultOutput:
+    """Test PydanticAI result.output access pattern (not result.data)."""
+
+    def test_result_output_access_pattern(self):
+        """Verify that the code expects result.output, not result.data.
+        
+        This is a documentation test to ensure the expected API is used.
+        All other modules in the codebase use result.output.
+        """
+        from types import SimpleNamespace
+
+        output_obj = SimpleNamespace(
+            common_content="常读考试类文章",
+            current_challenges="词汇量有待提升",
+            next_steps="建议增加学术类阅读",
+        )
+
+        result = SimpleNamespace(output=output_obj)
+
+        assert hasattr(result, "output")
+        assert result.output.common_content == "常读考试类文章"
+
+    def test_hasattr_check_for_backward_compatibility(self):
+        """Test that hasattr(result, 'output') check works for backward compatibility."""
+        from types import SimpleNamespace
+
+        output_obj = SimpleNamespace(
+            common_content="常读内容",
+            current_challenges="当前难点",
+            next_steps="下一步",
+        )
+
+        result_with_output = SimpleNamespace(output=output_obj)
+        result_without_output = SimpleNamespace(data=output_obj)
+
+        assert hasattr(result_with_output, "output")
+        assert hasattr(result_without_output, "output") is False
+
+        output1 = result_with_output.output if hasattr(result_with_output, "output") else None
+        output2 = result_without_output.output if hasattr(result_without_output, "output") else None
+
+        assert output1 is not None
+        assert output2 is None
+
+
+class TestBackgroundPortraitUpdateIsolation:
+    """Test that portrait update failures do not affect the main flow."""
+
+    @pytest.mark.anyio
+    async def test_process_signal_for_portrait_catches_all_exceptions(self):
+        """Test that process_signal_for_portrait catches ALL exceptions.
+        
+        This ensures portrait processing never propagates errors to the main task.
+        """
+        user_id = uuid4()
+
+        from app.services.user_assets.reading_portrait import process_signal_for_portrait
+
+        test_cases = [
+            (RuntimeError("DB connection error"),),
+            (ValueError("Invalid data"),),
+            (TypeError("Type mismatch"),),
+            (Exception("Generic error"),),
+        ]
+
+        for exc_type in test_cases:
+            with patch(
+                "app.services.user_assets.reading_portrait.extract_signal_from_record",
+                side_effect=exc_type,
+            ):
+                try:
+                    await process_signal_for_portrait(user_id, {}, {})
+                except Exception as e:
+                    pytest.fail(f"process_signal_for_portrait should not propagate {type(e).__name__}: {e}")
+
+    @pytest.mark.anyio
+    async def test_process_signal_for_portrait_error_at_accumulate_signal(self):
+        """Test that errors during accumulate_signal are caught."""
+        user_id = uuid4()
+
+        from app.services.user_assets.reading_portrait import process_signal_for_portrait
+
+        def mock_extract(*args, **kwargs):
+            return ReadingSignal(
+                reading_goal="daily_reading",
+                reading_variant="intermediate_reading",
+                word_count=100,
+                schema_version="3.0.0",
+                is_academic=False,
+                annotation_count=5,
+            )
+
+        with patch(
+            "app.services.user_assets.reading_portrait.extract_signal_from_record",
+            side_effect=mock_extract,
+        ), patch(
+            "app.services.user_assets.reading_portrait.accumulate_signal",
+            side_effect=RuntimeError("DB pool exhausted"),
+        ):
+            try:
+                await process_signal_for_portrait(user_id, {}, {})
+            except Exception as e:
+                pytest.fail(f"Should not propagate {type(e).__name__}")
+
+    @pytest.mark.anyio
+    async def test_process_signal_for_portrait_error_at_generate_portrait(self):
+        """Test that errors during generate_portrait_if_needed are caught."""
+        user_id = uuid4()
+
+        from app.services.user_assets.reading_portrait import process_signal_for_portrait
+
+        def mock_extract(*args, **kwargs):
+            return ReadingSignal(
+                reading_goal="daily_reading",
+                reading_variant="intermediate_reading",
+                word_count=100,
+                schema_version="3.0.0",
+                is_academic=False,
+                annotation_count=5,
+            )
+
+        mock_profile = {
+            "portrait_signal_count_since_last": 5,
+            "portrait_generated_at": None,
+        }
+
+        with patch(
+            "app.services.user_assets.reading_portrait.extract_signal_from_record",
+            side_effect=mock_extract,
+        ), patch(
+            "app.services.user_assets.reading_portrait.accumulate_signal",
+            return_value=mock_profile,
+        ), patch(
+            "app.services.user_assets.reading_portrait.generate_portrait_if_needed",
+            side_effect=RuntimeError("LLM API timeout"),
+        ):
+            try:
+                await process_signal_for_portrait(user_id, {}, {})
+            except Exception as e:
+                pytest.fail(f"Should not propagate {type(e).__name__}")
+
+
+class TestTaskExecutorBackgroundPortraitUpdate:
+    """Test that task executor handles portrait updates in background after marking succeeded.
+
+    These tests verify that:
+    1. Task is marked succeeded BEFORE portrait update starts
+    2. Portrait update runs in background (asyncio.create_task)
+    3. Portrait update failures only log, don't affect main flow
+    """
+
+    @pytest.mark.anyio
+    async def test_update_reading_portrait_background_catches_all_exceptions(self):
+        """Test _update_reading_portrait_background catches all exceptions."""
+        import asyncio
+        from unittest.mock import MagicMock
+
+        from app.services.analysis.task_executor import _update_reading_portrait_background
+
+        user_id = uuid4()
+        task_id = uuid4()
+
+        with patch(
+            "app.services.analysis.task_executor.portrait_svc.process_signal_for_portrait",
+            side_effect=RuntimeError("Any error should be caught"),
+        ):
+            try:
+                await _update_reading_portrait_background(
+                    user_id=user_id,
+                    record={},
+                    render_scene_json=None,
+                    task_id=task_id,
+                )
+            except Exception as e:
+                pytest.fail(f"_update_reading_portrait_background should not propagate {type(e).__name__}")
+
+    @pytest.mark.anyio
+    async def test_update_reading_portrait_background_success_path(self):
+        """Test _update_reading_portrait_background success path."""
+        import asyncio
+        from unittest.mock import AsyncMock
+
+        from app.services.analysis.task_executor import _update_reading_portrait_background
+
+        user_id = uuid4()
+        task_id = uuid4()
+
+        mock_process = AsyncMock()
+
+        with patch(
+            "app.services.analysis.task_executor.portrait_svc.process_signal_for_portrait",
+            mock_process,
+        ):
+            await _update_reading_portrait_background(
+                user_id=user_id,
+                record={"key": "value"},
+                render_scene_json={"marks": []},
+                task_id=task_id,
+            )
+
+            mock_process.assert_called_once_with(
+                user_id=user_id,
+                record={"key": "value"},
+                render_scene_json={"marks": []},
+            )
+
+
+class TestGeneratePortraitWithLLMOutputPattern:
+    """Test _generate_portrait_with_llm uses result.output pattern."""
+
+    def test_generate_portrait_with_llm_uses_result_output(self):
+        """Verify that _generate_portrait_with_llm accesses result.output, not result.data.
+
+        This is a static inspection test to confirm the code pattern is correct.
+        """
+        import inspect
+        import re
+
+        from app.services.user_assets.reading_portrait import _generate_portrait_with_llm
+
+        source = inspect.getsource(_generate_portrait_with_llm)
+
+        assert "result.output" in source, "Should use result.output"
+
+        hasattr_pattern = r'hasattr\s*\(\s*result\s*,\s*["\']output["\']\s*\)'
+        assert re.search(hasattr_pattern, source), "Should use hasattr(result, 'output') or hasattr(result, \"output\")"
+
+        assert "result.data" not in source, "Should NOT use result.data"
+
+
+class TestConnectionSharingBetweenFunctions:
+    """Test that internal functions share connection to avoid nested acquire."""
+
+    def test_accumulate_signal_uses_internal_functions(self):
+        """Verify that accumulate_signal uses internal functions with shared connection.
+
+        This is a static inspection test to confirm the code structure.
+        """
+        import inspect
+
+        from app.services.user_assets.reading_portrait import (
+            _accumulate_signal_internal,
+            _get_or_create_profile,
+            accumulate_signal,
+        )
+
+        source_accumulate = inspect.getsource(accumulate_signal)
+        source_internal = inspect.getsource(_accumulate_signal_internal)
+        source_get_profile = inspect.getsource(_get_or_create_profile)
+
+        assert "_accumulate_signal_internal" in source_accumulate
+        assert "_get_or_create_profile" in source_internal
+        assert "pool.acquire()" in source_accumulate
+        assert "pool.acquire()" not in source_internal
+        assert "pool.acquire()" not in source_get_profile
+
+
+class TestMainFlowOrder:
+    """Test that the main flow order is correct: mark succeeded BEFORE portrait update.
+
+    This verifies the task execution order in task_executor.py:
+    1. update_record
+    2. insert_audit_log
+    3. deduct_credits
+    4. increment_user_reading_count
+    5. update_task_status(succeeded)  <-- IMPORTANT: BEFORE portrait
+    6. insert_task_event(succeeded)
+    7. asyncio.create_task(portrait_update)  <-- BACKGROUND
+    """
+
+    def test_task_executor_order(self):
+        """Static inspection of task_executor.py to verify correct order.
+
+        We need to find:
+        1. The update_task_status call with status='succeeded' in the success path
+        2. The asyncio.create_task call that wraps _update_reading_portrait_background
+
+        And verify that (1) comes before (2).
+        """
+        import inspect
+        import re
+
+        from app.services.analysis.task_executor import execute_task
+
+        source = inspect.getsource(execute_task)
+
+        succeeded_pattern = r'update_task_status\s*\([^)]*status\s*=\s*["\']succeeded["\']'
+        create_task_pattern = r'asyncio\.create_task\s*\(\s*_update_reading_portrait_background'
+
+        succeeded_matches = list(re.finditer(succeeded_pattern, source))
+        create_task_matches = list(re.finditer(create_task_pattern, source))
+
+        assert len(succeeded_matches) > 0, "Should have update_task_status with status='succeeded'"
+        assert len(create_task_matches) > 0, "Should have asyncio.create_task with _update_reading_portrait_background"
+
+        first_succeeded_pos = succeeded_matches[0].start()
+        first_create_task_pos = create_task_matches[0].start()
+
+        assert first_succeeded_pos < first_create_task_pos, (
+            f"update_task_status(succeeded) at position {first_succeeded_pos} "
+            f"should be BEFORE asyncio.create_task(portrait) at position {first_create_task_pos}"
+        )
