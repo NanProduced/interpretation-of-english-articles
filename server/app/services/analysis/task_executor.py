@@ -26,6 +26,7 @@ from app.services.analysis.task_service import (
     update_task_status,
 )
 from app.services.user_assets import records as records_svc
+from app.services.user_assets import reading_portrait as portrait_svc
 from app.workflow.analyze import (
     ANALYZE_SCHEMA_VERSION,
     WORKFLOW_VERSION,
@@ -300,6 +301,20 @@ async def execute_task(
 
         # 4. Increment Achievement Stats
         await records_svc.increment_user_reading_count(user_id)
+
+        # 5. Update Reading Portrait (failure does not affect main flow)
+        portrait_record = {
+            "id": record_id,
+            "reading_goal": reading_goal,
+            "reading_variant": reading_variant,
+            "source_text": text,
+            "schema_version": ANALYZE_SCHEMA_VERSION,
+        }
+        await portrait_svc.process_signal_for_portrait(
+            user_id=user_id,
+            record=portrait_record,
+            render_scene_json=render_scene_dict,
+        )
 
         finished_at = datetime.now(timezone.utc)
         await update_task_status(
