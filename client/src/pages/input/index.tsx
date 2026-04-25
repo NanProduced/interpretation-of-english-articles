@@ -8,10 +8,12 @@ import { useLayoutStore } from '../../stores/layout'
 import { saveDraft, getDraft, clearDraft } from '../../services/storage'
 import { ensureLoggedIn } from '../../services/auth'
 import { track } from '../../services/analytics'
+import { detectGenre, type GenreDetectionResult } from '../../services/api'
 import LucideIcon from '../../components/LucideIcon'
 import NavBar from '../../components/NavBar'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
-import { READING_CONFIG_MAP, getDisplayLabel, getApiParams, ReadingGoal } from '../../config/purpose'
+import CenterModal from '../../components/CenterModal'
+import { READING_CONFIG_MAP, getDisplayLabel, getApiParams, ReadingGoal, SERVER_GOAL_TO_UI_GOAL } from '../../config/purpose'
 import './index.scss'
 
 export default function InputPage() {
@@ -21,11 +23,17 @@ export default function InputPage() {
   const [showClipboardBubble, setShowClipboardBubble] = useState(false)
   const [showModeSheet, setShowModeSheet] = useState(false)
   
-  // 从 Store 获取默认配置
+  const [isDetectingGenre, setIsDetectingGenre] = useState(false)
+  const [showAcademicSuggestionModal, setShowAcademicSuggestionModal] = useState(false)
+  const [pendingSubmissionConfig, setPendingSubmissionConfig] = useState<{
+    purpose: ReadingGoal;
+    level: string | null;
+  } | null>(null)
+  const [lastDetectionResult, setLastDetectionResult] = useState<GenreDetectionResult | null>(null)
+  
   const { purpose, level } = useConfigStore()
   const { navBarHeight } = useLayoutStore()
   
-  // 临时配置状态：默认从 Store 同步，但修改后只影响当前页面
   const [tempConfig, setTempConfig] = useState<{
     purpose: ReadingGoal;
     level: string | null;
@@ -34,7 +42,6 @@ export default function InputPage() {
     level: level
   })
 
-  // 当全局配置改变时，如果当前没有正在输入，则同步到临时配置
   useEffect(() => {
     if (!content) {
       setTempConfig({
@@ -47,10 +54,8 @@ export default function InputPage() {
   const analyze = useArticleStore((s) => s.analyze)
   const recoverActiveTask = useArticleStore((s) => s.recoverActiveTask)
 
-  // 简单的单词计数
   const wordsCount = content.trim().split(/\s+/).filter(Boolean).length
 
-  // === 剪贴板检测逻辑 ===
   const checkClipboard = async () => {
     try {
       const res = await Taro.getClipboardData()
@@ -72,7 +77,6 @@ export default function InputPage() {
 
   Taro.useDidShow(() => {
     checkClipboard()
-    // 尝试恢复是否有未完成的活跃任务
     recoverActiveTask().then(() => {
       const phase = useArticleStore.getState().phase
       if (phase === 'polling' || phase === 'loading') {
@@ -117,25 +121,36 @@ export default function InputPage() {
     setTempConfig({ purpose: goal, level })
   }
 
-  const handleSubmit = async () => {
-    if (wordsCount < 10) {
-      Taro.showToast({ title: '最少输入10个单词', icon: 'none' })
-      return
-    }
+  const shouldSuggestAcademicMode = (
+    detection: GenreDetectionResult,
+    currentPurpose: ReadingGoal
+  ): boolean => {
+    if (detection.genre !== 'academic') return false
+    if (currentPurpose === 'academic') return false
+    if (detection.confidence < 0.6) return false
+    if (detection.suggested_goal !== 'academic') return false
+    
+    return true
+  }
 
-    // 提交任务前先确保登录，避免后端 401
-    const loginRes = await ensureLoggedIn()
-    if (!loginRes.success) return
-
-    const { reading_goal, reading_variant } = getApiParams(tempConfig.purpose, tempConfig.level)
+  const doSubmit = (submitConfig: { purpose: ReadingGoal; level: string | null }) => {
+    const { reading_goal, reading_variant } = getApiParams(submitConfig.purpose, submitConfig.level)
+    
+    const isUsingAcademicSuggestion = 
+      submitConfig.purpose === 'academic' && 
+      tempConfig.purpose !== 'academic'
+    
     track('submit_article', { 
       wordCount: wordsCount, 
       reading_goal, 
       reading_variant,
-      is_temporary_config: tempConfig.purpose !== purpose || tempConfig.level !== level
+      is_temporary_config: submitConfig.purpose !== purpose || submitConfig.level !== level,
+      is_academic_suggestion_accepted: isUsingAcademicSuggestion,
+      detection_genre: lastDetectionResult?.genre,
+      detection_confidence: lastDetectionResult?.confidence,
     })
+    
     clearDraft()
-    // 重置状态，确保进入 Result 页时一定显示 loading，避免闪现旧结果
     useArticleStore.getState().reset()
     analyze({
       text: content,
@@ -144,8 +159,120 @@ export default function InputPage() {
       source_type: 'user_input',
       extended: false,
     })
-    // redirectTo 销毁当前页，防止用户通过返回键回到未重置的 Input 页
     Taro.redirectTo({ url: ROUTES.RESULT })
+  }
+
+  const handleAcceptAcademicSuggestion = () => {
+    setShowAcademicSuggestionModal(false)
+    
+    track('genre_suggestion_accepted', {
+      from_genre: tempConfig.purpose,
+      to_genre: 'academic',
+      detection_confidence: lastDetectionResult?.confidence,
+      word_count: wordsCount,
+    })
+    
+    const academicConfig = {
+      purpose: 'academic' as ReadingGoal,
+      level: 'academic_general'
+    }
+    
+    doSubmit(academicConfig)
+  }
+
+  const handleRejectAcademicSuggestion = () => {
+    setShowAcademicSuggestionModal(false)
+    
+    track('genre_suggestion_rejected', {
+      current_genre: tempConfig.purpose,
+      suggested_genre: 'academic',
+      detection_confidence: lastDetectionResult?.confidence,
+      word_count: wordsCount,
+    })
+    
+    if (pendingSubmissionConfig) {
+      doSubmit(pendingSubmissionConfig)
+    }
+    setPendingSubmissionConfig(null)
+  }
+
+  const handleSubmit = async () => {
+    if (wordsCount < 10) {
+      Taro.showToast({ title: '最少输入10个单词', icon: 'none' })
+      return
+    }
+
+    const loginRes = await ensureLoggedIn()
+    if (!loginRes.success) return
+
+    let shouldSkipDetection = false
+    
+    if (tempConfig.purpose === 'academic') {
+      shouldSkipDetection = true
+      track('genre_detection_skipped', {
+        reason: 'already_academic_mode',
+        word_count: wordsCount,
+      })
+    }
+    
+    if (wordsCount < 30) {
+      shouldSkipDetection = true
+      track('genre_detection_skipped', {
+        reason: 'text_too_short',
+        word_count: wordsCount,
+      })
+    }
+
+    if (shouldSkipDetection) {
+      doSubmit(tempConfig)
+      return
+    }
+
+    setIsDetectingGenre(true)
+    
+    try {
+      const detectionResponse = await detectGenre(content)
+      const detection = detectionResponse.detection
+      setLastDetectionResult(detection)
+      
+      track('genre_detection_completed', {
+        genre: detection.genre,
+        confidence: detection.confidence,
+        suggested_goal: detection.suggested_goal,
+        word_count: wordsCount,
+        current_mode: tempConfig.purpose,
+        signals: detection.signals.join('|'),
+        latency_ms: detectionResponse.latency_ms,
+      })
+      
+      if (shouldSuggestAcademicMode(detection, tempConfig.purpose)) {
+        track('genre_suggestion_shown', {
+          from_genre: tempConfig.purpose,
+          suggested_genre: 'academic',
+          detection_confidence: detection.confidence,
+          word_count: wordsCount,
+        })
+        
+        setPendingSubmissionConfig({ ...tempConfig })
+        setShowAcademicSuggestionModal(true)
+        setIsDetectingGenre(false)
+        return
+      }
+      
+      doSubmit(tempConfig)
+      
+    } catch (error) {
+      console.error('Genre detection failed:', error)
+      
+      track('genre_detection_failed', {
+        error: error instanceof Error ? error.message : 'unknown',
+        word_count: wordsCount,
+      })
+      
+      doSubmit(tempConfig)
+    } finally {
+      setIsDetectingGenre(false)
+    }
   }
 
   return (
@@ -159,7 +286,6 @@ export default function InputPage() {
       <View className='nav-placeholder' style={{ height: navBarHeight + 'px' }} />
 
       <View className='canvas-area'>
-        {/* 指令栏：模式选择 + 功能快捷键 */}
         <View className='canvas-toolbar'>
           <View className='mode-chip-v2' onClick={handleModeChange}>
             <View className='dot' />
@@ -196,7 +322,6 @@ export default function InputPage() {
              </View>
           )}
 
-          {/* 弱化后的剪贴板提示 - 改为静默的侧边提示 */}
           {showClipboardBubble && !content && (
             <View className='paste-shortcut' onClick={() => {
               setContent(clipboardContent)
@@ -210,19 +335,25 @@ export default function InputPage() {
         </View>
       </View>
 
-      {/* 底部动态统计与操作 */}
       <View className='bottom-bar safe-area-bottom'>
-        <View className={`interpret-btn ${wordsCount >= 10 ? 'active' : ''}`} onClick={handleSubmit}>
+        <View className={`interpret-btn ${wordsCount >= 10 && !isDetectingGenre ? 'active' : ''}`} onClick={handleSubmit}>
           <View className='btn-content'>
-            <Text className='btn-text'>开始透读</Text>
+            <Text className='btn-text'>
+              {isDetectingGenre ? '检测文体中...' : '开始透读'}
+            </Text>
             <View className='btn-divider' />
-            <Text className='btn-stats'>{wordsCount} words</Text>
+            <Text className='btn-stats'>
+              {isDetectingGenre ? 'AI 分析' : `${wordsCount} words`}
+            </Text>
           </View>
-          <LucideIcon name='sparkles' size={18} color={wordsCount >= 10 ? 'var(--color-white)' : 'var(--text-muted)'} />
+          <LucideIcon 
+            name={isDetectingGenre ? 'loader2' : 'sparkles'} 
+            size={18} 
+            color={wordsCount >= 10 && !isDetectingGenre ? 'var(--color-white)' : 'var(--text-muted)'} 
+          />
         </View>
       </View>
 
-      {/* 自定义 BottomSheet 选择分析模式 */}
       <BottomSheetSelect
         visible={showModeSheet}
         currentGoal={tempConfig.purpose}
@@ -230,6 +361,56 @@ export default function InputPage() {
         onClose={() => setShowModeSheet(false)}
         onSelect={handleModeSelect}
       />
+
+      <CenterModal
+        visible={showAcademicSuggestionModal}
+        title='检测到学术文献'
+        onClose={() => {
+          setShowAcademicSuggestionModal(false)
+          setPendingSubmissionConfig(null)
+        }}
+      >
+        <View className='academic-suggestion-content'>
+          <View className='suggestion-icon'>
+            <LucideIcon name='microscope' size={48} color='var(--color-ink)' />
+          </View>
+          
+          <Text className='suggestion-title'>这看起来像是一篇学术文献</Text>
+          
+          <Text className='suggestion-desc'>
+            我们检测到您输入的文本可能包含：
+          </Text>
+          
+          {lastDetectionResult?.signals && lastDetectionResult.signals.length > 0 && (
+            <View className='suggestion-signals'>
+              {lastDetectionResult.signals.slice(0, 3).map((signal, index) => (
+                <View key={index} className='signal-tag'>
+                  <LucideIcon name='check' size={12} color='var(--color-ink)' />
+                  <Text className='signal-text'>{signal}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          
+          <Text className='suggestion-note'>
+            建议使用「学术文献」模式，以获得更精准的术语解析和专业翻译。
+          </Text>
+          
+          <View className='suggestion-actions'>
+            <View className='action-btn secondary' onClick={handleRejectAcademicSuggestion}>
+              <Text className='action-text'>继续使用当前模式</Text>
+            </View>
+            <View className='action-btn primary' onClick={handleAcceptAcademicSuggestion}>
+              <LucideIcon name='sparkles' size={16} color='#fff' />
+              <Text className='action-text'>切换到学术模式</Text>
+            </View>
+          </View>
+          
+          <Text className='suggestion-disclaimer'>
+            本次切换仅影响当前解析，不会修改您的默认设置
+          </Text>
+        </View>
+      </CenterModal>
     </View>
   )
 }

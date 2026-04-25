@@ -6,7 +6,16 @@
  */
 
 // Client
-export { fetchAnalyze, request, type AnalyzeRequest, ApiError } from './client'
+export {
+  fetchAnalyze,
+  request,
+  type AnalyzeRequest,
+  ApiError,
+  detectGenre,
+  type GenreDetectionResponse,
+  type GenreDetectionResult,
+  type GenreCategory,
+} from './client'
 
 // Adapter
 export { analyzeResponseDtoToVm } from './adapters/render-scene.adapter'

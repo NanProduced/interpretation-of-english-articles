@@ -7,6 +7,7 @@ from app.api.routes.daily_reader_admin import router as daily_reader_admin_route
 from app.api.routes.dict import router as dict_router
 from app.api.routes.favorites import router as favorites_router
 from app.api.routes.feedback import router as feedback_router
+from app.api.routes.genre_detection import router as genre_detection_router
 from app.api.routes.health import router as health_router
 from app.api.routes.internal_feedback import router as internal_feedback_router
 from app.api.routes.prompt_debug import router as prompt_debug_router
@@ -30,4 +31,5 @@ api_router.include_router(internal_feedback_router)
 api_router.include_router(daily_reader_router)
 api_router.include_router(daily_reader_admin_router)
 api_router.include_router(prompt_debug_router)
+api_router.include_router(genre_detection_router)
 

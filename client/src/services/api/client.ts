@@ -385,3 +385,33 @@ export async function fetchDictEntry(entryId: number): Promise<DictEntryResultDt
     url: `/dict/entry?id=${entryId}`,
   })
 }
+
+// ============ /genre-detection API ============
+
+export type GenreCategory = 'academic' | 'daily' | 'exam_oriented' | 'uncertain'
+
+export interface GenreDetectionResult {
+  genre: GenreCategory
+  confidence: number
+  suggested_goal: 'academic' | 'daily_reading' | 'exam' | null
+  reasoning: string
+  signals: string[]
+}
+
+export interface GenreDetectionResponse {
+  detection: GenreDetectionResult
+  latency_ms: number
+}
+
+/**
+ * 调用 /genre-detection 接口检测文本文体
+ *
+ * 用于在提交解析前判断文本是否适合使用 academic 模式
+ */
+export async function detectGenre(text: string): Promise<GenreDetectionResponse> {
+  return request<GenreDetectionResponse>({
+    url: '/genre-detection',
+    method: 'POST',
+    data: { text },
+  })
+}
