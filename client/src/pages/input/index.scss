@@ -257,3 +257,127 @@
     transform: scale(1) translateY(0);
   }
 }
+
+.academic-suggestion-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8rpx 24rpx 32rpx;
+
+  .suggestion-icon {
+    width: 120rpx;
+    height: 120rpx;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 32rpx;
+  }
+
+  .suggestion-title {
+    font-size: 34rpx;
+    font-weight: 800;
+    color: var(--color-ink);
+    margin-bottom: 20rpx;
+    text-align: center;
+  }
+
+  .suggestion-desc {
+    font-size: 26rpx;
+    color: var(--text-main);
+    text-align: center;
+    margin-bottom: 20rpx;
+    font-weight: var(--weight-medium);
+  }
+
+  .suggestion-signals {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+    margin-bottom: 28rpx;
+    width: 100%;
+
+    .signal-tag {
+      display: flex;
+      align-items: center;
+      gap: 12rpx;
+      padding: 12rpx 20rpx;
+      background-color: rgba(0, 0, 0, 0.03);
+      border-radius: 16rpx;
+
+      .signal-text {
+        font-size: 24rpx;
+        color: var(--text-main);
+        font-weight: var(--weight-medium);
+      }
+    }
+  }
+
+  .suggestion-note {
+    font-size: 24rpx;
+    color: var(--text-sub);
+    text-align: center;
+    margin-bottom: 40rpx;
+    line-height: 1.6;
+  }
+
+  .suggestion-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+    width: 100%;
+    margin-bottom: 20rpx;
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12rpx;
+      padding: 28rpx 32rpx;
+      border-radius: 24rpx;
+      transition: all 0.2s ease;
+
+      &.secondary {
+        background-color: var(--color-bg);
+        border: 2rpx solid rgba(0, 0, 0, 0.06);
+
+        .action-text {
+          color: var(--text-main);
+          font-weight: var(--weight-semibold);
+        }
+
+        &:active {
+          opacity: 0.7;
+          background-color: var(--border-light);
+        }
+      }
+
+      &.primary {
+        background-color: var(--color-ink);
+        box-shadow: var(--shadow-md);
+
+        .action-text {
+          color: #fff;
+          font-weight: var(--weight-bold);
+        }
+
+        &:active {
+          opacity: 0.9;
+          transform: scale(0.98);
+        }
+      }
+
+      .action-text {
+        font-size: 28rpx;
+      }
+    }
+  }
+
+  .suggestion-disclaimer {
+    font-size: 22rpx;
+    color: var(--text-muted);
+    text-align: center;
+    opacity: 0.6;
+  }
+}
