@@ -302,20 +302,7 @@ async def execute_task(
         # 4. Increment Achievement Stats
         await records_svc.increment_user_reading_count(user_id)
 
-        # 5. Update Reading Portrait (failure does not affect main flow)
-        portrait_record = {
-            "id": record_id,
-            "reading_goal": reading_goal,
-            "reading_variant": reading_variant,
-            "source_text": text,
-            "schema_version": ANALYZE_SCHEMA_VERSION,
-        }
-        await portrait_svc.process_signal_for_portrait(
-            user_id=user_id,
-            record=portrait_record,
-            render_scene_json=render_scene_dict,
-        )
-
+        # 5. Mark Task as Succeeded FIRST - before background portrait update
         finished_at = datetime.now(timezone.utc)
         await update_task_status(
             task_id,
@@ -338,6 +325,25 @@ async def execute_task(
             task_id,
             record_id,
             actual_deducted,
+        )
+
+        # 6. Update Reading Portrait in BACKGROUND (failure only logs, does not affect main flow)
+        # This runs after task is marked succeeded, so portrait update delays don't block user
+        portrait_record = {
+            "id": record_id,
+            "reading_goal": reading_goal,
+            "reading_variant": reading_variant,
+            "source_text": text,
+            "schema_version": ANALYZE_SCHEMA_VERSION,
+        }
+        asyncio.create_task(
+            _update_reading_portrait_background(
+                user_id=user_id,
+                record=portrait_record,
+                render_scene_json=render_scene_dict,
+                task_id=task_id,
+            ),
+            name=f"portrait-update-{task_id}",
         )
 
     except Exception as exc:
@@ -502,3 +508,34 @@ async def _heartbeat_loop(task_id: UUID, worker_token: str) -> None:
     while True:
         await asyncio.sleep(TASK_HEARTBEAT_INTERVAL_SECONDS)
         await touch_task_heartbeat(task_id, worker_token)
+
+
+async def _update_reading_portrait_background(
+    user_id: UUID,
+    record: dict[str, Any],
+    render_scene_json: dict[str, Any] | None,
+    task_id: UUID,
+) -> None:
+    """
+    Update reading portrait in background.
+
+    This function is meant to be called via asyncio.create_task()
+    AFTER the main task has already been marked as succeeded.
+
+    All exceptions are caught and logged only - they never affect the main flow.
+    """
+    try:
+        await portrait_svc.process_signal_for_portrait(
+            user_id=user_id,
+            record=record,
+            render_scene_json=render_scene_json,
+        )
+        logger.debug("Reading portrait update completed for task %s", task_id)
+    except Exception as e:
+        logger.error(
+            "Background reading portrait update failed for task %s (user=%s): %s",
+            task_id,
+            user_id,
+            e,
+            exc_info=True,
+        )

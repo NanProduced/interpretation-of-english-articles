@@ -166,19 +166,54 @@ def _should_generate_portrait(
 
     Conditions:
     - Signal count since last generation >= threshold (5)
-    - OR time since last generation > 24 hours
+    - OR (has generated before AND time since last generation > 24 hours AND has new signals)
     """
     if signal_count_since_last >= PORTRAIT_GENERATION_THRESHOLD:
         return True
 
     if last_generated_at is None:
-        return signal_count_since_last > 0
+        return False
 
     time_since_last = datetime.now(timezone.utc) - last_generated_at
     if time_since_last > timedelta(hours=PORTRAIT_GENERATION_HOURS):
         return signal_count_since_last > 0
 
     return False
+
+
+async def _get_or_create_profile(
+    conn: Any,
+    user_id: UUID,
+) -> dict[str, Any]:
+    """
+    Get or create a reading profile for a user using an existing connection.
+
+    Args:
+        conn: Database connection (already acquired)
+        user_id: The user UUID
+
+    Returns:
+        Reading profile dictionary
+    """
+    row = await conn.fetchrow(
+        """
+        INSERT INTO user_reading_profiles (user_id)
+        VALUES ($1)
+        ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
+        RETURNING *
+        """,
+        user_id,
+    )
+    if row is None:
+        raise RuntimeError("Failed to get or create reading profile")
+
+    profile = dict(row)
+    profile["reading_goals_json"] = _ensure_dict(profile.get("reading_goals_json"))
+    profile["reading_variants_json"] = _ensure_dict(profile.get("reading_variants_json"))
+    profile["schema_versions_json"] = _ensure_dict(profile.get("schema_versions_json"))
+    profile["recent_signals_json"] = _ensure_dict(profile.get("recent_signals_json")) or []
+
+    return profile
 
 
 async def get_or_create_reading_profile(user_id: UUID) -> dict[str, Any]:
@@ -196,26 +231,95 @@ async def get_or_create_reading_profile(user_id: UUID) -> dict[str, Any]:
         raise RuntimeError("Database pool not initialized")
 
     async with pool.acquire() as conn:
-        async with conn.transaction():
-            row = await conn.fetchrow(
-                """
-                INSERT INTO user_reading_profiles (user_id)
-                VALUES ($1)
-                ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
-                RETURNING *
-                """,
-                user_id,
-            )
-            if row is None:
-                raise RuntimeError("Failed to get or create reading profile")
+        return await _get_or_create_profile(conn, user_id)
 
-            profile = dict(row)
-            profile["reading_goals_json"] = _ensure_dict(profile.get("reading_goals_json"))
-            profile["reading_variants_json"] = _ensure_dict(profile.get("reading_variants_json"))
-            profile["schema_versions_json"] = _ensure_dict(profile.get("schema_versions_json"))
-            profile["recent_signals_json"] = _ensure_dict(profile.get("recent_signals_json")) or []
 
-            return profile
+async def _accumulate_signal_internal(
+    conn: Any,
+    user_id: UUID,
+    signal: ReadingSignal,
+) -> dict[str, Any]:
+    """
+    Accumulate a reading signal using an existing connection.
+
+    Args:
+        conn: Database connection (already acquired)
+        user_id: The user UUID
+        signal: The reading signal to accumulate
+
+    Returns:
+        Updated reading profile
+    """
+    profile = await _get_or_create_profile(conn, user_id)
+
+    reading_goals = profile["reading_goals_json"]
+    _increment_count(reading_goals, signal.reading_goal)
+
+    reading_variants = profile["reading_variants_json"]
+    _increment_count(reading_variants, signal.reading_variant)
+
+    schema_versions = profile["schema_versions_json"]
+    _increment_count(schema_versions, signal.schema_version)
+
+    total_word_count = (profile.get("total_word_count") or 0) + signal.word_count
+    total_annotation_count = (
+        (profile.get("total_annotation_count") or 0) + signal.annotation_count
+    )
+
+    academic_count = profile.get("academic_count") or 0
+    non_academic_count = profile.get("non_academic_count") or 0
+    if signal.is_academic:
+        academic_count += 1
+    else:
+        non_academic_count += 1
+
+    recent_signals: list[dict] = profile["recent_signals_json"] or []
+    recent_signals.append(signal.to_dict())
+    if len(recent_signals) > MAX_RECENT_SIGNALS:
+        recent_signals = recent_signals[-MAX_RECENT_SIGNALS:]
+
+    signal_count_since_last = (
+        profile.get("portrait_signal_count_since_last") or 0
+    ) + 1
+
+    await conn.execute(
+        """
+        UPDATE user_reading_profiles
+        SET reading_goals_json = $2::jsonb,
+            reading_variants_json = $3::jsonb,
+            schema_versions_json = $4::jsonb,
+            total_word_count = $5,
+            total_annotation_count = $6,
+            academic_count = $7,
+            non_academic_count = $8,
+            recent_signals_json = $9::jsonb,
+            portrait_signal_count_since_last = $10,
+            updated_at = NOW()
+        WHERE user_id = $1
+        """,
+        user_id,
+        json.dumps(reading_goals, ensure_ascii=False),
+        json.dumps(reading_variants, ensure_ascii=False),
+        json.dumps(schema_versions, ensure_ascii=False),
+        total_word_count,
+        total_annotation_count,
+        academic_count,
+        non_academic_count,
+        json.dumps(recent_signals, ensure_ascii=False),
+        signal_count_since_last,
+    )
+
+    profile["reading_goals_json"] = reading_goals
+    profile["reading_variants_json"] = reading_variants
+    profile["schema_versions_json"] = schema_versions
+    profile["total_word_count"] = total_word_count
+    profile["total_annotation_count"] = total_annotation_count
+    profile["academic_count"] = academic_count
+    profile["non_academic_count"] = non_academic_count
+    profile["recent_signals_json"] = recent_signals
+    profile["portrait_signal_count_since_last"] = signal_count_since_last
+
+    return profile
 
 
 async def accumulate_signal(
@@ -238,76 +342,7 @@ async def accumulate_signal(
 
     async with pool.acquire() as conn:
         async with conn.transaction():
-            profile = await get_or_create_reading_profile(user_id)
-
-            reading_goals = profile["reading_goals_json"]
-            _increment_count(reading_goals, signal.reading_goal)
-
-            reading_variants = profile["reading_variants_json"]
-            _increment_count(reading_variants, signal.reading_variant)
-
-            schema_versions = profile["schema_versions_json"]
-            _increment_count(schema_versions, signal.schema_version)
-
-            total_word_count = (profile.get("total_word_count") or 0) + signal.word_count
-            total_annotation_count = (
-                (profile.get("total_annotation_count") or 0) + signal.annotation_count
-            )
-
-            academic_count = profile.get("academic_count") or 0
-            non_academic_count = profile.get("non_academic_count") or 0
-            if signal.is_academic:
-                academic_count += 1
-            else:
-                non_academic_count += 1
-
-            recent_signals: list[dict] = profile["recent_signals_json"] or []
-            recent_signals.append(signal.to_dict())
-            if len(recent_signals) > MAX_RECENT_SIGNALS:
-                recent_signals = recent_signals[-MAX_RECENT_SIGNALS:]
-
-            signal_count_since_last = (
-                profile.get("portrait_signal_count_since_last") or 0
-            ) + 1
-
-            await conn.execute(
-                """
-                UPDATE user_reading_profiles
-                SET reading_goals_json = $2::jsonb,
-                    reading_variants_json = $3::jsonb,
-                    schema_versions_json = $4::jsonb,
-                    total_word_count = $5,
-                    total_annotation_count = $6,
-                    academic_count = $7,
-                    non_academic_count = $8,
-                    recent_signals_json = $9::jsonb,
-                    portrait_signal_count_since_last = $10,
-                    updated_at = NOW()
-                WHERE user_id = $1
-                """,
-                user_id,
-                json.dumps(reading_goals, ensure_ascii=False),
-                json.dumps(reading_variants, ensure_ascii=False),
-                json.dumps(schema_versions, ensure_ascii=False),
-                total_word_count,
-                total_annotation_count,
-                academic_count,
-                non_academic_count,
-                json.dumps(recent_signals, ensure_ascii=False),
-                signal_count_since_last,
-            )
-
-            profile["reading_goals_json"] = reading_goals
-            profile["reading_variants_json"] = reading_variants
-            profile["schema_versions_json"] = schema_versions
-            profile["total_word_count"] = total_word_count
-            profile["total_annotation_count"] = total_annotation_count
-            profile["academic_count"] = academic_count
-            profile["non_academic_count"] = non_academic_count
-            profile["recent_signals_json"] = recent_signals
-            profile["portrait_signal_count_since_last"] = signal_count_since_last
-
-            return profile
+            return await _accumulate_signal_internal(conn, user_id, signal)
 
 
 async def generate_portrait_if_needed(
@@ -395,7 +430,11 @@ async def _generate_portrait_with_llm(
 
     try:
         result = await agent.run(prompt, deps=deps, model=model)
-        output = result.data
+        output = result.output if hasattr(result, "output") else None
+
+        if output is None:
+            logger.warning("Agent result has no output attribute")
+            return None
 
         return {
             "common_content": output.common_content,
@@ -492,6 +531,7 @@ async def process_signal_for_portrait(
 
     This is the main entry point to be called after analysis task success.
     It extracts the signal, accumulates it, and generates portrait if needed.
+    FAILURES HERE DO NOT AFFECT THE MAIN FLOW - all exceptions are logged but not raised.
 
     Args:
         user_id: The user UUID
