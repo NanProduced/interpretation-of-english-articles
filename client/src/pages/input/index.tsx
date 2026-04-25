@@ -16,6 +16,14 @@ import CenterModal from '../../components/CenterModal'
 import { READING_CONFIG_MAP, getDisplayLabel, getApiParams, ReadingGoal, SERVER_GOAL_TO_UI_GOAL } from '../../config/purpose'
 import './index.scss'
 
+interface PendingSubmissionContext {
+  originalConfig: {
+    purpose: ReadingGoal;
+    level: string | null;
+  };
+  detectionResult: GenreDetectionResult;
+}
+
 export default function InputPage() {
   const [content, setContent] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -23,13 +31,11 @@ export default function InputPage() {
   const [showClipboardBubble, setShowClipboardBubble] = useState(false)
   const [showModeSheet, setShowModeSheet] = useState(false)
   
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDetectingGenre, setIsDetectingGenre] = useState(false)
   const [showAcademicSuggestionModal, setShowAcademicSuggestionModal] = useState(false)
-  const [pendingSubmissionConfig, setPendingSubmissionConfig] = useState<{
-    purpose: ReadingGoal;
-    level: string | null;
-  } | null>(null)
-  const [lastDetectionResult, setLastDetectionResult] = useState<GenreDetectionResult | null>(null)
+  
+  const [pendingSubmissionContext, setPendingSubmissionContext] = useState<PendingSubmissionContext | null>(null)
   
   const { purpose, level } = useConfigStore()
   const { navBarHeight } = useLayoutStore()
@@ -133,12 +139,17 @@ export default function InputPage() {
     return true
   }
 
-  const doSubmit = (submitConfig: { purpose: ReadingGoal; level: string | null }) => {
+  const doSubmit = (
+    submitConfig: { purpose: ReadingGoal; level: string | null },
+    options: {
+      detectionResult?: GenreDetectionResult;
+      isAcademicSuggestionAccepted?: boolean;
+    } = {}
+  ) => {
     const { reading_goal, reading_variant } = getApiParams(submitConfig.purpose, submitConfig.level)
     
     const isUsingAcademicSuggestion = 
-      submitConfig.purpose === 'academic' && 
-      tempConfig.purpose !== 'academic'
+      options.isAcademicSuggestionAccepted === true
     
     track('submit_article', { 
       wordCount: wordsCount, 
@@ -146,8 +157,8 @@ export default function InputPage() {
       reading_variant,
       is_temporary_config: submitConfig.purpose !== purpose || submitConfig.level !== level,
       is_academic_suggestion_accepted: isUsingAcademicSuggestion,
-      detection_genre: lastDetectionResult?.genre,
-      detection_confidence: lastDetectionResult?.confidence,
+      detection_genre: options.detectionResult?.genre,
+      detection_confidence: options.detectionResult?.confidence,
     })
     
     clearDraft()
@@ -163,40 +174,64 @@ export default function InputPage() {
   }
 
   const handleAcceptAcademicSuggestion = () => {
-    setShowAcademicSuggestionModal(false)
+    if (!pendingSubmissionContext) return
+    
+    const { originalConfig, detectionResult } = pendingSubmissionContext
     
     track('genre_suggestion_accepted', {
-      from_genre: tempConfig.purpose,
+      from_genre: originalConfig.purpose,
       to_genre: 'academic',
-      detection_confidence: lastDetectionResult?.confidence,
+      detection_confidence: detectionResult.confidence,
       word_count: wordsCount,
     })
+    
+    setShowAcademicSuggestionModal(false)
+    setPendingSubmissionContext(null)
     
     const academicConfig = {
       purpose: 'academic' as ReadingGoal,
       level: 'academic_general'
     }
     
-    doSubmit(academicConfig)
+    doSubmit(academicConfig, {
+      detectionResult,
+      isAcademicSuggestionAccepted: true
+    })
+    
+    setIsSubmitting(false)
   }
 
   const handleRejectAcademicSuggestion = () => {
-    setShowAcademicSuggestionModal(false)
+    if (!pendingSubmissionContext) return
+    
+    const { originalConfig, detectionResult } = pendingSubmissionContext
     
     track('genre_suggestion_rejected', {
-      current_genre: tempConfig.purpose,
+      current_genre: originalConfig.purpose,
       suggested_genre: 'academic',
-      detection_confidence: lastDetectionResult?.confidence,
+      detection_confidence: detectionResult.confidence,
       word_count: wordsCount,
     })
     
-    if (pendingSubmissionConfig) {
-      doSubmit(pendingSubmissionConfig)
-    }
-    setPendingSubmissionConfig(null)
+    setShowAcademicSuggestionModal(false)
+    setPendingSubmissionContext(null)
+    
+    doSubmit(originalConfig, { detectionResult })
+    
+    setIsSubmitting(false)
+  }
+
+  const handleCloseModal = () => {
+    setShowAcademicSuggestionModal(false)
+    setPendingSubmissionContext(null)
+    setIsSubmitting(false)
   }
 
   const handleSubmit = async () => {
+    if (isSubmitting) {
+      return
+    }
+
     if (wordsCount < 10) {
       Taro.showToast({ title: '最少输入10个单词', icon: 'none' })
       return
@@ -204,6 +239,8 @@ export default function InputPage() {
 
     const loginRes = await ensureLoggedIn()
     if (!loginRes.success) return
+
+    setIsSubmitting(true)
 
     let shouldSkipDetection = false
     
@@ -225,6 +262,7 @@ export default function InputPage() {
 
     if (shouldSkipDetection) {
       doSubmit(tempConfig)
+      setIsSubmitting(false)
       return
     }
 
@@ -233,7 +271,6 @@ export default function InputPage() {
     try {
       const detectionResponse = await detectGenre(content)
       const detection = detectionResponse.detection
-      setLastDetectionResult(detection)
       
       track('genre_detection_completed', {
         genre: detection.genre,
@@ -253,13 +290,16 @@ export default function InputPage() {
           word_count: wordsCount,
         })
         
-        setPendingSubmissionConfig({ ...tempConfig })
+        setPendingSubmissionContext({
+          originalConfig: { ...tempConfig },
+          detectionResult: detection
+        })
         setShowAcademicSuggestionModal(true)
         setIsDetectingGenre(false)
         return
       }
       
-      doSubmit(tempConfig)
+      doSubmit(tempConfig, { detectionResult: detection })
       
     } catch (error) {
       console.error('Genre detection failed:', error)
@@ -272,6 +312,9 @@ export default function InputPage() {
       doSubmit(tempConfig)
     } finally {
       setIsDetectingGenre(false)
+      if (!showAcademicSuggestionModal) {
+        setIsSubmitting(false)
+      }
     }
   }
 
@@ -336,7 +379,7 @@ export default function InputPage() {
       </View>
 
       <View className='bottom-bar safe-area-bottom'>
-        <View className={`interpret-btn ${wordsCount >= 10 && !isDetectingGenre ? 'active' : ''}`} onClick={handleSubmit}>
+        <View className={`interpret-btn ${wordsCount >= 10 && !isSubmitting ? 'active' : ''}`} onClick={handleSubmit}>
           <View className='btn-content'>
             <Text className='btn-text'>
               {isDetectingGenre ? '检测文体中...' : '开始透读'}
@@ -349,7 +392,7 @@ export default function InputPage() {
           <LucideIcon 
             name={isDetectingGenre ? 'loader2' : 'sparkles'} 
             size={18} 
-            color={wordsCount >= 10 && !isDetectingGenre ? 'var(--color-white)' : 'var(--text-muted)'} 
+            color={wordsCount >= 10 && !isSubmitting ? 'var(--color-white)' : 'var(--text-muted)'} 
           />
         </View>
       </View>
@@ -365,10 +408,7 @@ export default function InputPage() {
       <CenterModal
         visible={showAcademicSuggestionModal}
         title='检测到学术文献'
-        onClose={() => {
-          setShowAcademicSuggestionModal(false)
-          setPendingSubmissionConfig(null)
-        }}
+        onClose={handleCloseModal}
       >
         <View className='academic-suggestion-content'>
           <View className='suggestion-icon'>
@@ -381,9 +421,9 @@ export default function InputPage() {
             我们检测到您输入的文本可能包含：
           </Text>
           
-          {lastDetectionResult?.signals && lastDetectionResult.signals.length > 0 && (
+          {pendingSubmissionContext?.detectionResult?.signals && pendingSubmissionContext.detectionResult.signals.length > 0 && (
             <View className='suggestion-signals'>
-              {lastDetectionResult.signals.slice(0, 3).map((signal, index) => (
+              {pendingSubmissionContext.detectionResult.signals.slice(0, 3).map((signal, index) => (
                 <View key={index} className='signal-tag'>
                   <LucideIcon name='check' size={12} color='var(--color-ink)' />
                   <Text className='signal-text'>{signal}</Text>

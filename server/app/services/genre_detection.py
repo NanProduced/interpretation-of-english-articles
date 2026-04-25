@@ -9,7 +9,7 @@ from pydantic_ai import Agent
 
 from app.config.settings import get_settings
 from app.llm.router import build_model_for_route
-from app.llm.routes import ModelRoute
+from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
 from app.schemas.genre_detection import (
     GenreCategory,
     GenreDetectionRequest,
@@ -116,7 +116,7 @@ async def detect_text_genre(
 
     model, model_config = build_model_for_route(
         settings,
-        ModelRoute.MODEL_ROUTE_ANNOTATION_GENERATION,
+        MODEL_ROUTE_ANNOTATION_GENERATION,
         model_selection=None,
     )
 
@@ -144,7 +144,7 @@ async def detect_text_genre(
             model=model,
         )
 
-        output = result.data
+        output = result.output if hasattr(result, "output") else result
         latency_ms = int((time.perf_counter() - start_time) * 1000)
 
         suggested_goal: str | None = None
