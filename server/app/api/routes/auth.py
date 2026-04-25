@@ -16,6 +16,7 @@ from app.schemas.auth import (
     LogoutResponse,
     ProfileUpdateRequest,
     ProfileUpdateResponse,
+    ReadingPortraitResponse,
     SessionInfoResponse,
     WeChatLoginRequest,
     WeChatLoginResponse,
@@ -28,6 +29,7 @@ from app.services.auth import (
 from app.services.auth.dependencies import AuthUserDep
 from app.services.auth.profile import get_user_profile, update_user_profile
 from app.services.auth.wechat import WeChatAPIError, code2session
+from app.services.user_assets import reading_portrait as portrait_svc
 
 logger = getLogger("app.api")
 
@@ -146,3 +148,33 @@ async def update_profile(
     logger.info("profile updated for user %s: %s", current_user.user_id, updated_fields)
 
     return {"ok": True, "updated": updated_fields}
+
+
+@router.get("/reading-portrait", response_model=ReadingPortraitResponse, summary="获取用户阅读画像")
+async def get_reading_portrait(
+    current_user: AuthUserDep,
+) -> dict:
+    """获取当前用户的阅读画像。"""
+    user_id = PyUUID(current_user.user_id)
+
+    try:
+        portrait = await portrait_svc.get_reading_portrait(user_id)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+    if portrait is None:
+        return {
+            "common_content": None,
+            "current_challenges": None,
+            "next_steps": None,
+            "generated_at": None,
+            "has_portrait": False,
+        }
+
+    return {
+        "common_content": portrait.get("common_content"),
+        "current_challenges": portrait.get("current_challenges"),
+        "next_steps": portrait.get("next_steps"),
+        "generated_at": portrait.get("generated_at"),
+        "has_portrait": True,
+    }

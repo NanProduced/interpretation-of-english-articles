@@ -27,7 +27,7 @@ import { getAllRecords, getVocabulary } from '../../services/storage'
 import { fetchCloudRecords } from '../../services/api/records.client'
 import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
-import { fetchUserQuota, updateProfile } from '../../services/api/client'
+import { fetchUserQuota, updateProfile, fetchReadingPortrait, type ReadingPortraitResponse } from '../../services/api/client'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import LucideIcon from '../../components/LucideIcon'
@@ -49,6 +49,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   const [articleCount, setArticleCount] = useState(0)
   const [wordCount, setWordCount] = useState(0)
   const [quota, setQuota] = useState<{ remaining: number, dailyFree: number, bonus: number } | null>(null)
+  const [readingPortrait, setReadingPortrait] = useState<ReadingPortraitResponse | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
   const [showModeSheet, setShowModeSheet] = useState(false)
   const [showAchievementSheet, setShowAchievementSheet] = useState(false)
@@ -67,10 +68,11 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       try {
         await fetchUserInfo().catch(() => {})
         
-        const [vocabResult, quotaResult, recordResult] = await Promise.all([
+        const [vocabResult, quotaResult, recordResult, portraitResult] = await Promise.all([
           fetchCloudVocabulary(1, 1).catch(() => ({ total: 0, items: [] as VocabEntry[] })),
           fetchUserQuota().catch(() => null),
           fetchCloudRecords(1, 1).catch(() => ({ total: 0 })),
+          fetchReadingPortrait().catch(() => null),
         ])
         
         const latestInfo = useAuthStore.getState().userInfo
@@ -88,6 +90,10 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
             bonus: quotaResult.bonus_points || 0
           })
         }
+
+        if (portraitResult) {
+          setReadingPortrait(portraitResult)
+        }
       } catch {
         const records = getAllRecords()
         setArticleCount(records.length)
@@ -100,6 +106,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       const vocab = getVocabulary()
       setWordCount(vocab.length)
       setQuota(null)
+      setReadingPortrait(null)
     }
     setLoadingStats(false)
   }, [isLoggedIn])
@@ -338,6 +345,77 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
             </View>
           </View>
         </View>
+
+        {/* Reading Portrait Card */}
+        {isLoggedIn && readingPortrait?.has_portrait && (
+          <View className='reading-portrait-card'>
+            <View className='portrait-header'>
+              <View className='portrait-title-row'>
+                <LucideIcon name='sparkles' size={28} color='var(--color-ink)' />
+                <Text className='portrait-title'>阅读画像</Text>
+              </View>
+              {readingPortrait.generated_at && (
+                <Text className='portrait-time'>
+                  生成于 {new Date(readingPortrait.generated_at).toLocaleDateString('zh-CN')}
+                </Text>
+              )}
+            </View>
+
+            <View className='portrait-content'>
+              <View className='portrait-section'>
+                <View className='section-header'>
+                  <LucideIcon name='bookOpen' size={20} color='var(--text-sub)' />
+                  <Text className='section-label'>常读内容</Text>
+                </View>
+                <Text className='section-text'>
+                  {readingPortrait.common_content || '正在分析您的阅读习惯...'}
+                </Text>
+              </View>
+
+              <View className='portrait-divider' />
+
+              <View className='portrait-section'>
+                <View className='section-header'>
+                  <LucideIcon name='info' size={20} color='var(--text-sub)' />
+                  <Text className='section-label'>当前难点</Text>
+                </View>
+                <Text className='section-text'>
+                  {readingPortrait.current_challenges || '继续阅读以获取更准确的分析'}
+                </Text>
+              </View>
+
+              <View className='portrait-divider' />
+
+              <View className='portrait-section'>
+                <View className='section-header'>
+                  <LucideIcon name='arrowLeft' size={20} color='var(--text-sub)' />
+                  <Text className='section-label'>建议下一步</Text>
+                </View>
+                <Text className='section-text'>
+                  {readingPortrait.next_steps || '完成更多阅读后，AI 将为您生成个性化建议'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Reading Portrait Placeholder (when no portrait yet) */}
+        {isLoggedIn && !readingPortrait?.has_portrait && articleCount > 0 && (
+          <View className='reading-portrait-card portrait-placeholder'>
+            <View className='portrait-header'>
+              <View className='portrait-title-row'>
+                <LucideIcon name='sparkles' size={28} color='var(--text-muted)' />
+                <Text className='portrait-title placeholder-title'>阅读画像</Text>
+              </View>
+            </View>
+            <View className='portrait-placeholder-content'>
+              <LucideIcon name='book' size={48} color='var(--text-muted)' />
+              <Text className='placeholder-text'>
+                继续完成 {Math.max(0, 5 - articleCount)} 篇阅读后，AI 将为您生成个性化阅读画像
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View className='menu-list'>
           {menuGroups.map((group, gIdx) => (

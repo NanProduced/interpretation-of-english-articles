@@ -46,3 +46,11 @@ class ProfileUpdateResponse(BaseModel):
 
 class LogoutResponse(BaseModel):
     ok: bool
+
+
+class ReadingPortraitResponse(BaseModel):
+    common_content: str | None = Field(default=None, description="常读内容总结")
+    current_challenges: str | None = Field(default=None, description="当前难点分析")
+    next_steps: str | None = Field(default=None, description="建议下一步行动")
+    generated_at: str | None = Field(default=None, description="画像生成时间")
+    has_portrait: bool = Field(description="是否存在画像")

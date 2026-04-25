@@ -385,3 +385,20 @@ export async function fetchDictEntry(entryId: number): Promise<DictEntryResultDt
     url: `/dict/entry?id=${entryId}`,
   })
 }
+
+// ============ /auth/reading-portrait API ============
+
+export interface ReadingPortraitResponse {
+  common_content: string | null
+  current_challenges: string | null
+  next_steps: string | null
+  generated_at: string | null
+  has_portrait: boolean
+}
+
+export async function fetchReadingPortrait(): Promise<ReadingPortraitResponse> {
+  return request<ReadingPortraitResponse>({
+    url: '/auth/reading-portrait',
+    method: 'GET',
+  })
+}
