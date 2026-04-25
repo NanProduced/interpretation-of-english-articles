@@ -6,6 +6,7 @@ from app.schemas.genre_detection import (
     GenreDetectionRequest,
     GenreDetectionResponse,
 )
+from app.services.auth.dependencies import AuthUserDep
 from app.services.genre_detection import detect_text_genre
 
 logger = getLogger("app.api")
@@ -14,7 +15,10 @@ router = APIRouter(prefix="/genre-detection", tags=["genre-detection"])
 
 
 @router.post("", response_model=GenreDetectionResponse, summary="文体检测")
-async def detect_genre(payload: GenreDetectionRequest) -> GenreDetectionResponse:
+async def detect_genre(
+    current_user: AuthUserDep,
+    payload: GenreDetectionRequest,
+) -> GenreDetectionResponse:
     """
     检测英文文本的文体类别，判断是否适合使用 academic 模式。
 
