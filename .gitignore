@@ -7,6 +7,7 @@ client/dist/
 client/.temp/
 client/.cache/
 client/.taro/
+client/.swc/
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
@@ -16,6 +17,7 @@ server/.venv/
 server/.pytest_cache/
 server/.mypy_cache/
 server/.ruff_cache/
+server/.cache/
 server/__pycache__/
 server/**/*.pyc
 server/logs/
@@ -50,3 +52,7 @@ project.private.config.json
 .agents/
 .claude/
 .trae/
+
+# AI tool state
+MEMORY.md
+skills-lock.json
