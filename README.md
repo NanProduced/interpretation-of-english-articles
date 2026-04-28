@@ -32,7 +32,7 @@ Claread透读的重点不是通用翻译，而是围绕英文阅读场景，输�
 ├── client/                  # 微信小程序前端（Taro + React + TypeScript）
 ├── server/                  # 后端工作流服务（FastAPI + LangGraph + PydanticAI）
 ├── docs/                    # 本地项目参考文档与实施说明
-└── .serena/                 # Serena 项目配置与简版记忆
+└── specs/                   # 功能规格文档（daily-reader, feedback-system, vocab-display-overhaul）
 ```
 
 ## 推荐技术栈
@@ -83,11 +83,12 @@ Claread透读的重点不是通用翻译，而是围绕英文阅读场景，输�
 
 当前仓库已经包含：
 
-- 项目基础目录骨架
+- 完整实现的 V3 Workflow（Learning / Academic / Daily Reader 三条工作流）
+- 每日精读 Pipeline 服务（发现→提取→安全检测→筛选→Workflow→入库）
+- 反馈系统（4 场景反馈 + 内部管理 API + 积分明细）
+- 全部 12 个前端页面（含分包页面 packageA/B/C）
 - Claread透读 的基础产品/架构文档
-- 初始本地参考文档
-- Serena 项目配置与简版记忆
-- 前后端占位入口文件
+- 本地参考文档与功能规格文档
 - 本地 Codex / RTK 支持文件
 
 ## 开发策略
@@ -128,10 +129,6 @@ Claread透读的重点不是通用翻译，而是围绕英文阅读场景，输�
 - [模型配置教程](./docs/operations/model-configuration-usage.md)
 - [前端说明](./client/README.md)
 - [后端说明](./server/README.md)
-
-## Serena
-
-仓库内包含本地 `.serena/` 目录，用于保存项目配置和从 Notion 主线文档提炼出来的简版记忆。
 
 ## RTK / Codex 本地支持
 

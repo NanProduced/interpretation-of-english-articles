@@ -1,6 +1,6 @@
 # `prepare_input` 预处理重构设计文档
 
-> 文档定位：用于指导 `server/app/services/analysis/input_preparation.py` 的输入清洗、语言检测、分块、分句与快速退出机制重构。  
+> 文档定位：用于指导 `server/app/services/analysis/preprocess/input_preparation.py` 的输入清洗、语言检测、分块、分句与快速退出机制重构。  
 > 生效范围：本稿只覆盖 `prepare_input` 与其直接依赖，不展开下游 agent prompt、projection 或前端渲染协议改造。  
 > 核心目标：在不牺牲主链路性能的前提下，让输入预处理对缩写、混合语言、结构化文本和轻度脏文本更稳健。
 

@@ -4,16 +4,35 @@
 
 - `app/config/settings.py`
   只负责读取原始环境变量，不承载 profile/preset 解析逻辑。
+- `app/database/`
+  数据库连接管理（connection.py, session.py）。
+- `app/observability/`
+  可观测性（langsmith.py）。
+- `app/enrichment/`
+  预留扩展（当前为空）。
 - `app/llm/registry.py`
   负责把部署配置解析成模型注册表。
 - `app/llm/router.py`
   负责按 `request override -> preset -> route default -> deployment default` 解析模型。
 - `app/llm/provider_factory.py`
   负责把 provider 配置构造成具体 SDK model。
+- `app/llm/agent_runner.py`
+  Agent 运行器。
+- `app/llm/runtime.py`
+  运行时配置。
+- `app/llm/routes.py`
+  模型路由定义。
+- `app/llm/types.py`
+  类型定义。
 - `app/agents/`
   只定义 agent blueprint、deps、prompt，不做模型选择和运行封装。
-- `app/services/analysis`
+- `app/services/analysis/`
   负责输入清洗、用户规则映射、锚点解析、结果组装和 agent 执行封装。
+  - `planning/` — GoalExecutionPlan 构建
+  - `postprocess/` — 归一化、锚点解析、投影、校验
+  - `preprocess/` — 输入预处理
+  - `prompting/` — Prompt 策略、组合、加载、示例、RAG
+  - `runtime/` — Agent 运行器
 - `app/services/quota/`
   负责配额查询、额度校验、积分扣减与发放。
 - `app/services/auth/`
@@ -28,10 +47,25 @@
   负责词典查询、lemma 归并、短语候选与缓存。
 - `app/workflow/`
   只负责编排、节点状态流转、trace metadata。
+  - `analyze.py` — 入口分流（根据 topology_mode 选择 graph）
+  - `learning_workflow.py` — Learning 工作流（7 节点）
+  - `academic_workflow.py` — Academic 工作流（7 节点）
+  - `daily_reader_workflow.py` — 每日精读工作流（8 节点）
+  - `analyze_nodes.py` — Learning 节点实现
+  - `analyze_state.py` — Learning 状态定义
+  - `academic_state.py` — Academic 状态定义
+  - `tracing.py` — LangSmith tracing
 - `app/schemas/common.py`
   放共享值对象，例如 `TextSpan`。
 - `app/schemas/internal/`
   放 agent 与 node 之间的内部 DTO。
+  - `academic_drafts.py` — Academic agent 输出
+  - `academic_normalized.py` — Academic 归一化结果
+  - `daily_drafts.py` — Daily Reader agent 输出
+  - `execution_plan.py` — GoalExecutionPlan
+  - `analysis.py` — 分析任务内部 schema
+  - `drafts.py` — Learning agent 输出
+  - `normalized.py` — Learning 归一化结果
 - `app/schemas/analysis.py`
   放分析任务 API schema。
 - `app/schemas/quota.py`

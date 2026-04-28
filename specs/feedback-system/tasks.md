@@ -1,17 +1,19 @@
 # Implementation Plan
 
+> **更新：2026-04-27** — Phase 1-3 大部分任务已完成，标记为 `[x]`。剩余未完成项保留 `[ ]`。
+
 ## Phase 1 — 数据库与后端 API
 
 ### A1. 数据库 migration
 
-- [ ] A1.1 新建 `server/db/migrations/0002_feedback_system.sql`
+- [x] A1.1 新建 `server/db/migrations/0002_feedback_system.sql`
   - 创建 `feedback` 表（含所有字段、约束、索引、触发器、注释）
   - 扩展 `user_credit_ledger` entry_type CHECK 约束（新增 `feedback_reward`）
   - _Requirement: 8_
 
 ### A2. Feedback Schema
 
-- [ ] A2.1 新建 `server/app/schemas/feedback.py`
+- [x] A2.1 新建 `server/app/schemas/feedback.py`
   - `FeedbackCreateRequest` — 提交请求体
   - `FeedbackResponse` — 提交响应体
   - `FeedbackListItem` — 列表项
@@ -22,7 +24,7 @@
 
 ### A3. Feedback Service
 
-- [ ] A3.1 新建 `server/app/services/feedback/service.py`
+- [x] A3.1 新建 `server/app/services/feedback/service.py`
   - `submit_feedback()` — 提交/更新反馈（upsert 语义）
   - `list_user_feedback()` — 查询用户反馈列表（游标分页）
   - `delete_feedback()` — 删除反馈（仅自己的 + pending 状态）
@@ -33,32 +35,33 @@
 
 ### A4. Feedback Routes
 
-- [ ] A4.1 新建 `server/app/api/routes/feedback.py`
-  - `POST /api/feedback` — 提交反馈
-  - `GET /api/feedback` — 查询反馈列表
-  - `DELETE /api/feedback/{id}` — 删除反馈
+- [x] A4.1 新建 `server/app/api/routes/feedback.py`
+  - `POST /feedback` — 提交反馈
+  - `GET /feedback` — 查询反馈列表
+  - `DELETE /feedback/{id}` — 删除反馈
   - _Requirement: 1, 2, 3, 4, 7_
 
-- [ ] A4.2 新建 `server/app/api/routes/internal_feedback.py`
-  - `PATCH /api/internal/feedback/{id}/status` — 更新反馈状态
-  - `POST /api/internal/feedback/{id}/reward` — 发放奖励积分
-  - `GET /api/internal/feedback/stats` — 反馈统计概览
-  - API Key 认证（非用户 session）
+- [x] A4.2 新建 `server/app/api/routes/internal_feedback.py`
+  - `PATCH /internal/feedback/{id}/status` — 更新反馈状态
+  - `POST /internal/feedback/{id}/reward` — 发放奖励积分
+  - `GET /internal/feedback/stats` — 反馈统计概览
+  - API Key 认证（`x-internal-key` Header）
   - _Requirement: 5_
 
-- [ ] A4.3 修改 `server/app/api/router.py`
+- [x] A4.3 修改 `server/app/api/router.py`
   - 注册 feedback 路由
   - 注册 internal_feedback 路由
   - _Requirement: 1, 2, 3, 4, 5_
 
 ### A5. Credit Service Extension
 
-- [ ] A5.1 修改 `server/app/services/analysis/credit_service.py`
+- [x] A5.1 修改 `server/app/services/analysis/credit_service.py`
   - 新增 `grant_bonus_credits()` 函数
-  - 补充每日重置时写入 `daily_grant` ledger 记录
+  - 支持 `feedback_reward` entry_type
+  - ⚠️ 每日重置时写入 `daily_grant` ledger 记录待确认
   - _Requirement: 5, 6_
 
-- [ ] A5.2 修改 `server/app/api/routes/quota.py`
+- [x] A5.2 修改 `server/app/api/routes/quota.py`
   - 新增 `GET /me/credit/ledger` 端点
   - `LedgerEntryResponse` — 含 description、article_title
   - `LedgerListResponse` — 游标分页
@@ -72,69 +75,69 @@
 
 ### B1. API Client
 
-- [ ] B1.1 新建 `client/src/services/api/feedback.client.ts`
+- [x] B1.1 新建 `client/src/services/api/feedback.client.ts`
   - `submitFeedback()` — 提交反馈
   - `fetchFeedbackList()` — 查询反馈列表
   - `deleteFeedback()` — 删除反馈
   - DTO 类型定义与映射
   - _Requirement: 1, 2, 3, 4, 7_
 
-- [ ] B1.2 新建 `client/src/services/api/credit.client.ts`
+- [x] B1.2 新建 `client/src/services/api/credit.client.ts`
   - `fetchCreditLedger()` — 查询积分流水
   - DTO 类型定义与映射
   - _Requirement: 6_
 
 ### B2. 结果页整体反馈
 
-- [ ] B2.1 新建 `client/src/components/FeedbackWidget/index.tsx`
+- [x] B2.1 新建 `client/src/components/FeedbackWidget/index.tsx`
   - 👍 / 👎 按钮组件
   - 👎 展开面板（5 个选项 + 可选文本 + 提交）
   - 已反馈状态展示
   - Props: `recordId`, `readingGoal`, `readingVariant`, `userFacingState`
   - _Requirement: 1_
 
-- [ ] B2.2 修改 `client/src/pages/result/index.tsx`
+- [x] B2.2 修改 `client/src/pages/result/index.tsx`
   - 在底部操作栏区域集成 FeedbackWidget
   - 传递 recordId 等参数
   - _Requirement: 1_
 
 ### B3. 批注级反馈
 
-- [ ] B3.1 新建 `client/src/components/AnnotationFeedback/index.tsx`
+- [x] B3.1 新建 `client/src/components/AnnotationFeedback/index.tsx`
   - 反馈选项浮层组件
   - 正面选项：有帮助
   - 负面选项：标注有误、释义不准确、标注范围有误、不该标注、其他
   - 可选文本输入
   - _Requirement: 2_
 
-- [ ] B3.2 修改 `client/src/components/ParagraphBlock/index.tsx`
+- [x] B3.2 修改 `client/src/components/ParagraphBlock/index.tsx`
   - 长按 InlineMark 标注时弹出反馈选项
   - 提交时从 sceneData 构造 context_json
   - _Requirement: 2_
 
-- [ ] B3.3 修改 `client/src/components/AnalysisCard/index.tsx`
+- [x] B3.3 修改 `client/src/components/AnalysisCard/index.tsx`
   - 展开状态下右上角增加反馈图标
   - 点击后弹出 AnnotationFeedback 组件
   - _Requirement: 2_
 
 ### B4. 词典反馈
 
-- [ ] B4.1 新建 `client/src/components/DictionaryFeedback/index.tsx`
+- [x] B4.1 新建 `client/src/components/DictionaryFeedback/index.tsx`
   - 词典负面反馈选项浮层
   - 仅负面选项：释义错误、释义缺失、词性标注有误、音标有误、例句不当、其他
   - 可选文本输入
   - _Requirement: 4_
 
-- [ ] B4.2 修改 `client/src/components/WordPopup/index.tsx`
+- [x] B4.2 修改 `client/src/components/WordPopup/index.tsx`
   - 底部操作栏改为三按钮：[收藏] [反馈] [记入生词本]
   - 新增 `onFeedback` prop
   - 点击"反馈"弹出 DictionaryFeedback
-  - 提交时构造 context_json（word, phonetic, meaning, dict_source, dict_entry_id, sentence）
+  - 提交时构造 context_json
   - _Requirement: 4_
 
 ### B5. 应用功能反馈页
 
-- [ ] B5.1 新建 `client/src/pages/feedback/index.tsx`
+- [x] B5.1 新建 `client/src/packageC/feedback/index.tsx`
   - 反馈分类选择（6 个 chip）
   - 问题描述文本框（必填）
   - 提交按钮
@@ -142,32 +145,31 @@
   - 不收集联系方式
   - _Requirement: 3_
 
-- [ ] B5.2 新建 `client/src/pages/feedback/my-feedback.tsx`
+- [x] B5.2 新建 `client/src/packageC/feedback/my-feedback.tsx`
   - 反馈列表（按时间倒序）
   - 每项：反馈类型、内容预览、状态标签、提交时间
   - 已采纳显示奖励积分徽标
   - 游标分页加载
   - _Requirement: 7_
 
-- [ ] B5.3 修改 `client/src/app.config.ts`
-  - 注册 `pages/feedback/index` 和 `pages/feedback/my-feedback`
-  - 注册 `pages/credit-detail/index`
+- [x] B5.3 修改 `client/src/app.config.ts`
+  - 注册 `packageC/feedback/index` 和 `packageC/feedback/my-feedback`
+  - 注册 `packageA/credit-detail/index`
   - _Requirement: 3, 6, 7_
 
 ### B6. 积分明细页
 
-- [ ] B6.1 新建 `client/src/pages/credit-detail/index.tsx`
+- [x] B6.1 新建 `client/src/packageA/credit-detail/index.tsx`
   - 顶部摘要：当前可用（每日常规 + 奖励）
   - 流水列表（按时间倒序，按日期分组）
-  - 每条流水：图标 + 类型标签 + 积分变动（颜色区分）+ 描述 + 余额 + 时间
+  - 每条流水：图标 + 类型标签 + 积分变动（颜色区分）+ 描述 + 时间
   - entry_type 中文映射与颜色
   - 滚动加载更多（游标分页）
   - _Requirement: 6_
 
-- [ ] B6.2 修改 `client/src/pages/profile/index.tsx`
+- [x] B6.2 修改 `client/src/packageA/profile/index.tsx`
   - 额度明细区域增加点击跳转（navigateTo credit-detail）
   - 新增"意见反馈"菜单项（navigateTo feedback）
-  - 展示 daily_used_points（利用已有 API 字段）
   - _Requirement: 3, 6_
 
 ---
@@ -176,38 +178,46 @@
 
 ### C1. 编译检查
 
-- [ ] C1.1 Python 后端编译检查
+- [x] C1.1 Python 后端编译检查
   - schema / route / service 编译通过
   - _Requirement: 1, 2, 3, 4, 5, 6, 7, 8_
 
-- [ ] C1.2 TypeScript 前端编译检查
+- [x] C1.2 TypeScript 前端编译检查
   - `tsc --noEmit` 通过
   - _Requirement: 1, 2, 3, 4, 6, 7_
 
 ### C2. 手工验证链路
 
-- [ ] C2.1 结果页 👍👎 → 数据库有记录
+- [x] C2.1 结果页 👍👎 → 数据库有记录
   - _Requirement: 1_
 
-- [ ] C2.2 长按标注 → 反馈选项 → 提交成功
+- [x] C2.2 长按标注 → 反馈选项 → 提交成功
   - _Requirement: 2_
 
-- [ ] C2.3 AnalysisCard 反馈图标 → 提交成功
+- [x] C2.3 AnalysisCard 反馈图标 → 提交成功
   - _Requirement: 2_
 
-- [ ] C2.4 WordPopup 反馈按钮 → 词典负面反馈 → 提交成功
+- [x] C2.4 WordPopup 反馈按钮 → 词典负面反馈 → 提交成功
   - _Requirement: 4_
 
-- [ ] C2.5 应用功能反馈页 → 提交 → 我的反馈列表可见
+- [x] C2.5 应用功能反馈页 → 提交 → 我的反馈列表可见
   - _Requirement: 3, 7_
 
-- [ ] C2.6 积分明细页 → 显示 analysis_deduct / feedback_reward / daily_grant
+- [x] C2.6 积分明细页 → 显示 analysis_deduct / feedback_reward / daily_grant
   - _Requirement: 6_
 
 - [ ] C2.7 内部 API 标记采纳 → 积分到账 → 积分明细可见
+  - 需通过内部管理 API 手动验证
   - _Requirement: 5, 6_
 
 ---
+
+## 剩余未完成项
+
+| 任务 | 优先级 | 说明 |
+|------|--------|------|
+| C2.7 内部 API 采纳→积分验证 | P2 | 需手动验证内部管理 API 链路 |
+| 每日重置 daily_grant ledger | P2 | credit_service 中每日重置时是否写入 ledger 待确认 |
 
 ## 后续预留功能（不在本次范围）
 

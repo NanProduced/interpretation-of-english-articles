@@ -29,11 +29,11 @@ rtk powershell.exe -Command "Get-ChildItem"
 ```bash
 rtk ls .
 rtk read RTK.md
-rtk read server/app/workflow/preprocess.py
-rtk read server/app/workflow/preprocess.py -l aggressive
+rtk read server/app/services/analysis/preprocess/input_preparation.py
+rtk read server/app/services/analysis/preprocess/input_preparation.py -l aggressive
 rtk smart server/app/workflow/analyze.py
 rtk find "*.py" server
-rtk diff docs/workflow/schema-v0-draft.md server/app/schemas/analysis.py
+rtk diff docs/workflow/v0/v0-retrospective-report.md server/app/schemas/analysis.py
 ```
 
 使用建议：

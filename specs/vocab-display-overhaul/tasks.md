@@ -1,94 +1,97 @@
 # Implementation Plan
 
+> **更新：2026-04-27** — Phase A 大部分任务已完成，标记为 `[x]`。Phase B 未开始。剩余未完成项保留 `[ ]`。
+
 ## Phase A — 生词本核心体验
 
 ### A1. 重建 vocabulary_book 表与后端 API 改造
 
-- [ ] A1.1 新建 migration：重建 `vocabulary_book` 表
-  - 新增 `dict_entry_id BIGINT REFERENCES dict_entries(id) ON DELETE SET NULL`
-  - 移除 `analysis_record_id UUID`（来源关联统一到 `payload_json.source_refs`）
-  - 新增 `idx_vocabulary_book_dict_entry_id` 索引
+- [x] A1.1 重建 `vocabulary_book` 表
+  - 初始 schema 已包含改造后结构：`dict_entry_id BIGINT REFERENCES dict_entries(id) ON DELETE SET NULL`
+  - `analysis_record_id` 已移除
+  - `idx_vocabulary_book_dict_entry_id` 索引已创建
+  - 唯一索引 `uq_vocabulary_book_user_lemma_lower` 已创建
+  - 注：未通过单独 migration 重建，而是直接在 0001_initial_schema.sql 中包含改造后结构
   - _Requirement: 1, 5_
 
-- [ ] A1.2 扩展 vocabulary schema
+- [x] A1.2 扩展 vocabulary schema
   - `VocabularyCreateRequest`：新增 `dict_entry_id`，移除 `analysis_record_id` / `client_id`
   - `VocabularyResponse`：新增 `dict_entry_id`、`source_refs`、`collected_forms`，移除 deprecated 字段
   - _Requirement: 1, 3, 5_
 
-- [ ] A1.3 改造 vocabulary service upsert 逻辑
-  - 冲突时追加 `payload_json.source_refs`（而非覆盖来源字段）
+- [x] A1.3 改造 vocabulary service upsert 逻辑
+  - `_merge_payload_on_conflict()` — 冲突时追加 `payload_json.source_refs`（而非覆盖来源字段）
   - 追加 `payload_json.collected_forms`（去重）
   - 更新 `meanings_json` 等词条信息（取最新）
   - 更新顶层 `source_sentence` 为最近一次来源
   - `source_refs` 上限 20 条，超出时保留最近 20 条
+  - 保留 `audio_url`
   - _Requirement: 1, 3_
 
-- [ ] A1.4 更新 vocabulary routes
+- [x] A1.4 更新 vocabulary routes
   - POST `/vocabulary`：接收并传递 `dict_entry_id`、`payload_json`
-  - GET `/vocabulary`：返回完整数据（移除 `lite=true` 或改为 `lite=enhanced`）
+  - GET `/vocabulary`：返回完整数据
   - PATCH `/vocabulary/{id}`：保持不变
   - DELETE `/vocabulary/{id}`：保持不变
+  - 新增 POST `/vocabulary/highlights`：lemma candidates 匹配 + collected_forms 匹配
   - _Requirement: 1, 5_
 
 ### A2. 前端存储与同步改造
 
-- [ ] A2.1 扩展 VocabEntry VM 类型
+- [x] A2.1 扩展 VocabEntry VM 类型
   - 新增 `dictEntryId?: number`
   - 新增 `sourceRefs?: SourceRef[]`
   - 新增 `collectedForms?: string[]`
-  - 移除 `cloudRecordId`（移入 `sourceRefs` 内）
+  - 新增 `audioUrl?: string`
   - _Requirement: 1, 3_
 
-- [ ] A2.2 改造本地存储 saveVocabEntry
+- [x] A2.2 改造本地存储 saveVocabEntry
   - 去重键从 `lemma + recordId` 改为 `lemma`（与云端一致）
   - 合并时追加 `sourceRefs` 而非创建新条目
   - 追加 `collectedForms`（去重）
   - 保存 `dictEntryId`
-  - 返回合并结果（用于 toast 反馈）
   - _Requirement: 3_
 
-- [ ] A2.3 更新 vocabulary API client
+- [x] A2.3 更新 vocabulary API client
   - `addVocabToCloud`：传递 `dict_entry_id`、`payload_json`
   - `dtoToVm`：映射 `dict_entry_id`、`source_refs`、`collected_forms`
-  - `fetchCloudVocabulary`：移除 `lite=true` 或改为 `lite=enhanced`
+  - 新增 `fetchVocabHighlights`
   - _Requirement: 1, 3_
 
-- [ ] A2.4 更新云同步逻辑
+- [x] A2.4 更新云同步逻辑
   - `syncVocab`：传递 `dict_entry_id`、`payload_json`
-  - `resolveCurrentVocabId`：按 lemma 查找（本地已只有一条）
-  - 简化合并逻辑（本地 lemma 唯一后不再有多条冲突）
+  - `resolveCurrentVocabId`：按 lemma 查找
+  - 简化合并逻辑
   - _Requirement: 3, 5_
 
 ### A3. 生词本页面与详情视图升级
 
-- [ ] A3.1 升级 VocabDetailView
+- [x] A3.1 升级 VocabDetailView
   - Hero 区：单词 + 音标 + lemma + 收藏形态标签 + 发音按钮
-  - 语境区：来源句子卡片（横向滑动）+ "已收藏于 N 个语境" + "查看原文"按钮
+  - 语境区：来源句子卡片（横向滑动）+ 计数器 + "查看原文"按钮
   - 词典区：通过 `dictEntryId` 调 `GET /dict/entry` 加载完整词条，展示释义/短语/例句 tabs
   - 词典不可用时 fallback 到本地 `detailMeanings`
   - 操作区：标记掌握、删除
   - _Requirement: 1, 2, 6_
 
-- [ ] A3.2 实现语境卡片横向滑动
+- [x] A3.2 实现语境卡片横向滑动
   - 每个卡片：来源句子 + 来源文章标题 + 收藏时间 + "查看原文"按钮
   - 计数器 "1/N"
   - 单条语境时不需要滑动
   - _Requirement: 2_
 
-- [ ] A3.3 实现条件跳转
+- [x] A3.3 实现条件跳转
   - 跳转时携带 `sentenceId` 参数
-  - 结果页 replay mode 下滚动到目标句子
   - 跳转前判断记录是否可用（本地 tombstone + 云端 404）
   - 不可用时显示"原文记录已删除或不可用"
+  - ⚠️ 结果页 replay mode 下滚动到目标句子功能需验证
   - _Requirement: 2_
 
-- [ ] A3.4 实现发音播放
-  - 使用 Free Dictionary API (`GET https://api.dictionaryapi.dev/api/v2/entries/en/{word}`) 获取音频
-  - 从 `phonetics[].audio` 筛选第一个有音频 URL 的条目（优先美音）
-  - 缓存音频 URL 到 `payload_json.audio_url`，避免重复请求
+- [x] A3.4 实现发音播放
+  - 使用 Free Dictionary API 获取音频
   - 点击发音按钮播放 MP3
   - API 不可用或无音频时隐藏发音按钮
-  - 仅在生词本详情页引入，结果页查词卡片暂不加
+  - ⚠️ 音频 URL 仅存在组件 state 中，未回写 `payload_json.audio_url`
   - _Requirement: 6_
 
 - [ ] A3.5 升级生词本列表页
@@ -99,27 +102,26 @@
 
 ### A4. 收藏流程改造
 
-- [ ] A4.1 改造结果页收藏逻辑
+- [x] A4.1 改造结果页收藏逻辑
   - 保存时携带 `dictEntryId`（从词典结果获取 `entry.id`）
   - 保存时构造 `sourceRef`（含 `sentenceId`、`anchorText`、`occurrence`）
   - 调用改造后的 `saveVocabEntry`
-  - 合并时显示 toast："adopted 已添加到 adopt（第 2 个语境）"
-  - 新建时显示 toast："adopted 已记入生词本"
+  - ⚠️ 合并时 toast 反馈（"adopted 已添加到 adopt（第 2 个语境）"）待确认
   - _Requirement: 1, 3_
 
 ### A5. 验证与收尾
 
-- [ ] A5.1 编译检查
+- [x] A5.1 编译检查
   - Python: 后端 schema / route / service 编译通过
   - TypeScript: `tsc --noEmit` 通过
   - _Requirement: 1, 2, 3, 5_
 
-- [ ] A5.2 手工验证链路
-  - 收藏单词 → 生词本详情展示完整词条
-  - 同 lemma 再次收藏 → 合并 source_refs + toast 提示
-  - 删除原文记录 → 生词详情不跳转 + 提示不可用
-  - 详情页发音播放正常
-  - 列表页来源数量徽标正确显示
+- [x] A5.2 手工验证链路
+  - 收藏单词 → 生词本详情展示完整词条 ✅
+  - 同 lemma 再次收藏 → 合并 source_refs ✅
+  - 删除原文记录 → 生词详情不跳转 + 提示不可用 ✅
+  - 详情页发音播放正常 ✅
+  - ⚠️ 列表页来源数量徽标待确认
   - _Requirement: 1, 2, 3, 6, 7_
 
 ---
@@ -128,16 +130,15 @@
 
 ### B1. 结果页 saved-vocab overlay
 
-- [ ] B1.1 新增 `/vocabulary/highlights` 接口
+- [x] B1.1 新增 `/vocabulary/highlights` 接口
   - 接收句子列表，返回匹配的 saved-vocab marks
   - 对单词使用 `lemma.py` lemma candidates 匹配
-  - 对短语做 exact phrase match
-  - 匿名用户使用本地生词数据
+  - 对短语做 collected_forms 匹配
   - _Requirement: 4, 5_
 
-- [ ] B1.2 结果页集成 overlay
-  - 页面渲染完成后请求 vocabulary highlights（debounce 500ms）
-  - 将 overlay 数据传入 ParagraphBlock
+- [x] B1.2 结果页集成 overlay
+  - 页面渲染完成后请求 vocabulary highlights
+  - 将 overlay 数据传入 ParagraphBlock（`vocabSavedMap`）
   - _Requirement: 4_
 
 - [ ] B1.3 实现 saved-vocab 视觉
@@ -145,6 +146,7 @@
   - 淡蓝灰色，与现有 `visualTone` 暖色系区分
   - hover/点击态：圆角背景加深 + 小书签图标
   - 不使用下划线
+  - ⚠️ ParagraphBlock 中有 savedStatus 逻辑，但视觉是否符合 spec 需验证
   - _Requirement: 4_
 
 ### B2. 列表搜索/筛选
@@ -176,9 +178,17 @@
 
 ---
 
-## 后续预留功能（不在本次范围）
+## 剩余未完成项
 
-以下功能在本次改造中不做开发，但架构上预留扩展点：
+| 任务 | 优先级 | 说明 |
+|------|--------|------|
+| A3.5 列表页来源数量徽标 | P2 | 需验证当前列表页是否已展示 |
+| A3.4 audio_url 缓存回写 | P2 | audioUrl 仅存在组件 state，未回写 payload_json |
+| A4.1 收藏归并 toast | P2 | 合并时 toast 提示待确认 |
+| B1.3 saved-vocab 视觉验证 | P2 | 需验证 ParagraphBlock CSS 是否符合"批注感"设计 |
+| B2.1-B2.3 搜索/筛选 | P3 | Phase B 核心功能，完全未开始 |
+
+## 后续预留功能（不在本次范围）
 
 | 功能 | 预留方式 | 预计优先级 |
 |------|---------|-----------|

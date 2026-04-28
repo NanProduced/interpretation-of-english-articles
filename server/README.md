@@ -156,8 +156,9 @@ psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/rese
 - workflow 名使用名词短语，例如：`article_analysis`
 - node 名使用 `verb_object`，例如：
   - `prepare_input`
-  - `derive_user_rules`
-  - `generate_annotations`
+  - `derive_user_config`
+  - `normalize_and_ground`
+  - `project_render_scene`
   - `assemble_result`
 
 不要使用：
@@ -169,9 +170,10 @@ psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/rese
 
 - state key 与 JSON 对象使用名词短语，例如：
   - `preprocess_result`
-  - `user_rules`
+  - `goal_execution_plan`
   - `annotation_draft`
-  - `analysis_result`
+  - `normalized_result`
+  - `render_scene`
 - 布尔字段统一使用前缀：
   - `is_*`
   - `has_*`
@@ -206,8 +208,7 @@ psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/rese
   - `is_default_visible`
   - `render_index`
 
-当前 workflow 的重构设计以 [Workflow V3 设计与重构文档](../docs/workflow/v3/workflow-v3-design.md) 为准。  
-当前代码实现若尚未完成迁移，可参考 [Workflow V2.1 改造设计稿](../docs/workflow/v2/v2-1-refactor-design.md) 理解现状。
+当前 workflow 的重构设计以 [Workflow V3 设计与重构文档](../docs/workflow/v3/workflow-v3-design.md) 为准。
 
 ## 当前对外接口
 
@@ -245,40 +246,77 @@ psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/rese
 | `source_client_record_id` | string | 来源记录前端主键 | 新增 |
 
 说明：
+说明：
 
-- 当前仅保留 `POST /analyze`
-- 返回结构统一为当前主线 render scene schema（`schema_version = "2.1.0"`）
+- 返回结构统一为当前主线 render scene schema（`schema_version = "3.0.0"`）
 - 不再保留旧 `v2` 并行接口或兼容响应层
 - 结果页主渲染基准是 `render_text`
-- `source_text` 仅用于“查看原文”等非默认展示场景
+- `source_text` 仅用于"查看原文"等非默认展示场景
 
 ## 当前实现状态
 
-当前代码中的主流程仍为：
+V3 Workflow 已全面实现，当前包含三条独立工作流：
 
-- `prepare_input`
-- `derive_user_rules`
-- `generate_annotations`
-- `assemble_result`
+### Learning Workflow（日常阅读 + 考试备考）
 
-这是 v2.1 阶段的实现形态，其中：
+```
+prepare_input → derive_user_config → [vocabulary_agent, grammar_agent, translation_agent]
+    → normalize_and_ground → [repair_agent] → project_render_scene → assemble_result
+```
 
-- `prepare_input` 负责输入清洗、分段分句和基础拒绝判断
-- `derive_user_rules` 负责把 `reading_goal + reading_variant` 转成规则包
-- `generate_annotations` 是唯一主教学 LLM 节点，负责词汇、语法、句级讲解与逐句翻译
-- `assemble_result` 负责 annotation 投影、锚点解析、渲染标记、全文翻译组装和最终结果收敛
+- `prepare_input` 负责输入清洗、分段分句、语言检测和基础拒绝判断
+- `derive_user_config` 负责把 `reading_goal + reading_variant` 转成 `GoalExecutionPlan`
+- 三个 agent 并行生成语义草稿（vocabulary/grammar/translation）
+- `normalize_and_ground` 确定性稳定化（合并、grounding、校验、去重、密度控制）
+- `repair_agent` 仅在失败时触发，可修复不能新增
+- `project_render_scene` 纯代码投影，不交给 LLM
+- `assemble_result` 组装最终结果
 
-v3 的目标形态将拆分为：
+### Academic Workflow（学术专业阅读）
 
-- `prepare_input`
-- `derive_user_config`
-- `vocabulary_agent`
-- `grammar_agent`
-- `translation_agent`
-- `normalize_and_ground`
-- `repair_agent`
-- `project_render_scene`
-- `assemble_result`
+```
+prepare_input → derive_user_config → [term_agent, academic_translation_agent]
+    → understanding_agent → academic_normalize → academic_project_render_scene → academic_assemble_result
+```
+
+- 独立拓扑，不复用 learning 的三分法
+- 输出重心：term_note、logic_note、paragraph_role、interpretation_note、document_summary
+- 当前 `/analyze` 对 academic 返回 501，`/analysis-tasks` 走 academic 会 422（开发中）
+
+### Daily Reader Workflow（每日精读）
+
+```
+light_normalize → vocab_highlight → phrase_context_gloss → footer_analysis
+    → full_interpretation → quality_review → [refinement] → daily_projection
+```
+
+- 8 节点 LangGraph 图，含 quality_review 必经审核 + refinement 条件优化
+- 配套四层 Pipeline：发现层（Guardian API + BBC/NPR RSS）→ 提取层（trafilatura）→ 安全检测层（msgSecCheck）→ 筛选层（AI 4维评分）
+- 5 个专用 Agent：daily_vocab / daily_footer / daily_interpretation / daily_review / daily_refinement
+
+### Schema 版本
+
+- Learning/Exam: `schema_version = "3.0.0"`
+- Academic: `schema_version = "3.0.0-academic"`
+
+### 完整 API 端点
+
+| 模块 | 端点 |
+|------|------|
+| 认证 | `POST /auth/wechat/login`, `POST /auth/session/logout`, `GET /auth/session/me`, `PATCH /auth/profile` |
+| 分析任务 | `POST /analysis-tasks`, `GET /analysis-tasks/{task_id}`, `GET /analysis-tasks/current` |
+| 同步分析 | `POST /analyze` |
+| 记录 | `POST /records`, `GET /records`, `GET /records/by-client-id/{id}`, `GET /records/{id}`, `PATCH /records/{id}`, `DELETE /records/{id}` |
+| 生词本 | `POST /vocabulary`, `GET /vocabulary`, `POST /vocabulary/highlights`, `PATCH /vocabulary/{id}`, `DELETE /vocabulary/{id}` |
+| 收藏 | `POST /favorites`, `GET /favorites`, `DELETE /favorites/{id}` |
+| 词典 | `GET /dict`, `GET /dict/entry` |
+| 额度 | `GET /me/quota`, `GET /me/quota/anonymous`, `POST /me/quota/check`, `GET /me/credit/ledger` |
+| 反馈 | `POST /feedback`, `GET /feedback`, `DELETE /feedback/{id}` |
+| 内部反馈 | `PATCH /internal/feedback/{id}/status`, `POST /internal/feedback/{id}/reward`, `GET /internal/feedback/stats` |
+| 每日精读 | `GET /daily-reader/today`, `GET /daily-reader`, `GET /daily-reader/{id}` |
+| 精读管理 | `POST /daily-reader/admin/generate`, `GET /daily-reader/admin/status/{id}`, `POST /daily-reader/admin/publish`, `POST /daily-reader/admin/unpublish`, `DELETE /daily-reader/admin/{id}`, `GET /daily-reader/admin/drafts`, `POST /daily-reader/admin/retry` |
+| 调试 | `POST /debug/prompt-preview` |
+| 健康 | `GET /health`, `GET /health/db`, `GET /health/ready` |
 
 ## LangSmith 约定
 

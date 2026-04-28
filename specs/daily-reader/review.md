@@ -1,189 +1,121 @@
 # Code Review Notes
 
+> **审查更新：2026-04-27**
+> 原始审查结论"每日精读功能完全缺失"已过时。当前 Daily Reader 已基本实现（~90%），后端 Pipeline + Workflow + API + 前端页面均已落地。本文件已更新为当前状态。
+
 ## Findings
 
-### 1. 每日精读功能完全缺失
+### 1. 每日精读已基本实现
 
-严重程度：高
+严重程度：信息（原为"高"）
 
-当前项目中不存在任何每日精读相关的代码实现：
+当前项目中每日精读功能已全面落地：
 
-- 无 Daily Reader 页面、组件或路由
-- 无 Daily Reader API 端点
-- 无 Daily Reader 数据库表
-- 无文章拉取 Pipeline 或定时任务
-- 无专用 Daily Reader Workflow
+- ✅ Daily Reader Workflow：8 节点 LangGraph 图（`daily_reader_workflow.py`）
+- ✅ 5 个专用 Agent：daily_vocab / daily_footer / daily_interpretation / daily_review / daily_refinement
+- ✅ 四层 Pipeline：发现层（Guardian API + BBC/NPR RSS）→ 提取层（trafilatura）→ 安全检测层（msgSecCheck）→ 筛选层（AI 4维评分）
+- ✅ `daily_readers` 数据库表 + `pipeline_runs` 追踪表
+- ✅ 用户侧 API（`/daily-reader/today`、`/daily-reader`、`/daily-reader/{id}`）
+- ✅ 管理端 API（`/daily-reader/admin/generate`、`/publish`、`/unpublish`、`/delete`、`/drafts`、`/retry`、`/status/{id}`）
+- ✅ 前端精读页（`packageB/daily-reader/index`）+ 归档页（`packageB/daily-reader-archive/index`）
+- ✅ 首页精读卡片列表已接入动态数据
+- ✅ 6 个专用前端组件（DailyReaderHeader / DailyReaderBody / DailyReaderFooterAnalysis / DailyReaderProgress / DailyReaderHighlightWord / DailyReaderBottomSheet）
 
 涉及文件：
 
-- 无（空白区域）
+- [server/app/workflow/daily_reader_workflow.py](../../server/app/workflow/daily_reader_workflow.py)
+- [server/app/services/daily_reader/pipeline.py](../../server/app/services/daily_reader/pipeline.py)
+- [server/app/api/routes/daily_reader.py](../../server/app/api/routes/daily_reader.py)
+- [server/app/api/routes/daily_reader_admin.py](../../server/app/api/routes/daily_reader_admin.py)
+- [client/src/packageB/daily-reader/index.tsx](../../client/src/packageB/daily-reader/index.tsx)
+- [client/src/packageB/daily-reader-archive/index.tsx](../../client/src/packageB/daily-reader-archive/index.tsx)
 
-结论：
+### 2. 首页精读入口已动态化
 
-- 这是当前项目的功能空白，需要从零构建
-- 设计文档已迁移至 [specs/daily-reader/](../../specs/daily-reader/)
+严重程度：信息（原为"中"）
 
-### 2. 首页每日精选为静态占位
+首页已从硬编码 mock 卡片升级为动态数据驱动的精读卡片列表：
+
+- ✅ 通过 `useDailyReaderStore` 拉取当日精读列表
+- ✅ 卡片展示封面图/主题色、难度标签、来源、阅读时长
+- ✅ 点击跳转到精读详情页
+- ✅ 空状态展示（文章准备中插画提示）
+
+涉及文件：
+
+- [client/src/pages/home/index.tsx](../../client/src/pages/home/index.tsx)
+
+### 3. 内容安全检测层未集成到 Pipeline 执行流
 
 严重程度：中
 
-首页 [home/index.tsx](../../client/src/pages/home/index.tsx) 中存在硬编码的推荐文章卡片，但未接入真实数据，点击无跳转逻辑：
-
-- 3 篇文章为硬编码 mock 数据
-- 卡片点击事件未绑定导航
-- 无 API 调用逻辑
+`content_security.py` 代码已实现（微信 msgSecCheck API 调用），但 `pipeline.py` 中未调用 `check_content_security()`。Spec 明确要求在提取全文后、AI 评分前执行安全检测，当前 Pipeline 跳过了这一层。
 
 涉及文件：
 
-- [client/src/pages/home/index.tsx](../../client/src/pages/home/index.tsx) — 静态推荐卡片区域
+- [server/app/services/daily_reader/content_security.py](../../server/app/services/daily_reader/content_security.py) — 已实现但未被调用
+- [server/app/services/daily_reader/pipeline.py](../../server/app/services/daily_reader/pipeline.py) — 缺少安全检测调用
 
 结论：
 
-- 首页入口需要重新设计为动态数据驱动的杂志封面卡片
-- 需要新增 Daily Reader API client 和状态管理
+- 需在 Pipeline 的提取层和筛选层之间插入安全检测调用
+- 检测不通过的文章应标记为 rejected 并跳过
 
-### 3. 现有 Workflow 可复用基础但必须隔离
-
-严重程度：低（正面发现）
-
-现有 LangGraph Workflow 基础设施完善，Daily Reader 可复用运行时但必须独立建图：
-
-- LangGraph 图构建模式可复用（StateGraph、节点注册、边定义）
-- PromptComposer + PromptSection 机制可复用框架，新建 Daily 专用策略
-- Agent 基础设施（LLM 调用、结构化输出）可复用
-- 但 Daily Reader 不需要 preprocess/repair/degraded fallback，必须独立
-
-涉及文件：
-
-- [server/app/workflow/learning_workflow.py](../../server/app/workflow/learning_workflow.py) — Learning Workflow 图定义
-- [server/app/workflow/academic_workflow.py](../../server/app/workflow/academic_workflow.py) — Academic Workflow 图定义
-- [server/app/services/analysis/prompting/prompt_composer.py](../../server/app/services/analysis/prompting/prompt_composer.py) — Prompt 组装机制
-- [server/app/services/analysis/prompting/prompt_strategy.py](../../server/app/services/analysis/prompting/prompt_strategy.py) — Prompt 策略体系
-
-结论：
-
-- 新建 `daily_reader_workflow.py`，复用 LangGraph 运行时
-- 新建 Daily Reader 专用 Prompt 策略，不复用主线策略
-- 不复用 `goal_planner.py` 的 topology 分流逻辑
-
-### 4. 词典查询能力可直接复用
-
-严重程度：低（正面发现）
-
-现有 `/dict` API 和前端词典交互组件完善，可直接在每日精读页复用：
-
-- 后端：`/dict` API + TECD3 + spaCy 短语嗅探 + 两级缓存
-- 前端：`WordPopup` 组件（mini 卡片 → full 详情）
-- 前端：`ClickableWord` 组件（正文中的词级交互）
-- 前端：`dict.adapter.ts`（DTO → VM 转换）
-
-涉及文件：
-
-- [server/app/services/dictionary/service.py](../../server/app/services/dictionary/service.py) — 词典服务入口
-- [client/src/components/WordPopup/index.tsx](../../client/src/components/WordPopup/index.tsx) — 单词弹窗
-- [client/src/components/ClickableWord/index.tsx](../../client/src/components/ClickableWord/index.tsx) — 可点击单词
-- [client/src/services/api/adapters/dict.adapter.ts](../../client/src/services/api/adapters/dict.adapter.ts) — 词典适配器
-
-结论：
-
-- 每日精读页的词典交互复用现有组件，调整视觉样式即可
-- mini 卡片 → bottom sheet 的两层交互与设计文档一致
-- LLM 标注词的语境解释需在 bottom sheet 中优先展示
-
-### 5. 高亮渲染组件可复用核心逻辑
-
-严重程度：低（正面发现）
-
-现有 `InlineMark` 组件支持多种标注类型渲染，核心逻辑可复用：
-
-- `vocab_highlight`：词汇高亮
-- `phrase_gloss`：短语高亮
-- `context_gloss`：语境高亮
-- `grammar_note`：语法标注（Daily Reader 中弱化）
-
-涉及文件：
-
-- [client/src/components/InlineMark/index.tsx](../../client/src/components/InlineMark/index.tsx) — 行内标注渲染
-
-结论：
-
-- 复用 InlineMark 的核心渲染逻辑，调整视觉样式（更柔和的背景色块）
-- Daily Reader 中不渲染 `grammar_note` 类型
-- 高亮视觉风格需与杂志式阅读感一致（浅色背景+柔和边框，非强色块）
-
-### 6. 数据库 Migration 体系已建立
-
-严重程度：低（正面发现）
-
-项目已有 migration 体系：
-
-- `server/db/migrations/0001_initial_schema.sql` — 初始表结构
-- `server/db/migrations/0002_feedback_system.sql` — 反馈系统
-
-涉及文件：
-
-- [server/db/migrations/](../../server/db/migrations/) — Migration 目录
-
-结论：
-
-- 新建 `0003_daily_reader.sql`，遵循现有命名和风格规范
-- 使用 UUID 主键、JSONB 扩展、CHECK 约束枚举等现有约定
-
-### 7. 文章拉取技术栈需新增依赖
+### 4. 定时自动执行 Pipeline 未实现
 
 严重程度：中
 
-当前后端 Python 依赖中不包含文章拉取所需的库：
-
-- `feedparser`：RSS/Atom 解析（需新增）
-- `trafilatura`：正文提取（需新增）
-- `httpx`：HTTP 客户端（可能已有，需确认）
-
-涉及文件：
-
-- [server/requirements.txt](../../server/requirements.txt) — Python 依赖
+Spec 要求 UTC+8 每天 8:00-9:00 自动执行 Pipeline，当前仅支持通过管理端 API 手动触发 `POST /daily-reader/admin/generate`。
 
 结论：
 
-- 需要在 requirements.txt 中新增 `feedparser` 和 `trafilatura`
-- Guardian API 调用可复用现有 `httpx` 客户端
-- 定时任务可使用 `APScheduler` 或复用现有 Celery 配置
+- 需引入 APScheduler 或类似机制实现定时执行
+- 需实现 msgSecCheck openid 保活机制
 
-### 8. 版权合规需注意
+### 5. 分享卡片自定义图片未实现
 
-严重程度：高（合规）
+严重程度：低
 
-从外部媒体拉取文章涉及版权问题：
+[daily-reader/index.tsx:43](../../client/src/packageB/daily-reader/index.tsx) 有 TODO 注释：上线前需为分享卡片生成自定义 imageUrl（使用 cover_theme 渐变 + 标题 + 来源绘制）。
 
-- BBC RSS 条款：仅限个人非商用，商用需授权
-- Guardian API：非商用免费，商用需付费
-- NPR RSS：免费但需遵守使用条款
-- The Atlantic：全文可能受付费墙保护
+### 6. 精读页生词/收藏持久化未完成
 
-结论：
+严重程度：低
 
-- 初期阶段（非商用）可直接使用 Guardian API 和 BBC/NPR RSS
-- 页面上必须标注原文来源和链接，引导用户访问原始网站
-- Daily Reader 页面展示的是 AI 解析后的精读内容，不是原文全文复制
-- 如后续商业化，需要与各来源谈内容授权
+`handleAddVocab` 和 `handleFavorite` 回调仅显示 Toast，未接入实际的生词本/收藏持久化逻辑。
+
+### 7. ARTICLE_SOURCES 配置与 Spec 有差异
+
+严重程度：低
+
+实际实现的 RSS sections 与 spec 规划有差异：
+- Guardian：spec 含 lifeandstyle/society，实际只有 science/technology/culture
+- BBC：spec 含 health/culture/business，实际只有 science/technology/business
+- NPR：spec 含 culture，实际只有 science/technology
+
+结论：当前配置更聚焦科技/文化类文章，与产品定位一致，可保持现状。
+
+### 8. Spec 规划的前端路径与实际分包路径不一致
+
+严重程度：低（信息）
+
+Spec 规划前端页面为 `pages/daily-reader/`，实际为 `packageB/daily-reader/`（微信小程序分包）。功能无差异，仅路径不同。
 
 ## Architectural Direction
 
-### Good current foundations
+### Current foundations (updated)
 
-- LangGraph Workflow 基础设施完善，Daily Reader 可复用运行时独立建图
-- PromptComposer + PromptSection 机制灵活，可快速构建 Daily 专用策略
-- 词典服务完整（TECD3 + spaCy + 两级缓存），可直接复用
-- 前端高亮/点词组件体系成熟，调整视觉即可复用
-- 数据库 Migration 体系规范，新增表无障碍
-- `article.ts` store 的状态管理模式可参考，但 Daily Reader 需要独立 store
+- ✅ LangGraph Workflow 基础设施已复用，Daily Reader 独立建图完成
+- ✅ PromptComposer + Daily 专用策略（`daily_prompt_strategy.py`）已实现
+- ✅ 词典服务完整复用（TECD3 + spaCy + 两级缓存）
+- ✅ 前端高亮/点词组件体系复用（InlineMark + WordPopup + ClickableWord）
+- ✅ 数据库 Migration 体系规范（0003-0006 四个迁移文件）
+- ✅ 独立 Store（`daily-reader.ts`）和 API Client（`daily-reader.client.ts`）
 
-### Design direction
+### Remaining work
 
-- 四层 Pipeline 架构：发现层（RSS/API）→ 提取层（trafilatura）→ 安全检测层（微信 msgSecCheck）→ 筛选层（AI 评分）
-- Guardian API 为主力源（全文+封面+标签+字数筛选一条龙）
-- BBC/NPR RSS 为辅助源（需 trafilatura 二次提取全文）
-- Daily Reader Workflow 独立建图，8 个节点（含 quality_review 必经审核 + refinement 条件优化）
-- `daily_readers` 表独立存储，JSONB 存储 body/highlights/footer_analysis
-- 前端独立页面 `pages/daily-reader/index`，不复用结果页布局
-- 首页入口为 2-3 张杂志封面式卡片（横向滑动或纵向排列），动态数据驱动
+- 集成内容安全检测到 Pipeline 执行流
+- 实现定时自动执行 Pipeline
+- 实现分享卡片自定义图片
+- 实现精读页生词/收藏持久化
+- 上线前封面存储迁移至 COS + CDN
