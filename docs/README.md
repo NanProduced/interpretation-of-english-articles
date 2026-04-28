@@ -89,6 +89,8 @@
 
 以下文档是开发 handoff / 实施步骤文档，结论已被主文档吸收，不再列入当前有效文档：
 
+- [Release + RAG Readiness 临时进度跟踪](./operations/release-rag-progress-tracker.tmp.md)
+  - 临时开发指引。本轮用于协调上线阻断项收口、RAG readiness 和测试补强；完成后删除
 - [用户资产层重构开发指引](./architecture/user-assets-sync-refactor-guide.md)
   - 临时开发指引。ID 契约、离线优先同步策略、Vocabulary 接口语义等结论已吸收到 ARCHITECTURE.md 第 7.4-7.6 节
 - [academic v1 开发对照文档](./differentiated/academic_v1_dev_handoff.md)
