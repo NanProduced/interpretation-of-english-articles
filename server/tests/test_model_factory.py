@@ -1,9 +1,10 @@
 import json
 
 from app.config.settings import Settings
+from app.llm.provider_factory import build_model_instance
 from app.llm.router import ModelSelectionError, resolve_model_config
 from app.llm.routes import MODEL_ROUTE_ANNOTATION_GENERATION
-from app.llm.types import ModelSelection, RouteModelSelection
+from app.llm.types import ModelSelection, ResolvedModelConfig, RouteModelSelection, RunModelSettings
 
 
 def test_resolve_model_config_uses_annotation_route_default() -> None:
@@ -130,3 +131,25 @@ def test_resolve_model_config_rejects_unknown_preset() -> None:
         assert "Unknown model preset" in str(exc)
     else:
         raise AssertionError("expected ModelSelectionError for unknown preset")
+
+def test_deepseek_v4_profile_uses_prompted_json_output() -> None:
+    model = build_model_instance(
+        ResolvedModelConfig(
+            route=MODEL_ROUTE_ANNOTATION_GENERATION,
+            profile_name="deepseek-v4-pro",
+            provider="openai_compatible",
+            model_name="deepseek-v4-pro",
+            base_url="https://api.deepseek.com",
+            api_key="test-key",
+            provider_options={"profile": "deepseek_v4"},
+            model_settings=RunModelSettings(
+                extra_body={"thinking": {"type": "disabled"}},
+            ),
+        )
+    )
+
+    assert model is not None
+    assert model.profile.default_structured_output_mode == "prompted"
+    assert model.profile.supports_json_object_output is True
+    assert model.profile.supports_json_schema_output is False
+    assert model.profile.openai_supports_tool_choice_required is False
