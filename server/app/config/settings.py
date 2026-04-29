@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     daily_reader_admin_api_key: str = ""
     server_base_url: str = "http://127.0.0.1:8000"
 
+    # Grammar RAG（默认关闭，Readiness Gate 阶段仅做骨架接入）
+    grammar_rag_enabled: bool = False
+
     # 内部 API Key（云函数调用等）
     internal_api_key: str = ""
 

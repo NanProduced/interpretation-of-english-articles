@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from app.config.settings import get_settings
 from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.services.analysis.prompting.prompt_loader import load_examples
 
@@ -60,14 +61,16 @@ def get_vocabulary_example_strategy(
     plan: GoalExecutionPlan,
     sentences: list[dict] | None = None,
 ) -> ExampleStrategy:
-    """获取 vocabulary agent 的 example 策略。"""
+    """获取 vocabulary agent 的 example 策略。
+
+    RAG-03: vocabulary 不走 RAG。即使 plan.few_shot_mode == "rag"，
+    也直接回退到 baseline。
+    """
     if plan.few_shot_mode == "rag":
-        rag_examples = _resolve_rag_examples("vocabulary", plan.variant_id, sentences)
-        if rag_examples:
-            return ExampleStrategy(examples=rag_examples, selection_mode="rag")
+        # vocabulary 不支持 RAG，始终回退 baseline
         return ExampleStrategy(
             examples=_load_baseline_examples("vocabulary", plan.variant_id),
-            selection_mode="rag_fallback",
+            selection_mode="baseline",
         )
     if plan.few_shot_mode != "baseline":
         return ExampleStrategy(examples=[], selection_mode=plan.few_shot_mode)
@@ -82,14 +85,24 @@ def get_grammar_example_strategy(
     plan: GoalExecutionPlan,
     sentences: list[dict] | None = None,
 ) -> ExampleStrategy:
-    """获取 grammar agent 的 example 策略。"""
+    """获取 grammar agent 的 example 策略。
+
+    RAG 仅在 GRAMMAR_RAG_ENABLED=true 时激活。
+    """
     if plan.few_shot_mode == "rag":
-        rag_examples = _resolve_rag_examples("grammar", plan.variant_id, sentences)
-        if rag_examples:
-            return ExampleStrategy(examples=rag_examples, selection_mode="rag")
+        settings = get_settings()
+        if settings.grammar_rag_enabled:
+            rag_examples = _resolve_rag_examples("grammar", plan.variant_id, sentences)
+            if rag_examples:
+                return ExampleStrategy(examples=rag_examples, selection_mode="rag")
+            return ExampleStrategy(
+                examples=_load_baseline_examples("grammar", plan.variant_id),
+                selection_mode="rag_fallback",
+            )
+        # GRAMMAR_RAG_ENABLED=false 时直接 baseline
         return ExampleStrategy(
             examples=_load_baseline_examples("grammar", plan.variant_id),
-            selection_mode="rag_fallback",
+            selection_mode="baseline",
         )
     if plan.few_shot_mode != "baseline":
         return ExampleStrategy(examples=[], selection_mode=plan.few_shot_mode)
@@ -104,14 +117,16 @@ def get_translation_example_strategy(
     plan: GoalExecutionPlan,
     sentences: list[dict] | None = None,
 ) -> ExampleStrategy:
-    """获取 translation agent 的 example 策略。"""
+    """获取 translation agent 的 example 策略。
+
+    RAG-03: translation 不走 RAG。即使 plan.few_shot_mode == "rag"，
+    也直接回退到 baseline。
+    """
     if plan.few_shot_mode == "rag":
-        rag_examples = _resolve_rag_examples("translation", plan.variant_id, sentences)
-        if rag_examples:
-            return ExampleStrategy(examples=rag_examples, selection_mode="rag")
+        # translation 不支持 RAG，始终回退 baseline
         return ExampleStrategy(
             examples=_load_baseline_examples("translation", plan.variant_id),
-            selection_mode="rag_fallback",
+            selection_mode="baseline",
         )
     if plan.few_shot_mode != "baseline":
         return ExampleStrategy(examples=[], selection_mode=plan.few_shot_mode)

@@ -212,34 +212,40 @@ async function executeSyncRecord(item: SyncQueueItem): Promise<void> {
 
 async function executeAddFavorite(item: SyncQueueItem): Promise<void> {
   const { clientRecordId } = item.payload as { clientRecordId: string }
+  const isDailyReader = clientRecordId.startsWith('daily_')
   let cloudId = resolveCloudIdFromMap(clientRecordId)
   if (!cloudId) {
     const record = getRecord(clientRecordId)
     cloudId = record?.cloudId ?? null
   }
-  if (!cloudId) {
+  if (!cloudId && !isDailyReader) {
     cloudId = (await resolveCloudId(clientRecordId)) ?? null
   }
-  if (!cloudId) {
+  if (!cloudId && !isDailyReader) {
     throw new Error(`Cannot resolve cloudId for favorite add: ${clientRecordId}`)
   }
-  await addFavoriteToCloud(cloudId, clientRecordId)
+  await addFavoriteToCloud(cloudId, clientRecordId, isDailyReader ? 'daily_reader_article' : 'analysis_record')
 }
 
 async function executeRemoveFavorite(item: SyncQueueItem): Promise<void> {
   const { clientRecordId } = item.payload as { clientRecordId: string }
+  const isDailyReader = clientRecordId.startsWith('daily_')
   let cloudId = resolveCloudIdFromMap(clientRecordId)
   if (!cloudId) {
     const record = getRecord(clientRecordId)
     cloudId = record?.cloudId ?? null
   }
-  if (!cloudId) {
+  if (!cloudId && !isDailyReader) {
     cloudId = (await resolveCloudId(clientRecordId)) ?? null
   }
-  if (!cloudId) {
+  if (!cloudId && !isDailyReader) {
     throw new Error(`Cannot resolve cloudId for favorite remove: ${clientRecordId}`)
   }
-  await removeFavoriteFromCloud(cloudId)
+  if (isDailyReader) {
+    await removeFavoriteFromCloud(clientRecordId, 'daily_reader_article')
+  } else {
+    await removeFavoriteFromCloud(cloudId!)
+  }
 }
 
 async function executeUpsertVocab(item: SyncQueueItem): Promise<void> {
@@ -248,10 +254,10 @@ async function executeUpsertVocab(item: SyncQueueItem): Promise<void> {
 
   const primaryRef = entry.sourceRefs?.[0]
   let resolvedRecordId = primaryRef?.cloudRecordId
-  if (!resolvedRecordId && primaryRef?.clientRecordId) {
+  if (!resolvedRecordId && primaryRef?.clientRecordId && !primaryRef.clientRecordId.startsWith('daily_')) {
     resolvedRecordId = (await resolveCloudId(primaryRef.clientRecordId)) || undefined
   }
-  if (!resolvedRecordId) {
+  if (!resolvedRecordId && primaryRef?.clientRecordId && !primaryRef.clientRecordId.startsWith('daily_')) {
     throw new Error(`Cannot resolve cloudRecordId for vocab upsert: ${entry.word}`)
   }
 

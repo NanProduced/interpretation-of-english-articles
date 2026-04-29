@@ -57,7 +57,7 @@ export default function ConfigEditor({
     setStep(1)
   }
 
-  const goalList = Object.keys(READING_CONFIG_MAP) as ReadingGoal[]
+  const goalList = (Object.keys(READING_CONFIG_MAP) as ReadingGoal[]).filter(g => g !== 'academic')
   const isDetailed = mode === 'detailed'
 
   return (

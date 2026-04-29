@@ -335,7 +335,7 @@ async def _run_parallel_agents(
     ]
 
     vocab_bundle = build_vocabulary_bundle(plan)
-    grammar_bundle = build_grammar_bundle(plan)
+    grammar_bundle = build_grammar_bundle(plan, sentences=sentences_data)
     translation_bundle = build_translation_bundle(plan)
 
     vocab_deps = VocabularyAgentDeps(

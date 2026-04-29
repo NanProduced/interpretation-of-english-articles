@@ -378,6 +378,7 @@ class TestTaskSubmitRoute:
         created = TaskSubmitResult(
             task_id=task_id,
             record_id=record_id,
+            client_record_id="task-test-record",
             status="queued",
             created=True,
         )
@@ -423,6 +424,7 @@ class TestTaskSubmitRoute:
         created = TaskSubmitResult(
             task_id=task_id,
             record_id=record_id,
+            client_record_id="task-test-record",
             status="queued",
             created=True,
         )
@@ -473,6 +475,7 @@ class TestTaskSubmitRoute:
         created = TaskSubmitResult(
             task_id=task_id,
             record_id=record_id,
+            client_record_id="task-test-record",
             status="queued",
             created=True,
         )

@@ -54,6 +54,10 @@ HEAVY_FAILURE_CODES = {
     "GRAMMAR_AGENT_FAILED",
     "TRANSLATION_AGENT_FAILED",
     "NORMALIZE_AND_GROUND_FAILED",
+    "TERM_AGENT_FAILED",
+    "ACADEMIC_TRANSLATION_AGENT_FAILED",
+    "UNDERSTANDING_AGENT_FAILED",
+    "ACADEMIC_NORMALIZE_FAILED",
 }
 
 
@@ -273,7 +277,7 @@ async def execute_task(
             page_state_json={"pageState": user_facing_state},
             user_facing_state=user_facing_state,
             workflow_version=WORKFLOW_VERSION,
-            schema_version=ANALYZE_SCHEMA_VERSION,
+            schema_version=render_scene_dict.get("schema_version", ANALYZE_SCHEMA_VERSION),
         )
 
         # 2. Insert Audit Log

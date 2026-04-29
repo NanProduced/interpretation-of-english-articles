@@ -60,14 +60,15 @@ export async function fetchCloudFavorites(): Promise<{ items: FavoriteRecord[]; 
  * @param clientRecordId 本地记录 ID (target_key)
  */
 export async function addFavoriteToCloud(
-  cloudId: string,
-  clientRecordId: string
+  cloudId: string | null,
+  clientRecordId: string,
+  targetType: string = 'analysis_record'
 ): Promise<{ id: string }> {
   return request<{ id: string; ok: boolean }>({
     url: '/favorites',
     method: 'POST',
     data: {
-      target_type: 'analysis_record',
+      target_type: targetType,
       target_key: clientRecordId,
       analysis_record_id: cloudId,
       payload_json: {},
@@ -81,10 +82,15 @@ export async function addFavoriteToCloud(
  * @param cloudId 云端 UUID (analysis_record_id)
  */
 export async function removeFavoriteFromCloud(
-  cloudId: string
+  cloudIdOrTargetKey: string,
+  targetType: string = 'analysis_record'
 ): Promise<void> {
+  const encodedTargetType = encodeURIComponent(targetType)
+  const encodedTargetKey = encodeURIComponent(cloudIdOrTargetKey)
   await request<{ deleted: boolean }>({
-    url: `/favorites/${cloudId}`,
+    url: targetType === 'analysis_record'
+      ? `/favorites/${cloudIdOrTargetKey}`
+      : `/favorites/target?target_type=${encodedTargetType}&target_key=${encodedTargetKey}`,
     method: 'DELETE',
   })
 }

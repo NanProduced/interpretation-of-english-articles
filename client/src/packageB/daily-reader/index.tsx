@@ -11,6 +11,13 @@ import WordPopup from '../../components/WordPopup'
 import { highlightToInlineMark } from '../../services/api/adapters/daily-reader-highlight.adapter'
 import type { DailyReaderHighlight } from '../../types/view/daily-reader.vm'
 import type { InlineMarkModel, DictionaryResult } from '../../types/view/render-scene.vm'
+import { isFavorited, saveFavorite, removeFavorite, saveVocabEntry } from '../../services/storage'
+import { CloudSyncService } from '../../services/cloudSync.service'
+import { track } from '../../services/analytics'
+import type { VocabEntry } from '../../types/view/vocabulary.vm'
+import type { FavoriteRecord } from '../../types/view/favorites.vm'
+import LucideIcon from '../../components/LucideIcon'
+import shareFallback from '../../assets/images/share-fallback.jpg'
 import './index.scss'
 
 export default function DailyReaderPage() {
@@ -27,6 +34,14 @@ export default function DailyReaderPage() {
   const [activeWord, setActiveWord] = useState('')
   const [contextSentence, setContextSentence] = useState<string | undefined>()
   const [tapPosition, setTapPosition] = useState({ x: 0, y: 0 })
+  const [favorited, setFavorited] = useState(false)
+  const [animTrigger, setAnimTrigger] = useState(0)
+
+  useEffect(() => {
+    if (article) {
+      setFavorited(isFavorited(article.id))
+    }
+  }, [article])
 
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params
@@ -40,13 +55,12 @@ export default function DailyReaderPage() {
     Taro.eventCenter.trigger('dailyReaderPageScroll', res)
   })
 
-  // TODO: 上线前需为分享卡片生成自定义 imageUrl，使用 cover_theme 渐变 + 标题 + 来源绘制
-  // 参见 specs/daily-reader/requirements.md Req 11.2
   useShareAppMessage(() => {
-    if (!article) return { title: 'Claread 透读', path: ROUTES.HOME }
+    if (!article) return { title: 'Claread 透读', path: ROUTES.HOME, imageUrl: shareFallback }
     return {
       title: `${article.title} — Claread 每日精读`,
       path: `${ROUTES.DAILY_READER}?id=${article.id}`,
+      imageUrl: shareFallback,
     }
   })
 
@@ -75,13 +89,77 @@ export default function DailyReaderPage() {
     setActiveWord('')
   }, [])
 
-  const handleAddVocab = useCallback((_word: string, _dictResult: DictionaryResult | null) => {
-    Taro.showToast({ title: '已记入生词本', icon: 'success', duration: 1200 })
-  }, [])
+  const handleAddVocab = useCallback((word: string, dictResult: DictionaryResult | null) => {
+    if (!article || !dictResult || dictResult.resultType !== 'entry') return
+    const detailEntry = dictResult.entry
+    const detailMeanings = detailEntry.meanings
+    const derivedMeaning = detailMeanings[0]?.definitions
+      ?.map((d: { meaning: string }) => d.meaning)
+      .filter(Boolean)
+      .join('；') || ''
+    const lemma = detailEntry.baseWord ?? detailEntry.word
+    const vocabEntry: VocabEntry = {
+      id: `${article.id}_${lemma.toLowerCase()}_${Date.now()}`,
+      lemma,
+      word: word,
+      partOfSpeech: detailMeanings[0]?.partOfSpeech || '',
+      meaning: derivedMeaning.slice(0, 200),
+      addedAt: Date.now(),
+      mastered: false,
+      dictEntryId: detailEntry.id,
+      phonetic: detailEntry.phonetic,
+      provider: dictResult.provider || 'tecd3',
+      sentence: contextSentence,
+      detailMeanings: detailMeanings.map((m: { partOfSpeech?: string; definitions: Array<{ meaning: string }> }) => ({
+        pos: m.partOfSpeech || '',
+        definitions: m.definitions.map((d: { meaning: string }) => d.meaning).filter(Boolean),
+      })).filter((m: { definitions: string[] }) => m.definitions.length > 0),
+      exchange: detailEntry.exchange || [],
+      tags: detailEntry.tags || [],
+      sourceRefs: [{
+        clientRecordId: article.id,
+        cloudRecordId: undefined,
+        sourceSentence: contextSentence || undefined,
+        sourceAnchorText: word,
+        sourceOccurrence: activeMark?.anchor.kind === 'text' ? activeMark.anchor.occurrence : undefined,
+        collectedAt: new Date().toISOString(),
+      }],
+    }
 
-  const handleFavorite = useCallback((_word: string) => {
-    Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 })
-  }, [])
+    const result = saveVocabEntry(vocabEntry)
+    if (result.merged) {
+      Taro.showToast({
+        title: `${word} 已添加到 ${lemma}`,
+        icon: 'none',
+        duration: 2000,
+      })
+    } else {
+      Taro.showToast({ title: `${word} 已记入生词本`, icon: 'success' })
+    }
+    
+    track('add_vocab', { word, merged: result.merged })
+    CloudSyncService.syncVocab(result.entry)
+  }, [article, contextSentence, activeMark])
+
+  const handleFavorite = useCallback(() => {
+    if (!article) return
+    const isAdding = !favorited
+    setAnimTrigger(prev => prev + 1)
+
+    if (isAdding) {
+      saveFavorite({ recordId: article.id, cloudId: undefined, createdAt: Date.now() } as FavoriteRecord)
+      setFavorited(true)
+      track('favorite', { isFavorited: true })
+      Taro.showToast({ title: '已收藏全文', icon: 'success', duration: 1500 })
+      CloudSyncService.syncFavorite(undefined, article.id, 'add')
+    } else {
+      removeFavorite(article.id)
+      setFavorited(false)
+      track('favorite', { isFavorited: false })
+      Taro.showToast({ title: '已取消收藏', icon: 'none', duration: 1500 })
+      CloudSyncService.syncFavorite(undefined, article.id, 'remove')
+    }
+  }, [article, favorited])
 
   if (loading && !article) {
     return (
@@ -119,12 +197,21 @@ export default function DailyReaderPage() {
         sourceUrl={article.sourceUrl}
         source={article.source}
       />
-      <View
-        className='daily-page__archive-entry'
-        onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
-      >
-        <Text className='daily-page__archive-text'>往期精选</Text>
-        <Text className='daily-page__archive-arrow'>→</Text>
+      <View className='daily-page__end-actions'>
+        <View
+          className={`daily-page__action-btn ${favorited ? 'daily-page__action-btn--favorited' : ''} ${animTrigger > 0 ? 'animate-spring' : ''}`}
+          onClick={handleFavorite}
+        >
+          <LucideIcon name='star' size={18} color={favorited ? 'var(--color-warning)' : 'var(--dr-text-sub)'} />
+          <Text>{favorited ? '已收藏全文' : '收藏全文'}</Text>
+        </View>
+        <View
+          className='daily-page__action-btn'
+          onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
+        >
+          <LucideIcon name='archive' size={18} color='var(--dr-text-sub)' />
+          <Text>往期精选</Text>
+        </View>
       </View>
       <WordPopup
         visible={popupVisible}
@@ -137,7 +224,7 @@ export default function DailyReaderPage() {
         onClose={handleClosePopup}
         onExpand={handleExpandPopup}
         onAddVocab={handleAddVocab}
-        onFavorite={handleFavorite}
+        onFavorite={(w) => track('favorite_word', { word: w })}
       />
     </View>
   )

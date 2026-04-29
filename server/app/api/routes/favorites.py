@@ -5,7 +5,7 @@ from __future__ import annotations
 from logging import getLogger
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.user_assets.favorites import (
     FavoriteCreateRequest,
@@ -58,6 +58,25 @@ async def list_favorites(
         )
     except Exception as e:
         logger.error("list_favorites failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+@router.delete("/target", response_model=FavoriteDeleteResponse, summary="按目标取消收藏")
+async def remove_favorite_by_target(
+    current_user: AuthUserDep,
+    target_type: str = Query(min_length=1, max_length=64),
+    target_key: str = Query(min_length=1, max_length=256),
+) -> FavoriteDeleteResponse:
+    """根据 target_type + target_key 取消收藏，支持 Daily Reader 等非分析记录收藏。"""
+    try:
+        deleted = await fav_svc.remove_favorite(
+            user_id=UUID(current_user.user_id),
+            target_type=target_type,
+            target_key=target_key,
+        )
+        return FavoriteDeleteResponse(deleted=deleted)
+    except Exception as e:
+        logger.error("remove_favorite_by_target failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 

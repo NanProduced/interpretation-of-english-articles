@@ -193,8 +193,8 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
     {
       title: "关于与合规",
       items: [
-        { label: "用户协议与隐私政策", icon: 'file', color: 'gray' },
-        { label: "关于我们", icon: 'info', color: 'gray' },
+        { label: "用户协议与隐私政策", icon: 'file', url: ROUTES.AGREEMENT, color: 'gray' },
+        { label: "关于我们", icon: 'info', url: ROUTES.ABOUT, color: 'gray' },
       ]
     }
   ]

@@ -6,7 +6,7 @@
  * prod:   正式环境
  */
 
-export type Env = 'local' | 'dev' | 'prod'
+export type Env = 'local' | 'dev' | 'staging' | 'prod'
 
 export interface EnvConfig {
   env: Env
@@ -25,11 +25,15 @@ const envConfigs: Record<Env, EnvConfig> = {
   },
   dev: {
     env: 'dev',
-    apiBaseUrl: 'https://dev-api.claread.com', // TODO: 替换为真实开发环境地址
+    apiBaseUrl: 'http://192.168.1.222:8000',
+  },
+  staging: {
+    env: 'staging',
+    apiBaseUrl: 'https://staging-api.claread.com',
   },
   prod: {
     env: 'prod',
-    apiBaseUrl: 'https://api.claread.com', // TODO: 替换为真实正式环境地址
+    apiBaseUrl: 'https://api.claread.com',
   },
 }
 

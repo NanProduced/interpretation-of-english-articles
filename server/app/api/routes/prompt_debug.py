@@ -139,6 +139,9 @@ def _build_learning_preview(
             "examples_count": len(example_entries),
             "selection_mode": bundle.example_strategy.selection_mode,
             "few_shot_mode": few_shot_mode,
+            # RAG-08: debug fields for RAG observability
+            "example_count": len(example_entries),
+            "fallback_reason": None if bundle.example_strategy.selection_mode in ("baseline", "rag") else "rag_not_enabled_or_empty",
         },
     )
 
