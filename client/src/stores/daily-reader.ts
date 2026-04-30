@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import type { DailyReaderArticle, DailyReaderListItem } from '../types/view/daily-reader.vm'
-import { fetchTodayArticles, fetchArticleById, fetchArticleList } from '../services/api/daily-reader.client'
+import { fetchArticleById, fetchArticleList } from '../services/api/daily-reader.client'
 
 interface DailyReaderState {
-  todayArticles: DailyReaderArticle[]
+  latestArticles: DailyReaderListItem[]
   currentArticle: DailyReaderArticle | null
   articleList: DailyReaderListItem[]
   listCursor: string | null
@@ -11,7 +11,7 @@ interface DailyReaderState {
   loading: boolean
   error: string | null
 
-  fetchToday: () => Promise<void>
+  fetchLatest: (limit?: number) => Promise<void>
   fetchArticle: (id: string) => Promise<void>
   fetchList: (cursor?: string) => Promise<void>
   setCurrentArticle: (article: DailyReaderArticle | null) => void
@@ -19,7 +19,7 @@ interface DailyReaderState {
 }
 
 export const useDailyReaderStore = create<DailyReaderState>((set, get) => ({
-  todayArticles: [],
+  latestArticles: [],
   currentArticle: null,
   articleList: [],
   listCursor: null,
@@ -27,13 +27,13 @@ export const useDailyReaderStore = create<DailyReaderState>((set, get) => ({
   loading: false,
   error: null,
 
-  fetchToday: async () => {
+  fetchLatest: async (limit: number = 5) => {
     set({ loading: true, error: null })
     try {
-      const articles = await fetchTodayArticles()
-      set({ todayArticles: articles, loading: false })
+      const result = await fetchArticleList(undefined, limit)
+      set({ latestArticles: result.items, loading: false })
     } catch (e) {
-      set({ error: e instanceof Error ? e.message : 'Failed to fetch today articles', loading: false })
+      set({ error: e instanceof Error ? e.message : 'Failed to fetch latest articles', loading: false })
     }
   },
 
@@ -76,7 +76,7 @@ export const useDailyReaderStore = create<DailyReaderState>((set, get) => ({
 
   reset: () =>
     set({
-      todayArticles: [],
+      latestArticles: [],
       currentArticle: null,
       articleList: [],
       listCursor: null,
