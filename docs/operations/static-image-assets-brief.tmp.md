@@ -229,9 +229,52 @@ Elegant, quiet, premium reading experience.
 Colors: warm white, charcoal, muted teal, pale amber.
 ```
 
-## 5. 设计约束
+## 5. 微信平台约束（官方规范）
 
-### 5.1 字体和文字
+> 来源：[微信小程序 Page.onShareAppMessage 官方文档](https://developers.weixin.qq.com/miniprogram/dev/reference/api/Page.html#onShareAppMessage-Object-object)
+
+### 5.0 分享图片展示位置
+
+分享卡片图在**微信聊天列表中以缩略卡形式展示**，并非全屏海报。
+用户看到的是：左侧缩略图 + 右侧标题文字（来自 `title` 字段）。
+图片本身只承担**氛围/品牌识别**作用，不需要承载任何可读信息。
+
+### 5.1 尺寸与比例
+
+| 项目 | 约束 | 说明 |
+|------|------|------|
+| **显示比例** | **5:4（硬性）** | 非此比例会被裁切或拉伸 |
+| **推荐分辨率** | 500×400px（显示） / 1000×800px（2x 高清输出） | |
+| **文件大小** | **≤ 300KB** | 超大图影响加载速度和用户流量 |
+| **格式** | JPG 或 PNG | |
+
+### 5.2 安全区域
+
+- 核心视觉元素必须**居中放置**
+- 不同设备/场景可能裁切图片边缘
+- 重要内容避免放在四角或边缘
+
+### 5.3 分享标题
+
+- `title` 字段最高 **28 个汉字**，超出部分显示 `...`
+- 当前实现：`{article.title} — Claread 每日精读`
+- 英文文章标题通常较短，但需留意超长标题截断情况
+
+### 5.4 朋友圈 vs 好友分享
+
+| 分享目标 | 图片比例 | 说明 |
+|----------|---------|------|
+| 好友 / 群聊 (`onShareAppMessage`) | **5:4** | 本文档所有分享图均为此比例 |
+| 朋友圈 (`onShareTimeline`) | **1:1** | 如需支持朋友圈分享，需单独准备方图 |
+
+### 5.5 默认行为
+
+若不设置 `imageUrl`，微信自动截取页面顶部 **750rpx × 600rpx** 区域作为分享图。
+当前代码已设置 `shareFallback`，不会触发默认截图。
+
+## 6. 设计约束
+
+### 6.1 字体和文字
 
 生成图片中尽量不要出现可读文字。  
 分享标题、文章标题、品牌文字由小程序 UI 或分享卡片 `title` 字段承载。
@@ -242,7 +285,7 @@ Colors: warm white, charcoal, muted teal, pale amber.
 - 小程序不同场景会裁切图片
 - 后续文案变更不应重做图片
 
-### 5.2 风格
+### 6.2 风格
 
 推荐：
 
@@ -263,7 +306,7 @@ Colors: warm white, charcoal, muted teal, pale amber.
 - 复杂英文段落
 - 深色厚重背景
 
-### 5.3 色彩
+### 6.3 色彩
 
 推荐色彩方向：
 
@@ -277,7 +320,7 @@ small accent blue
 
 避免单一蓝紫、深蓝、棕橙、奶油色过度主导。
 
-## 6. 前端接入规则
+## 7. 前端接入规则
 
 给 Gemini 的接入边界：
 
@@ -307,26 +350,27 @@ useShareAppMessage().imageUrl
 
 如果引入静态资源导致 Taro 小程序构建路径问题，前端应使用项目现有稳定的静态资源引用方式处理，但不得回退到远程 COS 依赖。
 
-## 7. 验收标准
+## 8. 验收标准
 
-### 7.1 Daily Reader 分享卡片图
+### 8.1 Daily Reader 分享卡片图
 
 - `useShareAppMessage` 返回 `imageUrl`
 - 无文章时也有 fallback 分享图
+- 文件大小 ≤ 300KB
 - `npx tsc --noEmit` 通过
 - `npm run build:weapp` 通过
 
-### 7.2 通用分享图
+### 8.2 通用分享图
 
 - 首页或无上下文分享可复用
 - 不影响 Daily Reader 分享图
 
-### 7.3 本地 Logo 图
+### 8.3 本地 Logo 图
 
 - 登录引导弹窗可使用本地 logo
 - 远程 COS logo 不再是本地调试必需依赖
 
-### 7.4 默认封面图
+### 8.4 默认封面图
 
 - Daily Reader 无封面时可作为 fallback
 - 不阻塞已有 `coverTheme` 渐变 fallback

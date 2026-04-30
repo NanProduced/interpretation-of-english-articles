@@ -152,8 +152,20 @@
 
 **User Story:** 作为用户，我希望能将今日精读分享给朋友，吸引更多人使用小程序。
 
+#### 实现策略
+
+| 阶段 | 方案 | 状态 |
+|------|------|------|
+| **MVP（当前）** | 静态品牌图作为分享卡配图，通过 `useShareAppMessage().imageUrl` 指定 | ✅ 已实现 |
+| **V2（未来）** | Canvas 动态绘制自定义卡片：含文章标题、关键引用、来源、小程序二维码，以文章主题色为背景 | 📋 TODO |
+
+> 微信平台约束详见 [static-image-assets-brief.tmp.md §5](../../docs/operations/static-image-assets-brief.tmp.md)：
+> 分享图比例 **5:4**（硬性），文件大小 ≤ 300KB，`title` 字段上限 **28 汉字**，
+> 核心内容需居中（边缘可能被裁切）。朋友圈分享 (`onShareTimeline`) 需单独准备 **1:1** 方图。
+
 #### Acceptance Criteria
 
-1. While a user views the daily reader page, when the share action is triggered, the Claread system shall generate a share card image containing: article title, key quote, source, and mini program QR code.
-2. While the share card is generated, when the image renders, the Claread system shall use the article's cover theme color as the card background. (TODO: 上线前实现自定义分享卡片，当前使用微信默认截图)
-3. While a user shares via WeChat, when the share message renders, the Claread system shall set the share title to the article title and the share description to the article subtitle/summary.
+1. While a user views the daily reader page, when the share action is triggered (via右上角「…」→「转发」), the Claread system shall return a share config object with: title set to `{article.title} — Claread 每日精读`, path pointing to the article detail page, and imageUrl pointing to a static brand image (`shareFallback`). (MVP: static image; V2: canvas-generated card per original AC1 spec)
+2. While no article is loaded (e.g. home page share fallback), when the share action triggers, the Claread system shall return a share config with default title `'Claread 透读'` and the same static brand image.
+3. While a user shares via WeChat, when the share message renders in chat list, the Claread system shall ensure the combined title text does not exceed WeChat's 28-character limit; excess characters will be truncated by the platform automatically.
+4. (V2 Future) While the share card is dynamically generated, when the image renders, the Claread system shall use the article's cover theme color as the card background and include: article title, key quote, source, mini program QR code.
