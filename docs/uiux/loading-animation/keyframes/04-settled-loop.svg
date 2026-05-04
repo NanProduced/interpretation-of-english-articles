@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844">
+  <defs>
+    <pattern id="paper-grain" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="5" cy="7" r="0.55" fill="#121212" opacity="0.018"/>
+      <circle cx="18" cy="15" r="0.45" fill="#121212" opacity="0.014"/>
+    </pattern>
+  </defs>
+  <rect width="390" height="844" fill="#FAF9F9"/>
+  <rect width="390" height="844" fill="url(#paper-grain)"/>
+
+  <g id="ambient-hairlines" opacity="0.62">
+    <path d="M78 176H312" stroke="#121212" stroke-opacity="0.028" stroke-width="1"/>
+    <path d="M92 646H298" stroke="#121212" stroke-opacity="0.024" stroke-width="1"/>
+    <path d="M66 226V512" stroke="#121212" stroke-opacity="0.018" stroke-width="1"/>
+  </g>
+
+  <g id="paper-stack">
+    <rect x="57" y="142" width="276" height="498" rx="30" fill="#EEEFF3" opacity="0.3"/>
+    <rect x="44" y="124" width="302" height="524" rx="32" fill="#FFFFFF" opacity="0.86"/>
+    <rect x="44.5" y="124.5" width="301" height="523" rx="31.5" fill="none" stroke="#121212" stroke-opacity="0.036"/>
+  </g>
+
+  <g id="logo-aperture" opacity="0.96">
+    <circle cx="195" cy="294" r="66" fill="#121212" opacity="0.022"/>
+    <image href="../assets/claread-icon-fullcolor.svg" x="148" y="247" width="94" height="94" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+
+  <g id="article-lines">
+    <rect x="92" y="382" width="206" height="5" rx="2.5" fill="#121212" opacity="0.10"/>
+    <path d="M88 415 C124 411, 166 414, 202 412 S250 414, 278 412" stroke="#B8A8FF" stroke-opacity="0.25" stroke-width="17" stroke-linecap="round" fill="none"/>
+    <rect x="92" y="416" width="180" height="5" rx="2.5" fill="#121212" opacity="0.078"/>
+    <rect x="92" y="450" width="204" height="5" rx="2.5" fill="#121212" opacity="0.058"/>
+    <rect x="92" y="484" width="148" height="5" rx="2.5" fill="#121212" opacity="0.04"/>
+  </g>
+
+  <g id="native-status-text">
+    <text x="195" y="566" text-anchor="middle" fill="#737680" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="12" letter-spacing="2.4">INSIGHT</text>
+    <text x="195" y="600" text-anchor="middle" fill="#121212" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif" font-size="16">正在生成精读标注...</text>
+  </g>
+</svg>

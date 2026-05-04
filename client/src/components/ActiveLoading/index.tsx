@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
+import clareadLoadingAnimation from '../../assets/animations/claread-loading'
+import LottieAnimation from '../LottieAnimation'
 import './index.scss'
 
 const LOADING_KEYWORDS = [
@@ -40,8 +42,12 @@ export default function ActiveLoading() {
       <View className='loading-main'>
         {/* 中心品牌字母脉冲 */}
         <View className='brand-pulse'>
+          <LottieAnimation
+            className='brand-lottie'
+            animationData={clareadLoadingAnimation}
+            fallback={<View className='pulse-ring' />}
+          />
           <Text className='brand-char'>C</Text>
-          <View className='pulse-ring' />
         </View>
 
         {/* 抽象排版层 */}

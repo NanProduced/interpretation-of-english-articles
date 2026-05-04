@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 700" width="1240" height="700">
+  <rect width="1240" height="700" fill="#FAF9F9"/>
+  <text x="48" y="56" fill="#121212" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="26" font-weight="700">Claread Analysis Loading - Polished Keyframes</text>
+  <text x="48" y="86" fill="#737680" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="14">A direction: aperture logo + article skeleton + highlighter annotation. Use frames as visual references, not raster sequence.</text>
+
+  <g transform="translate(44 126)">
+    <rect x="0" y="0" width="208" height="450" rx="22" fill="#FFFFFF" stroke="#121212" stroke-opacity="0.05"/>
+    <image href="00-rest.svg" x="18" y="18" width="172" height="372" preserveAspectRatio="xMidYMid meet"/>
+    <text x="104" y="422" text-anchor="middle" fill="#121212" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600">00 Rest</text>
+  </g>
+
+  <g transform="translate(284 126)">
+    <rect x="0" y="0" width="208" height="450" rx="22" fill="#FFFFFF" stroke="#121212" stroke-opacity="0.05"/>
+    <image href="01-logo-assemble.svg" x="18" y="18" width="172" height="372" preserveAspectRatio="xMidYMid meet"/>
+    <text x="104" y="422" text-anchor="middle" fill="#121212" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600">01 Logo Assemble</text>
+  </g>
+
+  <g transform="translate(524 126)">
+    <rect x="0" y="0" width="208" height="450" rx="22" fill="#FFFFFF" stroke="#121212" stroke-opacity="0.05"/>
+    <image href="02-lines-emerge.svg" x="18" y="18" width="172" height="372" preserveAspectRatio="xMidYMid meet"/>
+    <text x="104" y="422" text-anchor="middle" fill="#121212" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600">02 Lines Emerge</text>
+  </g>
+
+  <g transform="translate(764 126)">
+    <rect x="0" y="0" width="208" height="450" rx="22" fill="#FFFFFF" stroke="#121212" stroke-opacity="0.05"/>
+    <image href="03-highlight-sweep.svg" x="18" y="18" width="172" height="372" preserveAspectRatio="xMidYMid meet"/>
+    <text x="104" y="422" text-anchor="middle" fill="#121212" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600">03 Highlight Sweep</text>
+  </g>
+
+  <g transform="translate(1004 126)">
+    <rect x="0" y="0" width="208" height="450" rx="22" fill="#FFFFFF" stroke="#121212" stroke-opacity="0.05"/>
+    <image href="04-settled-loop.svg" x="18" y="18" width="172" height="372" preserveAspectRatio="xMidYMid meet"/>
+    <text x="104" y="422" text-anchor="middle" fill="#121212" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="600">04 Settled Loop</text>
+  </g>
+
+  <text x="48" y="642" fill="#737680" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="13">Layer names inside each SVG: ambient-hairlines, paper-stack, logo-aperture, article-lines, native-status-text.</text>
+</svg>

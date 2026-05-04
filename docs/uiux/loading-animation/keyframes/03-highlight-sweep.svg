@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844">
+  <defs>
+    <pattern id="paper-grain" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="5" cy="7" r="0.55" fill="#121212" opacity="0.018"/>
+      <circle cx="18" cy="15" r="0.45" fill="#121212" opacity="0.014"/>
+    </pattern>
+  </defs>
+  <rect width="390" height="844" fill="#FAF9F9"/>
+  <rect width="390" height="844" fill="url(#paper-grain)"/>
+
+  <g id="ambient-hairlines" opacity="0.82">
+    <path d="M78 176H312" stroke="#121212" stroke-opacity="0.036" stroke-width="1"/>
+    <path d="M92 646H298" stroke="#121212" stroke-opacity="0.03" stroke-width="1"/>
+    <path d="M66 226V512" stroke="#121212" stroke-opacity="0.022" stroke-width="1"/>
+    <path d="M324 260V448" stroke="#0048FE" stroke-opacity="0.04" stroke-width="1"/>
+  </g>
+
+  <g id="paper-stack">
+    <rect x="57" y="142" width="276" height="498" rx="30" fill="#EEEFF3" opacity="0.35"/>
+    <rect x="44" y="124" width="302" height="524" rx="32" fill="#FFFFFF" opacity="0.92"/>
+    <rect x="44.5" y="124.5" width="301" height="523" rx="31.5" fill="none" stroke="#121212" stroke-opacity="0.042"/>
+  </g>
+
+  <g id="logo-aperture">
+    <circle cx="195" cy="294" r="68" fill="#0048FE" opacity="0.02"/>
+    <image href="../assets/claread-icon-fullcolor.svg" x="144" y="243" width="102" height="102" preserveAspectRatio="xMidYMid meet"/>
+  </g>
+
+  <g id="article-lines">
+    <rect x="88" y="382" width="214" height="6" rx="3" fill="#121212" opacity="0.13"/>
+    <path d="M84 415 C122 409, 167 414, 205 411 S256 414, 282 411" stroke="#B8A8FF" stroke-opacity="0.42" stroke-width="18" stroke-linecap="round" fill="none"/>
+    <rect x="88" y="416" width="188" height="6" rx="3" fill="#121212" opacity="0.108"/>
+    <rect x="88" y="450" width="210" height="6" rx="3" fill="#121212" opacity="0.078"/>
+    <rect x="88" y="484" width="154" height="6" rx="3" fill="#121212" opacity="0.055"/>
+    <path d="M198 457H270" stroke="#0048FE" stroke-opacity="0.16" stroke-width="2" stroke-linecap="round"/>
+    <rect x="88" y="517" width="118" height="3" rx="1.5" fill="#121212" opacity="0.035"/>
+  </g>
+
+  <g id="native-status-text">
+    <text x="195" y="566" text-anchor="middle" fill="#737680" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="12" letter-spacing="2.4">INSIGHT</text>
+    <text x="195" y="600" text-anchor="middle" fill="#121212" font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif" font-size="16">正在生成精读标注...</text>
+  </g>
+</svg>
