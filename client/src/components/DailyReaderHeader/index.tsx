@@ -1,6 +1,7 @@
 import { View, Text, Image } from '@tarojs/components'
 import { memo } from 'react'
 import type { DailyReaderArticle } from '../../types/view/daily-reader.vm'
+import defaultCover from '../../assets/covers/daily-reader-default.png'
 import './index.scss'
 
 interface Props {
@@ -16,23 +17,19 @@ const DIFFICULTY_LABELS: Record<string, string> = {
 
 const DailyReaderHeader = memo(function DailyReaderHeader({ article }: Props) {
   const hasCover = !!article.coverImageUrl
+  const coverSrc = article.coverImageUrl || defaultCover
 
   return (
     <View className='daily-header'>
-      {hasCover && (
-        <View className='daily-header__cover'>
-          <Image
-            className='daily-header__cover-img'
-            src={article.coverImageUrl!}
-            mode='aspectFill'
-            lazyLoad
-          />
-          <View className='daily-header__cover-overlay' />
-        </View>
-      )}
-      {!hasCover && (
-        <View className={`daily-header__gradient daily-header__gradient--${article.coverTheme}`} />
-      )}
+      <View className='daily-header__cover'>
+        <Image
+          className='daily-header__cover-img'
+          src={coverSrc}
+          mode='aspectFill'
+          lazyLoad
+        />
+        <View className='daily-header__cover-overlay' />
+      </View>
       <View className='daily-header__content'>
         <View className='daily-header__meta'>
           <Text className='daily-header__source'>{article.source}</Text>

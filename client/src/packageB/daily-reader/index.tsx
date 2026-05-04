@@ -17,7 +17,23 @@ import { track } from '../../services/analytics'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
 import LucideIcon from '../../components/LucideIcon'
-import shareFallback from '../../assets/images/share-fallback.jpg'
+import share01 from '../../assets/images/share/daily-reader-01.png'
+import share02 from '../../assets/images/share/daily-reader-02.png'
+import share03 from '../../assets/images/share/daily-reader-03.png'
+import share04 from '../../assets/images/share/daily-reader-04.png'
+import share05 from '../../assets/images/share/daily-reader-05.png'
+import share06 from '../../assets/images/share/daily-reader-06.png'
+import share07 from '../../assets/images/share/daily-reader-07.png'
+
+const SHARE_IMAGES = [share01, share02, share03, share04, share05, share06, share07]
+
+function pickShareImage(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0
+  }
+  return SHARE_IMAGES[Math.abs(hash) % SHARE_IMAGES.length]
+}
 import './index.scss'
 
 export default function DailyReaderPage() {
@@ -56,11 +72,11 @@ export default function DailyReaderPage() {
   })
 
   useShareAppMessage(() => {
-    if (!article) return { title: 'Claread 透读', path: ROUTES.HOME, imageUrl: shareFallback }
+    if (!article) return { title: 'Claread 透读', path: ROUTES.HOME, imageUrl: SHARE_IMAGES[0] }
     return {
       title: `${article.title} — Claread 每日精读`,
       path: `${ROUTES.DAILY_READER}?id=${article.id}`,
-      imageUrl: shareFallback,
+      imageUrl: pickShareImage(article.id),
     }
   })
 

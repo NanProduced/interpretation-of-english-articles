@@ -3,6 +3,7 @@ import { useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import { useDailyReaderStore } from '../../stores/daily-reader'
+import defaultCover from '../../assets/covers/daily-reader-default.png'
 import './index.scss'
 
 const DIFFICULTY_LABELS: Record<string, string> = {
@@ -77,16 +78,14 @@ export default function DailyReaderArchivePage() {
                 ))}
               </View>
             </View>
-            {item.coverImageUrl && (
-              <View className='archive-card__right'>
-                <Image
-                  className='archive-card__cover'
-                  src={item.coverImageUrl}
-                  mode='aspectFill'
-                  lazyLoad
-                />
-              </View>
-            )}
+            <View className='archive-card__right'>
+              <Image
+                className='archive-card__cover'
+                src={item.coverImageUrl || defaultCover}
+                mode='aspectFill'
+                lazyLoad
+              />
+            </View>
           </View>
         ))}
       </View>

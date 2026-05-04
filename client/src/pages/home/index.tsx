@@ -10,6 +10,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useDailyReaderStore } from '../../stores/daily-reader'
 import { ensureLoggedIn } from '../../services/auth'
 import { fetchAnonymousQuota } from '../../services/api/client'
+import defaultCover from '../../assets/covers/daily-reader-default.png'
 import './index.scss'
 
 const ANONYMOUS_DAILY_TRIAL_LIMIT = 3
@@ -196,11 +197,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
                 onClick={() => Taro.navigateTo({ url: `${ROUTES.DAILY_READER}?id=${article.id}` })}
               >
                 <View className='card-cover-box'>
-                  {article.coverImageUrl ? (
-                    <Image className='card-cover' src={article.coverImageUrl} mode='aspectFill' lazyLoad />
-                  ) : (
-                    <View className={`card-cover card-cover--${article.coverTheme}`} />
-                  )}
+                  <Image className='card-cover' src={article.coverImageUrl || defaultCover} mode='aspectFill' lazyLoad />
                   <View className='card-badge'>{DIFFICULTY_LABELS[article.difficulty] || article.difficulty}</View>
                 </View>
                 <View className='card-info'>

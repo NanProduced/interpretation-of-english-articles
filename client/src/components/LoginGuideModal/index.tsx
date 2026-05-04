@@ -9,6 +9,7 @@
 import { useState } from 'react'
 import { Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import clareadLogo from '../../assets/brand/claread-logo.png'
 import './index.scss'
 
 interface LoginGuideModalProps {
@@ -52,13 +53,10 @@ export default function LoginGuideModal({ visible, onClose, onLogin }: LoginGuid
         <View className='login-guide-icon'>
           <Image
             className='icon-image'
-            src='https://miniprogram-1255574143.cos.ap-shanghai.myqcloud.com/assets/icons/claread-logo.png'
+            src={clareadLogo}
             mode='aspectFit'
             lazyLoad
             fadeIn
-            onError={() => {
-              // Fallback: 纯色图标
-            }}
           />
         </View>
 

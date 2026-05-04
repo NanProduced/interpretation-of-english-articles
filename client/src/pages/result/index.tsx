@@ -18,6 +18,7 @@ import { PAGE_MODE_OPTIONS, hasRenderableScene } from './utils'
 import DegradedBanner from './components/DegradedBanner'
 import SourceFallback from './components/SourceFallback'
 import StateViews from './components/StateViews'
+import appShare from '../../assets/images/share/app-share.png'
 import './index.scss'
 
 export default function Result() {
@@ -63,11 +64,11 @@ export default function Result() {
     const firstSentence = sceneData?.article.sentences[0]?.text
     const title = academicTitle
       || (firstSentence ? firstSentence.split('\n')[0].slice(0, 30) + '...' : null)
-      || 'Claread透读 - AI 英语深度解析'
+      || 'Claread 透读 - AI 英语深度解析'
     const path = recordId
       ? `${ROUTES.RESULT}?recordId=${recordId}&mode=replay`
       : ROUTES.RESULT
-    return { title, path }
+    return { title, path, imageUrl: appShare }
   })
 
   const isAcademicMode = sceneData?.schemaVersion === '3.0.0-academic'

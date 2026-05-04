@@ -10,10 +10,12 @@
 
 优先级：
 
-1. Daily Reader 分享卡片图
-2. Claread 通用分享图
-3. 本地 Logo 图
-4. Daily Reader 默认封面图
+1. ~~Daily Reader 分享卡片图~~ ✅ 已完成（7 张，已接入）
+2. ~~Claread 通用分享图~~ ✅ 已完成（1 张，已接入）
+3. ~~本地 Logo 图~~ ✅ 已完成（1 张，已接入）
+4. ~~Daily Reader 默认封面图~~ ✅ 已完成（1 张，已接入）
+
+**所有 P0 优先级图片资源已完成！**
 
 暂不生成：
 
@@ -38,65 +40,34 @@ client/src/assets/covers/daily-reader-default.png
 
 ## 3. 必须生成
 
-### 3.1 Daily Reader 分享卡片图
+### 3.1 Daily Reader 分享卡片图 ✅ DONE
 
 用途：
 
 - `useShareAppMessage().imageUrl`
 - 清理 `P0-02` / `P0-04A`
 
-建议文件：
+实际文件（7 张，按文章 ID 哈希轮换）：
 
 ```text
-client/src/assets/share/daily-reader-share.png
+client/src/assets/share/daily-reader-01.png  (Typography Art - Claread)
+client/src/assets/share/daily-reader-02.png  (Typography Art - Claread)
+client/src/assets/share/daily-reader-03.png  (Typography Art - Claread)
+client/src/assets/share/daily-reader-04.png  (Typography Art - Claread)
+client/src/assets/share/daily-reader-05.png  (Aperture Paper / Wave)
+client/src/assets/share/daily-reader-06.png  (Aperture Paper variant)
+client/src/assets/share/daily-reader-07.png  (Floating cards / UI layers)
 ```
 
-尺寸：
+尺寸：1000×800，比例 5:4
 
-```text
-1000 x 800
-```
+接入方式：`pickShareImage(article.id)` 按文章 ID 哈希确定性选取，同一篇文章分享给不同人显示同一张图；无文章时 fallback 用 `SHARE_IMAGES[0]`。
 
-比例：
-
-```text
-5:4
-```
-
-设计方向：
-
-- 英文精读
-- 安静、可信、学习工具感
-- 打开的英文文章页面
-- 柔和高亮句子
-- 少量抽象注释卡片
-- 不要大量可读文字
-
-避免：
-
-- 明显中文字
-- 可读英文长句
-- 手机模型
-- UI 按钮
-- 复杂人物
-- 营销海报感
-- 过强渐变和装饰性光斑
-
-Prompt：
-
-```text
-Create a polished WeChat mini program share card image for an English reading app called Claread.
-Aspect ratio 5:4, 1000x800.
-A calm modern study scene: an open English article page with subtle highlighted sentences, small annotation cards, soft daylight, clean editorial layout.
-Premium but restrained, warm white paper, ink black text lines, muted teal and amber highlights.
-No readable text, no Chinese characters, no UI buttons, no phone mockup, no logos unless abstract.
-Leave safe empty space near the top-left and center for the platform title overlay.
-High clarity, minimal, elegant, app product illustration, not cartoonish.
-```
+代码位置：[client/src/packageB/daily-reader/index.tsx](../../client/src/packageB/daily-reader/index.tsx)
 
 ## 4. 建议生成
 
-### 4.1 Claread 通用分享图
+### 4.1 Claread 通用分享图 ✅ DONE
 
 用途：
 
@@ -104,41 +75,19 @@ High clarity, minimal, elegant, app product illustration, not cartoonish.
 - 无文章上下文时的 fallback 分享图
 - 后续结果页分享 fallback
 
-建议文件：
+实际文件：
 
 ```text
-client/src/assets/share/app-share.png
+client/src/assets/share/app-share.png  (抽象波纹 / 点线 / 光圈 Logo)
 ```
 
-尺寸：
+尺寸：1000×800，比例 5:4
 
-```text
-1000 x 800
-```
+接入位置：[client/src/pages/result/index.tsx](../../client/src/pages/result/index.tsx) — `useShareAppMessage()` 已接入 `imageUrl: appShare`
 
-比例：
+风格说明：抽象波纹 + 点线 + 中央光圈 Logo，青蓝色系，科技感，与 Daily Reader 分享卡（Typography 大字）完全区分。
 
-```text
-5:4
-```
-
-设计方向：
-
-- 英文阅读解读工具
-- 文章页面 + 高亮 + 词汇/语法解释抽象卡片
-- 更通用，不绑定 Daily Reader
-
-Prompt：
-
-```text
-Create a 5:4 share image, 1000x800, for a clean AI-assisted English reading tool.
-Show a refined reading workspace: English article pages, gentle annotation marks, vocabulary cards, grammar note snippets represented as abstract blocks, soft neutral background.
-Use a sophisticated palette: warm off-white, charcoal ink, muted teal, soft amber, a small accent blue.
-No readable text, no distorted letters, no people, no clutter, no decorative blobs.
-Professional, calm, trustworthy, educational technology aesthetic.
-```
-
-### 4.2 本地 Logo 图
+### 4.2 本地 Logo 图 ✅ DONE
 
 用途：
 
@@ -146,46 +95,21 @@ Professional, calm, trustworthy, educational technology aesthetic.
 - 本地调试时减少远程 COS 图片依赖
 - 后续品牌统一入口
 
-建议文件：
+实际文件：
 
 ```text
-client/src/assets/brand/claread-logo.png
-client/src/assets/brand/claread-logo@2x.png
+client/src/assets/brand/claread-logo.png  (光圈图标 - 白底黑圈 + 蓝色扇形)
 ```
 
-尺寸：
+尺寸：512×512（源文件 1024×1024 已压缩）
 
-```text
-512 x 512
-1024 x 1024
-```
+比例：1:1
 
-比例：
+接入位置：[client/src/components/LoginGuideModal/index.tsx](../../client/src/components/LoginGuideModal/index.tsx) — 已替换远程 COS URL
 
-```text
-1:1
-```
+说明：光圈图标（aperture symbol），黑色圆环 + 白色叶片 + 蓝色扇形点缀。SVG 源文件待补。
 
-设计方向：
-
-- 字母 C
-- 书页
-- 阅读高亮线
-- 简洁图标
-- 小尺寸可识别
-
-Prompt：
-
-```text
-Create a square app logo for "Claread", an English reading comprehension mini program.
-1024x1024.
-Minimal symbol combining a letter C, an open book page, and a subtle reading highlight mark.
-Flat vector-like style, clean edges, high recognizability at small size.
-Palette: charcoal, warm white, muted teal, small amber accent.
-No small text, no complex details, no mockup, no background scene.
-```
-
-### 4.3 Daily Reader 默认封面图
+### 4.3 Daily Reader 默认封面图 ✅ DONE
 
 用途：
 
@@ -193,23 +117,20 @@ No small text, no complex details, no mockup, no background scene.
 - 文章列表卡片 fallback
 - 精读详情页 header fallback
 
-建议文件：
+实际文件：
 
 ```text
 client/src/assets/covers/daily-reader-default.png
 ```
 
-尺寸：
+尺寸：1200×675，比例 16:9（横版）
 
-```text
-1200 x 675
-```
+接入位置：
+- [client/src/components/DailyReaderHeader/index.tsx](../../client/src/components/DailyReaderHeader/index.tsx) — 文章详情页 header
+- [client/src/pages/home/index.tsx](../../client/src/pages/home/index.tsx) — 首页文章卡片
+- [client/src/packageB/daily-reader-archive/index.tsx](../../client/src/packageB/daily-reader-archive/index.tsx) — 文章列表页
 
-比例：
-
-```text
-16:9
-```
+风格说明：16:9 横版构图，暖白底 + 淡青蓝色块 + 便签卡片 + 黄色高亮 + 光圈 Logo，杂志封面感，和分享卡/通用分享图完全区分。
 
 设计方向：
 
@@ -218,16 +139,6 @@ client/src/assets/covers/daily-reader-default.png
 - 高亮英文行
 - 抽象边注
 - 轻微纸张质感
-
-Prompt：
-
-```text
-Create a 16:9 editorial cover image, 1200x675, for a daily English reading article feature.
-A close-up of a clean article page with soft highlighted English lines, margin notes as abstract cards, calm morning light, refined paper texture.
-No readable text, no people, no UI buttons.
-Elegant, quiet, premium reading experience.
-Colors: warm white, charcoal, muted teal, pale amber.
-```
 
 ## 5. 微信平台约束（官方规范）
 
