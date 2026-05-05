@@ -23,6 +23,7 @@
 | `client/src/assets/covers/` | 1 个 PNG | Daily Reader 默认封面 | 体积过大，需要重导出 |
 | `client/src/assets/images/share/` | 8 个 PNG | 分享卡片图 | 体积过大，需要重导出 |
 | `client/src/assets/animations/` | 临时 TS 动画数据 | 解析加载页 Lottie 接入验证 | 等最终 Lottie JSON 替换 |
+| `client/src/assets/illustrations/` | 1 个 JPG + 6 个 PNG | 状态插画/兜底图 | Batch 1 源图已准备，接入前需 Squoosh 压缩 |
 | `docs/uiux/loading-animation/` | 概念图、关键帧、brief | 解析加载页动效制作包 | 已准备，可交给 Lottie 制作 |
 
 ## 当前真实资源盘点
@@ -166,12 +167,24 @@ client/src/assets/illustrations/
 | 文件 | 规格 | 用途 |
 |------|------|------|
 | `claread-analysis-loading.json` | Lottie，240/320 画布，≤80KB | 解析加载页主动画 |
-| `loading-analysis-fallback.png` | 640×640，透明/暖白底，≤80KB | Lottie 失败兜底 |
+| `loading-analysis-fallback.jpg` | 640×640，22KB | Lottie 失败兜底，已准备；后续可用 Squoosh 重新压缩源图 |
 
 已准备参考包：
 
 ```text
 docs/uiux/loading-animation/
+```
+
+已入项目资源：
+
+```text
+client/src/assets/illustrations/loading-analysis-fallback.jpg
+client/src/assets/illustrations/state-empty.png
+client/src/assets/illustrations/state-error-network.png
+client/src/assets/illustrations/state-error-timeout.png
+client/src/assets/illustrations/state-no-credit.png
+client/src/assets/illustrations/empty-history.png
+client/src/assets/illustrations/empty-vocab.png
 ```
 
 #### 2. 结果页状态插画
@@ -180,10 +193,10 @@ docs/uiux/loading-animation/
 
 | 文件 | 规格 | 风格 |
 |------|------|------|
-| `state-empty.png` | 480×480，≤80KB | 空白纸页 + 光圈水印 |
-| `state-error-network.png` | 480×480，≤80KB | 断开的纸页/弱网络线 |
-| `state-error-timeout.png` | 480×480，≤80KB | 纸页 + 慢速沙漏/时钟意象 |
-| `state-no-credit.png` | 480×480，≤80KB | 纸页 + 额度票券意象 |
+| `state-empty.png` | 源图 1254×1254，1.36MB；上线前用 Squoosh 压缩 | 空白纸页 + 光圈弱水印，已准备 |
+| `state-error-network.png` | 源图 1254×1254，1.10MB；上线前用 Squoosh 压缩 | 断开的纸页/弱网络线，已准备 |
+| `state-error-timeout.png` | 源图 1254×1254，1.12MB；上线前用 Squoosh 压缩 | 纸页 + 轻量时间标记，已准备 |
+| `state-no-credit.png` | 源图 1254×1254，1.14MB；上线前用 Squoosh 压缩 | 纸页 + 额度票券意象，已准备 |
 
 优先考虑 SVG/Lottie；PNG 只做兜底。
 
@@ -237,8 +250,8 @@ AI 生成的图片主要作为风格参考，最终交互层应尽量用 CSS/SVG
 
 | 文件 | 场景 |
 |------|------|
-| `empty-history.png` | 历史记录为空 |
-| `empty-vocab.png` | 生词本为空 |
+| `empty-history.png` | 历史记录为空，源图 1254×1254，1.49MB，已准备 |
+| `empty-vocab.png` | 生词本为空，源图 1254×1254，0.89MB，已准备 |
 | `empty-feedback.png` | 暂无反馈记录 |
 | `empty-daily-reader.png` | 每日精读暂无内容 |
 
@@ -321,10 +334,10 @@ AI 生成的图片主要作为风格参考，最终交互层应尽量用 CSS/SVG
 
 ### Batch 1：加载与状态体验
 
-先生成：
+已生成源图：
 
 ```text
-loading-analysis-fallback.png
+loading-analysis-fallback.jpg
 state-empty.png
 state-error-network.png
 state-error-timeout.png
@@ -333,7 +346,7 @@ empty-history.png
 empty-vocab.png
 ```
 
-这是后续重构最容易立刻用上的一批。
+这批是后续重构最容易立刻用上的状态体验物料。除 `loading-analysis-fallback.jpg` 已是轻量 JPG 外，其余 PNG 保留高质量源图，接入前统一用 Squoosh 压缩。
 
 ### Batch 2：阅读与笔记语言
 
@@ -383,7 +396,7 @@ share-timeline-notes.png
 
 ## 推荐下一步
 
-先生成 **Batch 1**。它能最快改善解析页、错误页、空状态和生词本/记录页体验，也不会和后续阅读页重构冲突。
+开始生成 **Batch 2：阅读与笔记语言**。这批将用于定义 Claread 批注系统，包括高亮笔触、铅笔下划线、语法括号、边注 marker、收藏角标和笔记卡片层。
 
 ## 维护流程
 

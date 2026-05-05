@@ -4,14 +4,6 @@ import clareadLoadingAnimation from '../../assets/animations/claread-loading'
 import LottieAnimation from '../LottieAnimation'
 import './index.scss'
 
-const LOADING_KEYWORDS = [
-  'STRUCTURE',
-  'SYNTAX',
-  'VOCABULARY',
-  'CONTEXT',
-  'INSIGHTS'
-]
-
 const LOADING_STEPS = [
   '正在构建文章骨架...',
   '深度解析复杂语法...',
@@ -25,52 +17,41 @@ export default function ActiveLoading() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setStep((s) => (s + 1) % LOADING_KEYWORDS.length)
+      setStep((s) => (s + 1) % LOADING_STEPS.length)
     }, 2800)
     return () => clearInterval(timer)
   }, [])
 
   return (
     <View className='active-loading-container'>
-      {/* 背景抽象装饰线 */}
-      <View className='abstract-bg'>
+      {/* 背景装饰线 */}
+      <View className='ambient-bg'>
         <View className='bg-line line-1' />
         <View className='bg-line line-2' />
         <View className='bg-line line-3' />
       </View>
 
-      <View className='loading-main'>
-        {/* 中心品牌字母脉冲 */}
-        <View className='brand-pulse'>
+      <View className='loading-content'>
+        {/* Lottie 动画区域 */}
+        <View className='lottie-wrapper'>
           <LottieAnimation
-            className='brand-lottie'
+            className='analysis-lottie'
             animationData={clareadLoadingAnimation}
-            fallback={<View className='pulse-ring' />}
+            loop={true}
+            autoplay={true}
+            fallback={
+              <View className='lottie-fallback'>
+                <View className='fallback-ring' />
+              </View>
+            }
           />
-          <Text className='brand-char'>C</Text>
         </View>
 
-        {/* 抽象排版层 */}
-        <View className='typography-layer'>
-          <View className='keyword-wrapper'>
-            {LOADING_KEYWORDS.map((kw, i) => (
-              <Text 
-                key={kw} 
-                className={`keyword ${i === step ? 'active' : ''}`}
-              >
-                {kw}
-              </Text>
-            ))}
-          </View>
-          
-          <View className='step-message-wrapper'>
-            <Text className='step-label'>Step 0{step + 1}</Text>
-            <Text className='step-text'>{LOADING_STEPS[step]}</Text>
-          </View>
+        {/* 状态文案 */}
+        <View className='status-panel'>
+          <Text className='step-label'>Step 0{step + 1}</Text>
+          <Text className='step-text'>{LOADING_STEPS[step]}</Text>
         </View>
-
-        {/* 动态扫描光带 */}
-        <View className='glimmer-bar' />
       </View>
 
       <View className='loading-footer'>

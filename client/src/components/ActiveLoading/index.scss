@@ -3,24 +3,26 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 80vh;
+  min-height: 80vh;
   position: relative;
   overflow: hidden;
-  background: var(--color-white);
+  background: #faf9f9;
+  padding: 48rpx;
 }
 
-.abstract-bg {
+// 环境背景细线
+.ambient-bg {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 1;
-  opacity: 0.4;
+  pointer-events: none;
 
   .bg-line {
     position: absolute;
-    background: var(--border-color);
+    background: rgba(18, 18, 18, 0.04);
     border-radius: 2rpx;
 
     &.line-1 {
@@ -49,161 +51,112 @@
   }
 }
 
-.loading-main {
+// 主内容区
+.loading-content {
   position: relative;
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 80rpx;
+  gap: 48rpx;
 }
 
-.brand-pulse {
-  position: relative;
-  width: 240rpx;
-  height: 240rpx;
+// Lottie 动画包装
+.lottie-wrapper {
+  width: 320rpx;
+  height: 320rpx;
   display: flex;
   align-items: center;
   justify-content: center;
 
-  .brand-lottie {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-  }
+  .analysis-lottie {
+    width: 100%;
+    height: 100%;
 
-  .brand-char {
-    position: relative;
-    font-size: 76rpx;
-    font-weight: var(--weight-bold);
-    font-family: var(--font-english-serif);
-    color: var(--color-ink);
-    z-index: 2;
-    line-height: 1;
-  }
-
-  .pulse-ring {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 128rpx;
-    height: 128rpx;
-    margin-left: -64rpx;
-    margin-top: -64rpx;
-    border: 1rpx solid rgba(18, 18, 18, 0.16);
-    border-radius: 50%;
-    animation: pulse-out 2.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-  }
-}
-
-.typography-layer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 180rpx;
-}
-
-.keyword-wrapper {
-  height: 40rpx;
-  position: relative;
-  width: 400rpx;
-  display: flex;
-  justify-content: center;
-  margin-bottom: 32rpx;
-
-  .keyword {
-    position: absolute;
-    font-size: 24rpx;
-    font-weight: var(--weight-bold);
-    color: var(--color-primary);
-    letter-spacing: 0.3em;
-    opacity: 0;
-    transform: translateY(20rpx) scale(0.9);
-    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-    white-space: nowrap;
-
-    &.active {
-      opacity: 0.8;
-      transform: translateY(0) scale(1);
+    :deep(.lottie-animation-canvas) {
+      width: 100% !important;
+      height: 100% !important;
     }
   }
 }
 
-.step-message-wrapper {
+// Lottie 降级方案
+.lottie-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .fallback-ring {
+    width: 120rpx;
+    height: 120rpx;
+    border: 4rpx solid rgba(0, 72, 254, 0.2);
+    border-top-color: #0048fe;
+    border-radius: 50%;
+    animation: fallback-spin 1s linear infinite;
+  }
+}
+
+// 状态面板
+.status-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12rpx;
+  gap: 16rpx;
+  min-height: 100rpx;
 
   .step-label {
     font-size: 20rpx;
-    font-weight: var(--weight-bold);
-    font-family: var(--font-mono);
-    color: var(--text-muted);
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: rgba(18, 18, 18, 0.4);
     letter-spacing: 0.1em;
   }
 
   .step-text {
     font-size: 28rpx;
-    color: var(--color-ink);
-    font-weight: var(--weight-medium);
+    color: #121212;
+    font-weight: 500;
     text-align: center;
-    transition: all 0.4s ease;
+    transition: opacity 0.4s ease;
   }
 }
 
-.glimmer-bar {
-  width: 80rpx;
-  height: 4rpx;
-  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
-  border-radius: 2rpx;
-  animation: glimmer-slide 2.8s ease-in-out infinite;
-}
-
+// 底部文案
 .loading-footer {
-  margin-top: 100rpx;
+  position: absolute;
+  bottom: 64rpx;
+  left: 0;
+  right: 0;
+  text-align: center;
+  z-index: 10;
 
   .footer-text {
     font-size: 22rpx;
-    color: var(--text-muted);
+    color: rgba(18, 18, 18, 0.5);
     letter-spacing: 0.05em;
   }
 }
 
-@keyframes pulse-out {
+// 动画关键帧
+@keyframes fallback-spin {
   0% {
-    transform: scale(0.8);
-    opacity: 0.8;
+    transform: rotate(0deg);
   }
-
   100% {
-    transform: scale(1.6);
-    opacity: 0;
-  }
-}
-
-@keyframes glimmer-slide {
-
-  0%,
-  100% {
-    transform: translateX(-40rpx);
-    opacity: 0.3;
-  }
-
-  50% {
-    transform: translateX(40rpx);
-    opacity: 1;
+    transform: rotate(360deg);
   }
 }
 
 @keyframes float-line {
-
   0%,
   100% {
     transform: translate(0, 0);
+    opacity: 0.04;
   }
-
   50% {
     transform: translate(20rpx, -20rpx);
+    opacity: 0.08;
   }
 }
