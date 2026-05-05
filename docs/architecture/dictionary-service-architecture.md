@@ -238,8 +238,9 @@ async def lookup_candidates_batch(normalized_forms: list[str]) -> list[Candidate
 
 | 文件 | 说明 |
 |------|------|
-| `db/migrations/0001_initial_schema.sql` | 初始表结构 |
-| `db/reset_dev_keep_dict.sql` | 开发期清空非词典业务表，保留 `dict_*` 数据 |
+| `db/migrations/0001_initial_schema.sql` | 初始表结构（含全部业务表 + 词典表） |
+| `db/reset_dev_keep_dict.sql` | 仅清空业务表数据，保留 `dict_*` 数据和表结构 |
+| `db/reset_full_keep_dict.sql` | DROP 业务表后需配合 0001 重建，保留 `dict_*` 数据 |
 
 ---
 

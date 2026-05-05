@@ -54,19 +54,21 @@ docker compose -f docker-compose.local.yml up -d
 - 初始 schema 会通过 `server/db/migrations/0001_initial_schema.sql` 在首次建库时自动导入
 - 如果你修改了初始 migration，并希望重新初始化本地数据库，需要清掉本地 volume 再重新启动
 - 开发期如只想清空业务数据，请执行 `server/db/reset_dev_keep_dict.sql`；该脚本**不会删除或清空** `dict_entries`、`dict_lookup_targets`、`dict_redirects`
+- 如果表结构有变更需要重建所有业务表（保留词典数据），先执行 `server/db/reset_full_keep_dict.sql`，再执行 `server/db/migrations/0001_initial_schema.sql`
 - 非特殊情况，**禁止删除、清空或重建** `dict_*` 相关表；如确需处理，必须先确认有完整重导方案（含 `exam_tag` 数据）
 - `Redis` 当前不是首发阻塞项，但本地环境先保留，便于后续 session/cache 接入
 
-仅清空非词典业务表的示例命令：
-
-```bash
-docker exec -i claread-postgres psql -U claread -d claread < server/db/reset_dev_keep_dict.sql
-```
-
-如果你已经在宿主机安装了 `psql`，也可以直接执行：
+仅清空非词典业务表数据（表结构不变）：
 
 ```bash
 psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/reset_dev_keep_dict.sql
+```
+
+重建所有业务表（保留词典数据，表结构变更后使用）：
+
+```bash
+psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/reset_full_keep_dict.sql
+psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/migrations/0001_initial_schema.sql
 ```
 
 ## 模型配置

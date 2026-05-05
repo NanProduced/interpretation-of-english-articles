@@ -8,6 +8,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ============================================================
+-- 用户与认证
+-- ============================================================
+
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled', 'deleted')),
@@ -64,6 +68,10 @@ CREATE TABLE user_sessions (
 CREATE INDEX idx_user_sessions_user_id_status ON user_sessions(user_id, status);
 CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
 
+-- ============================================================
+-- 文章分析
+-- ============================================================
+
 CREATE TABLE analysis_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -97,7 +105,6 @@ CREATE INDEX idx_analysis_records_user_updated_at
   WHERE deleted_at IS NULL;
 CREATE INDEX idx_analysis_records_source_hash ON analysis_records(source_text_hash);
 
--- Heavy results storage
 CREATE TABLE analysis_results (
   record_id UUID PRIMARY KEY REFERENCES analysis_records(id) ON DELETE CASCADE,
   render_scene_json JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -146,7 +153,6 @@ CREATE TABLE analysis_task_events (
 
 CREATE INDEX idx_task_events_task_created ON analysis_task_events(task_id, created_at);
 
--- Audit logs
 CREATE TABLE analysis_audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   record_id UUID NOT NULL REFERENCES analysis_records(id) ON DELETE CASCADE,
@@ -161,6 +167,10 @@ CREATE TABLE analysis_audit_logs (
 
 CREATE INDEX idx_analysis_audit_logs_record ON analysis_audit_logs(record_id);
 CREATE INDEX idx_analysis_audit_logs_user ON analysis_audit_logs(user_id, created_at DESC);
+
+-- ============================================================
+-- 积分系统
+-- ============================================================
 
 CREATE TABLE user_credit_accounts (
   user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -178,7 +188,10 @@ CREATE TABLE user_credit_ledger (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   task_id UUID REFERENCES analysis_tasks(id) ON DELETE SET NULL,
   entry_type TEXT NOT NULL
-    CHECK (entry_type IN ('daily_grant', 'bonus_grant', 'analysis_deduct', 'manual_adjust', 'refund')),
+    CHECK (entry_type IN (
+      'daily_grant', 'bonus_grant', 'analysis_deduct',
+      'manual_adjust', 'refund', 'feedback_reward'
+    )),
   points INTEGER NOT NULL,
   bucket_type TEXT NOT NULL DEFAULT 'daily_free'
     CHECK (bucket_type IN ('daily_free', 'bonus')),
@@ -197,6 +210,10 @@ CREATE TABLE anonymous_quotas (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ============================================================
+-- 用户资产（收藏 / 生词本）
+-- ============================================================
 
 CREATE TABLE favorite_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -248,7 +265,122 @@ CREATE INDEX idx_vocabulary_book_user_created_at ON vocabulary_book(user_id, cre
 CREATE INDEX idx_vocabulary_book_user_mastery_status ON vocabulary_book(user_id, mastery_status);
 CREATE INDEX idx_vocabulary_book_dict_entry_id ON vocabulary_book(dict_entry_id) WHERE dict_entry_id IS NOT NULL;
 
-CREATE TABLE dict_entries (
+-- ============================================================
+-- 反馈系统
+-- ============================================================
+
+CREATE TABLE feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  feedback_scope TEXT NOT NULL CHECK (feedback_scope IN (
+    'analysis_result', 'annotation', 'dictionary', 'app'
+  )),
+  target_id TEXT NOT NULL,
+  analysis_record_id UUID REFERENCES analysis_records(id) ON DELETE CASCADE,
+  sentiment TEXT NOT NULL CHECK (sentiment IN ('positive', 'negative', 'neutral')),
+  feedback_type TEXT NOT NULL,
+  annotation_type TEXT,
+  content TEXT,
+  context_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  app_version TEXT,
+  client_platform TEXT NOT NULL DEFAULT 'wechat_miniprogram',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
+    'pending', 'adopted', 'resolved', 'dismissed'
+  )),
+  reward_points INTEGER NOT NULL DEFAULT 0,
+  reward_granted_at TIMESTAMPTZ,
+  admin_note TEXT,
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  rag_harvested BOOLEAN NOT NULL DEFAULT FALSE,
+  rag_harvested_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_feedback_user_target_type UNIQUE (user_id, target_id, feedback_type)
+);
+
+CREATE INDEX idx_feedback_user_created ON feedback(user_id, created_at DESC);
+CREATE INDEX idx_feedback_scope_type ON feedback(feedback_scope, feedback_type);
+CREATE INDEX idx_feedback_record ON feedback(analysis_record_id)
+  WHERE analysis_record_id IS NOT NULL;
+CREATE INDEX idx_feedback_annotation_type ON feedback(annotation_type)
+  WHERE annotation_type IS NOT NULL;
+CREATE INDEX idx_feedback_sentiment ON feedback(sentiment, feedback_scope);
+CREATE INDEX idx_feedback_status ON feedback(status)
+  WHERE status = 'pending';
+CREATE INDEX idx_feedback_rag_harvested ON feedback(rag_harvested)
+  WHERE rag_harvested = FALSE AND feedback_scope IN ('annotation', 'dictionary');
+CREATE INDEX idx_feedback_context ON feedback USING GIN(context_json);
+
+-- ============================================================
+-- 每日精读
+-- ============================================================
+
+CREATE TABLE daily_readers (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  subtitle TEXT,
+  source TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  publish_date DATE NOT NULL,
+  difficulty TEXT NOT NULL CHECK (difficulty IN ('A2', 'B1', 'B2', 'C1')),
+  read_time_minutes INTEGER NOT NULL,
+  tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+  cover_image_url TEXT,
+  cover_theme TEXT NOT NULL DEFAULT 'editorial_warm',
+  body_json JSONB NOT NULL,
+  highlights_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  footer_analysis_json JSONB NOT NULL,
+  original_text TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  score REAL,
+  content_sec_check JSONB NOT NULL DEFAULT '{}'::jsonb,
+  original_text_hash TEXT,
+  pipeline_source TEXT,
+  pipeline_meta JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  published_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_daily_readers_status_date ON daily_readers(status, publish_date DESC);
+CREATE INDEX idx_daily_readers_published ON daily_readers(publish_date DESC)
+  WHERE status = 'published';
+CREATE INDEX idx_daily_readers_original_text_hash ON daily_readers(original_text_hash)
+  WHERE original_text_hash IS NOT NULL;
+
+-- ============================================================
+-- Pipeline 执行记录
+-- ============================================================
+
+CREATE TABLE pipeline_runs (
+  id TEXT PRIMARY KEY,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+  stage TEXT NOT NULL DEFAULT 'init'
+    CHECK (stage IN (
+      'init', 'discovery', 'extraction', 'scoring',
+      'selection', 'workflow', 'cover_download', 'storing', 'done'
+    )),
+  stage_detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+  candidates_found INTEGER NOT NULL DEFAULT 0,
+  candidates_extracted INTEGER NOT NULL DEFAULT 0,
+  candidates_scored INTEGER NOT NULL DEFAULT 0,
+  articles_generated INTEGER NOT NULL DEFAULT 0,
+  errors JSONB NOT NULL DEFAULT '[]'::jsonb,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  finished_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_pipeline_runs_status ON pipeline_runs(status);
+CREATE INDEX idx_pipeline_runs_created ON pipeline_runs(created_at DESC);
+
+-- ============================================================
+-- 词典数据（TECD3 — 重置开发库时保留）
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS dict_entries (
   id BIGSERIAL PRIMARY KEY,
   source TEXT NOT NULL DEFAULT 'tecd3',
   source_entry_key TEXT NOT NULL,
@@ -272,7 +404,7 @@ CREATE UNIQUE INDEX idx_dict_entries_source_entry_key ON dict_entries(source, so
 CREATE INDEX idx_dict_entries_display_headword_lower ON dict_entries(LOWER(display_headword));
 CREATE INDEX idx_dict_entries_base_headword_lower ON dict_entries(LOWER(base_headword));
 
-CREATE TABLE dict_lookup_targets (
+CREATE TABLE IF NOT EXISTS dict_lookup_targets (
   id BIGSERIAL PRIMARY KEY,
   source TEXT NOT NULL DEFAULT 'tecd3',
   normalized_form TEXT NOT NULL,
@@ -291,7 +423,7 @@ CREATE TABLE dict_lookup_targets (
 CREATE INDEX idx_dict_lookup_targets_form_rank ON dict_lookup_targets(source, normalized_form, rank);
 CREATE INDEX idx_dict_lookup_targets_entry_id ON dict_lookup_targets(entry_id);
 
-CREATE TABLE dict_redirects (
+CREATE TABLE IF NOT EXISTS dict_redirects (
   id BIGSERIAL PRIMARY KEY,
   source TEXT NOT NULL DEFAULT 'tecd3',
   redirect_key TEXT NOT NULL,
@@ -303,6 +435,10 @@ CREATE TABLE dict_redirects (
 
 CREATE INDEX idx_dict_redirects_key ON dict_redirects(source, redirect_key);
 CREATE INDEX idx_dict_redirects_target ON dict_redirects(source, target_entry_key);
+
+-- ============================================================
+-- COMMENT
+-- ============================================================
 
 COMMENT ON TABLE users IS '用户主表，保存应用内部用户档案与基础偏好设置。';
 COMMENT ON COLUMN users.id IS '用户主键，使用 UUID。';
@@ -405,14 +541,14 @@ COMMENT ON COLUMN analysis_audit_logs.cost_points IS '消耗积分。';
 COMMENT ON COLUMN analysis_audit_logs.processing_ms IS '后端处理耗时（毫秒）。';
 
 COMMENT ON TABLE user_credit_accounts IS '用户积分账户快照，每用户一行。';
-COMMENT ON COLUMN user_credit_accounts.daily_free_points IS 'Daily free points quota (default 1000 points, where 1 point = 1000 weighted tokens).';
+COMMENT ON COLUMN user_credit_accounts.daily_free_points IS '每日免费额度（默认 1000 积分，1 积分 = 1000 加权 token）。';
 COMMENT ON COLUMN user_credit_accounts.daily_used_points IS '今日已使用积分。';
 COMMENT ON COLUMN user_credit_accounts.bonus_points IS '活动赠送/人工补偿/邀请码奖励等长期积分。';
 COMMENT ON COLUMN user_credit_accounts.last_reset_on IS '最近一次每日积分重置日期。';
 COMMENT ON COLUMN user_credit_accounts.policy_version IS '积分策略版本号。';
 
 COMMENT ON TABLE user_credit_ledger IS '积分流水账本，append-only，所有积分变动均记录。';
-COMMENT ON COLUMN user_credit_ledger.entry_type IS '流水类型：daily_grant, bonus_grant, analysis_deduct, manual_adjust, refund。';
+COMMENT ON COLUMN user_credit_ledger.entry_type IS '流水类型：daily_grant, bonus_grant, analysis_deduct, manual_adjust, refund, feedback_reward。';
 COMMENT ON COLUMN user_credit_ledger.points IS '变动积分数（正为增加，负为扣减）。';
 COMMENT ON COLUMN user_credit_ledger.bucket_type IS '积分桶类型：daily_free 或 bonus。';
 COMMENT ON COLUMN user_credit_ledger.balance_after IS '变动后余额。';
@@ -458,6 +594,45 @@ COMMENT ON COLUMN vocabulary_book.payload_json IS '生词附加元数据 JSON，
 COMMENT ON COLUMN vocabulary_book.created_at IS '记录创建时间。';
 COMMENT ON COLUMN vocabulary_book.updated_at IS '记录最后更新时间。';
 
+COMMENT ON TABLE feedback IS '用户反馈表，统一存储结果页整体反馈、批注级反馈、词典反馈和应用功能反馈。';
+COMMENT ON COLUMN feedback.feedback_scope IS '反馈作用域：analysis_result（结果页整体）、annotation（批注级）、dictionary（词典）、app（应用功能）。';
+COMMENT ON COLUMN feedback.target_id IS '反馈目标标识：analysis_result 为 record_id，annotation 为 mark.id/sentence_entry.id，dictionary 为 dict_entry_id 或 word，app 为功能区域标识。';
+COMMENT ON COLUMN feedback.sentiment IS '情感倾向：positive（正面）、negative（负面）、neutral（中性）。dictionary 作用域仅允许 negative。';
+COMMENT ON COLUMN feedback.feedback_type IS '结构化反馈分类，含义随 feedback_scope 变化。';
+COMMENT ON COLUMN feedback.annotation_type IS '标注类型，仅 annotation 作用域有值。';
+COMMENT ON COLUMN feedback.context_json IS '反馈时的上下文快照 JSON，用于 RAG 训练数据提取。';
+COMMENT ON COLUMN feedback.status IS '处理状态：pending（待处理）、adopted（已采纳，触发奖励）、resolved（已解决）、dismissed（已关闭）。';
+COMMENT ON COLUMN feedback.reward_points IS '因反馈被采纳而发放的奖励积分数，0 表示未发放。';
+COMMENT ON COLUMN feedback.rag_harvested IS '是否已被用于 RAG 训练数据提取。';
+
+COMMENT ON TABLE daily_readers IS '每日精读文章表，存储预生成的精读内容 payload。每天最多 3 篇已发布文章，由应用层保证，数据库不做 UNIQUE 约束。';
+COMMENT ON COLUMN daily_readers.id IS '文章 ID，格式 daily_{YYYY}_{MM}_{DD}_{NNN}。';
+COMMENT ON COLUMN daily_readers.title IS '文章标题。';
+COMMENT ON COLUMN daily_readers.subtitle IS '副标题/摘要。';
+COMMENT ON COLUMN daily_readers.source IS '来源媒体名称，如 The Guardian、BBC News。';
+COMMENT ON COLUMN daily_readers.source_url IS '原文链接，用于版权标注和引导用户访问。';
+COMMENT ON COLUMN daily_readers.publish_date IS '发布日期（UTC+8），用于按天查询今日精读。';
+COMMENT ON COLUMN daily_readers.difficulty IS 'CEFR 难度等级。';
+COMMENT ON COLUMN daily_readers.read_time_minutes IS '预估阅读时长（分钟）。';
+COMMENT ON COLUMN daily_readers.tags IS '文章主题标签数组。';
+COMMENT ON COLUMN daily_readers.cover_image_url IS '封面图 URL，优先使用文章自带图。';
+COMMENT ON COLUMN daily_readers.cover_theme IS '封面氛围主题，用于无封面图时的渐变色渲染。';
+COMMENT ON COLUMN daily_readers.body_json IS '正文段落数据，包含段落文本和高亮锚点。';
+COMMENT ON COLUMN daily_readers.highlights_json IS '正文高亮标注数据，vocab_highlight/phrase_gloss/context_gloss。';
+COMMENT ON COLUMN daily_readers.footer_analysis_json IS '文末解析数据，summary/structure/key_expressions/full_analysis/discussion_questions。';
+COMMENT ON COLUMN daily_readers.original_text IS '原文全文，用于 retry workflow 重新生成解析内容。仅在 pipeline 存储时写入，历史数据为 NULL。';
+COMMENT ON COLUMN daily_readers.status IS '文章状态：draft（草稿）、published（已发布）、archived（已归档）。';
+COMMENT ON COLUMN daily_readers.score IS 'AI 评分（4 维综合，满分 10）。';
+COMMENT ON COLUMN daily_readers.content_sec_check IS '微信内容安全检测结果，含 trace_id、suggest、label 等。';
+COMMENT ON COLUMN daily_readers.original_text_hash IS '原文 SHA256，用于去重校验。';
+COMMENT ON COLUMN daily_readers.pipeline_source IS '拉取来源标识，如 guardian_api、bbc_rss。';
+COMMENT ON COLUMN daily_readers.pipeline_meta IS 'Pipeline 运行元数据，含评分详情、提取日志、workflow 审核记录等。';
+
+COMMENT ON TABLE pipeline_runs IS '每日精读 pipeline 执行记录，用于追踪异步任务进度。';
+COMMENT ON COLUMN pipeline_runs.stage IS '当前执行阶段。';
+COMMENT ON COLUMN pipeline_runs.stage_detail IS '阶段详情，如发现的来源、评分分布等。';
+COMMENT ON COLUMN pipeline_runs.errors IS '错误列表，每项含 stage + message。';
+
 COMMENT ON TABLE dict_entries IS '词典词条详情表，保存 TECD3 的正式词条或可保留的 fragment 详情。';
 COMMENT ON COLUMN dict_entries.id IS '词条主键，自增 bigint。';
 COMMENT ON COLUMN dict_entries.source IS '词典来源标识，当前为 tecd3。';
@@ -499,6 +674,10 @@ COMMENT ON COLUMN dict_redirects.target_entry_key IS '重定向目标词条键�
 COMMENT ON COLUMN dict_redirects.redirect_kind IS '重定向类型，例如 mdx_link、normalized_alias。';
 COMMENT ON COLUMN dict_redirects.created_at IS '记录创建时间。';
 
+-- ============================================================
+-- TRIGGER
+-- ============================================================
+
 CREATE TRIGGER trg_users_set_updated_at
 BEFORE UPDATE ON users
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -537,4 +716,12 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TRIGGER trg_dict_entries_set_updated_at
 BEFORE UPDATE ON dict_entries
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_feedback_set_updated_at
+BEFORE UPDATE ON feedback
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_daily_readers_set_updated_at
+BEFORE UPDATE ON daily_readers
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();

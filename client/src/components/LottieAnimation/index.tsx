@@ -55,7 +55,7 @@ export default function LottieAnimation({
     Taro.nextTick(() => {
       Taro.createSelectorQuery()
         .select(`#${canvasId}`)
-        .node((res) => {
+        .fields({ node: true, size: true }, (res) => {
           if (disposed) return
 
           const canvas = res?.node
@@ -64,6 +64,12 @@ export default function LottieAnimation({
             fail()
             return
           }
+
+          // 适配高分屏和正确的宽高比例
+          const systemInfo = Taro.getSystemInfoSync()
+          const dpr = systemInfo.pixelRatio
+          canvas.width = (res.width || 300) * dpr
+          canvas.height = (res.height || 300) * dpr
 
           destroyAnimation()
           lottie.setup(canvas)

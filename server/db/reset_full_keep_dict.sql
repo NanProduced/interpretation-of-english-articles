@@ -1,17 +1,20 @@
 -- ============================================================
--- reset_dev_keep_dict.sql
--- 重置开发库：清空所有业务表，保留词典数据（dict_*）
+-- reset_full_keep_dict.sql
+-- 完整重置开发库：删除所有业务表后重建，保留词典数据（dict_*）
+--
+-- 适用场景：表结构变更后需要重建所有表，但不想重新导入词典
+-- 使用方式：
+--   1. 执行本脚本（DROP 业务表）
+--   2. 执行 0001_initial_schema.sql（重建所有表）
+--      dict_* 三表使用 IF NOT EXISTS，已存在时安全跳过
 --
 -- 词典三表数据量约 205 万行 / 1.25 GB，重新导入需 20+ 分钟，
 -- 且 exam_tags 字段需额外脚本标注，因此重置时必须保留。
---
--- 保留的表：dict_entries, dict_lookup_targets, dict_redirects
--- 保留的函数/触发器：set_updated_at() 及各 trg_*_set_updated_at
 -- ============================================================
 
 BEGIN;
 
-TRUNCATE TABLE
+DROP TABLE IF EXISTS
   analysis_audit_logs,
   analysis_task_events,
   analysis_tasks,
@@ -28,6 +31,6 @@ TRUNCATE TABLE
   analysis_records,
   anonymous_quotas,
   users
-RESTART IDENTITY CASCADE;
+CASCADE;
 
 COMMIT;
