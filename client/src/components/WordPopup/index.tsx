@@ -6,7 +6,9 @@ import { fetchDict, fetchDictEntry } from '../../services/api/client'
 import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
 import { filterExamTags } from '../../config/purpose'
 import LucideIcon from '../LucideIcon'
+import AnnotationGlyph from '../AnnotationGlyph'
 import DictionaryFeedback from '../DictionaryFeedback'
+import { getLookupSaveState, getSaveActionCopy } from './lookupSaveState'
 import './index.scss'
 
 interface WordPopupProps {
@@ -19,6 +21,7 @@ interface WordPopupProps {
   x?: number
   y?: number
   readingVariant?: string
+  isSaved?: boolean
   onClose: () => void
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
@@ -95,7 +98,7 @@ const LOGIC_TYPE_LABELS: Record<string, string> = {
 
 export default function WordPopup({
   visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant,
-  onClose, onExpand, onAddVocab, onFavorite,
+  isSaved = false, onClose, onExpand, onAddVocab, onFavorite,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -126,6 +129,25 @@ export default function WordPopup({
   const detailMeanings = entry?.meanings || []
   const miniMeaning = glossary?.zh || (isLearningGlossary(glossary) ? glossary.gloss : undefined) || getEntrySummary(entry)
   const isLLMAnnotated = !!glossary
+
+  // Render context excerpt with highlight
+  const renderContextExcerpt = () => {
+    if (!contextSentence || !lookupText) return null
+    const parts = contextSentence.split(new RegExp(`(${lookupText})`, 'gi'))
+    return (
+      <View className='source-context-excerpt'>
+        {parts.map((part, i) => 
+          part.toLowerCase() === lookupText.toLowerCase() 
+            ? <Text key={i} className='excerpt-highlight'>{part}</Text> 
+            : <Text key={i}>{part}</Text>
+        )}
+      </View>
+    )
+  }
+
+  const saveState = getLookupSaveState(lookupText, isSaved)
+  const saveBtnCopy = getSaveActionCopy(saveState)
+  const isSavedState = saveState !== 'not_saved'
 
   // Hooks must ALWAYS be called in the same order. 
   // Conditional return must happen AFTER all hook declarations.
@@ -182,7 +204,7 @@ export default function WordPopup({
   const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
 
   if (mode === 'mini') {
-    const popupWidth = (screenWidth * 480) / 750
+    const popupWidth = (screenWidth * 440) / 750
     const offset = 12
     let left = x - popupWidth / 2
     let top = y - offset
@@ -209,41 +231,78 @@ export default function WordPopup({
         <View
           className={`mini-word-card ${isLLMAnnotated ? 'is-ai' : ''} ${isFlipped ? 'is-flipped' : ''}`}
           style={popupStyle}
-          onClick={(e) => {
+        >
+          <View className='mini-main-content' onClick={(e) => {
             e.stopPropagation()
             onExpand?.()
-          }}
-        >
-          <View className='mini-header'>
-            <View className='mini-word-info'>
+          }}>
+            <View className='mini-header'>
               <Text className='mini-word'>{entry?.word || lookupText}</Text>
-              {entry?.phonetic && <Text className='mini-phonetic'>/{entry.phonetic}/</Text>}
-              {isLLMAnnotated && toneMeta && <View className='ai-tag'>{miniLabel}</View>}
+              <LucideIcon name='chevron-right' size={16} color='var(--reader-muted)' />
             </View>
-            <LucideIcon name='chevron-right' size={14} color='var(--text-muted)' />
-          </View>
-          <View className='mini-content'>
-            {loading && !miniMeaning ? (
-              <Text className='mini-loading'>查询中...</Text>
-            ) : miniMeaning ? (
-              <View className='mini-def-row'>
-                <Text 
-                  className={`mini-def ${isLLMAnnotated ? 'is-ai-def' : ''}`} 
-                  style={isLLMAnnotated && toneMeta ? { color: toneMeta.color } : {}}
-                  numberOfLines={2}
-                >
-                  {miniMeaning}
-                </Text>
+            
+            {(entry?.phonetic || (isLLMAnnotated && mark)) && (
+              <View className='mini-sub-info'>
+                {entry?.phonetic && (
+                  <View className='mini-phonetic-row'>
+                    <LucideIcon name='volume-2' size={14} color='var(--reader-muted)' />
+                    <Text className='mini-phonetic'>/{entry.phonetic}/</Text>
+                  </View>
+                )}
+                {isLLMAnnotated && mark && (
+                  <View className='ai-tag'>
+                    {mark.visualTone === 'vocab' && <AnnotationGlyph type='vocab' size={16} state='active' />}
+                    {mark.visualTone === 'phrase' && <AnnotationGlyph type='phrase' size={16} state='active' />}
+                    {mark.visualTone === 'context' && <AnnotationGlyph type='context' size={16} state='active' />}
+                    <Text className='ai-tag-text'>{miniLabel}</Text>
+                  </View>
+                )}
               </View>
-            ) : isDisambiguationResult ? (
-              <View className='mini-disambiguation-hint'>
-                <LucideIcon name='list' size={12} color='var(--color-primary)' />
-                <Text className='mini-def'>该词有多个义项，点击查看</Text>
-              </View>
-            ) : (
-              <Text className='mini-loading'>未找到释义</Text>
             )}
+
+            <View className='mini-content'>
+              {loading && !miniMeaning ? (
+                <View>
+                  <View className='mini-skeleton-line' />
+                  <View className='mini-skeleton-line' />
+                </View>
+              ) : miniMeaning ? (
+                <View className='mini-def-row'>
+                  <Text 
+                    className={`mini-def ${isLLMAnnotated ? 'is-ai-def' : ''}`} 
+                    numberOfLines={2}
+                  >
+                    {miniMeaning}
+                  </Text>
+                </View>
+              ) : isDisambiguationResult ? (
+                <View className='mini-disambiguation-hint'>
+                  <LucideIcon name='list' size={14} color='var(--reader-muted)' />
+                  <Text className='mini-def'>多个义项，点击查看</Text>
+                </View>
+              ) : (
+                <Text className='mini-loading'>未找到释义</Text>
+              )}
+            </View>
           </View>
+
+          {entry && entry.id > 0 && (
+            <View 
+              className={`mini-action-bar ${isSavedState ? 'saved' : 'not-saved'}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onAddVocab?.(entry.word, dictResult)
+              }}
+            >
+              <View className='mini-action-left'>
+                {!isSavedState && <LucideIcon name='bookmark' size={14} color='var(--reader-ink)' />}
+                {isSavedState && <LucideIcon name='check' size={14} color='var(--reader-ink)' />}
+                <Text className='mini-action-text'>{saveBtnCopy}</Text>
+              </View>
+              <LucideIcon name='chevron-right' size={14} color={isSavedState ? 'var(--reader-ink)' : 'var(--reader-muted)'} />
+            </View>
+          )}
+
           <View className='mini-arrow' style={{ left: `${Math.max(20, Math.min(popupWidth - 20, x - left))}px` }} />
         </View>
       </View>
@@ -258,86 +317,39 @@ export default function WordPopup({
           <View className='word-info'>
             <View className='word-text-row'>
               <Text className='word-text'>{entry?.word || lookupText}</Text>
-              <View className='header-tags'>
-                {isLLMAnnotated && toneMeta && <View className='ai-badge'>{professionalLabel}</View>}
-              </View>
             </View>
             <View className='word-sub-info'>
               {entry?.phonetic && (
                 <View className='phonetic-row'>
-                  <LucideIcon name='volume-2' size={14} color='var(--text-muted)' />
                   <Text className='word-phonetic'>/{entry.phonetic}/</Text>
                 </View>
               )}
-              {(() => {
-                const displayTags = filterExamTags(entry?.tags || [], readingVariant)
-                return displayTags.length > 0 ? (
-                  <View className='exam-tags-row'>
-                    {displayTags.map(t => (
-                      <Text key={t} className='exam-tag'>{t}</Text>
-                    ))}
-                  </View>
-                ) : null
-              })()}
             </View>
           </View>
           <View className='header-right-actions'>
             <View className='popup-close-btn' onClick={onClose}>
-              <LucideIcon name='x' size={24} color='var(--text-muted)' />
+              <LucideIcon name='x' size={24} color='var(--reader-ink)' />
             </View>
           </View>
         </View>
 
         <ScrollView className='popup-scroll-content' scrollY style={{ flex: 1, height: '1px' }}>
+          
+          {contextSentence && renderContextExcerpt()}
+
           {glossary && (
             <View className='glossary-section'>
               <View className='section-title'>
-                <LucideIcon name='sparkles' size={14} color='var(--color-primary)' />
-                <Text>AI 语境解析 · {professionalLabel}</Text>
+                {mark?.visualTone === 'phrase' ? <AnnotationGlyph type='phrase' size={16} /> : <AnnotationGlyph type='context' size={16} />}
+                <Text>语境解析 · {professionalLabel}</Text>
               </View>
               <View className='glossary-content'>
                 <View className='glossary-main-zh'>
                   <Text className='zh-text'>{glossary.zh || (isLearningGlossary(glossary) ? glossary.gloss : '')}</Text>
-                  {!isLearningGlossary(glossary) && glossary.zhUncertain && (
-                    <View className='uncertain-badge'>
-                      <LucideIcon name='alert-triangle' size={14} color='var(--color-warning)' />
-                      <Text className='uncertain-text'>翻译不确定</Text>
-                    </View>
-                  )}
                 </View>
                 {isLearningGlossary(glossary) && glossary.reason && (
                   <View className='glossary-reason-box'>
-                    <LucideIcon name='info' size={12} color='var(--color-primary)' />
                     <Text className='reason-text'>{glossary.reason}</Text>
-                  </View>
-                )}
-                {!isLearningGlossary(glossary) && glossary.contextDefinition && (
-                  <View className='glossary-reason-box academic-context-def'>
-                    <LucideIcon name='book-open' size={12} color='var(--term-accent)' />
-                    <Text className='reason-text'>{glossary.contextDefinition}</Text>
-                  </View>
-                )}
-                {!isLearningGlossary(glossary) && glossary.termCategory && (
-                  <View className='academic-meta-tags'>
-                    <View className='academic-tag tag-term'>{TERM_CATEGORY_LABELS[glossary.termCategory] || glossary.termCategory}</View>
-                  </View>
-                )}
-                {!isLearningGlossary(glossary) && glossary.logicType && (
-                  <View className='academic-meta-tags'>
-                    <View className='academic-tag tag-logic'>{LOGIC_TYPE_LABELS[glossary.logicType] || glossary.logicType}</View>
-                  </View>
-                )}
-                {!isLearningGlossary(glossary) && glossary.hedgingDetected && glossary.hedgingWords && glossary.hedgingWords.length > 0 && (
-                  <View className='academic-hedging'>
-                    <View className='hedging-label'>
-                      <LucideIcon name='shield-alert' size={12} color='var(--logic-accent)' />
-                      <Text className='hedging-label-text'>模糊限制语</Text>
-                    </View>
-                    <View className='hedging-words'>
-                      {glossary.hedgingWords.map((w, i) => (
-                        <View key={i} className='hedging-word-chip'>{w}</View>
-                      ))}
-                    </View>
                   </View>
                 )}
               </View>
@@ -347,8 +359,7 @@ export default function WordPopup({
           <View className='dict-section'>
             <View className='section-title-row'>
               <View className='section-title'>
-                <LucideIcon name='book' size={14} color='var(--text-sub)' />
-                <Text>{isLLMAnnotated ? '词典详细释义' : '通用释义'}</Text>
+                <Text>通用释义</Text>
               </View>
               {isEntryResult && entry && (entry.phrases?.length > 0 || entry.examples?.length > 0) && (
                 <View className='dict-tabs'>
@@ -362,7 +373,6 @@ export default function WordPopup({
             {loading ? (
               <View className='popup-loading-state'>
                 <View className='loading-spinner' />
-                <Text>正在检索权威词库...</Text>
               </View>
             ) : isDisambiguationResult ? (
               <View className='disambiguation-list'>
@@ -375,7 +385,6 @@ export default function WordPopup({
                       </View>
                       {candidate.preview && <View className='candidate-preview'>{candidate.preview}</View>}
                     </View>
-                    <LucideIcon name='chevron-right' size={16} color='var(--border-color)' />
                   </View>
                 ))}
               </View>
@@ -426,25 +435,25 @@ export default function WordPopup({
               </View>
             ) : !loading && (
               <View className='popup-empty-state'>
-                <Text className='empty-text'>未找到更多词条释义</Text>
+                <Text className='empty-text'>未找到词条释义</Text>
               </View>
             )}
           </View>
         </ScrollView>
 
         <View className='popup-footer-actions safe-area-bottom'>
-          <View className='footer-action-btn secondary' onClick={handleFavorite}>
-            <LucideIcon name='star' size={18} color='var(--text-sub)' />
-            <Text>收藏</Text>
-          </View>
           <View className='footer-action-btn secondary' onClick={() => setShowDictFeedback(true)}>
-            <LucideIcon name='messageSquare' size={18} color='var(--text-sub)' />
+            <LucideIcon name='messageSquare' size={18} color='var(--reader-ink)' />
             <Text>反馈</Text>
           </View>
           {isEntryResult && entry && entry.id > 0 && (
-            <View className='footer-action-btn primary' onClick={() => onAddVocab?.(entry.word, dictResult)}>
-              <LucideIcon name='plus' size={18} color='var(--color-white)' />
-              <Text>记入生词本</Text>
+            <View 
+              className={`footer-action-btn ${isSavedState ? 'saved' : 'primary'}`} 
+              onClick={() => onAddVocab?.(entry.word, dictResult)}
+            >
+              {!isSavedState && <LucideIcon name='plus' size={18} color='var(--reader-paper)' />}
+              {isSavedState && <AnnotationGlyph type='saved_vocab' size={16} />}
+              <Text>{saveBtnCopy}</Text>
             </View>
           )}
         </View>

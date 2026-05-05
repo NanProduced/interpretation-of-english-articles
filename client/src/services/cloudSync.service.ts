@@ -211,8 +211,8 @@ async function executeSyncRecord(item: SyncQueueItem): Promise<void> {
 }
 
 async function executeAddFavorite(item: SyncQueueItem): Promise<void> {
-  const { clientRecordId } = item.payload as { clientRecordId: string }
-  const isDailyReader = clientRecordId.startsWith('daily_')
+  const { clientRecordId, targetType } = item.payload as { clientRecordId: string; targetType?: string }
+  const isDailyReader = targetType === 'daily_reader_article'
   let cloudId = resolveCloudIdFromMap(clientRecordId)
   if (!cloudId) {
     const record = getRecord(clientRecordId)
@@ -228,8 +228,8 @@ async function executeAddFavorite(item: SyncQueueItem): Promise<void> {
 }
 
 async function executeRemoveFavorite(item: SyncQueueItem): Promise<void> {
-  const { clientRecordId } = item.payload as { clientRecordId: string }
-  const isDailyReader = clientRecordId.startsWith('daily_')
+  const { clientRecordId, targetType } = item.payload as { clientRecordId: string; targetType?: string }
+  const isDailyReader = targetType === 'daily_reader_article'
   let cloudId = resolveCloudIdFromMap(clientRecordId)
   if (!cloudId) {
     const record = getRecord(clientRecordId)
@@ -249,15 +249,16 @@ async function executeRemoveFavorite(item: SyncQueueItem): Promise<void> {
 }
 
 async function executeUpsertVocab(item: SyncQueueItem): Promise<void> {
-  const { vocabEntry } = item.payload as { vocabEntry: VocabEntry }
+  const { vocabEntry, sourceType } = item.payload as { vocabEntry: VocabEntry; sourceType?: string }
   const entry = vocabEntry
+  const isDailyReader = sourceType === 'daily_reader_article'
 
   const primaryRef = entry.sourceRefs?.[0]
   let resolvedRecordId = primaryRef?.cloudRecordId
-  if (!resolvedRecordId && primaryRef?.clientRecordId && !primaryRef.clientRecordId.startsWith('daily_')) {
+  if (!resolvedRecordId && primaryRef?.clientRecordId && !isDailyReader) {
     resolvedRecordId = (await resolveCloudId(primaryRef.clientRecordId)) || undefined
   }
-  if (!resolvedRecordId && primaryRef?.clientRecordId && !primaryRef.clientRecordId.startsWith('daily_')) {
+  if (!resolvedRecordId && primaryRef?.clientRecordId && !isDailyReader) {
     throw new Error(`Cannot resolve cloudRecordId for vocab upsert: ${entry.word}`)
   }
 
@@ -343,7 +344,7 @@ export const CloudSyncService = {
   /**
    * 同步收藏状态到云端
    */
-  async syncFavorite(cloudId: string | undefined, clientRecordId: string, action: 'add' | 'remove'): Promise<void> {
+  async syncFavorite(cloudId: string | undefined, clientRecordId: string, action: 'add' | 'remove', targetType?: string): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
 
     enqueueSyncItem({
@@ -351,7 +352,7 @@ export const CloudSyncService = {
       entityType: 'favorite',
       entityId: clientRecordId,
       action: action === 'add' ? 'ADD_FAVORITE' : 'REMOVE_FAVORITE',
-      payload: { clientRecordId, cloudId: cloudId || null },
+      payload: { clientRecordId, cloudId: cloudId || null, targetType },
       status: 'pending',
       retryCount: 0,
       createdAt: Date.now(),
@@ -364,7 +365,7 @@ export const CloudSyncService = {
   /**
    * 同步生词本条目到云端
    */
-  async syncVocab(entry: VocabEntry): Promise<void> {
+  async syncVocab(entry: VocabEntry, sourceType?: string): Promise<void> {
     if (!useAuthStore.getState().isLoggedIn) return
 
     enqueueSyncItem({
@@ -372,7 +373,7 @@ export const CloudSyncService = {
       entityType: 'vocab',
       entityId: entry.id,
       action: 'UPSERT_VOCAB',
-      payload: { vocabEntry: { ...entry } },
+      payload: { vocabEntry: { ...entry }, sourceType },
       status: 'pending',
       retryCount: 0,
       createdAt: Date.now(),

@@ -1,89 +1,53 @@
 .clickable-word {
-  color: var(--text-main);
-  border-bottom: 2rpx solid transparent; // 默认透明，不破坏纯净纸感
+  color: var(--reader-ink, var(--text-main));
+  border-radius: 4rpx;
   padding: 0 2rpx;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.2s ease;
   position: relative;
-  border-radius: 4rpx;
 
   &:active, &.active {
-    background-color: var(--active-highlight-bg);
-    color: var(--color-ink);
+    background-color: rgba(255, 231, 105, 0.5); // generic tap active state
     border-radius: 4rpx;
   }
 
+  // Saved vocabulary folded-corner marker
   &.saved {
-    background-color: rgba(148, 163, 184, 0.18);
-    border-bottom: 2rpx solid transparent !important;
-    border-radius: 8rpx 3rpx 7rpx 4rpx;
-    color: var(--text-main) !important;
-    font-weight: var(--weight-medium);
-    padding: 0 8rpx 0 4rpx;
     position: relative;
+    font-weight: var(--weight-medium);
 
     &::after {
       content: '';
       position: absolute;
-      right: 0;
-      bottom: 0;
-      width: 6rpx;
-      height: 8rpx;
-      background-color: rgba(100, 116, 139, 0.45);
-      border-radius: 0 0 3rpx 0;
+      right: -2rpx;
+      bottom: -2rpx;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 0 12rpx 12rpx;
+      border-color: transparent transparent rgba(180, 83, 9, 0.6) transparent;
     }
 
-    &:active {
-      background-color: rgba(148, 163, 184, 0.32);
-
-      &::after {
-        background-color: rgba(100, 116, 139, 0.7);
-      }
+    &:active::after {
+      border-color: transparent transparent rgba(180, 83, 9, 0.9) transparent;
     }
   }
 
   &.saved-mastered {
     &::after {
-      background-color: rgba(34, 197, 94, 0.45) !important;
+      border-color: transparent transparent rgba(16, 185, 129, 0.6) transparent;
     }
 
-    &:active {
-      &::after {
-        background-color: rgba(34, 197, 94, 0.7) !important;
-      }
+    &:active::after {
+      border-color: transparent transparent rgba(16, 185, 129, 0.9) transparent;
     }
   }
 
-  &.saved.saved-mastered {
-    background-color: rgba(34, 197, 94, 0.1);
-
-    &:active {
-      background-color: rgba(34, 197, 94, 0.2);
-    }
-  }
-
-  // grammar_note 等非点击热区 mark 内的单词，保留 tone 视觉提示 (对应后端的 span 锚点)
+  // grammar_note span fallback
   &.tone-grammar {
-    color: var(--color-ink);
-    border-bottom: 2.5rpx solid var(--grammar-accent); // 连续实体线，更有设计感
-    background: linear-gradient(to top, var(--grammar-surface) 40%, transparent 40%); // 增强荧光笔覆盖感
-    font-weight: var(--weight-medium);
-    transition: all 0.3s ease;
-
-    &.is-highlighted {
-      background: transparent !important; // 当整句高亮时，放弃局部底纹，避免产生视觉断层
-    }
-  }
-
-  &.tone-vocab {
-    color: var(--vocab-color);
-  }
-
-  &.tone-phrase {
-    color: var(--phrase-color);
-  }
-
-  &.tone-context {
-    color: var(--text-main);
+    color: var(--reader-ink);
+    border-bottom: 2rpx solid var(--annotation-grammar-line);
+    background: transparent;
+    transition: background-color 0.3s ease;
   }
 }

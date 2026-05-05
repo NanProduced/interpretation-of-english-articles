@@ -64,7 +64,7 @@ function generateLocalRecordId(): string {
   })
 }
 
-let currentAbortFlag = false
+let _pollSessionId = 0
 
 interface ArticleState {
   sceneData: AnyRenderSceneVm | null
@@ -106,18 +106,17 @@ export const useArticleStore = create<ArticleState>((set, get) => {
     saveRecord(localRecord)
     track('analyze_success', { pageState })
 
-    if (!currentAbortFlag) {
-      set({
-        sceneData: vm,
-        phase,
-        pageState,
-        recordId: cloudRecord.recordId,
-        cloudId: fallbackCloudId,
-      })
-    }
+    if (get().phase !== 'polling' && get().phase !== 'loading') return
+    set({
+      sceneData: vm,
+      phase,
+      pageState,
+      recordId: cloudRecord.recordId,
+      cloudId: fallbackCloudId,
+    })
   }
 
-  const startPolling = async (taskId: string) => {
+  const startPolling = async (taskId: string, sessionId: number) => {
     if (get().phase === 'success' || get().phase === 'empty') return
 
     const POLL_INTERVAL_MS = 2000
@@ -126,7 +125,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
     const pollStartAt = Date.now()
     let consecutiveErrors = 0
 
-    while (!currentAbortFlag) {
+    while (_pollSessionId === sessionId) {
       try {
         const statusRes = await getTaskStatus(taskId)
         consecutiveErrors = 0
@@ -141,11 +140,12 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         }
 
         if (statusRes.status === 'succeeded') {
-          const cloudRecord = await fetchCloudRecord(statusRes.record_id)
+          const recordId = statusRes.cloud_record_id
+          const cloudRecord = await fetchCloudRecord(recordId)
           if (!cloudRecord) {
             throw new Error('Record not found')
           }
-          applySuccessRecord(cloudRecord, statusRes.record_id)
+          applySuccessRecord(cloudRecord, recordId)
           break
         }
 
@@ -153,7 +153,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         throw new ApiError(statusRes.failure_message || '分析失败', errorCode, 500)
 
       } catch (err) {
-        if (currentAbortFlag) break
+        if (_pollSessionId !== sessionId) break
         if (get().phase === 'success' || get().phase === 'empty') break
 
         const code = (err instanceof ApiError ? err.code : 'UNKNOWN') || 'UNKNOWN'
@@ -187,7 +187,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
     isReplayMode: false,
 
     analyze: async (params: AnalyzeRequest) => {
-      currentAbortFlag = false
+      const sessionId = ++_pollSessionId
 
       const normalizedRequest = {
         ...params,
@@ -269,10 +269,10 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           ...normalizedRequest,
           client_record_id: clientRecordId,
           wait_for_result: true,
-          wait_timeout_seconds: 40,
+          wait_timeout_seconds: 60,
         })
         taskId = res.task_id
-        serverRecordId = res.cloud_record_id || res.record_id
+        serverRecordId = res.cloud_record_id
 
         if (res.client_record_id && res.client_record_id !== clientRecordId) {
         }
@@ -348,7 +348,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           const current = await getCurrentTask()
           if (current.has_active && current.task) {
              taskId = current.task.task_id
-             serverRecordId = current.task.cloud_record_id || current.task.record_id
+             serverRecordId = current.task.cloud_record_id
              
              const cloudRecord = await fetchCloudRecord(serverRecordId)
              if (!cloudRecord) {
@@ -363,7 +363,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
              }
              const recoveryPageState = derivePageState('polling', null, null)
              set({ phase: 'polling', pageState: recoveryPageState, recordId: realClientRecordId, cloudId: serverRecordId })
-             await startPolling(taskId)
+             await startPolling(taskId, sessionId)
              return
           } else {
              throw err
@@ -372,6 +372,17 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           set({
             error: '今日解析积分已用尽',
             errorCode: 'INSUFFICIENT_CREDITS',
+            phase: 'error',
+            pageState: 'failed',
+          })
+          return
+        } else if (err instanceof ApiError && err.statusCode === 422) {
+          const resp = err.response as { error?: string; failure_code?: string; failure_message?: string } | undefined
+          const failureCode = resp?.failure_code || resp?.error || 'TASK_FAILED'
+          const failureMessage = resp?.failure_message || '分析任务执行失败'
+          set({
+            error: failureMessage,
+            errorCode: failureCode,
             phase: 'error',
             pageState: 'failed',
           })
@@ -394,7 +405,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         }
       }
 
-      await startPolling(taskId)
+      await startPolling(taskId, sessionId)
     },
 
     recoverActiveTask: async (targetRecordId?: string) => {
@@ -403,19 +414,16 @@ export const useArticleStore = create<ArticleState>((set, get) => {
       try {
         const current = await getCurrentTask()
         if (current.has_active && current.task) {
-          const serverRecordId = current.task.cloud_record_id || current.task.record_id
-          
-          if (targetRecordId && targetRecordId !== serverRecordId) {
-             const cloudRecord = await fetchCloudRecord(serverRecordId)
-             if (cloudRecord && cloudRecord.recordId !== targetRecordId) {
-                return 
-             }
-          }
+          const serverRecordId = current.task.cloud_record_id
 
-          currentAbortFlag = false
+          const sessionId = ++_pollSessionId
 
           const cloudRecord = await fetchCloudRecord(serverRecordId)
           if (!cloudRecord) {
+             return
+          }
+
+          if (targetRecordId && targetRecordId !== serverRecordId && cloudRecord.recordId !== targetRecordId) {
              return
           }
 
@@ -433,7 +441,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
             pageState: 'loading'
           })
 
-          await startPolling(current.task.task_id)
+          await startPolling(current.task.task_id, sessionId)
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : '恢复任务失败'
@@ -515,7 +523,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
     },
 
     reset: () => {
-      currentAbortFlag = true
+      ++_pollSessionId
       set({
         sceneData: null,
         requestParams: null,

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import LucideIcon from '../LucideIcon'
+import AnnotationGlyph, { type AnnotationGlyphType } from '../AnnotationGlyph'
 import type { StopPropagationEvent } from '../../types/taro-events'
 import { useConfigStore } from '../../stores/config'
 import './index.scss'
@@ -24,52 +25,46 @@ export interface AnalysisCardProps {
   structuredData?: { summary?: string; chunks?: AnalysisChunk[] }
 }
 
-const TYPE_CONFIG: Record<AnalysisCardType, { icon: string; colorClass: string; accentColor: string; defaultLabel: string }> = {
+const TYPE_CONFIG: Record<AnalysisCardType, { icon: string; glyph?: AnnotationGlyphType; colorClass: string; defaultLabel: string }> = {
   vocab: {
     icon: 'languages',
+    glyph: 'vocab',
     colorClass: 'type-vocab',
-    accentColor: 'var(--vocab-accent)',
     defaultLabel: '核心词汇',
   },
   grammar: {
     icon: 'network',
+    glyph: 'grammar_note',
     colorClass: 'type-grammar',
-    accentColor: 'var(--grammar-accent)',
-    defaultLabel: '语法要点',
+    defaultLabel: '语法',
   },
   sentence: {
     icon: 'layout-template',
+    glyph: 'sentence_analysis',
     colorClass: 'type-sentence',
-    accentColor: 'var(--sentence-accent)',
     defaultLabel: '句式解析',
   },
   term: {
     icon: 'flask-conical',
     colorClass: 'type-term',
-    accentColor: 'var(--term-accent)',
     defaultLabel: '术语标注',
   },
   logic: {
     icon: 'git-branch',
     colorClass: 'type-logic',
-    accentColor: 'var(--logic-accent)',
     defaultLabel: '逻辑关系',
   },
   interpretation: {
     icon: 'message-square-text',
     colorClass: 'type-interpretation',
-    accentColor: 'var(--term-accent)',
     defaultLabel: '解释说明',
   },
   summary: {
     icon: 'file-text',
     colorClass: 'type-summary',
-    accentColor: 'var(--logic-accent)',
     defaultLabel: '内容概要',
   },
 }
-
-
 
 function renderMarkdownContent(content: string) {
   if (!content) return null
@@ -101,7 +96,6 @@ export default function AnalysisCard({
   const [internalIsExpanded, setInternalIsExpanded] = useState(initiallyExpanded ?? globalDefaultExpanded)
   const isExpanded = controlledIsExpanded !== undefined ? controlledIsExpanded : internalIsExpanded
 
-  // 同步全局配置
   useEffect(() => {
     if (initiallyExpanded === undefined) {
       setInternalIsExpanded(globalDefaultExpanded)
@@ -109,8 +103,6 @@ export default function AnalysisCard({
   }, [globalDefaultExpanded, initiallyExpanded])
 
   const config = TYPE_CONFIG[type]
-
-  // 如果是句式解析，进行结构化解析（优先使用外部传入的数据）
   const structuredData = externalStructuredData || (type === 'sentence' ? parseSentenceAnalysis(content) : null)
 
   const handleToggle = (e: StopPropagationEvent) => {
@@ -122,22 +114,30 @@ export default function AnalysisCard({
     onToggle?.(nextState)
   }
 
+  // Micro Rules for collapsed tab text
+  const getCollapsedCopy = () => {
+    if (type === 'sentence') return '句式解析'
+    if (type === 'grammar') {
+      return title.length > 8 ? '语法' : `语法 · ${title}`
+    }
+    return title || config.defaultLabel
+  }
+
   return (
     <View className={`analysis-card ${config.colorClass} ${isExpanded ? 'expanded' : 'collapsed'}`}>
       <View className='card-summary-row' onClick={handleToggle}>
         <View className='summary-main'>
-          <LucideIcon name={config.icon} size={16} color={config.accentColor} />
-          {/* 语法点和句式解析现在都在头部显示具体标题 */}
-          {type === 'grammar' || type === 'sentence' || type === 'term' || type === 'logic' || type === 'interpretation' || type === 'summary' ? (
-            <Text className='card-title-header' numberOfLines={1}>{title}</Text>
+          {config.glyph ? (
+            <AnnotationGlyph type={config.glyph} size={20} state={isExpanded ? 'active' : 'default'} />
           ) : (
-            <Text className='card-category-label'>{label || config.defaultLabel}</Text>
+            <LucideIcon name={config.icon} size={16} color='var(--text-muted)' />
           )}
+          <Text className='card-collapsed-title' numberOfLines={1}>{getCollapsedCopy()}</Text>
         </View>
         <View className='summary-icon'>
           <LucideIcon 
             name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-            size={16} 
+            size={14} 
             color='var(--text-muted)' 
           />
         </View>
@@ -145,19 +145,13 @@ export default function AnalysisCard({
 
       <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
         <View className='card-body' onClick={(e) => e.stopPropagation()}>
-          {/* 这里是如 Figma 稿中的紫色标签区域 */}
-          {/* 如果是语法类型或句式解析，标题已在头部展示，此处仅保留序号（如果有） */}
-          {(badgeIndex !== undefined || (type !== 'grammar' && type !== 'sentence' && type !== 'term' && type !== 'logic' && type !== 'interpretation' && type !== 'summary')) && (
-            <View className='card-title-badges'>
-              {badgeIndex !== undefined && (
-                <View className='badge-index-circle'>{badgeIndex}</View>
-              )}
-              {type !== 'grammar' && type !== 'sentence' && type !== 'term' && type !== 'logic' && type !== 'interpretation' && type !== 'summary' && (
-                <View className='title-tag-badge'>{title}</View>
-              )}
-            </View>
+          {/* Expanded Full Title */}
+          {(type === 'grammar' || type === 'sentence') && (
+             <View className='expanded-title-row'>
+               <Text className='expanded-full-title'>{title}</Text>
+             </View>
           )}
-          {/* Phonetic and tags moved inside the expandable body if they exist */}
+
           {(phonetic || (tags && tags.length > 0)) && (
             <View className='card-meta-row'>
               {phonetic && <Text className='card-phonetic'>/{phonetic}/</Text>}
@@ -180,11 +174,10 @@ export default function AnalysisCard({
                 {structuredData?.chunks && structuredData.chunks.length > 0 && (
                   <View className='analysis-chunks-list'>
                     {structuredData.chunks.map((chunk: AnalysisChunk, idx: number) => {
-                      const colorIndex = idx % 5;
                       return (
-                        <View key={idx} className={`chunk-detail-item color-type-${colorIndex}`}>
+                        <View key={idx} className='chunk-detail-item'>
                           <View className='chunk-detail-label'>
-                            <View className='label-dot' />
+                            <Text className='label-index'>{idx + 1}</Text>
                             <Text className='label-text'>{chunk.label}</Text>
                           </View>
                           <Text className='chunk-detail-text'>{chunk.text}</Text>
@@ -199,17 +192,13 @@ export default function AnalysisCard({
             )}
           </View>
           
-          {/* 语法要点标识移至右下角 */}
-          <View className='card-footer'>
-            <View className={`type-indicator-badge type-${type}`}>
-              <Text className='indicator-text'>{label || config.defaultLabel}</Text>
-            </View>
-            {onFeedback && (
+          {onFeedback && (
+            <View className='card-footer'>
               <View className='card-feedback-btn' onClick={(e) => { e.stopPropagation(); onFeedback() }}>
-                <LucideIcon name='messageSquare' size={14} color='var(--text-muted)' />
+                <LucideIcon name='messageSquare' size={14} color='var(--reader-muted)' />
               </View>
-            )}
-          </View>
+            </View>
+          )}
         </View>
       </View>
     </View>

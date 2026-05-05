@@ -14,7 +14,7 @@ import type { WordPopupState } from './useResultState'
 interface ActionDeps {
   recordId: string | null
   cloudId: string | null
-  requestParams: { text?: string; source_type?: AnalyzeRequest['source_type']; reading_goal?: string; reading_variant?: string | null } | null
+  requestParams: { text?: string; source_type?: AnalyzeRequest['source_type']; reading_goal?: string; reading_variant?: string | null; extended?: boolean } | null
   isReplayMode: boolean
   pageState: import('../../../types/view/render-scene.vm').ResultPageState
   favorited: boolean
@@ -122,8 +122,8 @@ export function useResultActions(deps: ActionDeps) {
       reading_goal: apiParams.reading_goal,
       reading_variant: apiParams.reading_variant,
       source_type: source_type,
-      extended: false,
-    })
+      extended: requestParams?.extended ?? false,
+    } as AnalyzeRequest)
 
     Taro.redirectTo({ url: ROUTES.RESULT })
   }

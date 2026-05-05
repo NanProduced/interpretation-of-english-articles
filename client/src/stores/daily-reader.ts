@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { DailyReaderArticle, DailyReaderListItem } from '../types/view/daily-reader.vm'
-import { fetchArticleById, fetchArticleList } from '../services/api/daily-reader.client'
+import { fetchTodayArticles, fetchArticleById, fetchArticleList } from '../services/api/daily-reader.client'
 
 interface DailyReaderState {
   latestArticles: DailyReaderListItem[]
@@ -30,8 +30,8 @@ export const useDailyReaderStore = create<DailyReaderState>((set, get) => ({
   fetchLatest: async (limit: number = 5) => {
     set({ loading: true, error: null })
     try {
-      const result = await fetchArticleList(undefined, limit)
-      set({ latestArticles: result.items, loading: false })
+      const articles = await fetchTodayArticles()
+      set({ latestArticles: articles.slice(0, limit), loading: false })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch latest articles', loading: false })
     }

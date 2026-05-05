@@ -1,146 +1,100 @@
 .inline-mark {
   display: inline;
-  border-radius: 6rpx;
-  padding: 0 4rpx;
+  border-radius: 4rpx;
+  padding: 0 2rpx;
   margin: 0 1rpx;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.2s ease, opacity 0.2s ease;
   position: relative;
 
+  // Background marks (vocab, phrase) - stationery feel
   &.background {
-    padding: 2rpx 4rpx;
+    padding: 2rpx 6rpx;
     margin: 0 2rpx;
-    border-radius: 12rpx 4rpx 10rpx 6rpx;
+    border-radius: 6rpx;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
     
     &.tone-vocab {
-      background-color: rgba(255, 209, 102, 0.4);
-      box-shadow: inset 0 0 6rpx rgba(255, 209, 102, 0.25);
+      background-color: var(--annotation-vocab-bg);
+      // No box-shadow to keep it clean like paper
     }
     
     &.tone-phrase {
-      background-color: rgba(178, 164, 255, 0.4);
-      box-shadow: inset 0 0 6rpx rgba(178, 164, 255, 0.25);
-    }
-    
-    &.tone-context {
-      background-color: rgba(144, 224, 239, 0.4);
-      box-shadow: inset 0 0 6rpx rgba(144, 224, 239, 0.25);
-    }
-
-    &.tone-term {
-      background-color: rgba(59, 130, 246, 0.2);
-      box-shadow: inset 0 0 6rpx rgba(59, 130, 246, 0.15);
-    }
-
-    &.tone-logic {
-      background-color: rgba(249, 115, 22, 0.2);
-      box-shadow: inset 0 0 6rpx rgba(249, 115, 22, 0.15);
+      background-color: var(--annotation-phrase-bg);
+      border-radius: 8rpx; // slightly softer for phrases
     }
   }
 
+  // Underline marks (context, grammar)
   &.underline {
     padding-bottom: 2rpx;
     
-    &.tone-grammar {
-      border-bottom: 5rpx solid var(--grammar-accent);
-      box-shadow: 0 2rpx 4rpx rgba(139, 92, 246, 0.15);
-    }
-    
-    &.tone-vocab {
-      border-bottom: 4rpx solid rgba(255, 193, 7, 0.9);
-    }
-    
-    &.tone-phrase {
-      border-bottom: 4rpx solid rgba(139, 92, 246, 0.9);
-    }
-    
     &.tone-context {
-      border-bottom: 4rpx solid rgba(3, 169, 244, 0.9);
+      border-bottom: 2rpx solid var(--annotation-context-line);
     }
-
-    &.tone-term {
-      border-bottom: 4rpx solid var(--term-accent);
-      box-shadow: 0 2rpx 4rpx rgba(59, 130, 246, 0.15);
-    }
-
-    &.tone-logic {
-      border-bottom: 4rpx solid var(--logic-accent);
-      box-shadow: 0 2rpx 4rpx rgba(249, 115, 22, 0.15);
+    
+    &.tone-grammar {
+      border-bottom: 2rpx solid var(--annotation-grammar-line);
+      // Removed heavy backgrounds and box shadows
     }
   }
 
   &.clickable {
     cursor: pointer;
+    // Active states mapped to semantic paper-like shifts
     &:active {
-      background-color: var(--active-highlight-bg) !important;
       opacity: 0.8;
-    }
-  }
-
-  &.active {
-    background-color: var(--active-highlight-bg) !important;
-    color: var(--active-highlight-text) !important;
-    padding: 2rpx 6rpx;
-    margin: 0 -2rpx;
-    border-bottom: none !important;
-    border-radius: 4rpx;
-    box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.08);
-    transform: translateY(-1rpx);
-    z-index: 10;
-  }
-
-  &.saved {
-    border-bottom: none !important;
-    color: var(--text-main) !important;
-    font-weight: var(--weight-medium);
-    padding-right: 8rpx !important;
-    position: relative;
-
-    &::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      width: 6rpx;
-      height: 8rpx;
-      background-color: rgba(100, 116, 139, 0.45);
-      border-radius: 0 0 3rpx 0;
-    }
-
-    &:active {
-      &::after {
-        background-color: rgba(100, 116, 139, 0.7);
+      
+      &.tone-vocab {
+        background-color: rgba(242, 196, 84, 0.45);
+      }
+      
+      &.tone-phrase {
+        background-color: rgba(151, 126, 224, 0.35);
+      }
+      
+      &.tone-context {
+        border-bottom-width: 4rpx;
+        background-color: rgba(76, 145, 194, 0.08); // faint lift
       }
     }
   }
 
-  &.saved:not(.background):not(.underline) {
-    background-color: rgba(148, 163, 184, 0.18) !important;
-    border-radius: 8rpx 3rpx 7rpx 4rpx !important;
-    padding: 2rpx 8rpx 2rpx 4rpx !important;
-    margin: 0 1rpx !important;
+  &.active {
+    background-color: rgba(255, 231, 105, 0.5) !important;
+    border-radius: 4rpx;
+    box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
+  }
 
-    &:active {
-      background-color: rgba(148, 163, 184, 0.32) !important;
+  // Saved vocabulary folded-corner bookmark marker
+  &.saved {
+    position: relative;
+    border-bottom: none !important;
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: -2rpx;
+      bottom: -2rpx;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 0 12rpx 12rpx;
+      border-color: transparent transparent rgba(180, 83, 9, 0.6) transparent; // Folded corner
+    }
+
+    &:active::after {
+      border-color: transparent transparent rgba(180, 83, 9, 0.9) transparent;
     }
   }
 
   &.saved-mastered {
     &::after {
-      background-color: rgba(34, 197, 94, 0.45) !important;
+      border-color: transparent transparent rgba(16, 185, 129, 0.6) transparent;
     }
 
-    &:active {
-      &::after {
-        background-color: rgba(34, 197, 94, 0.7) !important;
-      }
-    }
-  }
-
-  &.saved-mastered:not(.background):not(.underline) {
-    background-color: rgba(34, 197, 94, 0.1) !important;
-
-    &:active {
-      background-color: rgba(34, 197, 94, 0.2) !important;
+    &:active::after {
+      border-color: transparent transparent rgba(16, 185, 129, 0.9) transparent;
     }
   }
 }

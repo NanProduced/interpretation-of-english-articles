@@ -168,6 +168,23 @@ page {
   --tone-logic-color: #C2410C;
   --tone-logic-bg: #FED7AA;
 
+  // --- Reading Annotation System Tokens ---
+  --reader-paper: #FAF9F6;
+  --reader-paper-deep: #F4F1EA;
+  --reader-ink: #111111;
+  --reader-muted: #7A7D86;
+  --annotation-grammar: #6B5FC7;
+  --annotation-analysis: #3F6FB6;
+  --annotation-vocab: #E4B000;
+  --annotation-phrase: #B9A8E6;
+  --annotation-context: #5A6F8F;
+  --annotation-merged: #3F6FB6;
+  
+  --annotation-vocab-bg: rgba(228, 176, 0, 0.15);
+  --annotation-phrase-bg: rgba(185, 168, 230, 0.15);
+  --annotation-context-line: #5A6F8F;
+  --annotation-grammar-line: #6B5FC7;
+
   // --- 状态色 ---
   --color-success: #16A34A;
   --color-danger: #DC2626;

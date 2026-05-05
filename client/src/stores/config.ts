@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import Taro from '@tarojs/taro'
 import { useAuthStore } from './auth'
 import { updateProfile } from '../services/api/client'
-import { ReadingGoal, SERVER_GOAL_TO_UI_GOAL } from '../config/purpose'
+import { ReadingGoal, SERVER_GOAL_TO_UI_GOAL, READING_CONFIG_MAP } from '../config/purpose'
 
 export type UserPurpose = ReadingGoal
 
@@ -42,10 +42,11 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     if (!isLoggedIn) return
 
     const { purpose, level } = get()
+    const serverGoal = READING_CONFIG_MAP[purpose]?.serverGoal || purpose
     try {
       await updateProfile({
         settings: {
-          default_reading_goal: purpose,
+          default_reading_goal: serverGoal,
           default_reading_variant: level
         }
       })

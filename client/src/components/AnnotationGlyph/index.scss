@@ -1,0 +1,14 @@
+.annotation-glyph {
+  display: inline-block;
+  vertical-align: middle;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  
+  &--disabled {
+    opacity: 0.35;
+  }
+  
+  // Optional tiny pop animation on active
+  &--active {
+    transform: scale(1.05);
+  }
+}

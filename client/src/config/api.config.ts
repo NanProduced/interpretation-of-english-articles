@@ -20,9 +20,6 @@ import { getToken } from '../stores/auth'
  */
 export const API_TIMEOUT = 600_000 // 10 分钟
 
-/** Loading 页超时阈值 (ms) */
-export const LOADING_TIMEOUT = 25_000 // 25s，给后端留 5s buffer
-
 /**
  * 请求头配置
  * 所有 API 调用自动附带认证 header（若已登录）
