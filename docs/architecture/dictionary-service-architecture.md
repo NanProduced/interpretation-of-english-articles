@@ -168,21 +168,77 @@ async def lookup_candidates_batch(normalized_forms: list[str]) -> list[Candidate
 
 ## 5. 缓存策略
 
-### 5.1 两级缓存
+### 5.1 多级缓存架构
 
-- **L1**：内存缓存（进程内）
-- **L2**：文件缓存（`server/.cache/dictionary/`）
+```
+前端（小程序）                   后端（FastAPI）                  存储
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────┐
+│ 内存 Map     │ →  │ L1 进程内    │ →  │ L2 Redis     │ →  │ PostgreSQL│
+│ TTL 5min     │    │ OrderedDict  │    │ TTL 24h      │    │ 真源      │
+│ max 200 条   │    │ TTL 24h      │    │ 跨 Worker    │    │          │
+│ entry only   │    │ LRU 淘汰     │    │ 降级安全     │    │          │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────┘
+```
+
+| 层级 | 实现 | TTL | 容量 | 特性 |
+|------|------|-----|------|------|
+| 前端 | `dictCache.ts` 内存 Map | 5min | 200 条 | 仅缓存 entry 结果，不占 Taro Storage；LRU 淘汰 |
+| L1 | `cache.py` OrderedDict | 24h | 1000 条/Worker | LRU 淘汰；满容量时先清过期再淘汰最旧 10%；hit/miss 计数 |
+| L2 | Redis 7.2 | 24h | 按内存限制 | 跨 Worker 共享；不可用时自动降级为纯 L1 |
+| 真源 | PostgreSQL | — | — | `dict_entries` / `dict_lookup_targets` / `dict_redirects` |
 
 ### 5.2 缓存 Key 格式
 
 ```
+# lookup 查询缓存
 {provider}:{version}:lookup:q={query}:type={type}:ctx={ctx_hash}:occ={occ}:strategy={strategy}
+
+# entry 词条缓存
+{provider}:{version}:entry:{entry_id}
+
+# Redis L2 key 前缀
+dict:{上述 cache_key}
 ```
 
 ### 5.3 缓存失效
 
-- 词条详情：`entry_id` 变化时失效
-- 查询缓存：`context_sentence` 变化时隔离
+- **版本失效**：词典数据重新导入时递增 `cache_version`（当前 `v4`），旧缓存 key 不再命中
+- **语境隔离**：`context_sentence` 的 MD5 哈希值参与 key 计算，不同语境不串缓存
+- **TTL 过期**：L1 惰性过期（读取时检查），L2 由 Redis TTL 自动管理
+- **主动失效**：`cache.invalidate(key)` / `cache.invalidate_all()` 清除 L1 + L2
+
+### 5.4 降级策略
+
+- Redis 不可用时，L2 读写静默失败，退化为纯 L1 + PostgreSQL
+- L1 满容量时：先清除过期条目，仍满则 LRU 淘汰最旧 10%
+- 前端缓存未命中时直接发起网络请求，不阻塞用户
+
+### 5.5 HTTP 缓存
+
+- `/dict` 响应头：`Cache-Control: public, max-age=3600`
+- `/dict/entry` 响应头：同上
+- 词典数据变更频率极低（仅重新导入时变更），1 小时缓存合理
+
+### 5.6 缓存预热
+
+服务启动时预热高频功能词（the/a/is/are 等 36 个）到 L1 + L2，避免冷启动首批请求全部穿透到 DB。
+
+### 5.7 缓存监控
+
+`/health` 端点返回 `dict_cache` 统计信息：
+
+```json
+{
+  "dict_cache": {
+    "l1_size": 128,
+    "l1_max_size": 1000,
+    "l1_hits": 1024,
+    "l1_misses": 256,
+    "l2_hits": 180,
+    "l2_misses": 76
+  }
+}
+```
 
 ---
 

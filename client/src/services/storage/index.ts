@@ -106,13 +106,13 @@ export function getRecord(id: string): AnalysisRecord | null {
  */
 export function saveRecord(record: AnalysisRecord): void {
   try {
-    // 保存记录本身
     Taro.setStorageSync(KEYS.RECORD(record.recordId), record)
 
-    // 更新 ID 列表（去重 + 头部插入）
     const ids = getRecordIds()
     const filtered = ids.filter((id) => id !== record.recordId)
     Taro.setStorageSync(KEYS.RECORD_IDS, [record.recordId, ...filtered])
+
+    enforceRecordLimit()
   } catch (e) {
     console.error('[storage] saveRecord failed', e)
   }
@@ -448,4 +448,52 @@ export function removeSyncQueueItem(opId: string): void {
 
 export function getPendingSyncItems(): SyncQueueItem[] {
   return getSyncQueue().filter(item => item.status === 'pending')
+}
+
+// ============ Storage Capacity ============
+
+const STORAGE_LIMIT_MB = 10
+const WARNING_THRESHOLD = 0.8
+
+export interface StorageCapacityInfo {
+  usedKB: number
+  limitKB: number
+  usageRatio: number
+  isNearLimit: boolean
+  keys: number
+}
+
+export function getStorageCapacity(): StorageCapacityInfo {
+  try {
+    const res = Taro.getStorageInfoSync()
+    const usedKB = res.currentSize || 0
+    const limitKB = res.limitSize || (STORAGE_LIMIT_MB * 1024)
+    const usageRatio = limitKB > 0 ? usedKB / limitKB : 0
+    return {
+      usedKB,
+      limitKB,
+      usageRatio,
+      isNearLimit: usageRatio >= WARNING_THRESHOLD,
+      keys: res.keys?.length || 0,
+    }
+  } catch (e) {
+    console.error('[storage] getStorageCapacity failed', e)
+    return { usedKB: 0, limitKB: STORAGE_LIMIT_MB * 1024, usageRatio: 0, isNearLimit: false, keys: 0 }
+  }
+}
+
+const MAX_RECORDS = 200
+
+export function enforceRecordLimit(): void {
+  const capacity = getStorageCapacity()
+  if (!capacity.isNearLimit) return
+
+  const ids = getRecordIds()
+  if (ids.length <= MAX_RECORDS) return
+
+  const toRemove = ids.slice(MAX_RECORDS)
+  for (const id of toRemove) {
+    deleteRecord(id)
+  }
+  console.warn(`[storage] cleaned ${toRemove.length} old records (storage near limit)`)
 }

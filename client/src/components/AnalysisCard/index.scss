@@ -1,4 +1,5 @@
-// AnalysisCard CSS
+﻿// AnalysisCard CSS 鈥?Paper stationery annotation system
+// Design ref: annotation-micro-rules.png, sentence-analysis-final-detail.png
 .analysis-card {
   margin: 16rpx 0;
   position: relative;
@@ -6,28 +7,29 @@
   flex-direction: column;
   align-items: flex-start;
 
-  // --- Collapsed Tab State ---
+  /* --- Collapsed Tab State --- */
+  /* Design: compact inline-flex note-tab, max-width ~60% of reading column */
   .card-summary-row {
     display: inline-flex;
     align-items: center;
-    background: var(--reader-paper-deep);
+    background: var(--sentence-tab-bg);
     border: 1rpx solid rgba(0,0,0,0.04);
-    box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.02);
     border-radius: 8rpx;
     padding: 10rpx 20rpx;
-    transition: all 0.2s ease;
+    max-width: 60%;
+    transition: background 0.15s ease;
     cursor: pointer;
 
     &:active {
-      transform: scale(0.98);
-      background: var(--reader-paper);
+      background: var(--reader-paper-deep);
     }
 
     .summary-main {
       display: flex;
       align-items: center;
-      gap: 16rpx;
+      gap: 12rpx;
       overflow: hidden;
+      min-width: 0;
 
       .card-collapsed-title {
         font-size: 26rpx;
@@ -40,13 +42,18 @@
         text-overflow: ellipsis;
       }
     }
-    
+
     .summary-icon {
-      margin-left: 16rpx;
+      margin-left: 12rpx;
       display: flex;
       align-items: center;
       opacity: 0.4;
       flex-shrink: 0;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+      &.is-expanded {
+        transform: rotate(180deg);
+      }
     }
   }
 
@@ -61,7 +68,7 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 16rpx;
-      
+
       .expanded-full-title {
         font-size: 30rpx;
         font-weight: var(--weight-bold);
@@ -70,9 +77,14 @@
       }
 
       .collapse-btn {
-        font-size: 24rpx;
-        color: var(--reader-muted);
-        padding: 4rpx 8rpx;
+        padding: 4rpx 12rpx;
+        cursor: pointer;
+        &:active { opacity: 0.6; }
+
+        .collapse-btn-text {
+          font-size: 24rpx;
+          color: var(--reader-muted);
+        }
       }
     }
 
@@ -102,21 +114,21 @@
       border-top: 1rpx solid rgba(0, 0, 0, 0.04);
       padding-top: 20rpx;
 
+      /* Design: grammar snippet as light quote block (no heavy card) */
       .grammar-snippet-box {
-        background: rgba(0, 0, 0, 0.03);
+        background: rgba(0, 0, 0, 0.02);
         border: none;
-        border-radius: 12rpx;
+        border-radius: 8rpx;
         padding: 16rpx 20rpx;
-        margin-bottom: 24rpx;
-        box-shadow: none;
-        
+        margin-bottom: 20rpx;
+
         .snippet-label {
           font-size: 22rpx;
           color: var(--reader-muted);
           display: block;
-          margin-bottom: 12rpx;
+          margin-bottom: 8rpx;
         }
-        
+
         .snippet-text {
           font-size: 28rpx;
           color: var(--reader-ink);
@@ -139,21 +151,66 @@
       }
     }
 
-    .card-footer {
+    /* --- Feedback row: 鏈夊府鍔?/ 涓嶅噯纭?/ 鍙嶉 --- */
+    /* Design ref: reader-context-feedback-details.png section 02 */
+    .card-feedback-row {
       display: flex;
-      justify-content: flex-end;
-      margin-top: 16rpx;
-      
-      .card-feedback-btn {
-        padding: 8rpx;
-        opacity: 0.5;
-        transition: opacity 0.2s;
-        &:active { opacity: 1; }
+      align-items: center;
+      gap: 24rpx;
+      margin-top: 20rpx;
+      padding-top: 16rpx;
+      border-top: 1rpx solid rgba(0, 0, 0, 0.04);
+    }
+
+    .feedback-quick-btn {
+      display: flex;
+      align-items: center;
+      gap: 6rpx;
+      padding: 8rpx 0;
+      transition: opacity 0.15s ease;
+
+      &:active { opacity: 0.6; }
+
+      .feedback-quick-icon {
+        font-size: 22rpx;
+      }
+
+      .feedback-quick-text {
+        font-size: 22rpx;
+        color: var(--reader-muted);
+      }
+
+      &.is-submitted {
+        .feedback-quick-text {
+          color: var(--reader-ink);
+          font-weight: var(--weight-medium);
+        }
+      }
+
+      &.is-disabled {
+        opacity: 0.3;
+        pointer-events: none;
+      }
+    }
+
+    .feedback-detail-btn {
+      display: flex;
+      align-items: center;
+      gap: 6rpx;
+      padding: 8rpx 0;
+      margin-left: auto;
+      transition: opacity 0.15s ease;
+      &:active { opacity: 0.6; }
+
+      .feedback-detail-text {
+        font-size: 22rpx;
+        color: var(--reader-muted);
       }
     }
   }
 
-  // --- Sentence Analysis Chunks ---
+  /* --- Sentence Analysis Chunks --- */
+  /* Design ref: sentence-analysis-final-detail.png section 4 expanded view */
   .sentence-analysis-details {
     .analysis-summary {
       font-size: 28rpx;
@@ -166,7 +223,7 @@
     .analysis-chunks-list {
       display: flex;
       flex-direction: column;
-      gap: 20rpx;
+      gap: 16rpx;
 
       .chunk-detail-item {
         display: flex;
@@ -178,17 +235,17 @@
         .chunk-detail-label {
           display: flex;
           align-items: center;
-          gap: 12rpx;
+          gap: 10rpx;
           flex-shrink: 0;
-          width: 160rpx;
+          min-width: 120rpx;
 
           .label-index {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 36rpx;
-            height: 36rpx;
-            font-size: 22rpx;
+            width: var(--annotation-chunk-marker-size);
+            height: var(--annotation-chunk-marker-size);
+            font-size: 18rpx;
             color: var(--color-white);
             border-radius: 50%;
             font-weight: var(--weight-bold);
@@ -198,18 +255,19 @@
           .label-text {
             font-size: 26rpx;
             color: var(--reader-ink);
-            font-weight: var(--weight-medium);
+            font-weight: var(--weight-bold);
           }
         }
 
         .chunk-detail-text {
           flex: 1;
           font-family: var(--font-english-serif), serif;
-          font-size: 28rpx;
+          font-size: 26rpx;
           line-height: 1.5;
           color: var(--reader-ink);
         }
 
+        /* Chunk color system matching design */
         &.color-idx-0 .label-index { background: #3F6FB6; }
         &.color-idx-1 .label-index { background: #6B5FC7; }
         &.color-idx-2 .label-index { background: #047857; }
@@ -222,38 +280,51 @@
   .card-content-expandable {
     overflow: hidden;
     width: 100%;
-    transition: max-height 0.4s var(--ease-spring), opacity 0.3s ease;
-    
+    /* Use grid-template-rows for height animation (impeccable: no layout property animation) */
+    display: grid;
+    transition: grid-template-rows 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+
     &.hide {
-      max-height: 0;
+      grid-template-rows: 0fr;
       opacity: 0;
       pointer-events: none;
+
+      > .card-body {
+        overflow: hidden;
+        min-height: 0;
+      }
     }
-    
+
     &.show {
-      max-height: 2000rpx;
+      grid-template-rows: 1fr;
       opacity: 1;
+
+      > .card-body {
+        overflow: visible;
+        min-height: 0;
+      }
     }
   }
 
-  // --- Dynamic States ---
+  /* --- Dynamic States --- */
   &.collapsed {
-    // Keep it flowing inline
+    /* Keep it flowing inline */
   }
-  
+
   &.expanded {
-    align-items: stretch; // allow full width when expanded
+    align-items: stretch;
     margin: 24rpx 0;
-    
+
     .card-summary-row {
-      display: none; // Hide summary row entirely when expanded, moving title to the body
+      display: none;
     }
 
     .card-content-expandable {
       background: var(--reader-paper-deep);
-      border: 1rpx solid rgba(0,0,0,0.06);
-      box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.05);
-      border-radius: 16rpx;
+      border: 1rpx solid rgba(0,0,0,0.05);
+      border-radius: 12rpx;
+      /* Impeccable: no heavy shadow. Subtle paper elevation only. */
+      box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
     }
   }
 }

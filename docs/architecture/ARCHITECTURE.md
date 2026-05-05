@@ -9,16 +9,17 @@
 |--------|------|-------------|
 | 业务数据库 | PostgreSQL | SQLite（已废弃，不适合多设备同步） |
 | 词典数据库 | TECD3 离线解析后导入 PostgreSQL | 磁盘 JSON 文件缓存（已废弃） |
-| 缓存方案 | L1 进程内内存缓存 + PostgreSQL 真源 | Redis（第二阶段可选，不作为首发阻塞） |
+| 缓存方案 | L1 进程内 + L2 Redis + 前端内存缓存 | 纯 L1 内存缓存（已废弃，无淘汰策略） |
 | 运行时词典 | Tecd3Provider 查询 PostgreSQL | 第三方在线词典 API（已废弃） |
 
 **为什么不保留 SQLite**：
 - 嵌入式文件型，不适合多设备同步
 - 与 PostgreSQL 双存储造成备份/迁移/监控分裂
 
-**为什么不先上 Redis**：
-- 登录、云端资产、TECD3 导入优先级更高
-- 单一实例部署时 L1 内存缓存足够
+**为什么先上 Redis**：
+- 多 Worker 部署时 L1 进程内缓存不共享，Redis L2 解决跨进程一致性问题
+- 词典数据变更频率极低，Redis 缓存 24h 合理且安全
+- Docker Compose 已部署 Redis 7.2，启用成本极低
 
 ## 2. 数据模型设计原则
 
@@ -161,9 +162,29 @@ queued → running → finalizing → succeeded / failed / cancelled / expired
 
 ### 6.3 缓存策略
 
-- L1 TTL：24h
-- 查询 key：`provider + normalized_query`
-- `not_found` 结果也允许短 TTL 缓存
+后端三级缓存 + 前端一级缓存：
+
+| 层级 | 存储 | TTL | 容量 | 说明 |
+|------|------|-----|------|------|
+| L1 | 进程内 OrderedDict | 24h | 1000 条/Worker | LRU 淘汰，最快路径 |
+| L2 | Redis 7.2 | 24h | 按内存限制 | 跨 Worker 共享，不可用时降级为纯 L1 |
+| L3 | PostgreSQL | — | — | 真源 |
+| 前端 | 内存 Map | 5min | 200 条 | 仅缓存 entry 类型结果，不占 Taro Storage |
+
+查询顺序：前端缓存 → L1 → L2 → PostgreSQL
+
+缓存 Key 格式：`{provider}:{version}:lookup:q={query}:type={type}:ctx={ctx_hash}:occ={occ}:strategy={strategy}`
+
+HTTP 缓存头：`Cache-Control: public, max-age=3600`（词典数据变更频率极低）
+
+缓存失效：
+- 词典数据重新导入时递增 `cache_version`，旧缓存自动失效
+- `context_sentence` 变化时通过 ctx_hash 隔离
+- `not_found` 结果允许短 TTL 缓存（60s）
+
+缓存预热：启动时预热高频功能词（the/a/is/are 等 36 个）到 L1 + L2
+
+缓存监控：`/health` 端点返回 `dict_cache` 统计（L1/L2 命中率、容量）
 
 ## 7. 前端状态管理
 

@@ -1,28 +1,28 @@
-.paragraph-block {
+﻿.paragraph-block {
   margin-bottom: 64rpx;
   padding: 0 40rpx;
 
-  // --- Immersive Mode (极致原文体验) ---
+  // --- Immersive Mode (鏋佽嚧鍘熸枃浣撻獙) ---
   &.immersive {
     margin-bottom: 80rpx;
-    
+
     .english-paragraph {
       line-height: var(--leading-relaxed); // 1.8
       text-align: left;
       letter-spacing: -0.01em;
     }
-    
+
     .english-flow {
-      font-size: 36rpx; // 稍微增大，提升阅读舒适度
+      font-size: 36rpx; // 绋嶅井澧炲ぇ锛屾彁鍗囬槄璇昏垝閫傚害
       color: var(--text-main);
       font-family: var(--font-english-serif), serif;
-      font-variant-numeric: oldstyle-nums; // 衬线体开启旧体数字更显专业
+      font-variant-numeric: oldstyle-nums; // 琛嚎浣撳紑鍚棫浣撴暟瀛楁洿鏄句笓涓?
     }
   }
 
-  // --- Intensive Mode (精雕细琢解析) ---
+  // --- Intensive Mode (绮鹃洉缁嗙悽瑙ｆ瀽) ---
   &.intensive {
-    margin-bottom: 120rpx; // 增加段落间距，强化分隔感
+    margin-bottom: 120rpx; // 澧炲姞娈佃惤闂磋窛锛屽己鍖栧垎闅旀劅
 
     .paragraph-header {
       display: flex;
@@ -42,21 +42,21 @@
       .paragraph-divider {
         flex: 1;
         height: 1rpx;
-        background: linear-gradient(to right, 
-          rgba(var(--color-ink-rgb), 0.1) 0%, 
-          rgba(var(--color-ink-rgb), 0.05) 50%, 
+        background: linear-gradient(to right,
+          rgba(18, 18, 18, 0.1) 0%,
+          rgba(18, 18, 18, 0.05) 50%,
           transparent 100%
         );
       }
     }
 
     .sentence-block {
-      margin-bottom: 32rpx; // 缩减原先庞大的间距
-      // 彻底移除 border-bottom 和大 padding，消除割裂感，回归自然的文字流
-      
+      margin-bottom: 32rpx; // 缂╁噺鍘熷厛搴炲ぇ鐨勯棿璺?
+      // 褰诲簳绉婚櫎 border-bottom 鍜屽ぇ padding锛屾秷闄ゅ壊瑁傛劅锛屽洖褰掕嚜鐒剁殑鏂囧瓧娴?
+
       &.chunk-merged {
         margin-bottom: 32rpx;
-        
+
         .sentence-translation.merged {
           margin-bottom: 0;
         }
@@ -64,7 +64,7 @@
     }
 
     .sentence-main {
-      margin-bottom: 0rpx; // 让英文与下方的翻译紧密贴合
+      margin-bottom: 0rpx; // 璁╄嫳鏂囦笌涓嬫柟鐨勭炕璇戠揣瀵嗚创鍚?
     }
 
     .english-flow {
@@ -78,12 +78,12 @@
 
     .sentence-translation {
       margin-top: 12rpx;
-      margin-bottom: 20rpx; // 与下方解析卡片的距离，留白适中
-      
+      margin-bottom: 20rpx; // 涓庝笅鏂硅В鏋愬崱鐗囩殑璺濈锛岀暀鐧介€備腑
+
       .translation-text {
-        font-size: 28rpx; // 字号层级明确区分中英
+        font-size: 28rpx; // 瀛楀彿灞傜骇鏄庣‘鍖哄垎涓嫳
         line-height: var(--leading-relaxed);
-        color: rgba(0,0,0,0.45); // 极大幅度降低对比度，体现 secondary 权重
+        color: rgba(0,0,0,0.45); // 鏋佸ぇ骞呭害闄嶄綆瀵规瘮搴︼紝浣撶幇 secondary 鏉冮噸
         font-weight: var(--weight-normal);
         font-family: var(--font-sans);
         letter-spacing: var(--tracking-normal);
@@ -176,10 +176,10 @@
     border-bottom: 2.5rpx solid var(--grammar-accent);
     background: linear-gradient(to top, var(--grammar-surface) 40%, transparent 40%);
     font-weight: var(--weight-medium);
-    white-space: normal; // 允许自然换行，防止由于 white-space: pre 导致的长句溢出
+    white-space: normal; // 鍏佽鑷劧鎹㈣锛岄槻姝㈢敱浜?white-space: pre 瀵艰嚧鐨勯暱鍙ユ孩鍑?
 
     &.is-highlighted {
-      background: transparent !important; // 同样处理空格的高亮冲突
+      background: transparent !important; // 鍚屾牱澶勭悊绌烘牸鐨勯珮浜啿绐?
     }
   }
 
@@ -219,3 +219,4 @@
     }
   }
 }
+

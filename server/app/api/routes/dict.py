@@ -6,6 +6,7 @@ from logging import getLogger
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 
 from app.services.dictionary import get_service
 from app.services.dictionary.schemas import DictionaryEntryResult, DictionaryLookupResult
@@ -16,6 +17,8 @@ logger = getLogger("app.api")
 router = APIRouter(prefix="/dict", tags=["dict"])
 
 _service = get_service()
+
+_DICT_CACHE_CONTROL = "public, max-age=3600"
 
 
 @router.get("", response_model=DictionaryLookupResult, summary="查词")
@@ -39,12 +42,15 @@ async def lookup_word(
         reading_variant=reading_variant,
     )
     try:
-        return await _service.lookup(request)
+        result = await _service.lookup(request)
+        response = JSONResponse(content=result)
+        response.headers["Cache-Control"] = _DICT_CACHE_CONTROL
+        return response
     except LookupError:
         raise HTTPException(status_code=404, detail=f"Word not found: {word}") from None
     except Exception as exc:
         logger.error("lookup_word failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=502, detail=f"Dictionary service error: {exc}") from exc
+        raise HTTPException(status_code=502, detail="Dictionary service error") from exc
 
 
 @router.get("/entry", response_model=DictionaryEntryResult, summary="词条详情")
@@ -54,9 +60,11 @@ async def lookup_entry(
     """根据词条 ID 获取完整词典条目。"""
     try:
         result = await _service.lookup_entry(id)
-        return DictionaryEntryResult.model_validate(result)
+        response = JSONResponse(content=result)
+        response.headers["Cache-Control"] = _DICT_CACHE_CONTROL
+        return response
     except LookupError:
         raise HTTPException(status_code=404, detail=f"Entry not found: {id}") from None
     except Exception as exc:
         logger.error("lookup_entry failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=502, detail=f"Dictionary service error: {exc}") from exc
+        raise HTTPException(status_code=502, detail="Dictionary service error") from exc

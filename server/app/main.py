@@ -27,6 +27,37 @@ from app.observability.langsmith import setup_langsmith
 
 logger = getLogger(__name__)
 
+_WARMUP_WORDS = [
+    "the", "a", "an", "is", "are", "was", "were", "be", "have", "has",
+    "do", "does", "will", "would", "can", "could", "may", "might",
+    "should", "must", "not", "no", "but", "or", "and", "if",
+    "that", "this", "which", "who", "what", "when", "where", "how",
+    "from", "with", "for", "about", "into", "through", "between",
+]
+
+
+async def _warm_dict_cache() -> None:
+    from app.services.dictionary import cache as dict_cache
+    from app.services.dictionary.db_pg import lookup_candidates_batch, fetch_entry
+
+    candidates_list = await lookup_candidates_batch(_WARMUP_WORDS, source="tecd3")
+    seen_ids: set[int] = set()
+    for candidates in candidates_list.values():
+        for c in candidates:
+            if c.entry_id not in seen_ids:
+                seen_ids.add(c.entry_id)
+                entry = await fetch_entry(c.entry_id, source="tecd3")
+                if entry is not None:
+                    cache_key = f"tecd3:v4:entry:{c.entry_id}"
+                    await dict_cache.set(cache_key, {
+                        "result_type": "entry",
+                        "query": entry.display_headword,
+                        "provider": "tecd3",
+                        "cached": False,
+                        "entry": {},
+                    })
+    logger.info("Dict cache warmed: %d entries preloaded", len(seen_ids))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -66,6 +97,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.warning("Dictionary spaCy pipeline unavailable, /dict will fall back when needed")
     except Exception as e:
         logger.warning("Failed to preload dictionary spaCy pipeline: %s", e)
+
+    # 3.2 预热词典缓存（高频词条）
+    try:
+        await _warm_dict_cache()
+    except Exception as e:
+        logger.warning("Dict cache warmup failed (non-blocking): %s", e)
 
     # 4. 恢复服务重启前残留的活跃任务（重新入队）
     from app.services.analysis.task_executor import (

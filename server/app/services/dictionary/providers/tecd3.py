@@ -16,8 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.dictionary.cache import get as cache_get
-from app.services.dictionary.cache import set as cache_set
+from app.services.dictionary import cache as dict_cache
 from app.services.dictionary.db_pg import CandidateRow, EntryRow, fetch_entry, lookup_candidates_batch
 from app.services.dictionary.lemma import get_lemma_candidates
 from app.services.dictionary.schemas import (
@@ -42,7 +41,7 @@ class Tecd3Provider:
         ctx_hash = hashlib.md5(request.context_sentence.encode()).hexdigest()[:8] if request.context_sentence else "none"
         occ = request.occurrence or 0
         cache_key = f"{self.source}:{self.cache_version}:lookup:q={request.query}:type={request.query_type}:ctx={ctx_hash}:occ={occ}:strategy=v2"
-        cached = cache_get(cache_key)
+        cached = await dict_cache.get(cache_key)
         if cached is not None:
             result = validate_lookup_result(cached)
             result["cached"] = True
@@ -196,7 +195,7 @@ class Tecd3Provider:
         else:
             result = self._build_disambiguation_result(request.query, candidates)
 
-        cache_set(cache_key, result)
+        await dict_cache.set(cache_key, result)
         return result
 
     async def _lemma_fallback(self, query: str) -> list[CandidateRow]:
@@ -205,7 +204,7 @@ class Tecd3Provider:
 
     async def fetch_entry(self, entry_id: int) -> dict[str, Any]:
         cache_key = f"{self.source}:{self.cache_version}:entry:{entry_id}"
-        cached = cache_get(cache_key)
+        cached = await dict_cache.get(cache_key)
         if cached is not None:
             result = validate_lookup_result(cached)
             result["cached"] = True
@@ -216,7 +215,7 @@ class Tecd3Provider:
             raise ValueError(f"Entry not found: {entry_id}")
 
         result = self._build_entry_result(entry.display_headword, entry)
-        cache_set(cache_key, result)
+        await dict_cache.set(cache_key, result)
         return result
 
     def _build_entry_result(self, query: str, entry: EntryRow) -> dict[str, Any]:

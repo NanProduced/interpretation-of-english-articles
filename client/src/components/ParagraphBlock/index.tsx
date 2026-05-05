@@ -445,6 +445,9 @@ const ParagraphBlock = memo(function ParagraphBlock({
             label: '语法要点',
             content: e.content,
             snippet: snippet,
+            recordId: recordId || undefined,
+            entryId: e.id,
+            annotationType: 'grammar_note',
             onFeedback: recordId ? () => handleCardFeedback(e.id, 'grammar_note', e.title || e.label, e.content) : undefined,
           }
         }),
@@ -461,6 +464,9 @@ const ParagraphBlock = memo(function ParagraphBlock({
               structuredData: parsed,
               isExpanded: activeAnalysisId === e.id,
               onToggle: (expanded: boolean) => handleAnalysisToggle(e.id, expanded),
+              recordId: recordId || undefined,
+              entryId: e.id,
+              annotationType: 'sentence_analysis',
               onFeedback: recordId ? () => handleCardFeedback(e.id, 'sentence_analysis', e.label, e.content) : undefined,
             }
           }),
@@ -579,6 +585,9 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       isExpanded={card.isExpanded}
                       onToggle={card.onToggle}
                       onFeedback={card.onFeedback}
+                      recordId={(card as any).recordId}
+                      entryId={(card as any).entryId}
+                      annotationType={(card as any).annotationType}
                     />
                   ))}
                 </View>

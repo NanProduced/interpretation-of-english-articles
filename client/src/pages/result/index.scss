@@ -418,3 +418,69 @@
 .fallback-source-paragraph + .fallback-source-paragraph {
   margin-top: 20rpx;
 }
+
+/* === Article End Feedback === */
+.article-end-feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 80rpx 48rpx 0;
+  padding: 48rpx;
+  background: var(--reader-paper-deep);
+  border-radius: var(--radius-md);
+  border: 1rpx solid rgba(0, 0, 0, 0.05);
+
+  .end-feedback-title {
+    font-size: 28rpx;
+    font-weight: var(--weight-bold);
+    color: var(--reader-ink);
+    margin-bottom: 32rpx;
+  }
+
+  .end-feedback-actions {
+    display: flex;
+    gap: 40rpx;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .end-feedback-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12rpx;
+    transition: all 0.2s;
+
+    &:active {
+      transform: scale(0.95);
+      opacity: 0.7;
+    }
+
+    .end-feedback-icon-box {
+      width: 88rpx;
+      height: 88rpx;
+      border-radius: 50%;
+      background: var(--color-white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-sm);
+      border: 1rpx solid rgba(0, 0, 0, 0.03);
+    }
+
+    .end-feedback-icon { font-size: 24rpx; }
+    .end-feedback-text {
+      font-size: 22rpx;
+      color: var(--reader-muted);
+    }
+
+    &.is-submitted {
+      background: rgba(0, 0, 0, 0.06);
+      .end-feedback-text {
+        color: var(--reader-ink);
+        font-weight: var(--weight-medium);
+      }
+    }
+  }
+}
+

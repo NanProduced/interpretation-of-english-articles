@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { View, Text } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import LucideIcon from '../LucideIcon'
 import AnnotationGlyph, { type AnnotationGlyphType } from '../AnnotationGlyph'
 import type { StopPropagationEvent } from '../../types/taro-events'
-import { useConfigStore } from '../../stores/config'
+import { submitFeedback } from '../../services/api/feedback.client'
 import './index.scss'
 
 export type AnalysisCardType = 'vocab' | 'grammar' | 'sentence' | 'term' | 'logic' | 'interpretation' | 'summary'
@@ -24,6 +25,10 @@ export interface AnalysisCardProps {
   onToggle?: (expanded: boolean) => void
   onFeedback?: () => void
   structuredData?: { summary?: string; chunks?: AnalysisChunk[] }
+  // Quick feedback props
+  recordId?: string
+  entryId?: string
+  annotationType?: string
 }
 
 const TYPE_CONFIG: Record<AnalysisCardType, { icon: string; glyph?: AnnotationGlyphType; colorClass: string; defaultLabel: string }> = {
@@ -93,16 +98,15 @@ export default function AnalysisCard({
   onToggle,
   onFeedback,
   structuredData: externalStructuredData,
+  recordId,
+  entryId,
+  annotationType,
 }: AnalysisCardProps) {
-  const globalDefaultExpanded = useConfigStore((s) => s.defaultCardExpanded)
-  const [internalIsExpanded, setInternalIsExpanded] = useState(initiallyExpanded ?? globalDefaultExpanded)
+  const [internalIsExpanded, setInternalIsExpanded] = useState(initiallyExpanded ?? false)
   const isExpanded = controlledIsExpanded !== undefined ? controlledIsExpanded : internalIsExpanded
+  const [quickFeedbackState, setQuickFeedbackState] = useState<'none' | 'positive' | 'negative'>('none')
 
-  useEffect(() => {
-    if (initiallyExpanded === undefined) {
-      setInternalIsExpanded(globalDefaultExpanded)
-    }
-  }, [globalDefaultExpanded, initiallyExpanded])
+
 
   const config = TYPE_CONFIG[type]
   const structuredData = externalStructuredData || (type === 'sentence' ? parseSentenceAnalysis(content) : null)
@@ -115,6 +119,35 @@ export default function AnalysisCard({
     }
     onToggle?.(nextState)
   }
+
+  const handleCollapse = (e: StopPropagationEvent) => {
+    e?.stopPropagation?.()
+    if (controlledIsExpanded === undefined) {
+      setInternalIsExpanded(false)
+    }
+    onToggle?.(false)
+  }
+
+  // Quick feedback: 有帮助 / 不准确
+  const handleQuickFeedback = useCallback(async (sentiment: 'positive' | 'negative') => {
+    if (!recordId || !entryId || quickFeedbackState !== 'none') return
+    setQuickFeedbackState(sentiment)
+    try {
+      await submitFeedback({
+        feedbackScope: 'annotation',
+        targetId: entryId,
+        analysisRecordId: recordId,
+        sentiment,
+        feedbackType: sentiment === 'positive' ? 'helpful' : 'inaccurate',
+        annotationType: annotationType || type,
+        contextJson: { title, content_preview: content.slice(0, 200) },
+      })
+      Taro.showToast({ title: '感谢反馈', icon: 'success', duration: 1200 })
+    } catch {
+      setQuickFeedbackState('none')
+      Taro.showToast({ title: '提交失败', icon: 'none', duration: 1200 })
+    }
+  }, [recordId, entryId, quickFeedbackState, annotationType, type, title, content])
 
   // Micro Rules for collapsed tab text
   const getCollapsedCopy = () => {
@@ -136,12 +169,8 @@ export default function AnalysisCard({
           )}
           <Text className='card-collapsed-title' numberOfLines={1}>{getCollapsedCopy()}</Text>
         </View>
-        <View className='summary-icon'>
-          {type === 'sentence' ? (
-            <Text style={{ fontSize: '24rpx', transform: 'translateY(2rpx)', opacity: 0.6 }}>^</Text>
-          ) : (
-            <LucideIcon name='chevron-right' size={14} color='var(--text-muted)' />
-          )}
+        <View className={`summary-icon ${isExpanded ? 'is-expanded' : ''}`}>
+          <LucideIcon name='chevron-down' size={14} color='var(--reader-muted)' />
         </View>
       </View>
 
@@ -151,8 +180,8 @@ export default function AnalysisCard({
           {(type === 'grammar' || type === 'sentence') && (
              <View className='expanded-title-row'>
                <Text className='expanded-full-title'>{title && title !== config.defaultLabel ? title : config.defaultLabel}</Text>
-               <View className='collapse-btn' onClick={(e) => { e.stopPropagation(); setInternalIsExpanded(false); onToggle?.(false) }}>
-                 {type === 'sentence' ? '收起 ^' : '✕'}
+               <View className='collapse-btn' onClick={handleCollapse}>
+                 <Text className='collapse-btn-text'>收起</Text>
                </View>
              </View>
           )}
@@ -173,7 +202,7 @@ export default function AnalysisCard({
           <View className='card-content-wrapper'>
             {type === 'grammar' && snippet && (
               <View className='grammar-snippet-box'>
-                <Text className='snippet-label'>来源句</Text>
+                <Text className='snippet-label'>原文片段</Text>
                 <Text className='snippet-text'>{snippet}</Text>
               </View>
             )}
@@ -192,7 +221,7 @@ export default function AnalysisCard({
                             <Text className='label-index'>{idx + 1}</Text>
                             <Text className='label-text'>{chunk.label}</Text>
                           </View>
-                          <Text className='chunk-detail-text'>{chunk.text}</Text>
+                          <Text className='chunk-detail-text' numberOfLines={2}>{chunk.text}</Text>
                         </View>
                       )
                     })}
@@ -204,11 +233,33 @@ export default function AnalysisCard({
             )}
           </View>
           
-          {onFeedback && (
-            <View className='card-footer'>
-              <View className='card-feedback-btn' onClick={(e) => { e.stopPropagation(); onFeedback() }}>
-                <LucideIcon name='messageSquare' size={14} color='var(--reader-muted)' />
-              </View>
+          {/* Feedback row: 有帮助 / 不准确 / 反馈 */}
+          {(onFeedback || recordId) && (
+            <View className='card-feedback-row'>
+              {recordId && entryId && (
+                <>
+                  <View
+                    className={`feedback-quick-btn ${quickFeedbackState === 'positive' ? 'is-submitted' : ''} ${quickFeedbackState !== 'none' && quickFeedbackState !== 'positive' ? 'is-disabled' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); void handleQuickFeedback('positive') }}
+                  >
+                    <Text className='feedback-quick-icon'>👍</Text>
+                    <Text className='feedback-quick-text'>{quickFeedbackState === 'positive' ? '已反馈' : '有帮助'}</Text>
+                  </View>
+                  <View
+                    className={`feedback-quick-btn ${quickFeedbackState === 'negative' ? 'is-submitted' : ''} ${quickFeedbackState !== 'none' && quickFeedbackState !== 'negative' ? 'is-disabled' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); void handleQuickFeedback('negative') }}
+                  >
+                    <Text className='feedback-quick-icon'>👎</Text>
+                    <Text className='feedback-quick-text'>{quickFeedbackState === 'negative' ? '已反馈' : '不准确'}</Text>
+                  </View>
+                </>
+              )}
+              {onFeedback && (
+                <View className='feedback-detail-btn' onClick={(e) => { e.stopPropagation(); onFeedback() }}>
+                  <LucideIcon name='messageSquare' size={13} color='var(--reader-muted)' />
+                  <Text className='feedback-detail-text'>反馈</Text>
+                </View>
+              )}
             </View>
           )}
         </View>

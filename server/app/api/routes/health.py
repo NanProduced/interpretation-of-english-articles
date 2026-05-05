@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.config.settings import get_settings
 from app.database.connection import is_db_ready, is_redis_ready
-from app.schemas.health import DbHealthResponse, HealthCheckResponse, ReadinessCheckResponse
+from app.schemas.health import DbHealthResponse, DictCacheStats, HealthCheckResponse, ReadinessCheckResponse
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -26,6 +26,7 @@ async def health_check(request: Request) -> HealthCheckResponse:
         "redis": redis_ready,
         "worker": worker_ready,
         "worker_inflight_tasks": int(worker_snapshot["inflight_tasks"]),
+        "dict_cache": _get_dict_cache_stats(),
     }
 
 
@@ -76,3 +77,11 @@ def _get_worker_snapshot(request: Request) -> dict[str, bool | int | str]:
             "inflight_tasks": 0,
         }
     return worker.health_snapshot()
+
+
+def _get_dict_cache_stats() -> DictCacheStats | None:
+    try:
+        from app.services.dictionary.cache import stats
+        return DictCacheStats(**stats())
+    except Exception:
+        return None

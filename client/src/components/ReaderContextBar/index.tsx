@@ -18,7 +18,7 @@ export default function ReaderContextBar({
   isAcademicMode,
 }: ReaderContextBarProps) {
   const sourceLabel = sourceType === 'user_input' ? '手动输入' : '每日文章'
-  const goalLabel = getSafeDisplayLabel(readingGoal, readingVariant)
+  const goalLabel = getSafeDisplayLabel(readingGoal || 'daily_reading', readingVariant)
   const modeLabel = pageMode === 'immersive' ? '沉浸阅读' : '深度解析'
 
   return (
@@ -36,6 +36,7 @@ export default function ReaderContextBar({
           </>
         )}
       </View>
+      <Text className='context-edit-icon'>✎</Text>
     </View>
   )
 }

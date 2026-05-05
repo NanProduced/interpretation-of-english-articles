@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import { PageMode, AnyRenderSceneVm, AcademicRenderSceneVm } from '../../types/view/render-scene.vm'
 import { getSafeDisplayLabel } from '../../config/purpose'
+import { submitFeedback } from '../../services/api/feedback.client'
 import NavBar from '../../components/NavBar'
 import ParagraphBlock from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
@@ -76,6 +77,25 @@ export default function Result() {
   const academicVm = isAcademicMode ? (sceneData as AcademicRenderSceneVm) : null
   const academicContentSummary = academicVm?.contentSummary ?? null
   const academicTitle = academicVm?.title ?? null
+
+  // Article-end quick feedback
+  const [endFeedbackState, setEndFeedbackState] = useState<'none' | 'positive' | 'negative'>('none')
+  const handleEndFeedback = useCallback(async (sentiment: 'positive' | 'negative') => {
+    if (endFeedbackState !== 'none' || !recordId) return
+    setEndFeedbackState(sentiment)
+    try {
+      await submitFeedback({
+        feedbackScope: 'analysis_record',
+        targetId: recordId,
+        analysisRecordId: recordId,
+        sentiment,
+        feedbackType: sentiment === 'positive' ? 'helpful' : 'inaccurate',
+      })
+      Taro.showToast({ title: '感谢反馈', icon: 'success', duration: 1200 })
+    } catch {
+      setEndFeedbackState('none')
+    }
+  }, [endFeedbackState, recordId])
 
   const articleHeader = useMemo(() => {
     if (!sceneData?.request) return null
@@ -217,6 +237,27 @@ export default function Result() {
               </View>
             </View>
 
+            {recordId && (
+              <View className='article-end-feedback'>
+                <Text className='end-feedback-question'>本次解读对你有帮助吗？</Text>
+                <View className='end-feedback-actions'>
+                  <View
+                    className={`end-feedback-btn ${endFeedbackState === 'positive' ? 'is-submitted' : ''} ${endFeedbackState !== 'none' && endFeedbackState !== 'positive' ? 'is-disabled' : ''}`}
+                    onClick={() => void handleEndFeedback('positive')}
+                  >
+                    <Text className='end-feedback-icon'>👍</Text>
+                    <Text className='end-feedback-text'>{endFeedbackState === 'positive' ? '已反馈' : '有帮助'}</Text>
+                  </View>
+                  <View
+                    className={`end-feedback-btn ${endFeedbackState === 'negative' ? 'is-submitted' : ''} ${endFeedbackState !== 'none' && endFeedbackState !== 'negative' ? 'is-disabled' : ''}`}
+                    onClick={() => void handleEndFeedback('negative')}
+                  >
+                    <Text className='end-feedback-icon'>👎</Text>
+                    <Text className='end-feedback-text'>{endFeedbackState === 'negative' ? '已反馈' : '不准确'}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
             {sceneData && (pageState === 'normal' || pageState === 'degraded_light') && (
               <FeedbackWidget
                 recordId={recordId || ''}
@@ -240,6 +281,7 @@ export default function Result() {
         x={wordPopup.x}
         y={wordPopup.y}
         readingVariant={sceneData?.request?.readingVariant}
+        readingGoal={sceneData?.request?.readingGoal}
         onClose={actions.handleClosePopup}
         onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
         onAddVocab={actions.handleAddVocab}

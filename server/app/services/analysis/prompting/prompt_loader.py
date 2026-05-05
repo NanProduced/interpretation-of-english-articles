@@ -2,32 +2,41 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
 from pathlib import Path
 
 import yaml
+from cachetools import TTLCache
 
 PROMPTS_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent / "prompts"
 
 _REGISTRY_PATH = PROMPTS_ROOT / "registry.yaml"
 
+_REGISTRY_CACHE: TTLCache = TTLCache(maxsize=1, ttl=300)
+_YAML_FILE_CACHE: TTLCache = TTLCache(maxsize=64, ttl=300)
 
-@lru_cache(maxsize=1)
+
 def _load_registry() -> dict:
+    cached = _REGISTRY_CACHE.get("registry")
+    if cached is not None:
+        return cached
     text = _REGISTRY_PATH.read_text(encoding="utf-8")
     data = yaml.safe_load(text)
     if not isinstance(data, dict):
         raise ValueError(f"Expected dict in registry, got {type(data).__name__}")
+    _REGISTRY_CACHE["registry"] = data
     return data
 
 
-@lru_cache(maxsize=64)
 def _load_yaml_file(relative_path: str) -> dict:
+    cached = _YAML_FILE_CACHE.get(relative_path)
+    if cached is not None:
+        return cached
     path = PROMPTS_ROOT / relative_path
     text = path.read_text(encoding="utf-8")
     data = yaml.safe_load(text)
     if not isinstance(data, dict):
         raise ValueError(f"Expected dict in {path}, got {type(data).__name__}")
+    _YAML_FILE_CACHE[relative_path] = data
     return data
 
 
@@ -81,5 +90,5 @@ def load_examples(
 
 
 def clear_cache() -> None:
-    _load_registry.cache_clear()
-    _load_yaml_file.cache_clear()
+    _REGISTRY_CACHE.clear()
+    _YAML_FILE_CACHE.clear()

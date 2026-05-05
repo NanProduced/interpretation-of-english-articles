@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { AnyInlineMarkModel, type VisualTone, type AcademicVisualTone, type InlineGlossary, type AcademicInlineGlossary, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
 import { fetchDict, fetchDictEntry } from '../../services/api/client'
 import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
+import { getDictCache, setDictCache, getEntryCache, setEntryCache } from '../../services/dictCache'
 import { filterExamTags } from '../../config/purpose'
 import LucideIcon from '../LucideIcon'
 import AnnotationGlyph from '../AnnotationGlyph'
@@ -21,6 +22,7 @@ interface WordPopupProps {
   x?: number
   y?: number
   readingVariant?: string
+  readingGoal?: string
   isSaved?: boolean
   onClose: () => void
   onExpand?: () => void
@@ -102,7 +104,7 @@ const LOGIC_TYPE_LABELS: Record<string, string> = {
 }
 
 export default function WordPopup({
-  visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant,
+  visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant, readingGoal,
   isSaved = false, onClose, onExpand, onAddVocab, onFavorite,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
@@ -175,12 +177,20 @@ export default function WordPopup({
   }, [dictResult, activeTab]) // Fixed dependency
 
   const fetchDictionary = async (text: string) => {
+    const type = text.trim().includes(' ') ? 'phrase' : 'word'
+    const cached = getDictCache(text, type, contextSentence, occurrence)
+    if (cached) {
+      setDictResult(cached)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setDictResult(null)
     try {
-      const type = text.trim().includes(' ') ? 'phrase' : 'word'
       const dto = await fetchDict(text, type, contextSentence, occurrence)
-      setDictResult(dictResponseDtoToVm(dto))
+      const vm = dictResponseDtoToVm(dto)
+      setDictResult(vm)
+      setDictCache(text, type, vm, contextSentence, occurrence)
     } catch (err) {
       console.error('[dict] fetch error', err)
       setDictResult(null)
@@ -190,11 +200,19 @@ export default function WordPopup({
   }
 
   const fetchEntryDetail = async (entryId: number, expand = false) => {
+    const cached = getEntryCache(entryId)
+    if (cached) {
+      setDictResult(cached)
+      if (expand) onExpand?.()
+      return
+    }
     setLoading(true)
     setDictResult(null)
     try {
       const dto = await fetchDictEntry(entryId)
-      setDictResult(dictResponseDtoToVm(dto))
+      const vm = dictResponseDtoToVm(dto)
+      setDictResult(vm)
+      setEntryCache(entryId, vm)
       if (expand) onExpand?.()
     } catch {
       Taro.showToast({ title: '词条详情获取失败', icon: 'none' })
@@ -331,6 +349,16 @@ export default function WordPopup({
                   <Text className='word-phonetic'>/{entry.phonetic}/</Text>
                 </View>
               )}
+              {readingGoal === 'exam' && entry?.tags && entry.tags.length > 0 && (() => {
+                const filtered = filterExamTags(entry.tags, readingVariant)
+                return filtered.length > 0 ? (
+                  <View className='exam-tags-row'>
+                    {filtered.map(tag => (
+                      <Text key={tag} className='exam-tag-pill'>{tag}</Text>
+                    ))}
+                  </View>
+                ) : null
+              })()}
             </View>
           </View>
           <View className='header-right-actions'>

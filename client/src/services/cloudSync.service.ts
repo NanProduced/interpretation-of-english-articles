@@ -112,11 +112,43 @@ function recoverStuckRunningItems(): void {
   if (dirty) saveSyncQueue(queue)
 }
 
+const FAILED_ITEM_TTL_MS = 24 * 60 * 60 * 1000
+const FAILED_ITEM_MAX = 50
+
+function cleanupFailedItems(): void {
+  const queue = getSyncQueue()
+  const now = Date.now()
+  const filtered = queue.filter(item => {
+    if (item.status !== 'failed') return true
+    if (now - item.updatedAt > FAILED_ITEM_TTL_MS) return false
+    return true
+  })
+
+  if (filtered.length === queue.length) {
+    const failedItems = filtered.filter(item => item.status === 'failed')
+    if (failedItems.length > FAILED_ITEM_MAX) {
+      const toRemove = new Set(
+        failedItems
+          .sort((a, b) => a.updatedAt - b.updatedAt)
+          .slice(0, failedItems.length - FAILED_ITEM_MAX)
+          .map(item => item.opId)
+      )
+      const afterMaxFilter = filtered.filter(item => !toRemove.has(item.opId))
+      saveSyncQueue(afterMaxFilter)
+      return
+    }
+    return
+  }
+
+  saveSyncQueue(filtered)
+}
+
 async function flushQueue(): Promise<void> {
   if (flushRunning) return
   if (!useAuthStore.getState().isLoggedIn) return
 
   recoverStuckRunningItems()
+  cleanupFailedItems()
 
   flushRunning = true
   try {

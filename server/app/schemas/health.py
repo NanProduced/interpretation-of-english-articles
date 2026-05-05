@@ -13,6 +13,16 @@ class HealthCheckResponse(BaseModel):
     redis: bool
     worker: bool
     worker_inflight_tasks: int
+    dict_cache: DictCacheStats | None = None
+
+
+class DictCacheStats(BaseModel):
+    l1_size: int
+    l1_max_size: int
+    l1_hits: int
+    l1_misses: int
+    l2_hits: int
+    l2_misses: int
 
 
 class DbHealthResponse(BaseModel):
