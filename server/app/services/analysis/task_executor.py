@@ -187,6 +187,8 @@ async def execute_task(
     """
     heartbeat_task: asyncio.Task | None = None
     start_time = datetime.now(timezone.utc)
+    usage_summary: dict[str, Any] | None = None
+    payload: AnalyzeRequest | None = None
 
     try:
         active_worker_token = worker_token or f"worker-{uuid4()}"
@@ -342,6 +344,7 @@ async def execute_task(
                 finished_at=datetime.now(timezone.utc),
                 failure_code=failure_code,
                 failure_message=failure_message,
+                usage_summary_json=usage_summary or {},
             )
             await records_svc.update_record(
                 user_id=user_id,
@@ -349,12 +352,28 @@ async def execute_task(
                 analysis_status="failed",
                 user_facing_state="failed"
             )
+
+            cost_points = compute_cost_points(usage_summary) if usage_summary else 0
+
+            processing_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+            await records_svc.insert_audit_log(
+                record_id=record_id,
+                user_id=user_id,
+                task_id=task_id,
+                request_payload_json=payload.model_dump(mode="json") if payload else {},
+                usage_summary_json=usage_summary or {},
+                cost_points=cost_points,
+                processing_ms=processing_ms,
+            )
+
             await insert_task_event(
                 task_id,
                 "task_failed",
                 {
                     "failure_code": failure_code,
                     "failure_message": failure_message,
+                    "usage_summary": usage_summary or {},
+                    "cost_points": cost_points,
                 },
             )
         except Exception as inner_exc:

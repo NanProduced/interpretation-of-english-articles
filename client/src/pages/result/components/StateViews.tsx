@@ -24,7 +24,7 @@ export default function StateViews({ pageState, errorCode, errorMsg, navBarHeigh
 
   if (pageState === 'loading') {
     return shell(
-      <View className='state-container'>
+      <View className='state-container loading-state'>
         <ActiveLoading />
       </View>
     )

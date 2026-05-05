@@ -13,6 +13,7 @@ interface LottieAnimationProps {
   autoplay?: boolean
   fallback?: ReactNode
   onError?: () => void
+  onLoopComplete?: () => void
 }
 
 type LottieInstance = ReturnType<typeof lottie.loadAnimation>
@@ -24,7 +25,8 @@ export default function LottieAnimation({
   loop = true,
   autoplay = true,
   fallback,
-  onError
+  onError,
+  onLoopComplete
 }: LottieAnimationProps) {
   const animationRef = useRef<LottieInstance | null>(null)
   const [failed, setFailed] = useState(false)
@@ -70,10 +72,11 @@ export default function LottieAnimation({
           const dpr = systemInfo.pixelRatio
           canvas.width = (res.width || 300) * dpr
           canvas.height = (res.height || 300) * dpr
+          context.scale(dpr, dpr)
 
           destroyAnimation()
           lottie.setup(canvas)
-          animationRef.current = lottie.loadAnimation({
+          const anim = lottie.loadAnimation({
             renderer: 'canvas',
             loop,
             autoplay,
@@ -84,6 +87,11 @@ export default function LottieAnimation({
               clearCanvas: true
             }
           })
+          animationRef.current = anim
+
+          if (onLoopComplete) {
+            anim.addEventListener('loopComplete', onLoopComplete)
+          }
         })
         .exec()
     })
@@ -92,7 +100,7 @@ export default function LottieAnimation({
       disposed = true
       destroyAnimation()
     }
-  }, [animationData, autoplay, canvasId, loop, onError, path])
+  }, [animationData, autoplay, canvasId, loop, onError, path, onLoopComplete])
 
   if (failed) {
     return fallback ? <>{fallback}</> : null

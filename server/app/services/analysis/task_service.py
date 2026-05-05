@@ -477,11 +477,13 @@ async def requeue_stale_tasks(
         async with conn.transaction():
             rows = await conn.fetch(
                 """
-                SELECT id AS task_id, analysis_record_id AS record_id, status
-                FROM analysis_tasks
-                WHERE (status = 'queued' AND queued_at < $1)
-                   OR (status IN ('running', 'finalizing') AND updated_at < $2)
-                FOR UPDATE
+                SELECT t.id AS task_id, t.analysis_record_id AS record_id, t.status,
+                       r.analysis_status AS record_status
+                FROM analysis_tasks t
+                JOIN analysis_records r ON t.analysis_record_id = r.id
+                WHERE (t.status = 'queued' AND t.queued_at < $1)
+                   OR (t.status IN ('running', 'finalizing') AND t.updated_at < $2)
+                FOR UPDATE OF t
                 """,
                 queued_before,
                 active_before,
@@ -490,51 +492,86 @@ async def requeue_stale_tasks(
             if not rows:
                 return 0
 
-            task_ids = [row["task_id"] for row in rows]
-            record_ids = [row["record_id"] for row in rows]
-
-            await conn.execute(
-                """
-                UPDATE analysis_tasks
-                SET status = 'queued',
-                    worker_token = NULL,
-                    queued_at = $2,
-                    started_at = NULL,
-                    finished_at = NULL,
-                    failure_code = NULL,
-                    failure_message = NULL,
-                    updated_at = $2
-                WHERE id = ANY($1::uuid[])
-                """,
-                task_ids,
-                now,
-            )
-            await conn.execute(
-                """
-                UPDATE analysis_records
-                SET analysis_status = 'queued',
-                    updated_at = $2
-                WHERE id = ANY($1::uuid[])
-                """,
-                record_ids,
-                now,
-            )
+            requeue_task_ids: list = []
+            requeue_record_ids: list = []
+            succeed_task_ids: list = []
+            succeed_record_ids: list = []
 
             for row in rows:
+                if row["record_status"] in ("ready", "partial"):
+                    succeed_task_ids.append(row["task_id"])
+                    succeed_record_ids.append(row["record_id"])
+                else:
+                    requeue_task_ids.append(row["task_id"])
+                    requeue_record_ids.append(row["record_id"])
+
+            if succeed_task_ids:
                 await conn.execute(
                     """
-                    INSERT INTO analysis_task_events
-                        (task_id, event_type, event_payload_json, created_at)
-                    VALUES ($1, 'task_requeued', $2, $3)
+                    UPDATE analysis_tasks
+                    SET status = 'succeeded',
+                        finished_at = $2,
+                        updated_at = $2
+                    WHERE id = ANY($1::uuid[])
                     """,
-                    row["task_id"],
-                    json.dumps(
-                        {
-                            "reason": "server_restart",
-                            "previous_status": row["status"],
-                        }
-                    ),
+                    succeed_task_ids,
                     now,
                 )
+                for tid in succeed_task_ids:
+                    await conn.execute(
+                        """
+                        INSERT INTO analysis_task_events
+                            (task_id, event_type, event_payload_json, created_at)
+                        VALUES ($1, 'task_recovered_succeeded', $2, $3)
+                        """,
+                        tid,
+                        json.dumps({"reason": "record_already_ready"}),
+                        now,
+                    )
 
-            return len(rows)
+            if requeue_task_ids:
+                await conn.execute(
+                    """
+                    UPDATE analysis_tasks
+                    SET status = 'queued',
+                        worker_token = NULL,
+                        queued_at = $2,
+                        started_at = NULL,
+                        finished_at = NULL,
+                        failure_code = NULL,
+                        failure_message = NULL,
+                        updated_at = $2
+                    WHERE id = ANY($1::uuid[])
+                    """,
+                    requeue_task_ids,
+                    now,
+                )
+                await conn.execute(
+                    """
+                    UPDATE analysis_records
+                    SET analysis_status = 'queued',
+                        updated_at = $2
+                    WHERE id = ANY($1::uuid[])
+                    """,
+                    requeue_record_ids,
+                    now,
+                )
+                for row in rows:
+                    if row["task_id"] in requeue_task_ids:
+                        await conn.execute(
+                            """
+                            INSERT INTO analysis_task_events
+                                (task_id, event_type, event_payload_json, created_at)
+                            VALUES ($1, 'task_requeued', $2, $3)
+                            """,
+                            row["task_id"],
+                            json.dumps(
+                                {
+                                    "reason": "server_restart",
+                                    "previous_status": row["status"],
+                                }
+                            ),
+                            now,
+                        )
+
+            return len(requeue_task_ids) + len(succeed_task_ids)

@@ -157,8 +157,9 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
               CloudSyncService.syncDeleteRecord(record.cloudId, id)
             }
           })
-          loadRecords()
+          setRecords(prev => prev.filter(r => !selectedIds.has(r.recordId)))
           setIsEditMode(false)
+          setSelectedIds(new Set())
         }
       }
     })
@@ -206,7 +207,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
           if (record.cloudId) {
             CloudSyncService.syncDeleteRecord(record.cloudId, record.recordId)
           }
-          loadRecords()
+          setRecords(prev => prev.filter(r => r.recordId !== record.recordId))
         }
       },
     })

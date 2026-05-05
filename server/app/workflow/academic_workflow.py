@@ -382,12 +382,17 @@ async def understanding_agent_node(
         }
     except Exception:
         logger.exception("understanding_agent 调用失败")
+        usage_summary = _aggregate_usage_summary({
+            "term": state.get("term_usage"),
+            "translation": state.get("translation_usage"),
+        })
         return {
             "understanding_draft": None,
             "warnings": [
                 *state.get("warnings", []),
                 Warning(code="UNDERSTANDING_AGENT_FAILED", level="error", message="understanding agent 调用失败"),
             ],
+            "usage_summary": usage_summary,
         }
 
 

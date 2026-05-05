@@ -31,6 +31,12 @@ Important types:
 | `client/src/components/AnalysisCard/index.tsx` | Renders grammar and sentence entry cards |
 | `client/src/components/AnalysisCard/index.scss` | Entry collapsed/expanded styles |
 | `client/src/components/ParagraphBlock/utils.ts` | Parses sentence analysis chunks and tokenizes sentence text |
+| `client/src/components/WordPopup/index.tsx` | Mini word lookup and full dictionary sheet |
+| `client/src/components/WordPopup/index.scss` | Word lookup visual style |
+| `client/src/components/ClickableWord/index.tsx` | Generic point-word tap target and saved vocabulary marker |
+| `client/src/pages/result/hooks/useResultActions.ts` | Opens lookup popup and saves vocabulary entries |
+| `client/src/pages/result/hooks/useResultEffects.ts` | Loads saved vocabulary and cloud vocabulary highlights |
+| `client/src/services/storage/index.ts` | Local vocabulary merge/save logic |
 
 ## Recommended Rendering Model
 
@@ -50,6 +56,32 @@ Restyle these first:
 - Reduce opacity.
 - Preserve semantic colors during active state.
 - Replace the crude saved marker with a small bookmark/fold mark.
+
+### 1.1 Word Lookup
+
+The existing `WordPopup` can remain the interaction owner, but it should be split visually into two conceptual components:
+
+```text
+WordLookupSlip
+DictionaryNoteSheet
+```
+
+`WordLookupSlip` is the mini anchored card. It should:
+
+- Prefer `glossary.zh` for `phrase_gloss`.
+- Prefer `glossary.gloss` for `context_gloss`.
+- Fall back to dictionary summary for `vocab_highlight` and plain word taps.
+- Show a compact `多个义项` state for disambiguation.
+- Use a skeleton line during dictionary loading.
+
+`DictionaryNoteSheet` is the full bottom sheet. It should:
+
+- Show AI phrase/context insight only when `glossary` exists.
+- Keep dictionary meanings, phrases, and examples secondary but easy to access.
+- Include current source sentence when `contextSentence` is available.
+- Reflect save state: not saved, already saved, merged lemma, multiple contexts, mastered.
+
+Implementation can start inside the current `WordPopup` file, then extract components after the states are stable.
 
 ### 2. Grammar Notes
 
@@ -106,6 +138,7 @@ Collapsed:
 
 - Show a compact entry chip such as `长难句拆解`.
 - It should sit after the sentence or sentence translation.
+- Final collapsed copy should be `句式解析`; do not include chunk counts such as `4段`.
 
 Expanded:
 
@@ -146,6 +179,25 @@ Recommended first version:
 
 Implementation is feasible in Taro mini program. Use a small store and page-level classes. Avoid shipping custom font files in the first pass unless package size is reviewed.
 
+## Annotation Glyphs
+
+Core annotation entries should use a dedicated `AnnotationGlyph` component instead of generic icons.
+
+Suggested glyphs:
+
+- `grammar_note`: two small nodes connected by a soft curve.
+- `sentence_analysis`: three staggered sentence layers.
+- `vocab`: small highlighter nib or short mark.
+- `phrase`: two connected highlighter strokes.
+- `context`: hairline underline with a small dot.
+- `merged_note`: folded paper tab or stacked note corner.
+
+State rules:
+
+- default: muted ink gray
+- active: subtle semantic tint
+- disabled: 35% opacity
+
 ## Implementation Order
 
 1. Restyle `InlineMark` to the stationery visual language.
@@ -154,4 +206,3 @@ Implementation is feasible in Taro mini program. Use a small store and page-leve
 4. Redesign grammar and sentence expanded states.
 5. Add drop cap for the first immersive paragraph.
 6. Add reader customization tray and persisted settings.
-

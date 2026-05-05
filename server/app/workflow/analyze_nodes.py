@@ -533,12 +533,18 @@ async def repair_agent_node(state: AnalyzeState, config: RunnableConfig) -> Anal
         }
     except Exception:
         logger.exception("repair_agent 调用失败")
+        usage_summary = _aggregate_usage_summary({
+            "vocabulary": state.get("vocabulary_usage"),
+            "grammar": state.get("grammar_usage"),
+            "translation": state.get("translation_usage"),
+        })
         return {
             "repair_request": {"error_context": error_context, "repaired": False},
             "warnings": [
                 *state.get("warnings", []),
                 Warning(code="REPAIR_AGENT_FAILED", level="warning", message="repair agent 调用失败，继续使用归一化结果"),
             ],
+            "usage_summary": usage_summary,
         }
 
 

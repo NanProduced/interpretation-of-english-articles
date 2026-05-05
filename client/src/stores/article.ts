@@ -120,13 +120,23 @@ export const useArticleStore = create<ArticleState>((set, get) => {
   const startPolling = async (taskId: string) => {
     if (get().phase === 'success' || get().phase === 'empty') return
 
+    const POLL_INTERVAL_MS = 2000
+    const MAX_POLL_DURATION_MS = 180_000
+    const MAX_CONSECUTIVE_ERRORS = 3
+    const pollStartAt = Date.now()
+    let consecutiveErrors = 0
+
     while (!currentAbortFlag) {
       try {
         const statusRes = await getTaskStatus(taskId)
+        consecutiveErrors = 0
         if (get().phase === 'success' || get().phase === 'empty') break
 
         if (['queued', 'running', 'finalizing'].includes(statusRes.status)) {
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          if (Date.now() - pollStartAt > MAX_POLL_DURATION_MS) {
+            throw new ApiError('分析超时，请稍后在历史记录中查看结果', 'TIMEOUT', 408)
+          }
+          await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
           continue
         }
 
@@ -146,8 +156,15 @@ export const useArticleStore = create<ArticleState>((set, get) => {
         if (currentAbortFlag) break
         if (get().phase === 'success' || get().phase === 'empty') break
 
-        const message = err instanceof Error ? err.message : '网络或服务异常，请稍后重试'
         const code = (err instanceof ApiError ? err.code : 'UNKNOWN') || 'UNKNOWN'
+
+        if (code !== 'TIMEOUT' && code !== 'AUTH_REQUIRED' && consecutiveErrors < MAX_CONSECUTIVE_ERRORS) {
+          consecutiveErrors++
+          await new Promise(resolve => setTimeout(resolve, 3000))
+          continue
+        }
+
+        const message = err instanceof Error ? err.message : '网络或服务异常，请稍后重试'
         const phase: ArticlePhase = 'error'
         const pageState = derivePageState(phase, code, null)
 
@@ -419,7 +436,10 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           await startPolling(current.task.task_id)
         }
       } catch (err) {
-        // Silently ignore recovery failure
+        const message = err instanceof Error ? err.message : '恢复任务失败'
+        const code = (err instanceof ApiError ? err.code : 'UNKNOWN') || 'UNKNOWN'
+        console.error('[article] recoverActiveTask failed:', message)
+        set({ error: message, errorCode: code, phase: 'error', pageState: derivePageState('error', code, null) })
       }
     },
 

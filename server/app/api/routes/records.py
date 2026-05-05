@@ -158,13 +158,13 @@ async def delete_record(
     current_user: AuthUserDep,
     record_id: UUID,
 ) -> dict:
-    """删除一条分析记录。"""
+    """删除一条分析记录（幂等：已删除的记录重复删除返回成功）。"""
     try:
-        deleted = await records_svc.delete_record(
+        result = await records_svc.delete_record(
             user_id=UUID(current_user.user_id),
             record_id=record_id,
         )
-        if not deleted:
+        if result == "missing":
             raise HTTPException(status_code=404, detail="Record not found")
         return {"deleted": True}
     except HTTPException:

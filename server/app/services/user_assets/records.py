@@ -357,16 +357,35 @@ async def increment_user_reading_count(user_id: UUID) -> bool:
     return "UPDATE 1" in result
 
 
-async def delete_record(user_id: UUID, record_id: UUID) -> bool:
-    """Soft-delete a record. Results will stay linked but analysis_records marks as deleted."""
+async def delete_record(user_id: UUID, record_id: UUID) -> str:
+    """Soft-delete a record. Results will stay linked but analysis_records marks as deleted.
+
+    Returns:
+        "deleted"  — record was live and has been soft-deleted now
+        "already"  — record was already in deleted state (idempotent success)
+        "missing"  — no such record belongs to this user
+    """
     pool = db_connection.DB_POOL
     if pool is None:
         raise RuntimeError("Database pool not initialized")
 
     async with pool.acquire() as conn:
         async with conn.transaction():
+            row = await conn.fetchrow(
+                """
+                SELECT deleted_at FROM analysis_records
+                WHERE id = $1 AND user_id = $2
+                """,
+                record_id,
+                user_id,
+            )
+            if row is None:
+                return "missing"
+            if row["deleted_at"] is not None:
+                return "already"
+
             now = datetime.now(timezone.utc)
-            result = await conn.execute(
+            await conn.execute(
                 """
                 UPDATE analysis_records
                 SET deleted_at = $3,
@@ -379,19 +398,18 @@ async def delete_record(user_id: UUID, record_id: UUID) -> bool:
                 user_id,
                 now,
             )
-            if "UPDATE 1" in result:
-                await conn.execute(
-                    """
-                    UPDATE favorite_records
-                    SET deleted_at = $3,
-                        deleted_by = $2,
-                        updated_at = $3
-                    WHERE analysis_record_id = $1
-                      AND user_id = $2
-                      AND deleted_at IS NULL
-                    """,
-                    record_id,
-                    user_id,
-                    now,
-                )
-    return "UPDATE 1" in result
+            await conn.execute(
+                """
+                UPDATE favorite_records
+                SET deleted_at = $3,
+                    deleted_by = $2,
+                    updated_at = $3
+                WHERE analysis_record_id = $1
+                  AND user_id = $2
+                  AND deleted_at IS NULL
+                """,
+                record_id,
+                user_id,
+                now,
+            )
+    return "deleted"
