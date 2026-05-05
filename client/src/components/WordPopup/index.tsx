@@ -29,7 +29,12 @@ interface WordPopupProps {
 }
 
 function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): string {
-  if (!entry?.meanings?.length) return ''
+  if (!entry?.meanings?.length) {
+    if (entry?.entryKind === 'fragment' && entry.baseWord) {
+      return `派生词，详见 ${entry.baseWord}`
+    }
+    return ''
+  }
   return entry.meanings
     .map((m) => {
       const firstDef = m.definitions?.[0]?.meaning
@@ -281,7 +286,9 @@ export default function WordPopup({
                   <Text className='mini-def'>多个义项，点击查看</Text>
                 </View>
               ) : (
-                <Text className='mini-loading'>未找到释义</Text>
+                <Text className='mini-loading'>
+                  {entry?.entryKind === 'fragment' ? '派生词，查看主词条' : '未找到释义'}
+                </Text>
               )}
             </View>
           </View>
@@ -435,7 +442,9 @@ export default function WordPopup({
               </View>
             ) : !loading && (
               <View className='popup-empty-state'>
-                <Text className='empty-text'>未找到词条释义</Text>
+                <Text className='empty-text'>
+                  {entry?.entryKind === 'fragment' ? '派生词，查看主词条' : '未找到词条释义'}
+                </Text>
               </View>
             )}
           </View>

@@ -2,6 +2,8 @@
 
 Use this file as the starting point for Claude/Gemini implementation agents.
 
+If this is a correction after a failed or visually misaligned implementation, read `agent-correction-brief.md` before coding.
+
 ## Mission
 
 Implement the first production pass of Claread's premium reading annotation and word lookup UI.
@@ -20,6 +22,7 @@ Visual references:
 
 - `docs/uiux/reading-annotation-system/assets/product-direction-overview.png`
 - `docs/uiux/reading-annotation-system/assets/reading-annotation-current-overview.png`
+- `docs/uiux/reading-annotation-system/assets/reader-context-feedback-details.png`
 - `docs/uiux/reading-annotation-system/assets/annotation-micro-rules.png`
 - `docs/uiux/reading-annotation-system/assets/sentence-analysis-final-detail.png`
 
@@ -38,6 +41,7 @@ If a UI choice helps English explanation but makes the article harder to read, c
 ### In Scope
 
 - Add reader/annotation SCSS tokens.
+- Add `ReaderContextBar` for source type, reading goal, reading variant, and current mode.
 - Implement `AnnotationGlyph`.
 - Restyle `InlineMark`.
 - Restyle `ClickableWord` saved vocabulary markers.
@@ -49,6 +53,7 @@ If a UI choice helps English explanation but makes the article harder to read, c
   - vocabulary save actions
 - Add source-context excerpt in the full dictionary sheet.
 - Add a small `LookupSaveState` helper.
+- Add quiet feedback entry points for annotation details, word lookup, and article-end feedback.
 - Add local fixtures or an internal preview path if useful for state coverage.
 
 ### Out Of Scope For First Pass
@@ -60,6 +65,7 @@ If a UI choice helps English explanation but makes the article harder to read, c
 - Decorative reader backgrounds.
 - New onboarding or paywall work.
 - Full vocabulary review system redesign.
+- Full feedback backend redesign.
 
 ## Data Constraints
 
@@ -109,6 +115,8 @@ Recommended additions:
 - Do not use old `C` brand mark.
 - Mini lookup should be compact and anchored.
 - Full lookup should feel like a paper note sheet, not a generic modal dictionary.
+- `reading_goal` and `reading_variant` should be visible as quiet context metadata, not strong purple badges.
+- Feedback actions should be secondary and non-interruptive.
 
 ## State Coverage
 
@@ -126,6 +134,9 @@ Before asking for review, cover:
 - Same lemma, new source context.
 - Multiple source contexts.
 - Mastered.
+- Reader context bar with source, goal, variant, and mode.
+- Annotation/detail feedback entry.
+- Article-end feedback entry.
 
 ## Acceptance Criteria
 
@@ -137,6 +148,8 @@ Before asking for review, cover:
 - Save state copy is clear and accurate.
 - `sentence_analysis` has no permanent inline mark.
 - `grammar_note` long titles do not break the layout.
+- `reading_goal` / `reading_variant` are present without making the page feel like a cram-school app.
+- Feedback entry points exist without interrupting reading.
 - WeChat Mini Program build passes.
 
 ## Review Packet

@@ -11,6 +11,7 @@ import ContentSummaryCard from '../../components/ContentSummaryCard'
 import LucideIcon from '../../components/LucideIcon'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
 import FeedbackWidget from '../../components/FeedbackWidget'
+import ReaderContextBar from '../../components/ReaderContextBar'
 import { useResultState } from './hooks/useResultState'
 import { useResultEffects } from './hooks/useResultEffects'
 import { useResultActions } from './hooks/useResultActions'
@@ -84,20 +85,16 @@ export default function Result() {
         {isAcademicMode && academicTitle && (
           <Text className='article-title'>{academicTitle}</Text>
         )}
-        <View className='article-meta-row'>
-          <Text className='source-tag'>
-            {request.sourceType === 'user_input' ? '手动输入' : '每日文章'}
-          </Text>
-          <Text className='level-tag'>
-            {getSafeDisplayLabel(request.readingGoal, request.readingVariant)}
-          </Text>
-          {isAcademicMode && (
-            <Text className='mode-tag-academic'>学术模式</Text>
-          )}
-        </View>
+        <ReaderContextBar
+          sourceType={request.sourceType}
+          readingGoal={request.readingGoal}
+          readingVariant={request.readingVariant}
+          pageMode={pageMode}
+          isAcademicMode={isAcademicMode}
+        />
       </View>
     )
-  }, [sceneData, isAcademicMode, academicTitle])
+  }, [sceneData, isAcademicMode, academicTitle, pageMode])
 
   const paragraphBlocks = useMemo(() => {
     if (!sceneData?.article?.paragraphs?.length) return null

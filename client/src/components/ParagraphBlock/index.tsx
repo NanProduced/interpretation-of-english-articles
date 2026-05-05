@@ -2,8 +2,9 @@ import { useMemo, memo, useState, useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import { InlineMarkModel, AnyInlineMarkModel, SentenceEntryModel, AnySentenceEntryModel, VisualTone, AcademicVisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
-import InlineMark from '../InlineMark'
 import ClickableWord from '../ClickableWord'
+import GrammarInlineSpan from '../GrammarInlineSpan'
+import InlineMark from '../InlineMark'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
 import AnnotationFeedback from '../AnnotationFeedback'
 import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis } from './utils'
@@ -91,18 +92,24 @@ function renderTextWithAnalysis(
   chunks: { label: string; text: string }[],
 ) {
   const atoms = tokenizeSentenceWithAnalysis(text, chunks)
+  const seenChunkIds = new Set<string>()
 
   return (
     <Text className='english-flow sentence-text is-analyzing'>
       {atoms.map((atom, idx) => {
-        // 根据 chunkId 提取索引，循环分配 5 种预设色值
         const colorIndex = atom.chunkId ? parseInt(atom.chunkId.split('-')[1]) % 5 : 0
+        let isFirst = false
+        if (atom.chunkId && !seenChunkIds.has(atom.chunkId)) {
+          seenChunkIds.add(atom.chunkId)
+          isFirst = true
+        }
         
         return (
           <Text 
             key={idx} 
             className={`analysis-atom ${atom.chunkId ? `is-chunk color-type-${colorIndex}` : 'is-gap'}`}
           >
+            {isFirst && <Text className='chunk-inline-marker'>{colorIndex + 1}</Text>}
             {atom.text}
           </Text>
         )
@@ -121,9 +128,32 @@ function renderTextWithMarks(
   isImmersive?: boolean,
   isHighlighted?: boolean,
   vocabSavedMap?: Record<string, string>,
+  isDropCap?: boolean,
 ) {
   // 用于追踪单词在整句中的出现次数
   const wordOccurrenceMap: Record<string, number> = {}
+  let dropCapHandled = !isDropCap
+
+  const handleDropCap = (textToProcess: string, renderCallback: (rest: string) => React.ReactNode) => {
+    if (dropCapHandled) return renderCallback(textToProcess)
+    
+    const match = textToProcess.match(/[a-zA-Z]/)
+    if (!match || match.index === undefined) return renderCallback(textToProcess)
+    
+    dropCapHandled = true
+    const index = match.index
+    const prefix = textToProcess.slice(0, index)
+    const firstLetter = match[0]
+    const rest = textToProcess.slice(index + 1)
+    
+    return (
+      <Text>
+        {prefix}
+        <Text className='drop-cap'>{firstLetter}</Text>
+        {renderCallback(rest)}
+      </Text>
+    )
+  }
 
   const handleWordClick = (payload: WordClickPayload) => {
     // 在整句中计算点击词的 occurrence
@@ -149,10 +179,14 @@ function renderTextWithMarks(
   if (visibleMarks.length === 0) {
     return (
       <Text className='sentence-text'>
-        {renderPlainSegmentAsClickableWords(text, selectedWord, vocabList, (p) => {
-          const occ = getNextOccurrence(p.word)
-          onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
-        }, vocabSavedMap)}
+        {handleDropCap(text, (restText) => (
+          <Text>
+            {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabList, (p) => {
+              const occ = getNextOccurrence(p.word)
+              onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
+            }, vocabSavedMap)}
+          </Text>
+        ))}
       </Text>
     )
   }
@@ -160,7 +194,7 @@ function renderTextWithMarks(
   // ... 后续逻辑中也要应用 getNextOccurrence ...
 
 
-  const flatParts: Array<{ mark: AnyInlineMarkModel; start: number; end: number; text: string }> = []
+  const flatParts: Array<{ mark: AnyInlineMarkModel; start: number; end: number; text: string; role?: string }> = []
 
   visibleMarks.forEach((m) => {
     if (m.anchor.kind === 'text') {
@@ -183,7 +217,7 @@ function renderTextWithMarks(
               occurrence: part.occurrence,
             },
           }
-          flatParts.push({ mark: partMark, start: pos, end: pos + part.anchorText.length, text: part.anchorText })
+          flatParts.push({ mark: partMark, start: pos, end: pos + part.anchorText.length, text: part.anchorText, role: part.role })
         }
       })
     }
@@ -203,37 +237,39 @@ function renderTextWithMarks(
 
     if (item.start > lastEnd) {
       const plainSegment = text.slice(lastEnd, item.start)
-      resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, (p) => {
-        const occ = getNextOccurrence(p.word)
-        onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
-      }, vocabSavedMap))
+      resultElements.push(
+        handleDropCap(plainSegment, (restText) => (
+          <Text key={`plain-${lastEnd}`}>
+            {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabList, (p) => {
+              const occ = getNextOccurrence(p.word)
+              onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
+            }, vocabSavedMap)}
+          </Text>
+        ))
+      )
     }
 
     if (!item.mark.clickable) {
-      const toneClass = `tone-${item.mark.visualTone}`
-      
-      const tokens = tokenizeText(item.text)
-      const grammarWords = tokens.map((token, idx) => {
-        if (token.type === 'word') {
-          const isSaved = vocabList?.includes(token.text.toLowerCase())
-          const savedStatus = vocabSavedMap?.[token.text.toLowerCase()]
-          
-          const occ = getNextOccurrence(token.text)
-          return (
-            <ClickableWord
-              key={`gw-${item.mark.id}-${idx}`}
-              word={token.text}
-              isSaved={isSaved}
-              savedStatus={savedStatus}
-              className={[toneClass, selectedWord === token.text ? 'active' : ''].filter(Boolean).join(' ')}
-              onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e, contextSentence: text, occurrence: occ })}
-            />
-          )
-        }
-        
-        return <Text key={`gp-${idx}`} className={toneClass}>{token.text}</Text>
-      })
-      resultElements.push(...grammarWords)
+      const isActive = !!(activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId))
+      const role = item.role
+
+      resultElements.push(
+        handleDropCap(item.text, (restText) => (
+          <GrammarInlineSpan
+            key={item.mark.id}
+            mark={item.mark}
+            text={restText}
+            selectedWord={selectedWord}
+            vocabList={vocabList}
+            vocabSavedMap={vocabSavedMap}
+            isActive={isActive}
+            role={role}
+            contextSentence={text}
+            onWordClick={onWordClick}
+            getNextOccurrence={getNextOccurrence}
+          />
+        ))
+      )
       lastEnd = item.end
       continue
     }
@@ -253,15 +289,17 @@ function renderTextWithMarks(
       : item.mark
 
     resultElements.push(
-      <InlineMark
-        key={item.mark.id}
-        mark={effectiveMark}
-        text={item.text}
-        isActive={isActive}
-        isSaved={isSaved}
-        savedStatus={savedStatus}
-        onWordClick={(p) => onWordClick?.({ ...p, contextSentence: text, occurrence: markOcc })}
-      />
+      handleDropCap(item.text, (restText) => (
+        <InlineMark
+          key={item.mark.id}
+          mark={effectiveMark}
+          text={restText}
+          isActive={isActive}
+          isSaved={isSaved}
+          savedStatus={savedStatus}
+          onWordClick={(p) => onWordClick?.({ ...p, contextSentence: text, occurrence: markOcc })}
+        />
+      ))
     )
 
     lastEnd = item.end
@@ -269,10 +307,16 @@ function renderTextWithMarks(
 
   if (lastEnd < text.length) {
     const plainSegment = text.slice(lastEnd)
-    resultElements.push(...renderPlainSegmentAsClickableWords(plainSegment, selectedWord, vocabList, (p) => {
-      const occ = getNextOccurrence(p.word)
-      onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
-    }, vocabSavedMap))
+    resultElements.push(
+      handleDropCap(plainSegment, (restText) => (
+        <Text key={`plain-${lastEnd}`}>
+          {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabList, (p) => {
+            const occ = getNextOccurrence(p.word)
+            onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
+          }, vocabSavedMap)}
+        </Text>
+      ))
+    )
   }
 
   return <Text className={`sentence-text ${isHighlighted ? 'is-highlighted' : ''}`}>{resultElements}</Text>
@@ -367,7 +411,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                   className={`sentence-span ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                   onClick={() => onSentenceClick?.(sentence.sentenceId)}
                 >
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap)}
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
@@ -387,14 +431,23 @@ const ParagraphBlock = memo(function ParagraphBlock({
     const analysisCards: (AnalysisCardProps & { id: string })[] = [
       ...sentenceEntries
         .filter(e => e.entryType === 'grammar_note')
-        .map(e => ({
-          id: e.id,
-          type: 'grammar' as const,
-          title: e.title || e.label,
-          label: '语法要点',
-          content: e.content,
-          onFeedback: recordId ? () => handleCardFeedback(e.id, 'grammar_note', e.title || e.label, e.content) : undefined,
-        })),
+        .map(e => {
+          const mark = sentenceMarks.find(m => m.id === e.id)
+          let snippet = ''
+          if (mark) {
+            if (mark.anchor.kind === 'text') snippet = mark.anchor.anchorText
+            else if (mark.anchor.kind === 'multi_text') snippet = mark.anchor.parts.map(p => p.anchorText).join(' ... ')
+          }
+          return {
+            id: e.id,
+            type: 'grammar' as const,
+            title: e.title || e.label,
+            label: '语法要点',
+            content: e.content,
+            snippet: snippet,
+            onFeedback: recordId ? () => handleCardFeedback(e.id, 'grammar_note', e.title || e.label, e.content) : undefined,
+          }
+        }),
         ...sentenceEntries
           .filter(e => e.entryType === 'sentence_analysis')
           .map(e => {
@@ -518,6 +571,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       title={card.title}
                       label={card.label}
                       content={card.content}
+                      snippet={(card as any).snippet}
                       phonetic={card.phonetic}
                       tags={card.tags}
                       badgeIndex={card.badgeIndex}

@@ -11,9 +11,10 @@ For implementation agents:
 
 1. Read the project-level design context: `.impeccable.md`.
 2. Read this file.
-3. Read `agent-handoff.md`.
-4. Use `implementation-mapping.md` and `development-materials-checklist.md` while coding.
-5. Use the images in `assets/` as direction references, not pixel-perfect specs.
+3. If this is a new implementation, read `agent-handoff.md`.
+4. If this is a correction after a failed implementation, read `agent-correction-brief.md` first.
+5. Use `implementation-mapping.md` and `development-materials-checklist.md` while coding.
+6. Use the images in `assets/` as direction references, not pixel-perfect specs.
 
 ## Product Positioning
 
@@ -31,6 +32,7 @@ The UI should not look like a cram-school English app, a generic dictionary app,
 |---|---|---|
 | `assets/product-direction-overview.png` | Product-level direction across home, reader, annotations, word lookup, vocabulary library, and design system. | Primary overall reference |
 | `assets/reading-annotation-current-overview.png` | Focused direction for reading, word lookup, saved vocabulary, and custom annotation glyphs. | Primary module reference |
+| `assets/reader-context-feedback-details.png` | Detail reference for `ReaderContextBar`, reader controls, annotation feedback, word lookup feedback, and article-end feedback. | Correction/detail reference |
 | `assets/annotation-micro-rules.png` | Micro rules for long grammar titles, sentence-analysis entry copy, and custom annotation glyphs. | Detail reference |
 | `assets/sentence-analysis-final-detail.png` | Detail direction for `sentence_analysis`: clean default, temporary chunks, compact reading map. | Detail reference |
 
@@ -41,6 +43,7 @@ Outdated early direction assets have been removed. Do not reintroduce old visual
 | File | Purpose |
 |---|---|
 | `agent-handoff.md` | One-page implementation handoff for Claude/Gemini agents. |
+| `agent-correction-brief.md` | Correction brief for implementations that drift from the approved design direction. |
 | `formal-design-brief.md` | Formal UI constraints for grammar note, sentence analysis, drop cap, reader customization, and word lookup. |
 | `implementation-mapping.md` | Maps approved UI direction to current backend schema and frontend components. |
 | `word-lookup-and-vocabulary-ux.md` | Design brief for point-word lookup, workflow vocabulary marks, phrase/context glosses, and saved vocabulary states. |
@@ -79,6 +82,9 @@ The design must respect the current workflow output:
 - Point-word lookup should become `WordLookupSlip` plus `DictionaryNoteSheet`.
 - `vocab_highlight`, `phrase_gloss`, and `context_gloss` need distinct mini/full lookup states because their schema payloads differ.
 - Saved vocabulary must distinguish `记入生词本`, `加入当前语境`, `已记入`, `已记入 · n个语境`, and `已掌握`.
+- `reading_goal` and `reading_variant` belong in a quiet `ReaderContextBar`, not a strong exam-style badge.
+- Feedback is a separate UI layer with entry points inside annotation detail, word lookup, and article-end states.
+- `assets/reader-context-feedback-details.png` is the reference for context bar and feedback implementation.
 
 ## Recommended Development Order
 
@@ -88,8 +94,9 @@ The design must respect the current workflow output:
 4. Refactor `WordPopup` visually into `WordLookupSlip` and `DictionaryNoteSheet`.
 5. Add `LookupSaveState` helper and action copy.
 6. Add source-context excerpt in the full sheet.
-7. Add fixture states for local UI preview.
-8. Only after the core reading/lookup pieces are stable, implement reader customization tray.
+7. Add feedback entry points for annotation, lookup, and article-level feedback.
+8. Add fixture states for local UI preview.
+9. Only after the core reading/lookup pieces are stable, implement reader customization tray.
 
 ## Review Expectations
 

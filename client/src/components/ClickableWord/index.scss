@@ -7,8 +7,8 @@
   position: relative;
 
   &:active, &.active {
-    background-color: rgba(255, 231, 105, 0.5); // generic tap active state
-    border-radius: 4rpx;
+    background-color: rgba(242, 196, 84, 0.2); // subtle paper-like highlight
+    border-radius: 2rpx;
   }
 
   // Saved vocabulary folded-corner marker
@@ -46,7 +46,6 @@
   // grammar_note span fallback
   &.tone-grammar {
     color: var(--reader-ink);
-    border-bottom: 2rpx solid var(--annotation-grammar-line);
     background: transparent;
     transition: background-color 0.3s ease;
   }

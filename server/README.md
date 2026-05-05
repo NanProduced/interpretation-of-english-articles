@@ -248,7 +248,8 @@ psql "postgresql://claread:claread_dev@127.0.0.1:5432/claread" -f server/db/migr
 | `source_client_record_id` | string | 来源记录前端主键 | 新增 |
 
 说明：
-说明：
+
+说明：
 
 - 返回结构统一为当前主线 render scene schema（`schema_version = "3.0.0"`）
 - 不再保留旧 `v2` 并行接口或兼容响应层

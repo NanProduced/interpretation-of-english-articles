@@ -11,6 +11,7 @@ import { useDailyReaderStore } from '../../stores/daily-reader'
 import { ensureLoggedIn } from '../../services/auth'
 import { fetchAnonymousQuota } from '../../services/api/client'
 import defaultCover from '../../assets/covers/daily-reader-default.png'
+import emptyDailyReader from '../../assets/illustrations/empty-daily-reader.png'
 import './index.scss'
 
 const ANONYMOUS_DAILY_TRIAL_LIMIT = 3
@@ -212,11 +213,7 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
             ))
           ) : (
             <View className='feed-empty'>
-              <View className='feed-empty-cover'>
-                <View className='feed-empty-spine' />
-                <View className='feed-empty-pages' />
-                <View className='feed-empty-page-top' />
-              </View>
+              <Image className='feed-empty-illustration' src={emptyDailyReader} mode='aspectFit' />
               <Text className='feed-empty-title'>精读文章正在准备中</Text>
               <Text className='feed-empty-desc'>精选优质英文文章，带你深度阅读</Text>
             </View>

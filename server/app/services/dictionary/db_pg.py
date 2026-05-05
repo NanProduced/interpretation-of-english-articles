@@ -46,6 +46,7 @@ class CandidateRow:
     match_kind: str
     entry_kind: str
     lookup_type: str
+    has_meanings: bool
 
 
 def _row_to_entry(row: Any) -> EntryRow | None:
@@ -96,6 +97,7 @@ def _row_to_candidate(row: Any) -> CandidateRow:
         match_kind=row["match_kind"],
         entry_kind=row["entry_kind"],
         lookup_type=row.get("lookup_type", "word"),
+        has_meanings=row.get("has_meanings", True),
     )
 
 
@@ -131,7 +133,8 @@ async def lookup_candidates(normalized_form: str, source: str = "tecd3") -> list
               t.rank,
               t.match_kind,
               e.entry_kind,
-              t.lookup_type
+              t.lookup_type,
+              jsonb_array_length(e.meanings_json) > 0 AS has_meanings
             FROM dict_lookup_targets t
             JOIN dict_entries e
               ON e.id = t.entry_id
@@ -170,7 +173,8 @@ async def lookup_candidates_batch(normalized_forms: list[str], source: str = "te
               t.rank,
               t.match_kind,
               e.entry_kind,
-              t.lookup_type
+              t.lookup_type,
+              jsonb_array_length(e.meanings_json) > 0 AS has_meanings
             FROM dict_lookup_targets t
             JOIN dict_entries e
               ON e.id = t.entry_id

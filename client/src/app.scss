@@ -180,10 +180,10 @@ page {
   --annotation-context: #5A6F8F;
   --annotation-merged: #3F6FB6;
   
-  --annotation-vocab-bg: rgba(228, 176, 0, 0.15);
-  --annotation-phrase-bg: rgba(185, 168, 230, 0.15);
-  --annotation-context-line: #5A6F8F;
-  --annotation-grammar-line: #6B5FC7;
+  --annotation-vocab-bg: rgba(242, 196, 84, 0.15); // extremely light wash
+  --annotation-phrase-bg: rgba(151, 126, 224, 0.12);
+  --annotation-context-line: rgba(76, 145, 194, 0.5); // thin pencil
+  --annotation-grammar-line: rgba(116, 102, 148, 0.4);
 
   // --- 状态色 ---
   --color-success: #16A34A;

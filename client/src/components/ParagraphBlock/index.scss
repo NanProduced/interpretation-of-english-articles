@@ -51,11 +51,11 @@
     }
 
     .sentence-block {
-      margin-bottom: 40rpx; // 缩减原先庞大的间距
+      margin-bottom: 32rpx; // 缩减原先庞大的间距
       // 彻底移除 border-bottom 和大 padding，消除割裂感，回归自然的文字流
       
       &.chunk-merged {
-        margin-bottom: 40rpx;
+        margin-bottom: 32rpx;
         
         .sentence-translation.merged {
           margin-bottom: 0;
@@ -64,7 +64,7 @@
     }
 
     .sentence-main {
-      margin-bottom: 8rpx; // 让英文与下方的翻译紧密贴合
+      margin-bottom: 0rpx; // 让英文与下方的翻译紧密贴合
     }
 
     .english-flow {
@@ -77,12 +77,13 @@
     }
 
     .sentence-translation {
-      margin-bottom: 24rpx; // 与下方解析卡片的距离，留白适中
+      margin-top: 12rpx;
+      margin-bottom: 20rpx; // 与下方解析卡片的距离，留白适中
       
       .translation-text {
         font-size: 28rpx; // 字号层级明确区分中英
         line-height: var(--leading-relaxed);
-        color: var(--text-main); // 加深翻译文字的对比度
+        color: rgba(0,0,0,0.45); // 极大幅度降低对比度，体现 secondary 权重
         font-weight: var(--weight-normal);
         font-family: var(--font-sans);
         letter-spacing: var(--tracking-normal);
@@ -97,6 +98,17 @@
   }
 
   // --- Common Elements ---
+  .drop-cap {
+    float: left;
+    font-size: 3.2em;
+    line-height: 0.85;
+    margin-right: 12rpx;
+    margin-bottom: -12rpx;
+    margin-top: 10rpx;
+    font-family: var(--font-english-serif), serif;
+    color: var(--reader-ink);
+  }
+
   .sentence-span, .english-flow {
     display: inline;
     transition: background-color 0.3s var(--ease-out-expo);
@@ -173,23 +185,36 @@
 
   .sentence-text {
     &.is-analyzing {
-      display: inline;
-      
       .analysis-atom {
         display: inline;
-        
-        &.is-chunk {
-          // 只保留纯净的下划线和微弱的背景色
-          border-bottom: 3rpx solid var(--chunk-color);
-          background-color: rgba(var(--chunk-color-rgb), 0.08); // 极淡的背景色辅助切割
-          
-          // 专业 5 色系统，增加 rgb 变量以供 rgba 纯色辅助使用
-          &.color-type-0 { --chunk-color: #08979c; --chunk-color-rgb: 8, 151, 156; }
-          &.color-type-1 { --chunk-color: #389e0d; --chunk-color-rgb: 56, 158, 13; }
-          &.color-type-2 { --chunk-color: #d46b08; --chunk-color-rgb: 212, 107, 8; }
-          &.color-type-3 { --chunk-color: #722ed1; --chunk-color-rgb: 114, 46, 209; }
-          &.color-type-4 { --chunk-color: #cf1322; --chunk-color-rgb: 207, 19, 34; }
-        }
+        border-radius: 2rpx;
+        padding: 2rpx 0;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+        position: relative;
+      }
+
+      .chunk-inline-index {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20rpx;
+        height: 20rpx;
+        font-size: 14rpx;
+        background: var(--annotation-analysis);
+        color: var(--reader-paper);
+        border-radius: 50%;
+        margin-right: 4rpx;
+        vertical-align: super;
+        font-weight: var(--weight-bold);
+      }
+
+      .is-chunk {
+        &.color-type-0 { background-color: rgba(63, 111, 182, 0.06); border-bottom: 2rpx solid rgba(63, 111, 182, 0.4); }
+        &.color-type-1 { background-color: rgba(107, 95, 199, 0.06); border-bottom: 2rpx solid rgba(107, 95, 199, 0.4); }
+        &.color-type-2 { background-color: rgba(4, 120, 87, 0.06); border-bottom: 2rpx solid rgba(4, 120, 87, 0.3); }
+        &.color-type-3 { background-color: rgba(180, 83, 9, 0.05); border-bottom: 2rpx solid rgba(180, 83, 9, 0.3); }
+        &.color-type-4 { background-color: rgba(113, 113, 122, 0.06); border-bottom: 2rpx solid rgba(113, 113, 122, 0.4); }
       }
     }
   }

@@ -629,6 +629,40 @@ def test_parse_entry_html_handles_fragment_entries() -> None:
     assert parsed.meanings_json[0]["definitions"][0]["meaning"] == "人人；各个；全部"
 
 
+FRAGMENT_DERIVATIVE_HTML = """
+<html><body>
+  <div class="mdict-fragment-header">
+    <div class="mdict-fragment-title">chronically</div>
+    <div class="mdict-fragment-parent">主词条：<a class="mdict-parent-link" href="entry://chronic">chronic</a></div>
+  </div>
+  <div class="mdict-fragment-body">
+    <div class="derivativeDiv">
+      <span class="l">chron·i·cal·ly</span><span class="pr"></span><span class="posg"><span class="pos">ADVERB 副词</span></span>
+    </div>
+  </div>
+</body></html>
+"""
+
+
+def test_parse_entry_html_fragment_derivative_gets_parent_redirect() -> None:
+    parsed = parse_entry_html("chronically", FRAGMENT_DERIVATIVE_HTML)
+
+    assert parsed is not None
+    assert parsed.entry_kind == "fragment"
+    assert parsed.display_headword == "chronically"
+    assert parsed.meanings_json == []
+    assert parsed.redirect_target_entry_key == "chronic"
+
+
+def test_parse_entry_html_fragment_with_meanings_keeps_no_redirect() -> None:
+    parsed = parse_entry_html("each and all", FRAGMENT_HTML)
+
+    assert parsed is not None
+    assert parsed.entry_kind == "fragment"
+    assert parsed.meanings_json != []
+    assert parsed.redirect_target_entry_key is None
+
+
 def test_parse_entry_html_preserves_wbr_spacing_in_headwords() -> None:
     parsed = parse_entry_html("rose water · 1. 玫瑰水", WBR_HEADWORD_HTML)
 

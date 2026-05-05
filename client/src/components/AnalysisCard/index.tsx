@@ -20,6 +20,7 @@ export interface AnalysisCardProps {
   initiallyExpanded?: boolean
   badgeIndex?: number
   isExpanded?: boolean
+  snippet?: string
   onToggle?: (expanded: boolean) => void
   onFeedback?: () => void
   structuredData?: { summary?: string; chunks?: AnalysisChunk[] }
@@ -88,6 +89,7 @@ export default function AnalysisCard({
   initiallyExpanded,
   badgeIndex,
   isExpanded: controlledIsExpanded,
+  snippet,
   onToggle,
   onFeedback,
   structuredData: externalStructuredData,
@@ -135,20 +137,23 @@ export default function AnalysisCard({
           <Text className='card-collapsed-title' numberOfLines={1}>{getCollapsedCopy()}</Text>
         </View>
         <View className='summary-icon'>
-          <LucideIcon 
-            name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-            size={14} 
-            color='var(--text-muted)' 
-          />
+          {type === 'sentence' ? (
+            <Text style={{ fontSize: '24rpx', transform: 'translateY(2rpx)', opacity: 0.6 }}>^</Text>
+          ) : (
+            <LucideIcon name='chevron-right' size={14} color='var(--text-muted)' />
+          )}
         </View>
       </View>
 
       <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
         <View className='card-body' onClick={(e) => e.stopPropagation()}>
-          {/* Expanded Full Title */}
+          {/* Expanded Full Title & Header */}
           {(type === 'grammar' || type === 'sentence') && (
              <View className='expanded-title-row'>
-               <Text className='expanded-full-title'>{title}</Text>
+               <Text className='expanded-full-title'>{title && title !== config.defaultLabel ? title : config.defaultLabel}</Text>
+               <View className='collapse-btn' onClick={(e) => { e.stopPropagation(); setInternalIsExpanded(false); onToggle?.(false) }}>
+                 {type === 'sentence' ? '收起 ^' : '✕'}
+               </View>
              </View>
           )}
 
@@ -166,6 +171,13 @@ export default function AnalysisCard({
           )}
 
           <View className='card-content-wrapper'>
+            {type === 'grammar' && snippet && (
+              <View className='grammar-snippet-box'>
+                <Text className='snippet-label'>来源句</Text>
+                <Text className='snippet-text'>{snippet}</Text>
+              </View>
+            )}
+
             {type === 'sentence' ? (
               <View className='sentence-analysis-details'>
                 {structuredData?.summary && (
@@ -175,7 +187,7 @@ export default function AnalysisCard({
                   <View className='analysis-chunks-list'>
                     {structuredData.chunks.map((chunk: AnalysisChunk, idx: number) => {
                       return (
-                        <View key={idx} className='chunk-detail-item'>
+                        <View key={idx} className={`chunk-detail-item color-idx-${idx % 5}`}>
                           <View className='chunk-detail-label'>
                             <Text className='label-index'>{idx + 1}</Text>
                             <Text className='label-text'>{chunk.label}</Text>

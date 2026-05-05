@@ -6,6 +6,7 @@ Primary direction references:
 
 - `assets/product-direction-overview.png`
 - `assets/reading-annotation-current-overview.png`
+- `assets/reader-context-feedback-details.png`
 
 ## What Is Already Enough For Development
 
@@ -18,6 +19,8 @@ The following UI pieces should be implemented with code, not raster images:
 - Full dictionary note sheet.
 - Grammar and sentence-analysis compact entries.
 - Bottom-sheet controls, tabs, source sentence excerpts, and skeleton loading lines.
+- Reader context bar for source, reading goal, variant, and mode.
+- Feedback entry points.
 
 These are better as Taro components and SCSS tokens because they need to respond to text length, screen width, reading mode, and saved state.
 
@@ -38,6 +41,7 @@ Required glyph variants:
 | `sentence_analysis` | Sentence analysis entry |
 | `saved_vocab` | Already saved vocabulary |
 | `merged_note` | Multiple notes collapsed into one entry |
+| `feedback` | Quiet feedback entry |
 
 Recommended implementation:
 
@@ -66,6 +70,10 @@ Minimum cases:
 - Already saved word.
 - Same lemma saved with a new source context.
 - Mastered word.
+- Reader context bar with source + goal + variant.
+- Grammar note feedback.
+- Sentence analysis feedback.
+- Article-end feedback.
 
 ### 3. SCSS Token Set
 
@@ -97,7 +105,23 @@ Target component boundaries:
 - `VocabularySaveAction`: save state and action copy.
 - `SourceContextExcerpt`: source sentence with active word softly marked.
 
-### 5. Saved Vocabulary State Helper
+### 5. Reader Context And Feedback
+
+Required components:
+
+- `ReaderContextBar`
+- `AnnotationFeedbackEntry`
+- `ArticleFeedbackBar`
+
+`ReaderContextBar` should render source type, `reading_goal`, `reading_variant`, and current reader mode as quiet metadata.
+
+Feedback entries should be secondary and local:
+
+- grammar and sentence analysis: expanded note footer
+- word lookup: full dictionary sheet footer
+- whole article: article end
+
+### 6. Saved Vocabulary State Helper
 
 Add a small helper that derives save state from current word context.
 
@@ -144,8 +168,10 @@ Not recommended:
 4. Refactor `WordPopup` into mini slip and dictionary note sheet states.
 5. Add `LookupSaveState` helper and action copy.
 6. Add source-context excerpt in the full sheet.
-7. Add fixture-driven local preview for all word lookup states.
-8. Run WeChat build and inspect on narrow/mobile viewport.
+7. Add `ReaderContextBar`.
+8. Add feedback entry points.
+9. Add fixture-driven local preview for all word lookup and feedback states.
+10. Run WeChat build and inspect on narrow/mobile viewport.
 
 ## Acceptance Checks
 

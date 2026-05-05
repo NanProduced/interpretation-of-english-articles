@@ -613,6 +613,16 @@ def _extract_redirect_target_entry_key(soup: BeautifulSoup) -> str | None:
     return None
 
 
+def _extract_parent_link_target(soup: BeautifulSoup) -> str | None:
+    link = soup.select_one(".mdict-fragment-header .mdict-parent-link[href^='entry://']")
+    if not link:
+        return None
+    href = str(link.get("href") or "").strip()
+    if not href.startswith("entry://"):
+        return None
+    return href.removeprefix("entry://").strip() or None
+
+
 def _child_nodes_with_class(parent: Any, class_name: str) -> list[Any]:
     if parent is None:
         return []
@@ -693,6 +703,8 @@ def parse_entry_html(source_entry_key: str, html: str) -> ParsedEntry | None:
     sections_json = _build_sections_summary(soup, entry_kind)
     nlp_forms = _extract_nlp_forms(soup)
     redirect_target_entry_key = _extract_redirect_target_entry_key(soup)
+    if redirect_target_entry_key is None and entry_kind == "fragment" and not meanings_json:
+        redirect_target_entry_key = _extract_parent_link_target(soup)
 
     return ParsedEntry(
         source_entry_key=source_entry_key,

@@ -1,0 +1,26 @@
+.grammar-inline-span {
+  display: inline;
+  position: relative;
+  text-decoration: underline;
+  text-decoration-color: var(--annotation-grammar-line);
+  text-decoration-thickness: 2rpx;
+  text-underline-offset: 6rpx;
+  
+  &.active {
+    text-decoration-thickness: 4rpx;
+    background-color: rgba(116, 102, 148, 0.08); // faint lift
+  }
+
+  .grammar-role-label {
+    position: absolute;
+    top: -24rpx;
+    left: 0;
+    font-size: 16rpx;
+    color: var(--annotation-grammar-line);
+    white-space: nowrap;
+    background: var(--reader-paper);
+    padding: 0 4rpx;
+    border-radius: 4rpx;
+    font-weight: var(--weight-medium);
+  }
+}

@@ -34,6 +34,7 @@ class _CandidateRow:
     match_kind: str
     entry_kind: str
     lookup_type: str
+    has_meanings: bool = True
 
 
 class _EntryRow:
@@ -121,7 +122,8 @@ class TestLemmaFallbackADJADV:
                 DictionaryLookupRequest(query="smaller", query_type="word")
             )
             assert result["result_type"] == "entry"
-            assert result["entry"]["word"] == "small"
+            assert result["entry"]["word"] == "smaller"
+            assert result["entry"]["base_word"] == "small"
 
     @pytest.mark.asyncio
     async def test_larger_finds_large(self, provider: Tecd3Provider) -> None:
@@ -145,7 +147,8 @@ class TestLemmaFallbackADJADV:
                 DictionaryLookupRequest(query="larger", query_type="word")
             )
             assert result["result_type"] == "entry"
-            assert result["entry"]["word"] == "large"
+            assert result["entry"]["word"] == "larger"
+            assert result["entry"]["base_word"] == "large"
 
 
 class TestContextPhraseSniff:
@@ -287,7 +290,8 @@ class TestPhraseQueryTemplateMatch:
                 DictionaryLookupRequest(query="be there for you", query_type="phrase")
             )
             assert result["result_type"] == "entry"
-            assert "be there for sb" in result["entry"]["word"]
+            assert result["entry"]["word"] == "be there for you"
+            assert "be there for sb" in result["entry"]["base_word"]
 
 
 class TestPhaseSortPriority:
@@ -362,6 +366,7 @@ class TestPhaseSortPriority:
             )
             # 应该成功返回，说明 lemma fallback 生效
             assert result["result_type"] == "entry"
-            assert result["entry"]["word"] == "small"
+            assert result["entry"]["word"] == "smaller"
+            assert result["entry"]["base_word"] == "small"
             # 验证 lookup 被调了两次：第一次 exact 失败，第二次 lemma 命中
             assert mock_lookup.call_count == 2

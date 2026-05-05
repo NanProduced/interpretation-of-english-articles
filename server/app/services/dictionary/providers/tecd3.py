@@ -35,7 +35,7 @@ from app.services.dictionary.schemas import (
 
 class Tecd3Provider:
     source = "tecd3"
-    cache_version = "v3"
+    cache_version = "v4"
 
     async def fetch(self, request: DictionaryLookupRequest) -> dict[str, Any]:
         import hashlib
@@ -184,6 +184,10 @@ class Tecd3Provider:
                 
         candidates = unique_candidates
 
+        has_meaningful = any(c.has_meanings for c in candidates)
+        if has_meaningful:
+            candidates = [c for c in candidates if c.has_meanings]
+
         if len(candidates) == 1:
             entry = await fetch_entry(candidates[0].entry_id, source=self.source)
             if entry is None:
@@ -216,10 +220,14 @@ class Tecd3Provider:
         return result
 
     def _build_entry_result(self, query: str, entry: EntryRow) -> dict[str, Any]:
+        display_word = query if query.lower() != entry.display_headword.lower() else entry.display_headword
+        base_word = entry.base_headword
+        if query.lower() != entry.display_headword.lower() and entry.base_headword and entry.base_headword.lower() == entry.display_headword.lower():
+            base_word = entry.display_headword
         payload = DictionaryEntryPayload(
             id=entry.id,
-            word=entry.display_headword,
-            base_word=entry.base_headword,
+            word=display_word,
+            base_word=base_word,
             homograph_no=entry.homograph_no,
             phonetic=entry.phonetic,
             meanings=self._parse_meanings(entry),

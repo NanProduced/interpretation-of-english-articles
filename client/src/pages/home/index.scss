@@ -294,60 +294,16 @@
       .feed-empty {
         background-color: var(--color-card-orange);
         border-radius: var(--radius-md);
-        padding: 64rpx 48rpx;
+        padding: 52rpx 48rpx 60rpx;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 24rpx;
+        gap: 20rpx;
 
-        .feed-empty-cover {
-          width: 120rpx;
-          height: 100rpx;
-          position: relative;
-          margin-bottom: 8rpx;
-
-          .feed-empty-spine {
-            position: absolute;
-            left: 0;
-            top: 8rpx;
-            width: 16rpx;
-            height: 84rpx;
-            background: #c9b8a3;
-            border-radius: 4rpx 0 0 4rpx;
-          }
-
-          .feed-empty-pages {
-            position: absolute;
-            left: 14rpx;
-            top: 12rpx;
-            width: 92rpx;
-            height: 76rpx;
-            background: #ede4d8;
-            border-radius: 0 4rpx 4rpx 0;
-          }
-
-          .feed-empty-page-top {
-            position: absolute;
-            left: 16rpx;
-            top: 8rpx;
-            width: 88rpx;
-            height: 76rpx;
-            background: #faf6f0;
-            border-radius: 0 6rpx 6rpx 0;
-            box-shadow: 2rpx 2rpx 8rpx rgba(139, 115, 85, 0.1);
-
-            &::after {
-              content: '';
-              position: absolute;
-              top: 20rpx;
-              left: 16rpx;
-              right: 16rpx;
-              height: 4rpx;
-              background: #d8cfc4;
-              border-radius: 2rpx;
-              box-shadow: 0 12rpx 0 #d8cfc4, 0 24rpx 0 #e8e0d6;
-            }
-          }
+        .feed-empty-illustration {
+          width: 340rpx;
+          height: 234rpx;
+          margin-bottom: 4rpx;
         }
 
         .feed-empty-title {

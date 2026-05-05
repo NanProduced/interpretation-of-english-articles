@@ -38,7 +38,7 @@ def _make_entry(entry_id: int, word: str) -> object:
 class _CandidateMock:
     """Minimal stand-in for db_pg.CandidateRow."""
 
-    def __init__(self, entry_id: int, target_label: str) -> None:
+    def __init__(self, entry_id: int, target_label: str, entry_kind: str = "entry", has_meanings: bool = True) -> None:
         self.entry_id = entry_id
         self.target_label = target_label
         self.normalized_form = target_label
@@ -47,7 +47,9 @@ class _CandidateMock:
         self.preview_text = f"preview for {target_label}"
         self.rank = 1
         self.match_kind = "exact"
-        self.entry_kind = "entry"
+        self.entry_kind = entry_kind
+        self.lookup_type = "word"
+        self.has_meanings = has_meanings
 
 
 class _EntryMock:
@@ -154,7 +156,8 @@ class TestTecd3ProviderLemmaFallback:
 
             result = await provider.fetch(DictionaryLookupRequest(query="humans", query_type="word"))
             assert result["result_type"] == "entry"
-            assert result["entry"]["word"] == "human"
+            assert result["entry"]["word"] == "humans"
+            assert result["entry"]["base_word"] == "human"
             assert mock_lookup.call_count == 2
             assert mock_lookup.call_args_list[0][0][0] == ["humans"]
             assert mock_lookup.call_args_list[1][0][0] == ["human"]
@@ -195,7 +198,8 @@ class TestTecd3ProviderLemmaFallback:
 
             result = await provider.fetch(DictionaryLookupRequest(query="hopes", query_type="word"))
             assert result["result_type"] == "entry"
-            assert result["entry"]["word"] == "hope"
+            assert result["entry"]["word"] == "hopes"
+            assert result["entry"]["base_word"] == "hope"
             assert mock_lookup.call_count == 2
 
     @pytest.mark.asyncio
@@ -223,7 +227,8 @@ class TestTecd3ProviderLemmaFallback:
 
             result = await provider.fetch(DictionaryLookupRequest(query="landings", query_type="word"))
             assert result["result_type"] == "entry"
-            assert result["entry"]["word"] == "landing"
+            assert result["entry"]["word"] == "landings"
+            assert result["entry"]["base_word"] == "landing"
 
     @pytest.mark.asyncio
     async def test_crewed_falls_back_to_crew(self, provider: Tecd3Provider) -> None:
@@ -248,7 +253,8 @@ class TestTecd3ProviderLemmaFallback:
 
             result = await provider.fetch(DictionaryLookupRequest(query="crewed", query_type="word"))
             assert result["result_type"] == "entry"
-            assert result["entry"]["word"] == "crew"
+            assert result["entry"]["word"] == "crewed"
+            assert result["entry"]["base_word"] == "crew"
 
     @pytest.mark.asyncio
     async def test_disambiguation_not_disrupted_by_lemma_fallback(
@@ -293,7 +299,8 @@ class TestTecd3ProviderLemmaFallback:
 
             result = await provider.fetch(DictionaryLookupRequest(query="crewed", query_type="word"))
             assert result["result_type"] == "entry"
-            assert result["entry"]["word"] == "crew"
+            assert result["entry"]["word"] == "crewed"
+            assert result["entry"]["base_word"] == "crew"
 
     @pytest.mark.asyncio
     async def test_lemma_multiple_hits_triggers_disambiguation(
@@ -354,3 +361,148 @@ class TestTecd3ProviderLemmaFallback:
             # Both lemmas hit → disambiguation, not entry
             assert result["result_type"] == "disambiguation"
             assert len(result["candidates"]) == 2
+
+
+class TestTecd3ProviderFragmentFallback:
+    """Test fragment derivative fallback behavior in Tecd3Provider.fetch()."""
+
+    @pytest.fixture(autouse=True)
+    def clear_cache(self) -> None:
+        from app.services.dictionary import cache as cache_module
+        cache_module._L1_CACHE.clear()
+
+    @pytest.fixture
+    def provider(self) -> Tecd3Provider:
+        return Tecd3Provider()
+
+    @pytest.mark.asyncio
+    async def test_chronically_falls_back_to_chronic(
+        self, provider: Tecd3Provider
+    ) -> None:
+        """'chronically' returns parent entry 'chronic' with meanings."""
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup, patch(
+            "app.services.dictionary.providers.tecd3.fetch_entry",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
+            fragment_candidate = _CandidateMock(
+                entry_id=35972, target_label="chronically",
+                entry_kind="fragment", has_meanings=False,
+            )
+            parent_candidate = _CandidateMock(
+                entry_id=35970, target_label="chronic",
+                entry_kind="entry", has_meanings=True,
+            )
+            mock_lookup.return_value = [fragment_candidate, parent_candidate]
+
+            async def fake_fetch(entry_id: int, source: str = "tecd3"):
+                if entry_id == 35970:
+                    return _EntryMock(
+                        id=35970, source="tecd3", source_entry_key="chronic",
+                        entry_kind="entry", display_headword="chronic",
+                        base_headword="chronic", homograph_no=None, phonetic=None,
+                        meanings_json=[{"part_of_speech": "adj.", "definitions": [{"meaning": "慢性的"}]}],
+                        examples_json=[], phrases_json=[], sections_json=[],
+                        raw_html=None, parse_version="1",
+                    )
+                return _make_entry(entry_id=entry_id, word="chronically")
+
+            mock_fetch.side_effect = fake_fetch
+
+            result = await provider.fetch(DictionaryLookupRequest(query="chronically", query_type="word"))
+            assert result["result_type"] == "entry"
+            assert result["entry"]["word"] == "chronically"
+            assert result["entry"]["base_word"] == "chronic"
+            assert len(result["entry"]["meanings"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_empty_fragment_filtered_when_parent_exists(
+        self, provider: Tecd3Provider
+    ) -> None:
+        """Empty fragment is filtered out when a meaningful parent candidate exists."""
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup, patch(
+            "app.services.dictionary.providers.tecd3.fetch_entry",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
+            fragment_candidate = _CandidateMock(
+                entry_id=1, target_label="significantly",
+                entry_kind="fragment", has_meanings=False,
+            )
+            parent_candidate = _CandidateMock(
+                entry_id=2, target_label="significant",
+                entry_kind="entry", has_meanings=True,
+            )
+            mock_lookup.return_value = [fragment_candidate, parent_candidate]
+
+            async def fake_fetch(entry_id: int, source: str = "tecd3"):
+                return _EntryMock(
+                    id=entry_id, source="tecd3", source_entry_key="significant",
+                    entry_kind="entry", display_headword="significant",
+                    base_headword="significant", homograph_no=None, phonetic=None,
+                    meanings_json=[{"part_of_speech": "adj.", "definitions": [{"meaning": "重要的"}]}],
+                    examples_json=[], phrases_json=[], sections_json=[],
+                    raw_html=None, parse_version="1",
+                )
+
+            mock_fetch.side_effect = fake_fetch
+
+            result = await provider.fetch(DictionaryLookupRequest(query="significantly", query_type="word"))
+            assert result["result_type"] == "entry"
+            assert len(result["entry"]["meanings"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_fragment_only_kept_when_no_meaningful_alternative(
+        self, provider: Tecd3Provider
+    ) -> None:
+        """Empty fragment is kept when no meaningful alternative exists."""
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup, patch(
+            "app.services.dictionary.providers.tecd3.fetch_entry",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
+            fragment_candidate = _CandidateMock(
+                entry_id=1, target_label="orphanword",
+                entry_kind="fragment", has_meanings=False,
+            )
+            mock_lookup.return_value = [fragment_candidate]
+
+            async def fake_fetch(entry_id: int, source: str = "tecd3"):
+                return _EntryMock(
+                    id=entry_id, source="tecd3", source_entry_key="orphanword",
+                    entry_kind="fragment", display_headword="orphanword",
+                    base_headword="orphanword", homograph_no=None, phonetic=None,
+                    meanings_json=[], examples_json=[], phrases_json=[],
+                    sections_json=[], raw_html=None, parse_version="1",
+                )
+
+            mock_fetch.side_effect = fake_fetch
+
+            result = await provider.fetch(DictionaryLookupRequest(query="orphanword", query_type="word"))
+            assert result["result_type"] == "entry"
+            assert result["entry"]["entry_kind"] == "fragment"
+
+    @pytest.mark.asyncio
+    async def test_normal_entry_not_filtered(
+        self, provider: Tecd3Provider
+    ) -> None:
+        """Normal entries with meanings are not affected by fragment filtering."""
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup, patch(
+            "app.services.dictionary.providers.tecd3.fetch_entry",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
+            mock_lookup.return_value = [_make_candidate(entry_id=1, target_label="apple")]
+            mock_fetch.return_value = _make_entry(entry_id=1, word="apple")
+
+            result = await provider.fetch(DictionaryLookupRequest(query="apple", query_type="word"))
+            assert result["result_type"] == "entry"
+            assert result["entry"]["word"] == "apple"
