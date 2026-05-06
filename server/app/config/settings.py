@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     database_max_inactive_connection_lifetime: int = 3600
 
     # Redis（可选，第二阶段增强）
-    redis_url: str = "redis://:Nan12091209@127.0.0.1:6379/0"
+    redis_url: str = "redis://127.0.0.1:6379/0"
     redis_enabled: bool = True
 
     # 微信认证

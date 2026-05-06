@@ -23,7 +23,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useConfigStore } from '../../stores/config'
 import { useAuthStore } from '../../stores/auth'
 import { ensureLoggedIn } from '../../services/auth'
-import { getAllRecords, getVocabulary } from '../../services/storage'
+import { getAllRecords, getVocabulary, getVocabCount } from '../../services/storage'
 import { fetchCloudRecords } from '../../services/api/records.client'
 import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
@@ -91,14 +91,12 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       } catch {
         const records = getAllRecords()
         setArticleCount(records.length)
-        const vocab = getVocabulary()
-        setWordCount(vocab.length)
+        setWordCount(getVocabCount())
       }
     } else {
       const records = getAllRecords()
       setArticleCount(records.length)
-      const vocab = getVocabulary()
-      setWordCount(vocab.length)
+      setWordCount(getVocabCount())
       setQuota(null)
     }
     setLoadingStats(false)

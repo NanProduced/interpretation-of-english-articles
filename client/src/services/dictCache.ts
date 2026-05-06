@@ -18,6 +18,27 @@ interface CacheEntry {
 
 const _cache = new Map<string, CacheEntry>()
 
+function touchEntry(key: string, entry: CacheEntry): void {
+  _cache.delete(key)
+  _cache.set(key, entry)
+}
+
+function evictIfNeeded(): void {
+  if (_cache.size < MAX_SIZE) return
+
+  const now = Date.now()
+  const expired: string[] = []
+  for (const [k, v] of _cache) {
+    if (now > v.expiry) expired.push(k)
+  }
+  for (const k of expired) _cache.delete(k)
+
+  if (_cache.size >= MAX_SIZE) {
+    const oldest = _cache.keys().next().value
+    if (oldest !== undefined) _cache.delete(oldest)
+  }
+}
+
 function buildKey(
   text: string,
   type: 'word' | 'phrase',
@@ -40,8 +61,7 @@ export function getDictCache(
     _cache.delete(key)
     return null
   }
-  _cache.delete(key)
-  _cache.set(key, entry)
+  touchEntry(key, entry)
   return entry.data
 }
 
@@ -55,21 +75,7 @@ export function setDictCache(
   if (data.resultType !== 'entry') return
 
   const key = buildKey(text, type, contextSentence, occurrence)
-
-  if (_cache.size >= MAX_SIZE) {
-    const now = Date.now()
-    const expired: string[] = []
-    for (const [k, v] of _cache) {
-      if (now > v.expiry) expired.push(k)
-    }
-    for (const k of expired) _cache.delete(k)
-
-    if (_cache.size >= MAX_SIZE) {
-      const oldest = _cache.keys().next().value
-      if (oldest !== undefined) _cache.delete(oldest)
-    }
-  }
-
+  evictIfNeeded()
   _cache.set(key, { data, expiry: Date.now() + TTL_MS })
 }
 
@@ -81,6 +87,7 @@ export function getEntryCache(entryId: number): DictionaryResult | null {
     _cache.delete(key)
     return null
   }
+  touchEntry(key, entry)
   return entry.data
 }
 
@@ -88,12 +95,7 @@ export function setEntryCache(entryId: number, data: DictionaryResult): void {
   if (data.resultType !== 'entry') return
 
   const key = `__entry__:${entryId}`
-
-  if (_cache.size >= MAX_SIZE) {
-    const oldest = _cache.keys().next().value
-    if (oldest !== undefined) _cache.delete(oldest)
-  }
-
+  evictIfNeeded()
   _cache.set(key, { data, expiry: Date.now() + TTL_MS })
 }
 

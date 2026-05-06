@@ -15,6 +15,7 @@ import {
   getRecord,
   updateRecord,
   getVocabulary,
+  getVocabEntryByLemma,
   removeVocabEntry,
   saveVocabEntry,
   updateVocabEntry,
@@ -328,13 +329,16 @@ async function executeDeleteVocab(item: SyncQueueItem): Promise<void> {
 }
 
 function resolveCurrentVocabId(lemma: string, fallbackId: string): string | null {
-  const vocab = getVocabulary()
-  const normalizedLemma = lemma.toLowerCase()
-  const match = vocab.find(v => (v.lemma || v.word).toLowerCase() === normalizedLemma && !v.tombstone)
+  const match = getVocabEntryByLemma(lemma)
   if (match) return match.id
-  const stillExists = vocab.find(v => v.id === fallbackId && !v.tombstone)
-  if (stillExists) return fallbackId
+  const fallback = getVocabEntryByLemma(fallbackId) || _getVocabEntryById(fallbackId)
+  if (fallback && !fallback.tombstone) return fallback.id
   return null
+}
+
+function _getVocabEntryById(id: string): VocabEntry | null {
+  const all = getVocabulary()
+  return all.find(v => v.id === id && !v.tombstone) || null
 }
 
 async function executeDeleteRecord(item: SyncQueueItem): Promise<void> {

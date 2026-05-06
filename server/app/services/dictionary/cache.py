@@ -35,26 +35,24 @@ _l2_misses = 0
 
 def _l1_get(key: str) -> dict[str, Any] | None:
     global _cache_hits, _cache_misses
-    entry = _L1_CACHE.get(key)
-    if entry is None:
-        _cache_misses += 1
-        return None
-    data, expiry = entry
-    if time.time() > expiry:
-        with _L1_LOCK:
-            _L1_CACHE.pop(key, None)
-        _cache_misses += 1
-        return None
     with _L1_LOCK:
+        entry = _L1_CACHE.get(key)
+        if entry is None:
+            _cache_misses += 1
+            return None
+        data, expiry = entry
+        if time.time() > expiry:
+            _L1_CACHE.pop(key, None)
+            _cache_misses += 1
+            return None
         _L1_CACHE.move_to_end(key)
-    _cache_hits += 1
-    return data
+        _cache_hits += 1
+        return data
 
 
 def _l1_set(key: str, data: dict[str, Any]) -> None:
     with _L1_LOCK:
         if key in _L1_CACHE:
-            _L1_CACHE.move_to_end(key)
             _L1_CACHE[key] = (data, time.time() + _L1_TTL_SECONDS)
             _L1_CACHE.move_to_end(key)
             return

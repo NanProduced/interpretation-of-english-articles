@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.services.dictionary import get_service
-from app.services.dictionary.schemas import DictionaryEntryResult, DictionaryLookupResult
+from app.services.dictionary.schemas import DictionaryLookupResult, DictionaryEntryResult
 from app.services.dictionary.service import LookupError
 
 logger = getLogger("app.api")
@@ -21,7 +21,7 @@ _service = get_service()
 _DICT_CACHE_CONTROL = "public, max-age=3600"
 
 
-@router.get("", response_model=DictionaryLookupResult, summary="查词")
+@router.get("", summary="查词")
 async def lookup_word(
     q: str = Query(..., description="要查询的单词或短语", min_length=1, max_length=100),
     type: Literal["word", "phrase"] = Query(default="word", description="查询类型"),
@@ -29,7 +29,7 @@ async def lookup_word(
     occurrence: int | None = Query(default=None, description="在句子中的第几次出现"),
     reading_goal: str | None = Query(default=None, description="阅读目标"),
     reading_variant: str | None = Query(default=None, description="阅读变体"),
-) -> DictionaryLookupResult:
+) -> JSONResponse:
     """查询单词或短语的词典释义，支持语境感知。"""
     word = q.strip()
     from app.services.dictionary.schemas import DictionaryLookupRequest
@@ -53,10 +53,10 @@ async def lookup_word(
         raise HTTPException(status_code=502, detail="Dictionary service error") from exc
 
 
-@router.get("/entry", response_model=DictionaryEntryResult, summary="词条详情")
+@router.get("/entry", summary="词条详情")
 async def lookup_entry(
     id: int = Query(..., description="词条 ID", ge=1),
-) -> DictionaryEntryResult:
+) -> JSONResponse:
     """根据词条 ID 获取完整词典条目。"""
     try:
         result = await _service.lookup_entry(id)

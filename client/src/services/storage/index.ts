@@ -25,7 +25,9 @@ const KEYS = {
   RECORD_IDS: 'analysis_record_ids',
   RECORD: (id: string) => `analysis_record_${id}`,
   FAVORITES: 'favorite_records',
-  VOCABULARY: 'vocabulary_book',
+  VOCAB_IDS: 'vocab_ids',
+  VOCAB_ENTRY: (id: string) => `vocab_entry_${id}`,
+  VOCAB_LEMMA_INDEX: 'vocab_lemma_index',
   USER_PREF: 'user_preferences',
   RECORD_IDENTITY_MAP: 'record_identity_map',
   SYNC_QUEUE: 'sync_queue',
@@ -195,63 +197,106 @@ export function isFavorited(recordId: string): boolean {
   return getFavorites().some((f) => f.recordId === recordId)
 }
 
-// ============ Vocabulary ============
+// ============ Vocabulary (sharded) ============
 
 const SOURCE_REFS_MAX = 20
 
-export function getVocabulary(): VocabEntry[] {
+function _getVocabIds(): string[] {
   try {
-    const raw = Taro.getStorageSync<VocabEntry[]>(KEYS.VOCABULARY)
+    const raw = Taro.getStorageSync<string[]>(KEYS.VOCAB_IDS)
     return raw || []
   } catch (e) {
-    console.error('[storage] getVocabulary failed', e)
+    console.error('[storage] _getVocabIds failed', e)
     return []
   }
 }
 
-/**
- * 保存生词条目，以 lemma 为唯一键去重。
- *
- * - 同 lemma 已存在时：合并 sourceRefs + collectedForms，更新词条信息
- * - 同 lemma 不存在时：新增条目
- * - 返回 SaveVocabResult 用于 toast 反馈
- */
+function _saveVocabIds(ids: string[]): void {
+  Taro.setStorageSync(KEYS.VOCAB_IDS, ids)
+}
+
+function _getVocabLemmaIndex(): Record<string, string> {
+  try {
+    const raw = Taro.getStorageSync<Record<string, string>>(KEYS.VOCAB_LEMMA_INDEX)
+    return raw || {}
+  } catch (e) {
+    console.error('[storage] _getVocabLemmaIndex failed', e)
+    return {}
+  }
+}
+
+function _saveVocabLemmaIndex(index: Record<string, string>): void {
+  Taro.setStorageSync(KEYS.VOCAB_LEMMA_INDEX, index)
+}
+
+function _getVocabEntry(id: string): VocabEntry | null {
+  try {
+    const raw = Taro.getStorageSync<VocabEntry>(KEYS.VOCAB_ENTRY(id))
+    return raw || null
+  } catch (e) {
+    console.error('[storage] _getVocabEntry failed', e)
+    return null
+  }
+}
+
+function _saveVocabEntry(entry: VocabEntry): void {
+  Taro.setStorageSync(KEYS.VOCAB_ENTRY(entry.id), entry)
+}
+
+function _removeVocabEntry(id: string): void {
+  Taro.removeStorageSync(KEYS.VOCAB_ENTRY(id))
+}
+
+export function getVocabulary(): VocabEntry[] {
+  const ids = _getVocabIds()
+  const entries: VocabEntry[] = []
+  for (const id of ids) {
+    const entry = _getVocabEntry(id)
+    if (entry) entries.push(entry)
+  }
+  return entries
+}
+
 export function saveVocabEntry(entry: VocabEntry): SaveVocabResult {
   try {
-    const vocab = getVocabulary()
     const entryLemma = (entry.lemma || entry.word).toLowerCase()
-    const existingIdx = vocab.findIndex((v) => {
-      const vKey = (v.lemma || v.word).toLowerCase()
-      return vKey === entryLemma && !v.tombstone
-    })
+    const lemmaIndex = _getVocabLemmaIndex()
+    const existingId = lemmaIndex[entryLemma]
 
-    if (existingIdx > -1) {
-      const existing = vocab[existingIdx]
-      const mergedRefs = mergeSourceRefs(existing.sourceRefs || [], entry.sourceRefs || [])
-      const mergedForms = mergeCollectedForms(existing.collectedForms || [], entry.word)
-      const merged: VocabEntry = {
-        ...existing,
-        word: entry.word,
-        partOfSpeech: entry.partOfSpeech || existing.partOfSpeech,
-        meaning: entry.meaning || existing.meaning,
-        detailMeanings: entry.detailMeanings || existing.detailMeanings,
-        phonetic: entry.phonetic || existing.phonetic,
-        tags: entry.tags || existing.tags,
-        exchange: entry.exchange || existing.exchange,
-        dictEntryId: entry.dictEntryId ?? existing.dictEntryId,
-        sentence: entry.sentence ?? existing.sentence,
-        context: entry.context ?? existing.context,
-        sourceRefs: mergedRefs,
-        collectedForms: mergedForms,
-        audioUrl: entry.audioUrl || existing.audioUrl,
-        addedAt: existing.addedAt,
+    if (existingId) {
+      const existing = _getVocabEntry(existingId)
+      if (existing && !existing.tombstone) {
+        const mergedRefs = mergeSourceRefs(existing.sourceRefs || [], entry.sourceRefs || [])
+        const mergedForms = mergeCollectedForms(existing.collectedForms || [], entry.word)
+        const merged: VocabEntry = {
+          ...existing,
+          word: entry.word,
+          partOfSpeech: entry.partOfSpeech || existing.partOfSpeech,
+          meaning: entry.meaning || existing.meaning,
+          detailMeanings: entry.detailMeanings || existing.detailMeanings,
+          phonetic: entry.phonetic || existing.phonetic,
+          tags: entry.tags || existing.tags,
+          exchange: entry.exchange || existing.exchange,
+          dictEntryId: entry.dictEntryId ?? existing.dictEntryId,
+          sentence: entry.sentence ?? existing.sentence,
+          context: entry.context ?? existing.context,
+          sourceRefs: mergedRefs,
+          collectedForms: mergedForms,
+          audioUrl: entry.audioUrl || existing.audioUrl,
+          addedAt: existing.addedAt,
+        }
+        _saveVocabEntry(merged)
+        return {
+          entry: merged,
+          merged: true,
+          totalSourceCount: mergedRefs.length,
+        }
       }
-      vocab[existingIdx] = merged
-      Taro.setStorageSync(KEYS.VOCABULARY, vocab)
-      return {
-        entry: merged,
-        merged: true,
-        totalSourceCount: mergedRefs.length,
+      // Bug 7: lemma index points to a tombstone entry — clean it up so a new entry with the same lemma can be added
+      if (existing && existing.tombstone) {
+        const ids = _getVocabIds().filter((vId) => vId !== existingId)
+        _saveVocabIds(ids)
+        _removeVocabEntry(existingId)
       }
     }
 
@@ -260,7 +305,13 @@ export function saveVocabEntry(entry: VocabEntry): SaveVocabResult {
       sourceRefs: entry.sourceRefs || [],
       collectedForms: entry.collectedForms || (entry.word ? [entry.word] : []),
     }
-    Taro.setStorageSync(KEYS.VOCABULARY, [newEntry, ...vocab])
+
+    const ids = _getVocabIds()
+    _saveVocabIds([newEntry.id, ...ids])
+    _saveVocabEntry(newEntry)
+    lemmaIndex[entryLemma] = newEntry.id
+    _saveVocabLemmaIndex(lemmaIndex)
+
     return {
       entry: newEntry,
       merged: false,
@@ -305,8 +356,19 @@ function mergeCollectedForms(existing: string[], incomingWord: string): string[]
 
 export function removeVocabEntry(id: string): void {
   try {
-    const vocab = getVocabulary().filter((v) => v.id !== id)
-    Taro.setStorageSync(KEYS.VOCABULARY, vocab)
+    const entry = _getVocabEntry(id)
+    const ids = _getVocabIds().filter((vId) => vId !== id)
+    _saveVocabIds(ids)
+    _removeVocabEntry(id)
+
+    if (entry) {
+      const lemma = (entry.lemma || entry.word).toLowerCase()
+      const lemmaIndex = _getVocabLemmaIndex()
+      if (lemmaIndex[lemma] === id) {
+        delete lemmaIndex[lemma]
+        _saveVocabLemmaIndex(lemmaIndex)
+      }
+    }
   } catch (e) {
     console.error('[storage] removeVocabEntry failed', e)
   }
@@ -314,15 +376,49 @@ export function removeVocabEntry(id: string): void {
 
 export function updateVocabEntry(id: string, updates: Partial<VocabEntry>): void {
   try {
-    const vocab = getVocabulary()
-    const index = vocab.findIndex(v => v.id === id)
-    if (index > -1) {
-      vocab[index] = { ...vocab[index], ...updates }
-      Taro.setStorageSync(KEYS.VOCABULARY, vocab)
+    const entry = _getVocabEntry(id)
+    if (!entry) return
+    const updated = { ...entry, ...updates }
+    _saveVocabEntry(updated)
+
+    if (updates.lemma !== undefined || updates.word !== undefined) {
+      const newLemma = (updates.lemma || updates.word || entry.lemma || entry.word).toLowerCase()
+      const oldLemma = (entry.lemma || entry.word).toLowerCase()
+      if (newLemma !== oldLemma) {
+        const lemmaIndex = _getVocabLemmaIndex()
+        delete lemmaIndex[oldLemma]
+        lemmaIndex[newLemma] = id
+        _saveVocabLemmaIndex(lemmaIndex)
+      }
     }
   } catch (e) {
     console.error('[storage] updateVocabEntry failed', e)
   }
+}
+
+export function getVocabCount(): number {
+  return _getVocabIds().length
+}
+
+export function isVocabByLemma(lemma: string): boolean {
+  const lemmaIndex = _getVocabLemmaIndex()
+  const id = lemmaIndex[lemma.toLowerCase()]
+  if (!id) return false
+  const entry = _getVocabEntry(id)
+  return entry !== null && !entry.tombstone
+}
+
+export function getVocabLemmaSet(): Set<string> {
+  return new Set(Object.keys(_getVocabLemmaIndex()))
+}
+
+export function getVocabEntryByLemma(lemma: string): VocabEntry | null {
+  const lemmaIndex = _getVocabLemmaIndex()
+  const id = lemmaIndex[lemma.toLowerCase()]
+  if (!id) return null
+  const entry = _getVocabEntry(id)
+  if (!entry || entry.tombstone) return null
+  return entry
 }
 
 // ============ User Preferences ============

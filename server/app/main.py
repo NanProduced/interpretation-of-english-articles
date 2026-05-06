@@ -39,7 +39,9 @@ _WARMUP_WORDS = [
 async def _warm_dict_cache() -> None:
     from app.services.dictionary import cache as dict_cache
     from app.services.dictionary.db_pg import lookup_candidates_batch, fetch_entry
+    from app.services.dictionary.providers.tecd3 import Tecd3Provider
 
+    provider = Tecd3Provider()
     candidates_list = await lookup_candidates_batch(_WARMUP_WORDS, source="tecd3")
     seen_ids: set[int] = set()
     for candidates in candidates_list.values():
@@ -49,13 +51,8 @@ async def _warm_dict_cache() -> None:
                 entry = await fetch_entry(c.entry_id, source="tecd3")
                 if entry is not None:
                     cache_key = f"tecd3:v4:entry:{c.entry_id}"
-                    await dict_cache.set(cache_key, {
-                        "result_type": "entry",
-                        "query": entry.display_headword,
-                        "provider": "tecd3",
-                        "cached": False,
-                        "entry": {},
-                    })
+                    result = provider._build_entry_result(entry.display_headword, entry)
+                    await dict_cache.set(cache_key, result)
     logger.info("Dict cache warmed: %d entries preloaded", len(seen_ids))
 
 
