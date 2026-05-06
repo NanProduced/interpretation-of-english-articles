@@ -64,5 +64,8 @@ export function dictResponseDtoToVm(dto: DictResponseDto): DictionaryResult {
   if (dto.result_type === 'entry') {
     return mapEntryResult(dto)
   }
-  return mapDisambiguationResult(dto)
+  if (dto.result_type === 'disambiguation') {
+    return mapDisambiguationResult(dto)
+  }
+  throw new Error(`Unknown dict result_type: ${(dto as Record<string, unknown>).result_type}`)
 }

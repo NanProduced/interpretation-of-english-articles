@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { AnyInlineMarkModel, type VisualTone, type AcademicVisualTone, type InlineGlossary, type AcademicInlineGlossary, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
@@ -27,7 +27,6 @@ interface WordPopupProps {
   onClose: () => void
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
-  onFavorite?: (word: string) => void
 }
 
 function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): string {
@@ -383,11 +382,11 @@ function DictionaryNoteSheet({
                 {activeTab === 'meanings' && (
                   <View className='meanings-list'>
                     {detailMeanings.map((meaning, idx) => (
-                      <View key={idx} className='meaning-item'>
+                      <View key={`${meaning.partOfSpeech}-${idx}`} className='meaning-item'>
                         {meaning.partOfSpeech && <Text className='pos-tag'>{meaning.partOfSpeech}</Text>}
                         <View className='definitions'>
                           {meaning.definitions.map((def, defIdx) => (
-                            <View key={defIdx} className='def-row'>
+                            <View key={`${def.meaning?.slice(0, 20)}-${defIdx}`} className='def-row'>
                               <View className='def-text'>{def.meaning}</View>
                               {def.example && (
                                 <View className='def-example-block'>
@@ -405,7 +404,7 @@ function DictionaryNoteSheet({
                 {activeTab === 'phrases' && (
                   <View className='phrases-list'>
                     {entry.phrases.map((p, idx) => (
-                      <View key={idx} className='phrase-item'>
+                      <View key={p.phrase} className='phrase-item'>
                         <View className='phrase-text'>{p.phrase}</View>
                         {p.meaning && <View className='phrase-meaning'>{p.meaning}</View>}
                       </View>
@@ -415,7 +414,7 @@ function DictionaryNoteSheet({
                 {activeTab === 'examples' && (
                   <View className='examples-list'>
                     {entry.examples.map((ex, idx) => (
-                      <View key={idx} className='example-item'>
+                      <View key={`${ex.example?.slice(0, 20)}-${idx}`} className='example-item'>
                         <View className='example-en'>{ex.example}</View>
                         {ex.exampleTranslation && <View className='example-zh'>{ex.exampleTranslation}</View>}
                       </View>
@@ -456,13 +455,14 @@ function DictionaryNoteSheet({
 
 export default function WordPopup({
   visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant, readingGoal,
-  isSaved = false, onClose, onExpand, onAddVocab, onFavorite,
+  isSaved = false, onClose, onExpand, onAddVocab,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [screenWidth, setScreenWidth] = useState(375)
   const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
   const [showDictFeedback, setShowDictFeedback] = useState(false)
+  const fetchVersionRef = useRef(0)
 
   const lookupText = mark?.lookupText || word
   const glossary = mark?.glossary
@@ -484,7 +484,8 @@ export default function WordPopup({
 
   const renderContextExcerpt = () => {
     if (!contextSentence || !lookupText) return null
-    const parts = contextSentence.split(new RegExp(`(${lookupText})`, 'gi'))
+    const escaped = lookupText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const parts = contextSentence.split(new RegExp(`(${escaped})`, 'gi'))
     return (
       <View className='source-context-excerpt'>
         {parts.map((part, i) => 
@@ -501,8 +502,14 @@ export default function WordPopup({
   const isSavedState = saveState !== 'not_saved'
 
   useEffect(() => {
-    if (!visible || !lookupText) return
-    void fetchDictionary(lookupText)
+    if (!visible) {
+      setDictResult(null)
+      return
+    }
+    if (!lookupText) return
+    fetchVersionRef.current += 1
+    const version = fetchVersionRef.current
+    void fetchDictionary(lookupText, version)
   }, [visible, lookupText, contextSentence, occurrence])
 
   useEffect(() => {
@@ -517,7 +524,7 @@ export default function WordPopup({
     }
   }, [dictResult, activeTab, entry])
 
-  const fetchDictionary = async (text: string) => {
+  const fetchDictionary = async (text: string, version: number) => {
     const type = text.trim().includes(' ') ? 'phrase' : 'word'
     const cached = getDictCache(text, type, contextSentence, occurrence)
     if (cached) {
@@ -529,14 +536,18 @@ export default function WordPopup({
     setDictResult(null)
     try {
       const dto = await fetchDict(text, type, contextSentence, occurrence)
+      if (version !== fetchVersionRef.current) return
       const vm = dictResponseDtoToVm(dto)
       setDictResult(vm)
       setDictCache(text, type, vm, contextSentence, occurrence)
     } catch (err) {
+      if (version !== fetchVersionRef.current) return
       console.error('[dict] fetch error', err)
       setDictResult(null)
     } finally {
-      setLoading(false)
+      if (version === fetchVersionRef.current) {
+        setLoading(false)
+      }
     }
   }
 

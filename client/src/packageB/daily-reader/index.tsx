@@ -240,7 +240,6 @@ export default function DailyReaderPage() {
         onClose={handleClosePopup}
         onExpand={handleExpandPopup}
         onAddVocab={handleAddVocab}
-        onFavorite={(w) => track('favorite_word', { word: w })}
       />
     </View>
   )

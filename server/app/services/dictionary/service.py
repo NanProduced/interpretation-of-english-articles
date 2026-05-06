@@ -9,7 +9,7 @@ from app.services.dictionary.providers import Tecd3Provider
 from app.services.dictionary.schemas import DictionaryLookupRequest
 
 
-class LookupError(Exception):
+class WordNotFoundError(Exception):
     """词典查询失败（词不存在）。"""
 
 
@@ -54,13 +54,13 @@ class DictionaryService:
         try:
             return await self._provider.fetch(request)
         except ValueError:
-            raise LookupError(f"Word not found: {request.query}") from None
+            raise WordNotFoundError(f"Word not found: {request.query}") from None
 
     async def lookup_entry(self, entry_id: int) -> dict[str, Any]:
         try:
             return await self._provider.fetch_entry(entry_id)
         except ValueError:
-            raise LookupError(f"Entry not found: {entry_id}") from None
+            raise WordNotFoundError(f"Entry not found: {entry_id}") from None
 
     def _normalize(self, word: str) -> str:
         normalized = word.strip().translate(self._TRANSLATION_MAP).lower()

@@ -20,6 +20,9 @@ export default function AnnotationGlyph({
     <View
       className={`annotation-glyph glyph-${type} ${stateClass} ${className}`}
       style={{ width: `${size}rpx`, height: `${size}rpx` }}
-    />
+    >
+      {type === 'grammar_note' && <View className="grammar-curve" />}
+      {type === 'sentence_analysis' && <View className="analysis-line-3" />}
+    </View>
   )
 }

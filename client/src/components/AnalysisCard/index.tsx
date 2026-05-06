@@ -160,7 +160,7 @@ export default function AnalysisCard({
           <Text className='card-collapsed-title' numberOfLines={1}>{getCollapsedCopy()}</Text>
         </View>
         <View className={`summary-icon ${isExpanded ? 'is-expanded' : ''}`}>
-          <LucideIcon name='chevronDown' size={14} color='var(--text-muted)' />
+          <LucideIcon name='chevronRight' size={14} color='var(--text-muted)' />
         </View>
       </View>
 
@@ -168,9 +168,12 @@ export default function AnalysisCard({
         <View className='card-body' onClick={(e) => e.stopPropagation()}>
           {(type === 'grammar' || type === 'sentence') && (
             <View className='expanded-title-row'>
-              <Text className='expanded-full-title'>{title && title !== config.defaultLabel ? title : config.defaultLabel}</Text>
+              <View style={{ display: 'flex', alignItems: 'center', gap: '12rpx' }}>
+                {type === 'sentence' && <LucideIcon name='align-left' size={16} color='var(--reader-ink)' />}
+                <Text className='expanded-full-title'>{title && title !== config.defaultLabel ? title : config.defaultLabel}</Text>
+              </View>
               <View className='collapse-btn' onClick={handleCollapse}>
-                <LucideIcon name='x' size={17} color='var(--text-main)' strokeWidth={1.8} />
+                <LucideIcon name='x' size={17} color='var(--reader-muted)' strokeWidth={1.5} />
               </View>
             </View>
           )}
@@ -191,7 +194,7 @@ export default function AnalysisCard({
           <View className='card-content-wrapper'>
             {type === 'grammar' && snippet && (
               <View className='grammar-snippet-box'>
-                <Text className='snippet-label'>原文片段</Text>
+                <Text className='snippet-label'>来源句</Text>
                 <Text className='snippet-text'>{snippet}</Text>
               </View>
             )}
@@ -231,6 +234,7 @@ export default function AnalysisCard({
                     <LucideIcon name='thumbsUp' size={13} color='var(--text-muted)' strokeWidth={1.8} />
                     <Text className='feedback-quick-text'>{quickFeedbackState === 'positive' ? '已反馈' : '有帮助'}</Text>
                   </View>
+                  <View className='feedback-divider' />
                   <View
                     className={`feedback-quick-btn ${quickFeedbackState === 'negative' ? 'is-submitted' : ''} ${quickFeedbackState !== 'none' && quickFeedbackState !== 'negative' ? 'is-disabled' : ''}`}
                     onClick={(e) => { e.stopPropagation(); void handleQuickFeedback('negative') }}
@@ -238,6 +242,7 @@ export default function AnalysisCard({
                     <LucideIcon name='thumbsDown' size={13} color='var(--text-muted)' strokeWidth={1.8} />
                     <Text className='feedback-quick-text'>{quickFeedbackState === 'negative' ? '已反馈' : '不准确'}</Text>
                   </View>
+                  <View className='feedback-divider' />
                 </>
               )}
               {onFeedback && (

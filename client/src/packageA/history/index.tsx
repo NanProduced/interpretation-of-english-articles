@@ -16,7 +16,7 @@ import { useLayoutStore } from '../../stores/layout'
 import { getSafeDisplayLabel } from '../../config/purpose'
 import LucideIcon from '../../components/LucideIcon'
 import './index.scss'
-import { formatDate } from '../../utils/formatDate'
+import { formatDate, getUTC8DayValue } from '../../utils/formatDate'
 
 /** 读取显示用的前 50 字 */
 function getDisplayTitle(record: AnalysisRecord): string {
@@ -170,11 +170,9 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
   // --------------------------------------------------------------------------
 
   const groupedRecords = (() => {
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-    const todayTs = now.getTime()
-    const yesterdayTs = todayTs - 24 * 60 * 60 * 1000
-    const sevenDaysTs = todayTs - 7 * 24 * 60 * 60 * 1000
+    const todayDayValue = getUTC8DayValue(Date.now())
+    const yesterdayDayValue = todayDayValue - 24 * 60 * 60 * 1000
+    const sevenDaysAgoDayValue = todayDayValue - 7 * 24 * 60 * 60 * 1000
 
     const groups: { label: string; items: AnalysisRecord[] }[] = [
       { label: '今天', items: [] },
@@ -184,10 +182,10 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     ]
 
     filteredRecords.forEach(r => {
-      const t = r.updatedAt || r.createdAt
-      if (t >= todayTs) groups[0].items.push(r)
-      else if (t >= yesterdayTs) groups[1].items.push(r)
-      else if (t >= sevenDaysTs) groups[2].items.push(r)
+      const dayValue = getUTC8DayValue(r.createdAt)
+      if (dayValue >= todayDayValue) groups[0].items.push(r)
+      else if (dayValue >= yesterdayDayValue) groups[1].items.push(r)
+      else if (dayValue >= sevenDaysAgoDayValue) groups[2].items.push(r)
       else groups[3].items.push(r)
     })
 

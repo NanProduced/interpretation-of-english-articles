@@ -5,14 +5,14 @@ from fastapi.testclient import TestClient
 
 from app.api.routes import dict as dict_route
 from app.api.routes.dict import router as dict_router
-from app.services.dictionary.service import LookupError
+from app.services.dictionary.service import WordNotFoundError
 
 
 class StubDictionaryService:
     async def lookup(self, request) -> dict[str, object]:
         word = request.query
         if word == "unknown":
-            raise LookupError("Word not found: unknown")
+            raise WordNotFoundError("Word not found: unknown")
         if word == "anti":
             return {
                 "result_type": "disambiguation",
@@ -77,7 +77,7 @@ class StubDictionaryService:
 
     async def lookup_entry(self, entry_id: int) -> dict[str, object]:
         if entry_id == 404:
-            raise LookupError("Entry not found")
+            raise WordNotFoundError("Entry not found")
         return {
             "result_type": "entry",
             "query": "anti-",

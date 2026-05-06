@@ -1,3 +1,3 @@
-from app.services.dictionary.service import DictionaryService, LookupError, get_service
+from app.services.dictionary.service import DictionaryService, WordNotFoundError, get_service
 
-__all__ = ["DictionaryService", "LookupError", "get_service"]
+__all__ = ["DictionaryService", "WordNotFoundError", "get_service"]

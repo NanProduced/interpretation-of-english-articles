@@ -100,10 +100,10 @@ export default function FeedbackWidget({
       <Text className='feedback-widget__label'>本次解读对你有帮助吗？</Text>
       <View className='feedback-widget__actions'>
         <View className={`feedback-widget__btn ${submitted === 'positive' ? 'feedback-widget__btn--active' : ''}`} onClick={handleThumbsUp}>
-          <LucideIcon name='thumbsUp' size={20} color={submitted === 'positive' ? 'var(--color-ink)' : 'var(--text-sub)'} />
+          <LucideIcon name='thumbsUp' size={20} color={submitted === 'positive' ? 'var(--reader-ink)' : 'var(--reader-muted)'} />
         </View>
         <View className={`feedback-widget__btn ${submitted === 'negative' ? 'feedback-widget__btn--active' : ''}`} onClick={handleThumbsDown}>
-          <LucideIcon name='thumbsDown' size={20} color={submitted === 'negative' ? 'var(--color-ink)' : 'var(--text-sub)'} />
+          <LucideIcon name='thumbsDown' size={20} color={submitted === 'negative' ? 'var(--reader-ink)' : 'var(--reader-muted)'} />
         </View>
       </View>
 

@@ -66,7 +66,7 @@ Use the three `target-viewport-*.png` images for simulator screenshot matching, 
 
 Use `state-matrix-reference.png` for behavior and state coverage.
 
-Use the three `annotation-*-detail.svg` boards only for local component details: glyph construction, note-card anatomy, dense mark stacking, degraded lookup states, and feedback selection.
+Use the supplemental SVG boards only for local component details: glyph construction, note-card anatomy, dense mark stacking, degraded lookup states, feedback selection.
 
 If a local detail is not visible in screenshots, follow `component-spec.md` first, then `component-spec-board.png`.
 

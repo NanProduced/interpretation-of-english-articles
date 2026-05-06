@@ -267,7 +267,6 @@ export default function Result() {
         onClose={actions.handleClosePopup}
         onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
         onAddVocab={actions.handleAddVocab}
-        onFavorite={(w) => { import('../../services/analytics').then(m => m.track('favorite_word', { word: w })) }}
       />
 
       <BottomSheetSelect

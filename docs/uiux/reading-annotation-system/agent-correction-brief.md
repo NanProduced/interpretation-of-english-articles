@@ -109,7 +109,7 @@ Use the three `assets/target-viewport-*.png` images for simulator screenshot mat
 
 Use `assets/state-matrix-reference.png` for behavior and state coverage.
 
-Use the three `assets/annotation-*-detail.svg` boards only for local component details: glyph construction, note-card anatomy, dense mark stacking, degraded lookup states, and feedback selection.
+Use the supplemental SVG boards only for local component details: glyph construction, note-card anatomy, dense mark stacking, degraded lookup states, feedback selection.
 
 If a local detail is not visible in screenshots, follow `component-spec.md` first, then `assets/component-spec-board.png`.
 

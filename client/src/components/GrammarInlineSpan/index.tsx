@@ -9,7 +9,7 @@ interface GrammarInlineSpanProps {
   mark: AnyInlineMarkModel
   text: string
   selectedWord?: string | null
-  vocabList?: string[]
+  vocabSet?: Set<string>
   vocabSavedMap?: Record<string, string>
   isActive?: boolean
   role?: string
@@ -22,7 +22,7 @@ export default function GrammarInlineSpan({
   mark,
   text,
   selectedWord,
-  vocabList,
+  vocabSet,
   vocabSavedMap,
   isActive,
   role,
@@ -38,7 +38,7 @@ export default function GrammarInlineSpan({
       {isActive && role && <Text className='grammar-role-label'>{role}</Text>}
       {tokens.map((token, idx) => {
         if (token.type === 'word') {
-          const isSaved = vocabList?.includes(token.text.toLowerCase())
+          const isSaved = vocabSet?.has(token.text.toLowerCase())
           const savedStatus = vocabSavedMap?.[token.text.toLowerCase()]
           const occ = getNextOccurrence(token.text)
           

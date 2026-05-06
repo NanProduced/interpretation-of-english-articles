@@ -35,12 +35,6 @@
         font-weight: var(--weight-medium);
         letter-spacing: 0.04em;
       }
-
-      .paragraph-divider {
-        flex: 1;
-        height: 1rpx;
-        background: linear-gradient(to right, rgba(17, 17, 17, 0.08), rgba(17, 17, 17, 0.035), transparent);
-      }
     }
 
     .sentence-block {
@@ -131,18 +125,19 @@
         -webkit-box-decoration-break: clone;
       }
 
-      .chunk-inline-index {
+      .chunk-inline-marker {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 20rpx;
-        height: 20rpx;
-        margin-right: 4rpx;
+        width: 24rpx;
+        height: 24rpx;
+        margin-right: 6rpx;
         border-radius: 50%;
-        background: var(--annotation-analysis);
-        color: var(--reader-surface);
-        font-size: 14rpx;
-        font-weight: var(--weight-bold);
+        border: 1.5rpx solid rgba(17, 17, 17, 0.2);
+        background: transparent;
+        color: var(--reader-muted);
+        font-size: 16rpx;
+        font-weight: var(--weight-medium);
         line-height: 1;
         vertical-align: super;
       }

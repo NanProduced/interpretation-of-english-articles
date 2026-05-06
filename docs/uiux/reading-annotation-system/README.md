@@ -68,7 +68,7 @@ The approved assets now use one aligned component language. Do not reference arc
    - temporary chunk marks only while expanded
    - compact chunk list / reading map behavior
    Do not copy its older folded-corner card treatment if it conflicts with the production component style.
-4. Use the three `assets/annotation-*-detail.svg` boards only for local component details: glyph construction, note-card anatomy, dense mark stacking, degraded lookup states, and feedback selection.
+4. Use the supplemental SVG boards only for local component details: glyph construction, note-card anatomy, dense mark stacking, degraded lookup states, feedback selection.
 5. When a detail is not visible in screenshots, follow `component-spec.md` first, then `assets/component-spec-board.png`. Do not copy archived card treatments, folded corners, or side annotation rails into the current reader page unless a later design explicitly asks for that rail.
 
 ## Documents

@@ -1,5 +1,5 @@
 import { View, Text, ScrollView } from '@tarojs/components'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Taro from '@tarojs/taro'
 import type { VocabEntry, SourceRef } from '../../types/view/vocabulary.vm'
 import type { DictionaryEntryPayload, DictionaryMeaning } from '../../types/view/render-scene.vm'
@@ -32,6 +32,7 @@ export default function VocabDetailView({
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [audioPlaying, setAudioPlaying] = useState(false)
   const [contextIndex, setContextIndex] = useState(0)
+  const innerAudioRef = useRef<ReturnType<typeof Taro.createInnerAudioContext> | null>(null)
 
   const loadDictEntry = useCallback(async () => {
     if (!entry?.dictEntryId) {
@@ -90,15 +91,34 @@ export default function VocabDetailView({
     }
     loadDictEntry()
     loadAudio()
+    return () => {
+      if (innerAudioRef.current) {
+        innerAudioRef.current.destroy()
+        innerAudioRef.current = null
+      }
+    }
   }, [visible, entry, loadDictEntry, loadAudio])
 
   const playAudio = () => {
     if (!audioUrl || audioPlaying) return
     setAudioPlaying(true)
+    if (innerAudioRef.current) {
+      innerAudioRef.current.destroy()
+      innerAudioRef.current = null
+    }
     const innerAudio = Taro.createInnerAudioContext()
+    innerAudioRef.current = innerAudio
     innerAudio.src = audioUrl
-    innerAudio.onEnded(() => setAudioPlaying(false))
-    innerAudio.onError(() => setAudioPlaying(false))
+    innerAudio.onEnded(() => {
+      setAudioPlaying(false)
+      innerAudio.destroy()
+      innerAudioRef.current = null
+    })
+    innerAudio.onError(() => {
+      setAudioPlaying(false)
+      innerAudio.destroy()
+      innerAudioRef.current = null
+    })
     innerAudio.play()
   }
 

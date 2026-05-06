@@ -62,7 +62,7 @@ function findTextAnchorPosition(text: string, anchorText: string, occurrence = 1
 function renderPlainSegmentAsClickableWords(
   plainText: string,
   selectedWord?: string | null,
-  vocabList?: string[],
+  vocabSet?: Set<string>,
   onWordClick?: (payload: WordClickPayload) => void,
   vocabSavedMap?: Record<string, string>,
 ): React.ReactNode[] {
@@ -70,7 +70,7 @@ function renderPlainSegmentAsClickableWords(
   const tokens = tokenizeText(plainText)
   return tokens.map((token, idx) => {
     if (token.type === 'word') {
-      const isSaved = vocabList?.includes(token.text.toLowerCase())
+      const isSaved = vocabSet?.has(token.text.toLowerCase())
       const savedStatus = vocabSavedMap?.[token.text.toLowerCase()]
       return (
         <ClickableWord
@@ -123,7 +123,7 @@ function renderTextWithMarks(
   marks: AnyInlineMarkModel[],
   activeMarkId?: string | null,
   selectedWord?: string | null,
-  vocabList?: string[],
+  vocabSet?: Set<string>,
   onWordClick?: (payload: WordClickPayload) => void,
   isImmersive?: boolean,
   isHighlighted?: boolean,
@@ -181,7 +181,7 @@ function renderTextWithMarks(
       <Text className='sentence-text'>
         {handleDropCap(text, (restText) => (
           <Text>
-            {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabList, (p) => {
+            {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabSet, (p) => {
               const occ = getNextOccurrence(p.word)
               onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
             }, vocabSavedMap)}
@@ -240,7 +240,7 @@ function renderTextWithMarks(
       resultElements.push(
         handleDropCap(plainSegment, (restText) => (
           <Text key={`plain-${lastEnd}`}>
-            {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabList, (p) => {
+            {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabSet, (p) => {
               const occ = getNextOccurrence(p.word)
               onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
             }, vocabSavedMap)}
@@ -260,7 +260,7 @@ function renderTextWithMarks(
             mark={item.mark}
             text={restText}
             selectedWord={selectedWord}
-            vocabList={vocabList}
+            vocabSet={vocabSet}
             vocabSavedMap={vocabSavedMap}
             isActive={isActive}
             role={role}
@@ -276,7 +276,7 @@ function renderTextWithMarks(
 
     const isVocabulary = ['vocab', 'phrase', 'context', 'term'].includes(item.mark.visualTone)
     const isActive = !!(activeMarkId === item.mark.id || (item.mark.parentId && activeMarkId === item.mark.parentId))
-    const isSaved = vocabList?.includes(item.text.toLowerCase())
+    const isSaved = vocabSet?.has(item.text.toLowerCase())
     const savedStatus = vocabSavedMap?.[item.text.toLowerCase()]
     
     // 词汇类标记整体点击时，由于它们通常是一个词或短语，我们也尝试计算它的 occurrence
@@ -310,7 +310,7 @@ function renderTextWithMarks(
     resultElements.push(
       handleDropCap(plainSegment, (restText) => (
         <Text key={`plain-${lastEnd}`}>
-          {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabList, (p) => {
+          {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabSet, (p) => {
             const occ = getNextOccurrence(p.word)
             onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
           }, vocabSavedMap)}
@@ -338,6 +338,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   onWordClick,
   onSentenceClick,
 }: ParagraphBlockProps) {
+  const vocabSet = useMemo(() => new Set(vocabList ?? []), [vocabList])
   const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null)
   const [feedbackTarget, setFeedbackTarget] = useState<{
     targetId: string
@@ -411,7 +412,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                   className={`sentence-span ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                   onClick={() => onSentenceClick?.(sentence.sentenceId)}
                 >
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0)}
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
@@ -554,7 +555,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                 ) : (
                   // 普通精读模式：使用马克笔涂抹模式
                   <Text className='english-flow'>
-                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap)}
+                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap)}
                   </Text>
                 )}
               </View>
@@ -611,7 +612,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       className={`sentence-span ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                       onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
                     >
-                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabList, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap)}
+                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap)}
                       {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
                     </Text>
                   ))}

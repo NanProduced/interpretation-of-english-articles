@@ -1,6 +1,6 @@
 .annotation-feedback {
-  background: #FAF9F9;
-  border-radius: var(--radius-lg, 48rpx) var(--radius-lg, 48rpx) 0 0;
+  background: var(--reader-paper-deep);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   padding: 32rpx;
   max-height: 70vh;
   overflow-y: auto;
@@ -14,8 +14,8 @@
 
   &__title {
     font-size: 32rpx;
-    font-weight: 600;
-    color: var(--color-ink, #030213);
+    font-weight: var(--weight-semibold);
+    color: var(--reader-ink);
   }
 
   &__close {
@@ -25,7 +25,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: var(--color-white, #fff);
+    background: transparent;
   }
 
   &__section {
@@ -34,25 +34,25 @@
 
   &__section-label {
     font-size: 24rpx;
-    color: var(--text-muted, #999);
+    color: var(--reader-muted);
     display: block;
     margin-bottom: 12rpx;
   }
 
   &__option {
     padding: 20rpx 24rpx;
-    background: var(--color-white, #fff);
-    border-radius: var(--radius-sm, 24rpx);
+    background: var(--reader-surface);
+    border-radius: var(--radius-note);
     margin-bottom: 12rpx;
     font-size: 28rpx;
-    color: var(--text-main, #171717);
-    border: 2rpx solid transparent;
-    transition: all 0.15s ease-out;
+    color: var(--reader-ink);
+    border: 1rpx solid transparent;
+    transition: all 0.15s var(--ease-reader-out);
 
     &--active {
-      border-color: var(--color-ink, #030213);
-      background: #FAF9F9;
-      font-weight: 500;
+      border-color: rgba(17, 17, 17, 0.15);
+      background: var(--reader-paper-warm);
+      font-weight: var(--weight-medium);
     }
 
     &:active {
@@ -68,25 +68,27 @@
     width: 100%;
     min-height: 80rpx;
     padding: 16rpx;
-    background: var(--color-white, #fff);
-    border-radius: var(--radius-sm, 24rpx);
-    border: 2rpx solid var(--border-color, rgba(0, 0, 0, 0.06));
+    box-sizing: border-box;
+    background: var(--reader-surface);
+    border-radius: var(--radius-note);
+    border: 1rpx solid rgba(17, 17, 17, 0.08);
     font-size: 26rpx;
-    color: var(--text-main, #171717);
+    color: var(--reader-ink);
   }
 
   &__submit {
     padding: 20rpx;
-    background: var(--color-ink, #030213);
-    color: var(--color-white, #fff);
-    border-radius: var(--radius-sm, 24rpx);
+    background: var(--reader-ink);
+    color: var(--reader-surface);
+    border-radius: var(--radius-note);
     text-align: center;
     font-size: 28rpx;
-    font-weight: 500;
-    transition: opacity 0.15s ease-out;
+    font-weight: var(--weight-medium);
+    transition: opacity 0.15s var(--ease-reader-out);
 
     &--disabled {
-      background: #ccc;
+      background: var(--reader-muted);
+      opacity: 0.6;
     }
 
     &:active:not(&--disabled) {

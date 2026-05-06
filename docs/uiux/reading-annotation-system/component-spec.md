@@ -25,7 +25,7 @@ If images disagree, use this order:
 1. `component-spec-board.png`
 2. `target-viewport-*.png`
 3. `state-matrix-reference.png`
-4. `annotation-*-detail.svg` for local component details only
+4. Supplemental SVG boards for local component details only
 
 Do not copy archived design-board card treatments into production UI.
 

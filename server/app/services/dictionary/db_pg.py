@@ -107,7 +107,11 @@ async def fetch_entry(entry_id: int, source: str = "tecd3") -> EntryRow | None:
     async with db_connection.DB_POOL.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT *
+            SELECT
+              id, source, source_entry_key, entry_kind,
+              display_headword, base_headword, homograph_no, phonetic,
+              meanings_json, examples_json, phrases_json, sections_json,
+              raw_html, parse_version, exam_tags
             FROM dict_entries
             WHERE source = $1 AND id = $2
             """,
