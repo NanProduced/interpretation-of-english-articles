@@ -139,14 +139,15 @@ export default function VocabDetailView({
   const collectedForms = entry.collectedForms || []
   const displayMeanings: DictionaryMeaning[] =
     dictEntry?.meanings ||
-    entry.detailMeanings?.map(m => ({
-      partOfSpeech: m.pos,
-      definitions: m.definitions.map(d => ({ meaning: d })),
-    })) ||
+    entry.detailMeanings ||
     []
 
-  const hasPhrases = dictEntry && dictEntry.phrases && dictEntry.phrases.length > 0
-  const hasExamples = dictEntry && dictEntry.examples && dictEntry.examples.length > 0
+  const displayPhrases = dictEntry?.phrases || entry.detailPhrases || []
+  const displayExamples = dictEntry?.examples || entry.detailExamples || []
+  const displayPhonetic = dictEntry?.phonetic || entry.phonetic
+
+  const hasPhrases = displayPhrases.length > 0
+  const hasExamples = displayExamples.length > 0
 
   return (
     <View className='vocab-detail-overlay' onClick={onClose}>
@@ -171,9 +172,9 @@ export default function VocabDetailView({
               </View>
             </View>
 
-            {(entry.phonetic || entry.lemma) && (
+            {(displayPhonetic || entry.lemma) && (
               <View className='hero-meta-row'>
-                {entry.phonetic && <Text className='phonetic'>/{entry.phonetic}/</Text>}
+                {displayPhonetic && <Text className='phonetic'>/{displayPhonetic}/</Text>}
                 {entry.lemma && entry.lemma.toLowerCase() !== entry.word.toLowerCase() && (
                   <Text className='lemma'>原型: {entry.lemma}</Text>
                 )}
@@ -341,18 +342,18 @@ export default function VocabDetailView({
                   </View>
                 )}
               </View>
-            ) : dictTab === 'phrases' && dictEntry?.phrases ? (
+            ) : dictTab === 'phrases' && displayPhrases.length > 0 ? (
               <View className='phrases-list'>
-                {dictEntry.phrases.map((p, idx) => (
+                {displayPhrases.map((p, idx) => (
                   <View key={idx} className='phrase-item'>
                     <Text className='phrase-text'>{p.phrase}</Text>
                     {p.meaning && <Text className='phrase-meaning'>{p.meaning}</Text>}
                   </View>
                 ))}
               </View>
-            ) : dictTab === 'examples' && dictEntry?.examples ? (
+            ) : dictTab === 'examples' && displayExamples.length > 0 ? (
               <View className='examples-list'>
-                {dictEntry.examples.map((ex, idx) => (
+                {displayExamples.map((ex, idx) => (
                   <View key={idx} className='example-item'>
                     <Text className='example-text'>{ex.example}</Text>
                     {ex.exampleTranslation && (

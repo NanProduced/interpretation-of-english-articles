@@ -123,38 +123,41 @@
    * ========================================================= */
   &.glyph-grammar_note {
     &::before {
-      width: 10rpx;
-      height: 10rpx;
-      border: 2rpx solid var(--annotation-grammar);
+      width: 25%;
+      height: 25%;
+      border: 1.5rpx solid var(--annotation-grammar);
       border-radius: 50%;
-      top: 25%;
-      left: 20%;
+      top: 20%;
+      left: 15%;
       opacity: 0.7;
       background: transparent;
+      box-sizing: border-box;
     }
 
     &::after {
-      width: 10rpx;
-      height: 10rpx;
-      border: 2rpx solid var(--annotation-grammar);
+      width: 25%;
+      height: 25%;
+      border: 1.5rpx solid var(--annotation-grammar);
       border-radius: 50%;
-      bottom: 25%;
-      right: 20%;
+      bottom: 20%;
+      right: 15%;
       opacity: 0.7;
       background: transparent;
+      box-sizing: border-box;
     }
 
     .grammar-curve {
       position: absolute;
       width: 50%;
       height: 50%;
-      border: 2rpx solid var(--annotation-grammar);
+      border: 1.5rpx solid var(--annotation-grammar);
       border-top: none;
       border-left: none;
       border-bottom-right-radius: 100%;
       top: 30%;
-      left: 28%;
+      left: 25%;
       opacity: 0.6;
+      box-sizing: border-box;
     }
 
     &.glyph-state-active {
@@ -184,7 +187,7 @@
       width: 55%;
       height: 2rpx;
       background: var(--annotation-analysis);
-      top: 48%;
+      top: 50%;
       left: 22%;
       border-radius: 1rpx;
       opacity: 0.6;
@@ -195,7 +198,7 @@
       width: 45%;
       height: 2rpx;
       background: var(--annotation-analysis);
-      bottom: 28%;
+      bottom: 30%;
       right: 18%;
       border-radius: 1rpx;
       opacity: 0.5;

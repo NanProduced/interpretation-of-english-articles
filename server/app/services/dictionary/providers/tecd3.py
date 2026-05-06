@@ -125,6 +125,7 @@ class Tecd3Provider:
             candidates = await lookup_candidates_batch(lemma_all_forms, source=self.source)
 
         if not candidates:
+            await dict_cache.set_miss(cache_key)
             raise ValueError(f"Word not found: {request.query}")
             
         # 5. 重排规则
@@ -212,6 +213,7 @@ class Tecd3Provider:
 
         entry = await fetch_entry(entry_id, source=self.source)
         if entry is None:
+            await dict_cache.set_miss(cache_key)
             raise ValueError(f"Entry not found: {entry_id}")
 
         result = self._build_entry_result(entry.display_headword, entry)
@@ -221,8 +223,6 @@ class Tecd3Provider:
     def _build_entry_result(self, query: str, entry: EntryRow) -> dict[str, Any]:
         display_word = query if query.lower() != entry.display_headword.lower() else entry.display_headword
         base_word = entry.base_headword
-        if query.lower() != entry.display_headword.lower() and entry.base_headword and entry.base_headword.lower() == entry.display_headword.lower():
-            base_word = entry.display_headword
         payload = DictionaryEntryPayload(
             id=entry.id,
             word=display_word,

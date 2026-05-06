@@ -5,12 +5,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.services.dictionary.errors import WordNotFoundError, ServiceUnavailableError
 from app.services.dictionary.providers import Tecd3Provider
 from app.services.dictionary.schemas import DictionaryLookupRequest
-
-
-class WordNotFoundError(Exception):
-    """词典查询失败（词不存在）。"""
 
 
 class DictionaryService:

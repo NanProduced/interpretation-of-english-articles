@@ -2,8 +2,14 @@
   margin-bottom: var(--paragraph-gap);
   padding: 0 var(--reader-padding);
 
+  &:first-of-type {
+    margin-top: 64rpx; /* Increased from 54rpx for better airiness */
+  }
+
+
   &.immersive {
     margin-bottom: var(--paragraph-gap-immersive);
+    padding: 0 var(--reader-padding);
 
     .english-paragraph {
       text-align: left;
@@ -25,23 +31,30 @@
       display: flex;
       align-items: center;
       gap: 16rpx;
-      margin-bottom: var(--reader-space-md);
+      margin-bottom: 32rpx; /* Slightly more space */
       opacity: 0.72;
 
       .paragraph-anchor {
+        flex-shrink: 0;
         color: var(--reader-muted);
         font-family: var(--font-english-serif), serif;
         font-size: 27rpx;
         font-weight: var(--weight-medium);
         letter-spacing: 0.04em;
       }
+
+      .paragraph-divider {
+        flex: 1;
+        height: 1rpx;
+        background: rgba(17, 17, 17, 0.06);
+      }
     }
 
     .sentence-block {
-      margin-bottom: var(--sentence-gap);
+      margin-bottom: 48rpx; /* Increased from 32rpx for better grouping */
 
       &.chunk-merged {
-        margin-bottom: var(--sentence-gap);
+        margin-bottom: 48rpx;
 
         .sentence-translation.merged {
           margin-bottom: 0;
@@ -58,20 +71,20 @@
       font-family: var(--font-english-serif), serif;
       font-size: 32rpx;
       font-weight: var(--weight-medium);
-      line-height: 1.58;
+      line-height: 1.62; /* Refined for readability */
       letter-spacing: 0;
     }
 
     .sentence-translation {
-      margin-top: var(--translation-gap);
-      margin-bottom: var(--reader-space-sm);
+      margin-top: 14rpx; /* Tighter grouping with source */
+      margin-bottom: 24rpx; /* Breathing room before analysis cards */
 
       .translation-text {
         color: rgba(17, 17, 17, 0.36);
         font-family: var(--font-sans);
-        font-size: 24rpx;
+        font-size: 25rpx;
         font-weight: var(--weight-normal);
-        line-height: 1.78;
+        line-height: 1.65;
         letter-spacing: 0;
       }
     }
@@ -79,10 +92,11 @@
     .analysis-cards-list {
       display: flex;
       flex-direction: column;
-      gap: 14rpx;
-      margin-top: 8rpx;
+      gap: 16rpx; /* Spec: consistent rhythm */
+      margin-top: 12rpx;
     }
   }
+
 
   .drop-cap {
     float: left;
@@ -119,37 +133,60 @@
       .analysis-atom {
         display: inline;
         position: relative;
-        padding: 2rpx 0;
-        border-radius: 2rpx;
+        padding: 4rpx 0;
+        border-radius: 4rpx;
         box-decoration-break: clone;
         -webkit-box-decoration-break: clone;
+        transition: all 0.2s var(--ease-reader-out);
       }
 
       .chunk-inline-marker {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 24rpx;
-        height: 24rpx;
-        margin-right: 6rpx;
+        width: 28rpx; /* Spec: 28rpx */
+        height: 28rpx;
+        margin-right: 8rpx;
         border-radius: 50%;
-        border: 1.5rpx solid rgba(17, 17, 17, 0.2);
+        border: 1.5rpx solid currentColor; /* Use current text color */
         background: transparent;
         color: var(--reader-muted);
-        font-size: 16rpx;
-        font-weight: var(--weight-medium);
+        font-size: 18rpx;
+        font-weight: var(--weight-bold);
         line-height: 1;
-        vertical-align: super;
+        vertical-align: middle;
+        opacity: 0.8;
       }
 
       .is-chunk {
-        &.color-type-0 { background-color: rgba(63, 111, 182, 0.06); border-bottom: 2rpx solid rgba(63, 111, 182, 0.42); }
-        &.color-type-1 { background-color: rgba(107, 95, 199, 0.06); border-bottom: 2rpx solid rgba(107, 95, 199, 0.42); }
-        &.color-type-2 { background-color: rgba(4, 120, 87, 0.055); border-bottom: 2rpx solid rgba(4, 120, 87, 0.34); }
-        &.color-type-3 { background-color: rgba(180, 83, 9, 0.052); border-bottom: 2rpx solid rgba(180, 83, 9, 0.34); }
-        &.color-type-4 { background-color: rgba(113, 113, 122, 0.055); border-bottom: 2rpx solid rgba(113, 113, 122, 0.38); }
+        &.color-type-0 { 
+          color: var(--color-info); 
+          border-bottom: 2rpx solid rgba(46, 91, 178, 0.45);
+          .chunk-inline-marker { color: var(--color-info); }
+        }
+        &.color-type-1 { 
+          color: var(--color-focus); 
+          border-bottom: 2rpx solid rgba(180, 83, 9, 0.45);
+          .chunk-inline-marker { color: var(--color-focus); }
+        }
+        &.color-type-2 { 
+          color: var(--color-phrase); 
+          border-bottom: 2rpx solid rgba(109, 40, 217, 0.45);
+          .chunk-inline-marker { color: var(--color-phrase); }
+        }
+        &.color-type-3 { 
+          color: var(--color-grammar); 
+          border-bottom: 2rpx solid rgba(4, 120, 87, 0.45);
+          .chunk-inline-marker { color: var(--color-grammar); }
+        }
+        &.color-type-4 { 
+          color: var(--color-exam); 
+          border-bottom: 2rpx solid rgba(190, 18, 60, 0.45);
+          .chunk-inline-marker { color: var(--color-exam); }
+        }
       }
     }
+
   }
 
   .sentence-translation {

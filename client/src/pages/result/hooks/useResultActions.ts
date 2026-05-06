@@ -8,6 +8,7 @@ import type { AnalyzeRequest } from '../../../services/api/client'
 import { ROUTES } from '../../../config/routes'
 import type { FavoriteRecord } from '../../../types/view/favorites.vm'
 import type { VocabEntry, SaveVocabResult } from '../../../types/view/vocabulary.vm'
+import type { DictionaryResult } from '../../../types/view/render-scene.vm'
 import type { WordClickPayload } from '../../../components/ParagraphBlock'
 import type { WordPopupState } from './useResultState'
 
@@ -146,7 +147,7 @@ export function useResultActions(deps: ActionDeps) {
     }
   }
 
-  const handleAddVocab = async (w: string, dictResult: any) => {
+  const handleAddVocab = async (w: string, dictResult: DictionaryResult | null) => {
     if (!recordId || !dictResult || dictResult.resultType !== 'entry') return
     const detailEntry = dictResult.entry
     const detailMeanings = detailEntry.meanings
@@ -167,10 +168,17 @@ export function useResultActions(deps: ActionDeps) {
       phonetic: detailEntry.phonetic,
       provider: dictResult.provider || 'tecd3',
       sentence: wordPopup.contextSentence,
-      detailMeanings: detailMeanings.map((m: { partOfSpeech?: string; definitions: Array<{ meaning: string }> }) => ({
-        pos: m.partOfSpeech || '',
-        definitions: m.definitions.map((d: { meaning: string }) => d.meaning).filter(Boolean),
-      })).filter((m: { definitions: string[] }) => m.definitions.length > 0),
+      detailMeanings: detailMeanings.map((m: { partOfSpeech?: string; definitions: Array<{ meaning: string; example?: string; exampleTranslation?: string }> }) => ({
+        partOfSpeech: m.partOfSpeech || '',
+        definitions: m.definitions.map((d: { meaning: string; example?: string; exampleTranslation?: string }) => {
+          const def: { meaning: string; example?: string; exampleTranslation?: string } = { meaning: d.meaning }
+          if (d.example) def.example = d.example
+          if (d.exampleTranslation) def.exampleTranslation = d.exampleTranslation
+          return def
+        }).filter((d: { meaning: string }) => d.meaning),
+      })).filter((m: { definitions: Array<{ meaning: string }> }) => m.definitions.length > 0),
+      detailPhrases: detailEntry.phrases?.length > 0 ? detailEntry.phrases : undefined,
+      detailExamples: detailEntry.examples?.length > 0 ? detailEntry.examples : undefined,
       exchange: detailEntry.exchange || [],
       tags: detailEntry.tags || [],
       sourceRefs: [{

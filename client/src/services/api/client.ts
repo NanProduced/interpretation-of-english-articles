@@ -372,7 +372,10 @@ export async function fetchDict(
   occurrence?: number,
 ): Promise<DictResponseDto> {
   let url = `/dict?q=${encodeURIComponent(word)}&type=${type}`
-  if (contextSentence) url += `&context_sentence=${encodeURIComponent(contextSentence)}`
+  if (contextSentence) {
+    const truncated = contextSentence.length > 500 ? contextSentence.slice(0, 500) : contextSentence
+    url += `&context_sentence=${encodeURIComponent(truncated)}`
+  }
   if (occurrence != null) url += `&occurrence=${occurrence}`
 
   return request<DictResponseDto>({

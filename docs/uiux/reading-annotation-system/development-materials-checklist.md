@@ -5,6 +5,7 @@
 Primary direction references:
 
 - `component-spec.md`
+- `icon-spec.md`
 - `assets/component-spec-board.png`
 - `assets/state-matrix-reference.png`
 - `assets/target-viewport-reader-annotations.png`

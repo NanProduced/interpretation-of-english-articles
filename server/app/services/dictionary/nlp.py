@@ -1,21 +1,28 @@
 """
 字典查询专用 spaCy Pipeline。
-包含 tagger、lemmatizer 和 parser，用于句子分析和依存关系判断。
+包含 tagger、lemmatizer、parser 和 NER，用于句子分析和依存关系判断。
 """
 import logging
+import time
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 _dict_spacy_available: Optional[bool] = None
 _dict_spacy_checked: bool = False
+_dict_spacy_last_check: float = 0
+_DICT_SPACY_RETRY_INTERVAL = 300
 _dict_nlp = None
 _dict_matcher = None
 
 def check_dict_spacy_model() -> bool:
-    global _dict_spacy_available, _dict_spacy_checked
-    if _dict_spacy_checked:
-        return bool(_dict_spacy_available)
+    global _dict_spacy_available, _dict_spacy_checked, _dict_spacy_last_check
+    now = time.time()
+    if _dict_spacy_checked and _dict_spacy_available:
+        return True
+    if _dict_spacy_checked and (now - _dict_spacy_last_check) < _DICT_SPACY_RETRY_INTERVAL:
+        return False
+    _dict_spacy_last_check = now
     _dict_spacy_checked = True
     try:
         import spacy
@@ -35,8 +42,7 @@ def get_dict_nlp():
     global _dict_nlp
     if _dict_nlp is None:
         import spacy
-        # 不禁用 parser 和 tagger，因为需要基于 DEP 和 POS 来判断 noun chunk 和 sb/sth 槽位
-        _dict_nlp = spacy.load("en_core_web_sm", disable=["ner"])
+        _dict_nlp = spacy.load("en_core_web_sm", disable=[])
     return _dict_nlp
 
 def get_dict_matcher():
@@ -49,17 +55,14 @@ def get_dict_matcher():
         from spacy.matcher import Matcher
         matcher = Matcher(nlp.vocab)
         
-        # 1. Comparative Structure: adj/adv + than
         matcher.add("COMP_STRICT", [
             [{"POS": {"IN": ["ADJ", "ADV"]}, "TAG": {"IN": ["JJR", "RBR"]}}, {"LOWER": "than"}]
         ])
         
-        # 2. Comparative Structure: more/less + adj/adv + than
         matcher.add("COMP_MORE_LESS", [
             [{"LOWER": {"IN": ["more", "less"]}}, {"POS": {"IN": ["ADJ", "ADV"]}}, {"LOWER": "than"}]
         ])
         
-        # 3. Comparative with Gap: adj/adv + (much/far/slightly) + than
         matcher.add("COMP_GAP", [
             [
                 {"POS": {"IN": ["ADJ", "ADV"]}, "TAG": {"IN": ["JJR", "RBR"]}},
@@ -68,7 +71,6 @@ def get_dict_matcher():
             ]
         ])
         
-        # 4. Idiom: be there for
         matcher.add("BE_THERE_FOR", [
             [{"LEMMA": "be"}, {"LOWER": "there"}, {"LOWER": "for"}]
         ])

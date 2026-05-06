@@ -126,10 +126,17 @@ export default function DailyReaderPage() {
       phonetic: detailEntry.phonetic,
       provider: dictResult.provider || 'tecd3',
       sentence: contextSentence,
-      detailMeanings: detailMeanings.map((m: { partOfSpeech?: string; definitions: Array<{ meaning: string }> }) => ({
-        pos: m.partOfSpeech || '',
-        definitions: m.definitions.map((d: { meaning: string }) => d.meaning).filter(Boolean),
-      })).filter((m: { definitions: string[] }) => m.definitions.length > 0),
+      detailMeanings: detailMeanings.map((m: { partOfSpeech?: string; definitions: Array<{ meaning: string; example?: string; exampleTranslation?: string }> }) => ({
+        partOfSpeech: m.partOfSpeech || '',
+        definitions: m.definitions.map((d: { meaning: string; example?: string; exampleTranslation?: string }) => {
+          const def: { meaning: string; example?: string; exampleTranslation?: string } = { meaning: d.meaning }
+          if (d.example) def.example = d.example
+          if (d.exampleTranslation) def.exampleTranslation = d.exampleTranslation
+          return def
+        }).filter((d: { meaning: string }) => d.meaning),
+      })).filter((m: { definitions: Array<{ meaning: string }> }) => m.definitions.length > 0),
+      detailPhrases: detailEntry.phrases?.length > 0 ? detailEntry.phrases : undefined,
+      detailExamples: detailEntry.examples?.length > 0 ? detailEntry.examples : undefined,
       exchange: detailEntry.exchange || [],
       tags: detailEntry.tags || [],
       sourceRefs: [{

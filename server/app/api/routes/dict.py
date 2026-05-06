@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.services.dictionary import get_service
 from app.services.dictionary.schemas import DictionaryLookupResult, DictionaryEntryResult
-from app.services.dictionary.service import WordNotFoundError
+from app.services.dictionary.errors import WordNotFoundError, ServiceUnavailableError
 
 logger = getLogger("app.api")
 
@@ -48,6 +48,8 @@ async def lookup_word(
         return response
     except WordNotFoundError:
         raise HTTPException(status_code=404, detail=f"Word not found: {word}") from None
+    except ServiceUnavailableError:
+        raise HTTPException(status_code=503, detail="Dictionary service temporarily unavailable") from None
     except Exception as exc:
         logger.error("lookup_word failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail="Dictionary service temporarily unavailable") from None
@@ -65,6 +67,8 @@ async def lookup_entry(
         return response
     except WordNotFoundError:
         raise HTTPException(status_code=404, detail=f"Entry not found: {id}") from None
+    except ServiceUnavailableError:
+        raise HTTPException(status_code=503, detail="Dictionary service temporarily unavailable") from None
     except Exception as exc:
         logger.error("lookup_entry failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail="Dictionary service temporarily unavailable") from None

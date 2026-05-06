@@ -79,6 +79,7 @@ The approved assets now use one aligned component language. Do not reference arc
 | `agent-correction-brief.md` | Correction brief for implementations that drift from the approved design direction. |
 | `formal-design-brief.md` | Formal UI constraints for grammar note, sentence analysis, drop cap, reader customization, and word lookup. |
 | `component-spec.md` | Concrete component specs, tokens, state requirements, and screenshot references for implementation. |
+| `icon-spec.md` | Fixed SVG icon assets and `AnnotationGlyph` mapping rules. |
 | `implementation-mapping.md` | Maps approved UI direction to current backend schema and frontend components. |
 | `word-lookup-and-vocabulary-ux.md` | Design brief for point-word lookup, workflow vocabulary marks, phrase/context glosses, and saved vocabulary states. |
 | `development-materials-checklist.md` | Implementation-oriented checklist for components, tokens, fixtures, and optional assets. |

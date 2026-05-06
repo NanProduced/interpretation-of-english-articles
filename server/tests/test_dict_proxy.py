@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.api.routes import dict as dict_route
 from app.api.routes.dict import router as dict_router
-from app.services.dictionary.service import WordNotFoundError
+from app.services.dictionary.errors import WordNotFoundError
 
 
 class StubDictionaryService:

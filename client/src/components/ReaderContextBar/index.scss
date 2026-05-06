@@ -3,34 +3,35 @@
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  padding: 16rpx var(--reader-padding) 4rpx;
+  padding: 24rpx var(--reader-padding) 8rpx;
+  min-height: 44rpx;
 
   .reader-context-items {
     display: flex;
     align-items: center;
     min-width: 0;
-    gap: 12rpx;
+    gap: 12rpx; /* Spec: 12rpx */
     flex: 1;
   }
 
   .context-item {
-    max-width: 250rpx;
-    overflow: hidden;
     color: var(--reader-muted);
     font-family: var(--font-sans);
     font-size: 23rpx;
     font-weight: var(--weight-normal);
     letter-spacing: 0;
     line-height: 1.25;
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 
     &.source {
+      flex-shrink: 0;
       color: var(--reader-subtle);
     }
 
     &.goal {
-      max-width: 330rpx;
+      flex-shrink: 1;
     }
 
     &.mode {

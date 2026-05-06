@@ -53,10 +53,24 @@ export interface VocabEntry {
   dictEntryId?: number
   /** 音标 */
   phonetic?: string
-  /** 深度学习数据（从后端 meanings_json 解析） */
+  /** 深度学习数据（从后端 meanings_json 解析，与 DictionaryMeaning 结构对齐） */
   detailMeanings?: Array<{
-    pos: string
-    definitions: string[]
+    partOfSpeech: string
+    definitions: Array<{
+      meaning: string
+      example?: string
+      exampleTranslation?: string
+    }>
+  }>
+  /** 短语快照（离线降级用） */
+  detailPhrases?: Array<{
+    phrase: string
+    meaning?: string
+  }>
+  /** 例句快照（离线降级用） */
+  detailExamples?: Array<{
+    example: string
+    exampleTranslation?: string
   }>
   /** 词形变换列表 */
   exchange?: string[]

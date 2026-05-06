@@ -223,11 +223,12 @@ page {
   --reader-space-xxl: 64rpx;
 
   /* --- Component-specific Dimensions --- */
-  --reader-padding: 40rpx;
-  --paragraph-gap: 64rpx;
-  --paragraph-gap-immersive: 80rpx;
-  --sentence-gap: 32rpx;
-  --translation-gap: 12rpx;
+  --reader-padding: 56rpx; /* Spec: Editorial padding */
+  --paragraph-gap: 80rpx; /* Increased for breathing room */
+  --paragraph-gap-immersive: 96rpx;
+  --sentence-gap: 40rpx;
+  --translation-gap: 14rpx;
+
 
   /* --- Border & Elevation (Paper-like, not card-like) --- */
   --reader-border-light: rgba(0, 0, 0, 0.04);
@@ -270,16 +271,16 @@ page {
 
   /* --- Word Lookup Slip --- */
   --slip-width: 408rpx;
-  --slip-padding: 22rpx 24rpx 18rpx;
-  --slip-word-size: 34rpx;
-  --slip-def-size: 25rpx;
-  --slip-shadow: 0 10rpx 30rpx rgba(17, 17, 17, 0.11), 0 1rpx 2rpx rgba(17, 17, 17, 0.04);
+  --slip-padding: 20rpx;
+  --slip-word-size: 30rpx;
+  --slip-def-size: 24rpx;
+  --slip-shadow: 0 4rpx 14rpx rgba(17, 17, 17, 0.045);
 
   /* --- Dictionary Sheet --- */
   --sheet-header-word-size: 60rpx;
-  --sheet-padding-x: 40rpx;
+  --sheet-padding-x: 32rpx;
   --sheet-radius: 34rpx;
-  --sheet-shadow: 0 -14rpx 44rpx rgba(17, 17, 17, 0.12);
+  --sheet-shadow: 0 -4rpx 20rpx rgba(17, 17, 17, 0.06);
 
   /* --- Feedback (Quiet, secondary) --- */
   --feedback-btn-size: 22rpx;

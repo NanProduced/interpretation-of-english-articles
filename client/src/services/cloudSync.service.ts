@@ -315,14 +315,18 @@ async function executeUpsertVocab(item: SyncQueueItem): Promise<void> {
 }
 
 async function executeUpdateVocabMastery(item: SyncQueueItem): Promise<void> {
-  const { lemma, masteryStatus } = item.payload as { lemma: string; masteryStatus: string }
-  const currentId = resolveCurrentVocabId(lemma, item.entityId)
-  if (!currentId) return
-  await updateCloudVocabulary(currentId, { mastery_status: masteryStatus as 'new' | 'learning' | 'review' | 'mastered' | 'archived' })
+  const { lemma, masteryStatus, cloudId } = item.payload as { lemma: string; masteryStatus: string; cloudId?: string }
+  const targetId = cloudId || resolveCurrentVocabId(lemma, item.entityId)
+  if (!targetId) return
+  await updateCloudVocabulary(targetId, { mastery_status: masteryStatus as 'new' | 'learning' | 'review' | 'mastered' | 'archived' })
 }
 
 async function executeDeleteVocab(item: SyncQueueItem): Promise<void> {
-  const { lemma } = item.payload as { lemma: string }
+  const { lemma, cloudId } = item.payload as { lemma: string; cloudId?: string }
+  if (cloudId) {
+    await deleteCloudVocabulary(cloudId)
+    return
+  }
   const currentId = resolveCurrentVocabId(lemma, item.entityId)
   if (!currentId) return
   await deleteCloudVocabulary(currentId)
@@ -430,7 +434,7 @@ export const CloudSyncService = {
       entityType: 'vocab',
       entityId: vocabId,
       action: 'UPDATE_VOCAB_MASTERY',
-      payload: { lemma, masteryStatus },
+      payload: { lemma, masteryStatus, cloudId: vocabId },
       status: 'pending',
       retryCount: 0,
       createdAt: Date.now(),
@@ -451,7 +455,7 @@ export const CloudSyncService = {
       entityType: 'vocab',
       entityId: vocabId,
       action: 'DELETE_VOCAB',
-      payload: { lemma },
+      payload: { lemma, cloudId: vocabId },
       status: 'pending',
       retryCount: 0,
       createdAt: Date.now(),

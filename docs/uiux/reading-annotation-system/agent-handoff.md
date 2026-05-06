@@ -17,7 +17,8 @@ The goal is not to rebuild the app. The goal is to upgrade the core reader annot
 3. `docs/uiux/reading-annotation-system/implementation-mapping.md`
 4. `docs/uiux/reading-annotation-system/word-lookup-and-vocabulary-ux.md`
 5. `docs/uiux/reading-annotation-system/component-spec.md`
-6. `docs/uiux/reading-annotation-system/development-materials-checklist.md`
+6. `docs/uiux/reading-annotation-system/icon-spec.md`
+7. `docs/uiux/reading-annotation-system/development-materials-checklist.md`
 
 Visual references:
 
@@ -29,6 +30,16 @@ Visual references:
 - `docs/uiux/reading-annotation-system/assets/annotation-glyph-detail.svg`
 - `docs/uiux/reading-annotation-system/assets/annotation-note-card-detail.svg`
 - `docs/uiux/reading-annotation-system/assets/annotation-edge-states-detail.svg`
+
+Icon assets:
+
+- `docs/uiux/reading-annotation-system/icons/grammar-note.svg`
+- `docs/uiux/reading-annotation-system/icons/sentence-analysis.svg`
+- `docs/uiux/reading-annotation-system/icons/vocab.svg`
+- `docs/uiux/reading-annotation-system/icons/phrase.svg`
+- `docs/uiux/reading-annotation-system/icons/context.svg`
+- `docs/uiux/reading-annotation-system/icons/feedback.svg`
+- `docs/uiux/reading-annotation-system/icons/saved-vocab.svg`
 
 ## Visual Source Of Truth
 

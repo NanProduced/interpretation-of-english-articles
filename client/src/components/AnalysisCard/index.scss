@@ -1,10 +1,16 @@
 .analysis-card {
-  margin: 18rpx 0;
+  margin: 0; /* Vertical margins managed by parent gap/flow */
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  width: 100%;
 
+
+  /* =========================================================
+   * NoteTab (Collapsed Entry)
+   * Spec: Height 58rpx, Radius 10rpx, Border 1rpx
+   * ========================================================= */
   .card-summary-row {
     display: inline-flex;
     align-items: center;
@@ -13,8 +19,8 @@
     padding: 11rpx 20rpx;
     box-sizing: border-box;
     background: var(--reader-surface);
-    border: 1rpx solid rgba(17, 17, 17, 0.075);
-    border-radius: 10rpx;
+    border: 1rpx solid var(--entry-tab-border);
+    border-radius: var(--entry-tab-radius);
     box-shadow: 0 4rpx 12rpx rgba(17, 17, 17, 0.035);
     transition: background 0.16s var(--ease-reader-out), transform 0.16s var(--ease-reader-out), box-shadow 0.16s var(--ease-reader-out);
 
@@ -38,7 +44,7 @@
       overflow: hidden;
       color: var(--reader-ink);
       font-family: var(--font-sans);
-      font-size: 25rpx;
+      font-size: var(--entry-tab-font-size);
       font-weight: var(--weight-medium);
       line-height: 1.25;
       letter-spacing: 0;
@@ -60,6 +66,10 @@
     }
   }
 
+  /* =========================================================
+   * AnnotationNoteCard (Expanded Detail)
+   * Spec: Radius 28rpx, Shadow sm, Padding 26rpx 28rpx 20rpx
+   * ========================================================= */
   .card-content-expandable {
     display: grid;
     width: 100%;
@@ -94,6 +104,7 @@
     box-sizing: border-box;
     position: relative;
 
+    /* Header */
     .expanded-title-row {
       display: flex;
       align-items: center;
@@ -128,56 +139,35 @@
       }
     }
 
-    .card-meta-row {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10rpx;
-      margin-top: 18rpx;
-    }
+    /* Source Excerpt (Grammar Note) */
+    .grammar-snippet-box {
+      margin-top: 20rpx;
+      margin-bottom: 18rpx;
+      padding: 18rpx 20rpx;
+      background: var(--reader-paper-deep);
+      border: 1rpx solid rgba(17, 17, 17, 0.045);
+      border-radius: 14rpx;
 
-    .card-phonetic {
-      color: var(--reader-muted);
-      font-size: 23rpx;
-      font-style: italic;
-      line-height: 1.35;
-    }
-
-    .tag-badge {
-      padding: 4rpx 10rpx;
-      border-radius: 8rpx;
-      background: rgba(17, 17, 17, 0.035);
-      color: var(--reader-muted);
-      font-size: 20rpx;
-      line-height: 1.2;
-    }
-
-    .card-content-wrapper {
-      padding-top: 20rpx;
-
-      .grammar-snippet-box {
-        margin-bottom: 18rpx;
-        padding: 18rpx 20rpx;
-        background: var(--reader-paper-deep);
-        border: 1rpx solid rgba(17, 17, 17, 0.045);
-        border-radius: 14rpx;
-
-        .snippet-label {
-          display: block;
-          margin-bottom: 8rpx;
-          color: var(--reader-muted);
-          font-size: 21rpx;
-          line-height: 1.2;
-        }
-
-        .snippet-text {
-          display: block;
-          color: var(--reader-ink);
-          font-family: var(--font-english-serif), serif;
-          font-size: 28rpx;
-          line-height: 1.55;
-        }
+      .snippet-label {
+        display: block;
+        margin-bottom: 8rpx;
+        color: var(--reader-muted);
+        font-size: 21rpx;
+        line-height: 1.2;
       }
+
+      .snippet-text {
+        display: block;
+        color: var(--reader-ink);
+        font-family: var(--font-english-serif), serif;
+        font-size: 28rpx;
+        line-height: 1.55;
+      }
+    }
+
+    /* Content Area */
+    .card-content-wrapper {
+      padding-top: 4rpx; /* Reduced if snippet exists */
     }
 
     .card-content {
@@ -192,6 +182,7 @@
       }
     }
 
+    /* Feedback Footer */
     .card-feedback-row {
       display: flex;
       align-items: center;
@@ -221,10 +212,6 @@
       }
     }
 
-    .feedback-quick-icon {
-      display: none;
-    }
-
     .feedback-quick-text,
     .feedback-detail-text {
       color: var(--reader-muted);
@@ -249,6 +236,9 @@
     }
   }
 
+  /* =========================================================
+   * Sentence Analysis Details (Expanded)
+   * ========================================================= */
   .sentence-analysis-details {
     .analysis-summary {
       display: block;
@@ -290,19 +280,19 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 32rpx;
-            height: 32rpx;
+            width: 28rpx; /* Spec: 28rpx */
+            height: 28rpx;
             color: var(--reader-surface);
             border-radius: 50%;
             background: var(--reader-muted);
-            font-size: 20rpx;
+            font-size: 18rpx;
             font-weight: var(--weight-bold);
             line-height: 1;
           }
 
           .label-text {
             color: var(--reader-ink);
-            font-size: 24rpx;
+            font-size: 24rpx; /* Spec: 24rpx */
             font-weight: var(--weight-medium);
             line-height: 1.3;
           }
@@ -312,14 +302,18 @@
           min-width: 0;
           color: var(--reader-ink);
           font-family: var(--font-english-serif), serif;
-          font-size: 26rpx;
+          font-size: 25rpx; /* Spec: 25rpx */
           line-height: 1.5;
-          padding-left: 44rpx; /* Align with text, after index */
+          padding-left: 40rpx;
         }
+
       }
     }
   }
 
+  /* =========================================================
+   * Expanded Card Container
+   * ========================================================= */
   &.expanded {
     align-items: stretch;
     margin: 24rpx 0;
@@ -330,9 +324,10 @@
 
     .card-content-expandable {
       background: var(--reader-surface);
-      border: 1rpx solid rgba(17, 17, 17, 0.07);
-      border-radius: 28rpx;
-      box-shadow: 0 8rpx 24rpx rgba(17, 17, 17, 0.05);
+      border: 1rpx solid var(--reader-border-subtle);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-reader-sm);
     }
   }
 }
+

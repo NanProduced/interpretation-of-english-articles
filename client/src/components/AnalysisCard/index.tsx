@@ -169,7 +169,11 @@ export default function AnalysisCard({
           {(type === 'grammar' || type === 'sentence') && (
             <View className='expanded-title-row'>
               <View style={{ display: 'flex', alignItems: 'center', gap: '12rpx' }}>
-                {type === 'sentence' && <LucideIcon name='align-left' size={16} color='var(--reader-ink)' />}
+                {type === 'sentence' ? (
+                  <AnnotationGlyph type='sentence_analysis' size={32} state='active' />
+                ) : (
+                  <AnnotationGlyph type='grammar_note' size={32} state='active' />
+                )}
                 <Text className='expanded-full-title'>{title && title !== config.defaultLabel ? title : config.defaultLabel}</Text>
               </View>
               <View className='collapse-btn' onClick={handleCollapse}>
@@ -247,7 +251,7 @@ export default function AnalysisCard({
               )}
               {onFeedback && (
                 <View className='feedback-detail-btn' onClick={(e) => { e.stopPropagation(); onFeedback() }}>
-                  <LucideIcon name='messageSquare' size={13} color='var(--text-muted)' strokeWidth={1.8} />
+                  <AnnotationGlyph type='feedback' size={28} />
                   <Text className='feedback-detail-text'>反馈</Text>
                 </View>
               )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { AnyInlineMarkModel, type VisualTone, type AcademicVisualTone, type InlineGlossary, type AcademicInlineGlossary, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
@@ -24,9 +24,15 @@ interface WordPopupProps {
   readingVariant?: string
   readingGoal?: string
   isSaved?: boolean
+  savedMasteryStatus?: string
   onClose: () => void
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
+}
+
+interface AudioVariant {
+  label: string
+  url: string
 }
 
 function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): string {
@@ -116,9 +122,13 @@ function WordLookupSlip({
   x,
   y,
   screenWidth,
+  audioVariants,
+  audioPlayingUrl,
+  onPlayAudio,
   onClose,
   onExpand,
   onAddVocab,
+  onSelectEntry,
 }: {
   lookupText: string
   dictResult: DictionaryResult | null
@@ -133,9 +143,13 @@ function WordLookupSlip({
   x: number
   y: number
   screenWidth: number
+  audioVariants: AudioVariant[]
+  audioPlayingUrl: string | null
+  onPlayAudio: (url: string) => void
   onClose: () => void
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
+  onSelectEntry?: (entryId: number) => void
 }) {
     const popupWidth = (screenWidth * 408) / 750
   const offset = 12
@@ -173,15 +187,28 @@ function WordLookupSlip({
         }}>
           <View className='mini-header'>
             <Text className='mini-word'>{entry?.word || lookupText}</Text>
-            <LucideIcon name='chevron-right' size={16} color='var(--reader-muted)' />
           </View>
           
-          {(entry?.phonetic || (isLLMAnnotated && mark)) && (
+          {(entry?.phonetic || audioVariants.length > 0 || (isLLMAnnotated && mark)) && (
             <View className='mini-sub-info'>
-              {entry?.phonetic && (
+              {(entry?.phonetic || audioVariants.length > 0) && (
                 <View className='mini-phonetic-row'>
-                  <LucideIcon name='volume-2' size={14} color='var(--reader-muted)' />
-                  <Text className='mini-phonetic'>/{entry.phonetic}/</Text>
+                  {entry?.phonetic && (
+                    <Text className='mini-phonetic'>/{entry.phonetic}/</Text>
+                  )}
+                  {audioVariants.map((v) => (
+                    <View
+                      key={v.url}
+                      className={`mini-audio-btn ${audioPlayingUrl === v.url ? 'is-playing' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onPlayAudio(v.url)
+                      }}
+                    >
+                      <LucideIcon name={audioPlayingUrl === v.url ? 'volume-1' : 'volume-2'} size={14} color='var(--reader-muted)' />
+                      {v.label && <Text className='mini-audio-label'>{v.label}</Text>}
+                    </View>
+                  ))}
                 </View>
               )}
               {isLLMAnnotated && mark && (
@@ -211,7 +238,10 @@ function WordLookupSlip({
                 </Text>
               </View>
             ) : isDisambiguationResult ? (
-              <View className='mini-disambiguation-hint'>
+              <View className='mini-disambiguation-hint' onClick={(e) => {
+                e.stopPropagation()
+                onExpand?.()
+              }}>
                 <LucideIcon name='list' size={14} color='var(--reader-muted)' />
                 <Text className='mini-def'>多个义项，点击查看</Text>
               </View>
@@ -232,7 +262,7 @@ function WordLookupSlip({
             }}
           >
             <View className='mini-action-left'>
-              {!isSavedState && <LucideIcon name='bookmark' size={14} color='var(--reader-ink)' />}
+              {!isSavedState && <AnnotationGlyph type='saved_vocab' size={14} state='default' />}
               {isSavedState && <AnnotationGlyph type='saved_vocab' size={14} state='active' />}
               <Text className='mini-action-text'>{saveBtnCopy}</Text>
             </View>
@@ -259,9 +289,13 @@ function DictionaryNoteSheet({
   activeTab,
   isSavedState,
   saveBtnCopy,
+  audioVariants,
+  audioPlayingUrl,
+  onPlayAudio,
   setActiveTab,
   onClose,
   onAddVocab,
+  onSelectEntry,
   setShowDictFeedback,
   renderContextExcerpt,
 }: {
@@ -277,9 +311,13 @@ function DictionaryNoteSheet({
   activeTab: string
   isSavedState: boolean
   saveBtnCopy: string
+  audioVariants: AudioVariant[]
+  audioPlayingUrl: string | null
+  onPlayAudio: (url: string) => void
   setActiveTab: (tab: 'meanings' | 'phrases' | 'examples') => void
   onClose: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
+  onSelectEntry?: (entryId: number) => void
   setShowDictFeedback: (v: boolean) => void
   renderContextExcerpt: () => React.ReactNode
 }) {
@@ -288,36 +326,93 @@ function DictionaryNoteSheet({
   const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
   const isEntryResult = dictResult?.resultType === 'entry'
 
+  // Gesture state for swipe-to-close
+  const [dragY, setDragY] = useState(0)
+  const startYRef = useRef(0)
+  const isDraggingRef = useRef(false)
+
+  const handleTouchStart = (e: any) => {
+    startYRef.current = e.touches[0].clientY
+    isDraggingRef.current = true
+  }
+
+  const handleTouchMove = (e: any) => {
+    if (!isDraggingRef.current) return
+    const currentY = e.touches[0].clientY
+    const deltaY = currentY - startYRef.current
+    if (deltaY > 0) {
+      setDragY(deltaY)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (!isDraggingRef.current) return
+    isDraggingRef.current = false
+    if (dragY > 60) {
+      onClose()
+    } else {
+      setDragY(0)
+    }
+  }
+
   return (
-    <View className='word-popup-overlay full-overlay' onClick={onClose}>
-      <View className='word-popup-container' onClick={(e) => e.stopPropagation()}>
-        <View className='popup-drag-handle' />
-        <View className='popup-header'>
-          <View className='word-info'>
-            <View className='word-text-row'>
-              <Text className='word-text'>{entry?.word || lookupText}</Text>
-            </View>
-            <View className='word-sub-info'>
-              {entry?.phonetic && (
-                <View className='phonetic-row'>
-                  <Text className='word-phonetic'>/{entry.phonetic}/</Text>
-                </View>
-              )}
-              {readingGoal === 'exam' && entry?.tags && entry.tags.length > 0 && (() => {
-                const filtered = filterExamTags(entry.tags, readingVariant)
-                return filtered.length > 0 ? (
-                  <View className='exam-tags-row'>
-                    {filtered.map(tag => (
-                      <Text key={tag} className='exam-tag-pill'>{tag}</Text>
+    <View className='word-popup-overlay full-overlay' onClick={onClose} catchMove>
+      <View 
+        className='word-popup-container' 
+        onClick={(e) => e.stopPropagation()}
+        style={{ 
+          transform: dragY > 0 ? `translateY(${dragY}px)` : '',
+          transition: dragY > 0 ? 'none' : 'transform 0.26s var(--ease-reader-out)'
+        }}
+      >
+        <View 
+          className='popup-header-touch-area'
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <View className='popup-drag-handle' />
+          <View className='popup-header'>
+            <View className='word-info'>
+              <View className='word-text-row'>
+                <Text className='word-text'>{entry?.word || lookupText}</Text>
+              </View>
+              <View className='word-sub-info'>
+                {entry?.phonetic && (
+                  <View className='phonetic-row'>
+                    <Text className='word-phonetic'>/{entry.phonetic}/</Text>
+                  </View>
+                )}
+                {audioVariants.length > 0 && (
+                  <View className='audio-variants-row'>
+                    {audioVariants.map((v) => (
+                      <View
+                        key={v.url}
+                        className={`audio-variant-btn ${audioPlayingUrl === v.url ? 'is-playing' : ''}`}
+                        onClick={() => onPlayAudio(v.url)}
+                      >
+                        <LucideIcon name={audioPlayingUrl === v.url ? 'volume-1' : 'volume-2'} size={16} color='var(--reader-muted)' />
+                        {v.label && <Text className='audio-variant-label'>{v.label}</Text>}
+                      </View>
                     ))}
                   </View>
-                ) : null
-              })()}
+                )}
+                {readingGoal === 'exam' && entry?.tags && entry.tags.length > 0 && (() => {
+                  const filtered = filterExamTags(entry.tags, readingVariant)
+                  return filtered.length > 0 ? (
+                    <View className='exam-tags-row'>
+                      {filtered.map(tag => (
+                        <Text key={tag} className='exam-tag-pill'>{tag}</Text>
+                      ))}
+                    </View>
+                  ) : null
+                })()}
+              </View>
             </View>
-          </View>
-          <View className='header-right-actions'>
-            <View className='popup-close-btn' onClick={onClose}>
-              <LucideIcon name='x' size={24} color='var(--reader-ink)' />
+            <View className='header-right-actions'>
+              <View className='popup-close-btn' onClick={onClose}>
+                <LucideIcon name='x' size={24} color='var(--reader-ink)' />
+              </View>
             </View>
           </View>
         </View>
@@ -329,7 +424,7 @@ function DictionaryNoteSheet({
           {glossary && (
             <View className='glossary-section'>
               <View className='section-title'>
-                {mark?.visualTone === 'phrase' ? <AnnotationGlyph type='phrase' size={16} /> : <AnnotationGlyph type='context' size={16} />}
+                {mark?.visualTone === 'phrase' ? <AnnotationGlyph type='phrase' size={16} state='active' /> : <AnnotationGlyph type='context' size={16} state='active' />}
                 <Text>语境解析 · {professionalLabel}</Text>
               </View>
               <View className='glossary-content'>
@@ -359,14 +454,26 @@ function DictionaryNoteSheet({
               )}
             </View>
 
-            {loading ? (
+            {loading && !isDisambiguationResult ? (
               <View className='popup-loading-state'>
                 <View className='loading-spinner' />
               </View>
             ) : isDisambiguationResult ? (
               <View className='disambiguation-list'>
+                {loading && (
+                  <View className='disambiguation-loading-overlay'>
+                    <View className='loading-spinner' />
+                  </View>
+                )}
                 {dictResult.candidates.map((candidate) => (
-                  <View key={candidate.entryId} className='candidate-item' onClick={() => {}}>
+                  <View
+                    key={candidate.entryId}
+                    className={`candidate-item ${loading ? 'is-loading' : ''}`}
+                    onClick={() => {
+                      if (loading) return
+                      onSelectEntry?.(candidate.entryId)
+                    }}
+                  >
                     <View className='candidate-main'>
                       <View className='candidate-title-row'>
                         <Text className='candidate-label'>{candidate.label}</Text>
@@ -374,6 +481,7 @@ function DictionaryNoteSheet({
                       </View>
                       {candidate.preview && <View className='candidate-preview'>{candidate.preview}</View>}
                     </View>
+                    <LucideIcon name='chevron-right' size={16} color='var(--reader-muted)' />
                   </View>
                 ))}
               </View>
@@ -434,7 +542,7 @@ function DictionaryNoteSheet({
 
         <View className='popup-footer-actions safe-area-bottom'>
           <View className='footer-action-btn secondary' onClick={() => setShowDictFeedback(true)}>
-            <LucideIcon name='messageSquare' size={18} color='var(--reader-ink)' />
+            <AnnotationGlyph type='feedback' size={18} state='default' />
             <Text>反馈</Text>
           </View>
           {isEntryResult && entry && entry.id > 0 && (
@@ -442,7 +550,7 @@ function DictionaryNoteSheet({
               className={`footer-action-btn ${isSavedState ? 'saved' : 'primary'}`} 
               onClick={() => onAddVocab?.(entry.word, dictResult)}
             >
-              {!isSavedState && <LucideIcon name='plus' size={18} color='var(--reader-paper)' />}
+              {!isSavedState && <AnnotationGlyph type='saved_vocab' size={16} state='default' className='white-glyph' />}
               {isSavedState && <AnnotationGlyph type='saved_vocab' size={16} state='active' />}
               <Text>{saveBtnCopy}</Text>
             </View>
@@ -455,7 +563,7 @@ function DictionaryNoteSheet({
 
 export default function WordPopup({
   visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant, readingGoal,
-  isSaved = false, onClose, onExpand, onAddVocab,
+  isSaved = false, savedMasteryStatus, onClose, onExpand, onAddVocab,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -463,6 +571,9 @@ export default function WordPopup({
   const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
   const [showDictFeedback, setShowDictFeedback] = useState(false)
   const fetchVersionRef = useRef(0)
+  const [audioVariants, setAudioVariants] = useState<AudioVariant[]>([])
+  const [audioPlayingUrl, setAudioPlayingUrl] = useState<string | null>(null)
+  const innerAudioRef = useRef<ReturnType<typeof Taro.createInnerAudioContext> | null>(null)
 
   const lookupText = mark?.lookupText || word
   const glossary = mark?.glossary
@@ -497,13 +608,19 @@ export default function WordPopup({
     )
   }
 
-  const saveState = getLookupSaveState(lookupText, isSaved)
+  const saveState = getLookupSaveState(lookupText, isSaved, undefined, savedMasteryStatus ? [{ status: savedMasteryStatus }] : undefined)
   const saveBtnCopy = getSaveActionCopy(saveState)
   const isSavedState = saveState !== 'not_saved'
 
   useEffect(() => {
     if (!visible) {
       setDictResult(null)
+      setAudioVariants([])
+      setAudioPlayingUrl(null)
+      if (innerAudioRef.current) {
+        innerAudioRef.current.destroy()
+        innerAudioRef.current = null
+      }
       return
     }
     if (!lookupText) return
@@ -516,13 +633,56 @@ export default function WordPopup({
     Taro.getSystemInfo({}).then((info) => setScreenWidth(info.windowWidth || 375))
   }, [])
 
+  const loadAudio = useCallback(async (wordToFetch: string) => {
+    if (!wordToFetch || wordToFetch.trim().includes(' ')) return
+    const audioVersion = fetchVersionRef.current
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(wordToFetch)}`, {
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      if (audioVersion !== fetchVersionRef.current) return
+      if (!res.ok) return
+      const data = await res.json()
+      if (audioVersion !== fetchVersionRef.current) return
+      const phonetics = Array.isArray(data) ? data[0]?.phonetics : []
+      if (!Array.isArray(phonetics)) return
+      const variants: AudioVariant[] = []
+      const seen = new Set<string>()
+      for (const p of phonetics) {
+        if (!p.audio || p.audio.trim() === '') continue
+        let url = p.audio as string
+        if (url.startsWith('//')) url = 'https:' + url
+        if (seen.has(url)) continue
+        seen.add(url)
+        let label = 'US'
+        if (url.includes('-uk.')) label = 'UK'
+        else if (url.includes('-us.')) label = 'US'
+        else if (url.includes('-au.')) label = 'AU'
+        else label = ''
+        variants.push({ label, url })
+      }
+      if (audioVersion !== fetchVersionRef.current) return
+      if (variants.length > 0) {
+        setAudioVariants(variants)
+      }
+    } catch {
+      // silent fail
+    }
+  }, [])
+
   useEffect(() => {
     const isEntryResult = dictResult?.resultType === 'entry'
     if (isEntryResult && entry) {
       if (activeTab === 'phrases' && !entry.phrases?.length) setActiveTab('meanings')
       if (activeTab === 'examples' && !entry.examples?.length) setActiveTab('meanings')
     }
-  }, [dictResult, activeTab, entry])
+    if (isEntryResult && entry && audioVariants.length === 0) {
+      loadAudio(entry.word)
+    }
+  }, [dictResult, activeTab, entry, audioVariants.length, loadAudio])
 
   const fetchDictionary = async (text: string, version: number) => {
     const type = text.trim().includes(' ') ? 'phrase' : 'word'
@@ -559,7 +719,6 @@ export default function WordPopup({
       return
     }
     setLoading(true)
-    setDictResult(null)
     try {
       const dto = await fetchDictEntry(entryId)
       const vm = dictResponseDtoToVm(dto)
@@ -571,6 +730,29 @@ export default function WordPopup({
     } finally {
       setLoading(false)
     }
+  }
+
+  const playAudio = (url: string) => {
+    if (audioPlayingUrl) return
+    setAudioPlayingUrl(url)
+    if (innerAudioRef.current) {
+      innerAudioRef.current.destroy()
+      innerAudioRef.current = null
+    }
+    const innerAudio = Taro.createInnerAudioContext()
+    innerAudioRef.current = innerAudio
+    innerAudio.src = url
+    innerAudio.onEnded(() => {
+      setAudioPlayingUrl(null)
+      innerAudio.destroy()
+      innerAudioRef.current = null
+    })
+    innerAudio.onError(() => {
+      setAudioPlayingUrl(null)
+      innerAudio.destroy()
+      innerAudioRef.current = null
+    })
+    innerAudio.play()
   }
 
   if (!visible) return null
@@ -593,9 +775,13 @@ export default function WordPopup({
         x={x}
         y={y}
         screenWidth={screenWidth}
+        audioVariants={audioVariants}
+        audioPlayingUrl={audioPlayingUrl}
+        onPlayAudio={playAudio}
         onClose={onClose}
         onExpand={onExpand}
         onAddVocab={onAddVocab}
+        onSelectEntry={fetchEntryDetail}
       />
     )
   }
@@ -615,9 +801,13 @@ export default function WordPopup({
         activeTab={activeTab}
         isSavedState={isSavedState}
         saveBtnCopy={saveBtnCopy}
+        audioVariants={audioVariants}
+        audioPlayingUrl={audioPlayingUrl}
+        onPlayAudio={playAudio}
         setActiveTab={setActiveTab}
         onClose={onClose}
         onAddVocab={onAddVocab}
+        onSelectEntry={fetchEntryDetail}
         setShowDictFeedback={setShowDictFeedback}
         renderContextExcerpt={renderContextExcerpt}
       />

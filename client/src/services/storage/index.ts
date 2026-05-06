@@ -274,6 +274,8 @@ export function saveVocabEntry(entry: VocabEntry): SaveVocabResult {
           partOfSpeech: entry.partOfSpeech || existing.partOfSpeech,
           meaning: entry.meaning || existing.meaning,
           detailMeanings: entry.detailMeanings || existing.detailMeanings,
+          detailPhrases: entry.detailPhrases || existing.detailPhrases,
+          detailExamples: entry.detailExamples || existing.detailExamples,
           phonetic: entry.phonetic || existing.phonetic,
           tags: entry.tags || existing.tags,
           exchange: entry.exchange || existing.exchange,

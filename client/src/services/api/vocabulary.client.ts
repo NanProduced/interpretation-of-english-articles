@@ -65,10 +65,16 @@ function parseSourceRefs(payload: Record<string, unknown> | undefined): SourceRe
 
 function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
   const detailMeanings = Array.isArray(dto.meanings_json)
-    ? dto.meanings_json.map((m: { partOfSpeech?: string; part_of_speech?: string; definitions?: Array<{ meaning?: string } | string> }) => ({
-        pos: m.partOfSpeech || m.part_of_speech || '',
+    ? dto.meanings_json.map((m: { partOfSpeech?: string; part_of_speech?: string; definitions?: Array<{ meaning?: string; example?: string; exampleTranslation?: string } | string> }) => ({
+        partOfSpeech: m.partOfSpeech || m.part_of_speech || '',
         definitions: Array.isArray(m.definitions)
-          ? m.definitions.map((d: { meaning?: string } | string) => typeof d === 'string' ? d : d.meaning || '')
+          ? m.definitions.map((d: { meaning?: string; example?: string; exampleTranslation?: string } | string) => {
+              if (typeof d === 'string') return { meaning: d }
+              const def: { meaning: string; example?: string; exampleTranslation?: string } = { meaning: d.meaning || '' }
+              if (d.example) def.example = d.example
+              if (d.exampleTranslation) def.exampleTranslation = d.exampleTranslation
+              return def
+            })
           : [],
       })).filter(m => m.definitions.length > 0)
     : undefined
@@ -79,6 +85,12 @@ function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
     ? payload.collected_forms as string[]
     : []
   const audioUrl = (payload as Record<string, unknown>).audio_url as string | undefined
+  const detailPhrases = Array.isArray((payload as Record<string, unknown>).detail_phrases)
+    ? (payload as Record<string, unknown>).detail_phrases as Array<{ phrase: string; meaning?: string }>
+    : undefined
+  const detailExamples = Array.isArray((payload as Record<string, unknown>).detail_examples)
+    ? (payload as Record<string, unknown>).detail_examples as Array<{ example: string; exampleTranslation?: string }>
+    : undefined
 
   return {
     id: dto.id,
@@ -91,6 +103,8 @@ function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
     mastered: dto.mastery_status === 'mastered',
     dictEntryId: dto.dict_entry_id ?? undefined,
     detailMeanings,
+    detailPhrases,
+    detailExamples,
     tags: dto.tags,
     exchange: dto.exchange,
     provider: dto.source_provider,
@@ -141,6 +155,12 @@ export async function addVocabToCloud(
   if (entry.audioUrl) {
     payloadJson.audio_url = entry.audioUrl
   }
+  if (entry.detailPhrases) {
+    payloadJson.detail_phrases = entry.detailPhrases
+  }
+  if (entry.detailExamples) {
+    payloadJson.detail_examples = entry.detailExamples
+  }
 
   const res = await request<VocabularyUpsertDto>({
     url: '/vocabulary',
@@ -153,8 +173,8 @@ export async function addVocabToCloud(
       short_meaning: entry.meaning,
       meanings_json: entry.detailMeanings
         ? entry.detailMeanings.map(m => ({
-            partOfSpeech: m.pos,
-            definitions: m.definitions.map(d => ({ meaning: d })),
+            partOfSpeech: m.partOfSpeech,
+            definitions: m.definitions,
           }))
         : [],
       tags: entry.tags || [],

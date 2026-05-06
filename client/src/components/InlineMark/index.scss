@@ -38,11 +38,11 @@
     -webkit-box-decoration-break: clone;
 
     &.tone-context {
-      border-bottom: 2rpx solid var(--annotation-context-line);
+      border-bottom: 1.5rpx solid var(--annotation-context-line);
     }
 
     &.tone-grammar {
-      border-bottom: 2rpx solid var(--annotation-grammar-line);
+      border-bottom: 1.5rpx solid var(--annotation-grammar-line);
       background: linear-gradient(to top, var(--annotation-grammar-surface) 34%, transparent 34%);
     }
 
@@ -77,8 +77,8 @@
       width: 0;
       height: 0;
       border-style: solid;
-      border-width: 0 0 11rpx 11rpx;
-      border-color: transparent transparent rgba(180, 83, 9, 0.62) transparent;
+      border-width: 0 0 10rpx 10rpx;
+      border-color: transparent transparent #E6E7EB transparent;
     }
   }
 

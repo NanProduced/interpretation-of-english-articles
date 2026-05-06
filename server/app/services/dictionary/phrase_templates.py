@@ -10,9 +10,12 @@ def canonicalize_dictionary_phrase(text: str) -> str:
     跟 backfill 脚本中的逻辑保持一致。
     """
     res = text
-    res = re.sub(r'\b(sb\.|somebody|someone)\b', 'sb', res, flags=re.IGNORECASE)
-    res = re.sub(r'\b(sth\.|something)\b', 'sth', res, flags=re.IGNORECASE)
-    res = re.sub(r"\b(sb\.'s|somebody's|someone's|one's|ones)\b", "sb's", res, flags=re.IGNORECASE)
+    res = re.sub(r"\b(somebody's|someone's|one's)\b", "sb's", res, flags=re.IGNORECASE)
+    res = re.sub(r"\bsb\.'s\b", "sb's", res, flags=re.IGNORECASE)
+    res = re.sub(r'\bsb\.(?=\s|$)', 'sb', res, flags=re.IGNORECASE)
+    res = re.sub(r'\b(somebody|someone)\b', 'sb', res, flags=re.IGNORECASE)
+    res = re.sub(r'\bsth\.(?=\s|$)', 'sth', res, flags=re.IGNORECASE)
+    res = re.sub(r'\bsomething\b', 'sth', res, flags=re.IGNORECASE)
     res = re.sub(r'\s+', ' ', res).strip()
     return res
 
@@ -21,6 +24,10 @@ def classify_slot(token_or_span) -> Literal["sb", "sth", "sb's", None]:
     根据 spaCy 的 Token 或 Span 判断它属于哪种槽位。
     """
     root = token_or_span.root if hasattr(token_or_span, "root") else token_or_span
+    
+    thing_possessives = {"its", "their"}
+    if root.dep_ == "poss" and root.lemma_.lower() in thing_possessives:
+        return "sth"
     
     if root.dep_ == "poss" or root.tag_ == "PRP$":
         return "sb's"

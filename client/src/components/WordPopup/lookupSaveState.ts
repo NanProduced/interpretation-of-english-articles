@@ -35,12 +35,13 @@ export function getLookupSaveState(
   return 'already_saved_here'
 }
 
-export function getSaveActionCopy(state: LookupSaveState, defaultCopy = '记入生词本'): string {
+export function getSaveActionCopy(state: LookupSaveState, contextCount?: number, defaultCopy = '记入生词本'): string {
   switch (state) {
     case 'not_saved': return '记入生词本'
     case 'same_lemma_new_context': return '加入当前语境'
     case 'already_saved_here': return '已记入'
-    case 'multiple_contexts': return '已记入生词本'
+    case 'multiple_contexts': 
+      return contextCount && contextCount > 1 ? `已记入 · ${contextCount}个语境` : '已记入生词本'
     case 'mastered': return '已掌握'
     default: return defaultCopy
   }

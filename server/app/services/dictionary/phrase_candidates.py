@@ -58,7 +58,7 @@ def generate_candidates(query: str, context_sentence: str, occurrence: int | Non
             
         if occurrence is not None and 1 <= occurrence <= len(target_tokens):
             target = target_tokens[occurrence - 1]
-        elif len(target_tokens) == 1:
+        elif len(target_tokens) >= 1:
             target = target_tokens[0]
         else:
             return forms
@@ -79,9 +79,23 @@ def generate_candidates(query: str, context_sentence: str, occurrence: int | Non
         # 1. target 的完整子树
         subtree = list(target.subtree)
         if len(subtree) > 1:
+            subtree_set = {t.i for t in subtree}
             subtree.sort(key=lambda x: x.i)
             span = doc[subtree[0].i : subtree[-1].i + 1]
-            add_span_forms(span)
+            has_irrelevant = any(t.i not in subtree_set for t in span)
+            if has_irrelevant:
+                filtered = [t for t in span if t.i in subtree_set]
+                literal = " ".join(t.text for t in filtered).lower()
+                lemma_form = " ".join(t.lemma_.lower() for t in filtered)
+                template_form = canonicalize_sentence_span(span, {target.i})
+                if literal != query.lower():
+                    forms.append(literal)
+                if lemma_form != literal and lemma_form != query.lower():
+                    forms.append(lemma_form)
+                if template_form != lemma_form and template_form != literal and template_form != query.lower():
+                    forms.append(template_form)
+            else:
+                add_span_forms(span)
                 
         # 2. Anchor Lifter (Verb/Predicate Head Discovery)
         # 目标：从宾语、介词宾语、修饰语等回溯到谓词头，以识别完整短语
@@ -198,12 +212,17 @@ def _generate_ngram_fallback(doc, target, query: str, forms: list[str], max_cand
                 continue
             
             tokens = [doc[i] for i in range(start, end)]
-            # 跳过跨标点的 n-gram
             if any(t.is_punct for t in tokens):
                 continue
                 
+            literal = " ".join(t.text.lower() for t in tokens)
             lemma_form = " ".join(t.lemma_.lower() for t in tokens)
-            if lemma_form != query.lower() and lemma_form not in forms:
+            if literal != query.lower() and literal not in forms:
+                forms.append(literal)
+                count += 1
+                if count >= max_candidates:
+                    return
+            if lemma_form != literal and lemma_form != query.lower() and lemma_form not in forms:
                 forms.append(lemma_form)
                 count += 1
                 if count >= max_candidates:

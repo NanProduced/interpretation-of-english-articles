@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.database import connection as db_connection
+from app.services.dictionary.errors import ServiceUnavailableError
 
 
 @dataclass(frozen=True)
@@ -103,7 +104,7 @@ def _row_to_candidate(row: Any) -> CandidateRow:
 
 async def fetch_entry(entry_id: int, source: str = "tecd3") -> EntryRow | None:
     if db_connection.DB_POOL is None:
-        return None
+        raise ServiceUnavailableError("Database connection pool not initialized")
     async with db_connection.DB_POOL.acquire() as conn:
         row = await conn.fetchrow(
             """
@@ -123,7 +124,7 @@ async def fetch_entry(entry_id: int, source: str = "tecd3") -> EntryRow | None:
 
 async def lookup_candidates(normalized_form: str, source: str = "tecd3") -> list[CandidateRow]:
     if db_connection.DB_POOL is None:
-        return []
+        raise ServiceUnavailableError("Database connection pool not initialized")
     async with db_connection.DB_POOL.acquire() as conn:
         rows = await conn.fetch(
             """
@@ -163,6 +164,8 @@ async def lookup_candidates(normalized_form: str, source: str = "tecd3") -> list
 
 async def lookup_candidates_batch(normalized_forms: list[str], source: str = "tecd3") -> list[CandidateRow]:
     if db_connection.DB_POOL is None or not normalized_forms:
+        if db_connection.DB_POOL is None:
+            raise ServiceUnavailableError("Database connection pool not initialized")
         return []
     async with db_connection.DB_POOL.acquire() as conn:
         rows = await conn.fetch(
