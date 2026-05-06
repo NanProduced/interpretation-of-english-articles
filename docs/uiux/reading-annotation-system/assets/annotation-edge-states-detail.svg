@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+  <defs>
+    <style>
+      .bg{fill:#FAF9F6}
+      .surface{fill:#FFFFFF;stroke:rgba(17,17,17,.07);stroke-width:1.2}
+      .paper{fill:#F6F3EC}
+      .ink{fill:#111111;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .serif{fill:#111111;font-family:Georgia,"Times New Roman",serif}
+      .muted{fill:#7A7D86;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .subtle{fill:#9BA0A8;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .title{font-size:38px;font-weight:700}
+      .section{font-size:25px;font-weight:700}
+      .body{font-size:23px}
+      .small{font-size:19px}
+      .tiny{font-size:16px}
+      .line{stroke:rgba(17,17,17,.07);stroke-width:1}
+      .vocab{fill:rgba(242,196,84,.28)}
+      .phrase{fill:rgba(151,126,224,.18)}
+      .context{stroke:rgba(76,145,194,.72);stroke-width:3;stroke-linecap:round}
+      .grammar{stroke:rgba(116,102,148,.62);stroke-width:3;stroke-linecap:round}
+      .active{fill:#111111}
+      .pill{fill:#FFFFFF;stroke:rgba(17,17,17,.09)}
+    </style>
+    <filter id="shadowSm" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#111111" flood-opacity=".055"/>
+    </filter>
+    <filter id="shadowMd" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#111111" flood-opacity=".09"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="900" class="bg"/>
+  <text x="56" y="70" class="ink title">Annotation Edge States</text>
+  <text x="56" y="106" class="muted body">Supplemental states for dense annotations, lookup degradation, and feedback selection. Keep all of them quieter than the article.</text>
+
+  <g transform="translate(56 146)">
+    <rect width="336" height="684" rx="28" class="surface" filter="url(#shadowSm)"/>
+    <text x="28" y="50" class="ink section">Dense annotation paragraph</text>
+    <text x="28" y="84" class="muted small">Marks coexist without turning text into chips.</text>
+
+    <text x="28" y="142" class="serif body">The FAA has launched a</text>
+    <text x="28" y="182" class="serif body">recruitment campaign aimed</text>
+    <rect x="136" y="158" width="128" height="26" rx="3" class="phrase"/>
+    <text x="28" y="222" class="serif body">at gamers, but there is a</text>
+    <rect x="180" y="198" width="84" height="26" rx="3" class="vocab"/>
+    <text x="28" y="262" class="serif body">shortage of workers with</text>
+    <text x="28" y="302" class="serif body">skills hard to find.</text>
+    <path d="M88 306h84" class="context"/>
+    <path d="M208 306h64" class="grammar"/>
+
+    <rect x="28" y="356" width="150" height="58" rx="10" fill="#fff" stroke="rgba(17,17,17,.075)" filter="url(#shadowSm)"/>
+    <circle cx="54" cy="385" r="7" fill="rgba(116,102,148,.18)" stroke="rgba(116,102,148,.62)"/>
+    <text x="76" y="393" class="ink body">语法</text>
+    <rect x="28" y="438" width="182" height="58" rx="10" fill="#fff" stroke="rgba(17,17,17,.075)" filter="url(#shadowSm)"/>
+    <circle cx="54" cy="467" r="7" fill="rgba(58,143,112,.18)" stroke="rgba(58,143,112,.72)"/>
+    <text x="76" y="475" class="ink body">句式解析</text>
+
+    <line x1="28" y1="548" x2="308" y2="548" class="line"/>
+    <text x="28" y="584" class="ink small">Stacking order</text>
+    <text x="28" y="616" class="muted small">1. Active mark</text>
+    <text x="28" y="646" class="muted small">2. Context / grammar underline</text>
+    <text x="28" y="676" class="muted small">3. Vocab / phrase wash</text>
+    <text x="28" y="706" class="muted small">4. Saved folded marker</text>
+  </g>
+
+  <g transform="translate(432 146)">
+    <rect width="336" height="684" rx="28" class="surface" filter="url(#shadowSm)"/>
+    <text x="28" y="50" class="ink section">Lookup degradation</text>
+    <text x="28" y="84" class="muted small">No spinner-heavy states. Keep the user near the text.</text>
+
+    <rect x="28" y="124" width="260" height="132" rx="24" fill="#fff" stroke="rgba(17,17,17,.075)" filter="url(#shadowMd)"/>
+    <text x="52" y="164" class="serif section">manufacturers</text>
+    <rect x="52" y="188" width="120" height="12" rx="6" fill="rgba(17,17,17,.08)"/>
+    <rect x="52" y="216" width="190" height="12" rx="6" fill="rgba(17,17,17,.055)"/>
+    <text x="52" y="282" class="subtle small">Loading: skeleton lines, no spinning icon.</text>
+
+    <rect x="28" y="322" width="260" height="140" rx="24" fill="#fff" stroke="rgba(17,17,17,.075)" filter="url(#shadowMd)"/>
+    <text x="52" y="362" class="serif section">near threatened</text>
+    <text x="52" y="400" class="muted body">暂未找到稳定释义</text>
+    <text x="52" y="430" class="subtle small">点击查看上下文解释</text>
+    <text x="52" y="488" class="subtle small">Empty: explain calmly and offer full sheet.</text>
+
+    <rect x="28" y="530" width="260" height="104" rx="24" fill="#fff" stroke="rgba(17,17,17,.075)" filter="url(#shadowMd)"/>
+    <text x="52" y="570" class="serif section">enticing</text>
+    <text x="52" y="608" class="muted body">网络暂时不可用</text>
+    <text x="52" y="660" class="subtle small">Error: preserve selected word and allow retry.</text>
+  </g>
+
+  <g transform="translate(808 146)">
+    <rect width="336" height="684" rx="28" class="surface" filter="url(#shadowSm)"/>
+    <text x="28" y="50" class="ink section">Feedback states</text>
+    <text x="28" y="84" class="muted small">Quick reaction is local; detailed feedback opens existing flow.</text>
+
+    <rect x="28" y="124" width="280" height="202" rx="28" fill="#fff" stroke="rgba(17,17,17,.07)" filter="url(#shadowMd)"/>
+    <text x="54" y="168" class="ink section">条件状语从句</text>
+    <line x1="54" y1="194" x2="282" y2="194" class="line"/>
+    <text x="54" y="235" class="muted body">so long as 表示“只要”。</text>
+    <line x1="54" y1="270" x2="282" y2="270" class="line"/>
+    <circle cx="68" cy="298" r="4" fill="rgba(242,196,84,.85)"/>
+    <text x="82" y="304" class="muted small">有帮助</text>
+    <text x="154" y="304" class="muted small">不准确</text>
+    <text x="244" y="304" class="muted small">反馈</text>
+    <text x="28" y="360" class="subtle small">Idle: all secondary. No primary CTA styling.</text>
+
+    <rect x="28" y="396" width="280" height="92" rx="22" class="paper"/>
+    <rect x="50" y="420" width="92" height="36" rx="18" fill="rgba(242,196,84,.22)" stroke="rgba(185,132,24,.25)"/>
+    <text x="70" y="444" class="ink small">有帮助</text>
+    <text x="164" y="444" class="muted small">不准确</text>
+    <text x="250" y="444" class="muted small">反馈</text>
+    <text x="28" y="522" class="subtle small">Selected: one quiet tint. Do not collapse card or show toast-only result.</text>
+
+    <rect x="28" y="558" width="280" height="92" rx="22" class="paper"/>
+    <text x="50" y="604" class="muted small">有帮助</text>
+    <rect x="134" y="580" width="92" height="36" rx="18" fill="rgba(116,102,148,.08)" stroke="rgba(116,102,148,.24)"/>
+    <text x="154" y="604" class="ink small">不准确</text>
+    <text x="250" y="604" class="muted small">反馈</text>
+    <text x="28" y="684" class="subtle small">Negative quick action may also expose the detailed feedback entry.</text>
+  </g>
+</svg>

@@ -104,7 +104,7 @@ async def discover_guardian() -> list[DiscoveredArticle]:
                     DiscoveredArticle(
                         url=item.get("webUrl", ""),
                         title=fields.get("headline", item.get("webTitle", "")),
-                        description=fields.get("standfirst", ""),
+                        description=_strip_html(fields.get("standfirst", "")),
                         text=text,
                         author=fields.get("byline", ""),
                         cover_image_url=fields.get("thumbnail"),
@@ -149,7 +149,7 @@ def _parse_rss_feed(
         if not url or not title:
             continue
 
-        description = entry.get("summary", "")
+        description = _strip_html(entry.get("summary", ""))
         cover_image_url = _extract_rss_thumbnail(entry)
 
         published_at = None

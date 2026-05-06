@@ -5,7 +5,12 @@
 
 Primary visual reference:
 
-- `assets/reading-annotation-current-overview.png`
+- `component-spec.md`
+- `assets/component-spec-board.png`
+- `assets/target-viewport-mini-lookup.png`
+- `assets/target-viewport-dictionary-sheet.png`
+- `assets/state-matrix-reference.png`
+- `assets/annotation-edge-states-detail.svg`
 
 ## Product Role
 

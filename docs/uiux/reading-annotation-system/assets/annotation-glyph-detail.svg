@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="820" viewBox="0 0 1200 820">
+  <defs>
+    <style>
+      .bg{fill:#FAF9F6}
+      .surface{fill:#FFFFFF;stroke:rgba(17,17,17,.07);stroke-width:1.2}
+      .soft{fill:#F6F3EC}
+      .ink{fill:#111111;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .serif{fill:#111111;font-family:Georgia,"Times New Roman",serif}
+      .muted{fill:#7A7D86;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .subtle{fill:#9BA0A8;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .small{font-size:20px}
+      .body{font-size:25px}
+      .label{font-size:22px;font-weight:600}
+      .title{font-size:38px;font-weight:700}
+      .caption{font-size:18px}
+      .line{stroke:rgba(17,17,17,.075);stroke-width:1}
+      .vocab{fill:rgba(242,196,84,.28)}
+      .phrase{fill:rgba(151,126,224,.18)}
+      .context{stroke:rgba(76,145,194,.72);stroke-width:3;stroke-linecap:round;fill:none}
+      .grammar{stroke:rgba(116,102,148,.62);stroke-width:3;stroke-linecap:round;fill:none}
+      .active{stroke:#111111;stroke-width:1.5;fill:none}
+      .dim{opacity:.36}
+    </style>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#111111" flood-opacity=".07"/>
+    </filter>
+  </defs>
+
+  <rect class="bg" width="1200" height="820"/>
+  <text x="56" y="70" class="ink title">AnnotationGlyph Detail</text>
+  <text x="56" y="106" class="muted body">Custom paper-annotation glyphs. Code-render these with View/Text/SVG-like shapes; do not import generic feature icons.</text>
+
+  <rect x="56" y="146" width="1088" height="594" rx="26" class="surface" filter="url(#cardShadow)"/>
+  <text x="92" y="194" class="ink label">Default</text>
+  <text x="322" y="194" class="ink label">Active</text>
+  <text x="552" y="194" class="ink label">Disabled / unavailable</text>
+  <text x="850" y="194" class="ink label">Implementation notes</text>
+  <line x1="92" y1="220" x2="1110" y2="220" class="line"/>
+
+  <g transform="translate(92 252)">
+    <text x="0" y="18" class="muted small">vocab</text>
+    <rect x="0" y="38" width="70" height="20" rx="4" class="vocab"/>
+    <path d="M10 64h48" stroke="rgba(242,196,84,.72)" stroke-width="3" stroke-linecap="round"/>
+    <g transform="translate(230 0)">
+      <rect x="0" y="34" width="74" height="24" rx="5" fill="rgba(242,196,84,.38)"/>
+      <path d="M8 64h54" stroke="rgba(185,132,24,.85)" stroke-width="3" stroke-linecap="round"/>
+      <rect x="-8" y="24" width="92" height="54" rx="14" class="active"/>
+    </g>
+    <g class="dim" transform="translate(460 0)">
+      <rect x="0" y="38" width="70" height="20" rx="4" class="vocab"/>
+      <path d="M10 64h48" stroke="rgba(242,196,84,.72)" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <text x="758" y="48" class="muted small">Warm wash, no border. Active only deepens wash and adds subtle focus.</text>
+  </g>
+
+  <g transform="translate(92 342)">
+    <text x="0" y="18" class="muted small">phrase</text>
+    <rect x="0" y="38" width="106" height="20" rx="10" class="phrase"/>
+    <path d="M6 64c24 4 58 4 94 0" stroke="rgba(151,126,224,.34)" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <g transform="translate(230 0)">
+      <rect x="0" y="36" width="112" height="24" rx="12" fill="rgba(151,126,224,.28)"/>
+      <path d="M6 66c28 4 66 4 104 0" stroke="rgba(105,83,176,.72)" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <rect x="-8" y="24" width="130" height="56" rx="16" class="active"/>
+    </g>
+    <g class="dim" transform="translate(460 0)">
+      <rect x="0" y="38" width="106" height="20" rx="10" class="phrase"/>
+      <path d="M6 64c24 4 58 4 94 0" stroke="rgba(151,126,224,.34)" stroke-width="3" stroke-linecap="round" fill="none"/>
+    </g>
+    <text x="758" y="48" class="muted small">Longer sweep. Keep opacity low so phrase groups do not become chips.</text>
+  </g>
+
+  <g transform="translate(92 432)">
+    <text x="0" y="18" class="muted small">context</text>
+    <path d="M4 56c16 7 32-7 48 0s32 7 48-1" class="context"/>
+    <g transform="translate(230 0)">
+      <path d="M4 56c16 7 32-7 48 0s32 7 48-1" stroke="rgba(76,145,194,.88)" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <rect x="-8" y="26" width="122" height="52" rx="14" class="active"/>
+    </g>
+    <g class="dim" transform="translate(460 0)">
+      <path d="M4 56c16 7 32-7 48 0s32 7 48-1" class="context"/>
+    </g>
+    <text x="758" y="48" class="muted small">Pencil underline only. No background unless active lookup is open.</text>
+  </g>
+
+  <g transform="translate(92 522)">
+    <text x="0" y="18" class="muted small">grammar</text>
+    <path d="M6 54h76" class="grammar"/>
+    <circle cx="92" cy="54" r="4" fill="rgba(116,102,148,.62)"/>
+    <g transform="translate(230 0)">
+      <rect x="-4" y="40" width="104" height="24" rx="8" fill="rgba(116,102,148,.06)"/>
+      <path d="M6 54h76" stroke="rgba(116,102,148,.78)" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <circle cx="92" cy="54" r="5" fill="rgba(116,102,148,.78)"/>
+      <rect x="-12" y="26" width="124" height="52" rx="14" class="active"/>
+    </g>
+    <g class="dim" transform="translate(460 0)">
+      <path d="M6 54h76" class="grammar"/>
+      <circle cx="92" cy="54" r="4" fill="rgba(116,102,148,.62)"/>
+    </g>
+    <text x="758" y="48" class="muted small">Structural underline. The inline grammar mark itself stays non-clickable.</text>
+  </g>
+
+  <g transform="translate(92 612)">
+    <text x="0" y="18" class="muted small">sentence</text>
+    <circle cx="14" cy="52" r="13" fill="rgba(58,143,112,.13)" stroke="rgba(58,143,112,.72)"/>
+    <text x="9" y="59" class="ink caption">1</text>
+    <path d="M38 52h72" stroke="rgba(58,143,112,.52)" stroke-width="3" stroke-linecap="round"/>
+    <g transform="translate(230 0)">
+      <circle cx="14" cy="52" r="14" fill="rgba(58,143,112,.18)" stroke="rgba(58,143,112,.9)"/>
+      <text x="9" y="59" class="ink caption">1</text>
+      <path d="M38 52h72" stroke="rgba(58,143,112,.72)" stroke-width="4" stroke-linecap="round"/>
+      <rect x="-12" y="26" width="134" height="52" rx="14" class="active"/>
+    </g>
+    <g class="dim" transform="translate(460 0)">
+      <circle cx="14" cy="52" r="13" fill="rgba(58,143,112,.13)" stroke="rgba(58,143,112,.72)"/>
+      <text x="9" y="59" class="ink caption">1</text>
+      <path d="M38 52h72" stroke="rgba(58,143,112,.52)" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <text x="758" y="48" class="muted small">Only shown while sentence-analysis is expanded. Never permanent in default reading.</text>
+  </g>
+
+  <g transform="translate(92 702)">
+    <text x="0" y="18" class="muted small">saved / feedback</text>
+    <path d="M18 34h38a8 8 0 0 1 8 8v34H18z" fill="rgba(17,17,17,.04)" stroke="rgba(17,17,17,.12)"/>
+    <path d="M64 42l-11 0 11 11z" fill="#EFE9DC"/>
+    <g transform="translate(230 0)">
+      <path d="M18 34h38a8 8 0 0 1 8 8v34H18z" fill="rgba(17,17,17,.06)" stroke="rgba(17,17,17,.22)"/>
+      <path d="M64 42l-11 0 11 11z" fill="#E7D9B8"/>
+      <rect x="94" y="42" width="44" height="28" rx="14" fill="none" stroke="rgba(17,17,17,.24)"/>
+      <circle cx="108" cy="56" r="3" fill="#111"/>
+      <circle cx="122" cy="56" r="3" fill="#111"/>
+    </g>
+    <g class="dim" transform="translate(460 0)">
+      <path d="M18 34h38a8 8 0 0 1 8 8v34H18z" fill="rgba(17,17,17,.04)" stroke="rgba(17,17,17,.12)"/>
+      <path d="M64 42l-11 0 11 11z" fill="#EFE9DC"/>
+    </g>
+    <text x="758" y="48" class="muted small">Saved marker is tiny and folded. Feedback glyph is quiet, text may accompany it.</text>
+  </g>
+
+  <text x="56" y="786" class="subtle caption">Sizes are implementation targets in rpx-equivalent proportions. Keep strokes thin, rounded, and secondary to the article text.</text>
+</svg>

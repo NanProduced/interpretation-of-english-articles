@@ -11,11 +11,16 @@ import type {
   DailyReaderFooterAnalysis,
 } from '../../../types/view/daily-reader.vm'
 
+function stripHtml(value: string | null): string | null {
+  if (!value) return value
+  return value.replace(/<[^>]+>/g, '').trim()
+}
+
 export function dtoToDailyReaderArticle(dto: DailyReaderArticleDto): DailyReaderArticle {
   return {
     id: dto.id,
     title: dto.title,
-    subtitle: dto.subtitle,
+    subtitle: stripHtml(dto.subtitle),
     source: dto.source,
     sourceUrl: dto.source_url,
     publishDate: dto.publish_date,
@@ -42,7 +47,7 @@ export function dtoToDailyReaderListItem(dto: DailyReaderListItemDto): DailyRead
   return {
     id: dto.id,
     title: dto.title,
-    subtitle: dto.subtitle,
+    subtitle: stripHtml(dto.subtitle),
     source: dto.source,
     publishDate: dto.publish_date,
     difficulty: dto.difficulty,

@@ -103,236 +103,191 @@ const LOGIC_TYPE_LABELS: Record<string, string> = {
   conclusion: '结论',
 }
 
-export default function WordPopup({
-  visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant, readingGoal,
-  isSaved = false, onClose, onExpand, onAddVocab, onFavorite,
-}: WordPopupProps) {
-  const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [screenWidth, setScreenWidth] = useState(375)
-  const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
-  const [showDictFeedback, setShowDictFeedback] = useState(false)
+function WordLookupSlip({
+  lookupText,
+  dictResult,
+  loading,
+  miniMeaning,
+  miniLabel,
+  isLLMAnnotated,
+  isDisambiguationResult,
+  isSavedState,
+  saveBtnCopy,
+  mark,
+  x,
+  y,
+  screenWidth,
+  onClose,
+  onExpand,
+  onAddVocab,
+}: {
+  lookupText: string
+  dictResult: DictionaryResult | null
+  loading: boolean
+  miniMeaning?: string
+  miniLabel: string
+  isLLMAnnotated: boolean
+  isDisambiguationResult: boolean
+  isSavedState: boolean
+  saveBtnCopy: string
+  mark: AnyInlineMarkModel | null
+  x: number
+  y: number
+  screenWidth: number
+  onClose: () => void
+  onExpand?: () => void
+  onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
+}) {
+    const popupWidth = (screenWidth * 408) / 750
+  const offset = 12
+  let left = x - popupWidth / 2
+  let top = y - offset
+  let isFlipped = false
 
-  const lookupText = mark?.lookupText || word
-  const glossary = mark?.glossary
-  const toneMeta = mark ? TONE_META[mark.visualTone] : null
-
-  const handleFavorite = () => {
-    onFavorite?.(entry?.word || lookupText)
-    Taro.showToast({ title: '已收藏', icon: 'success', duration: 1200 })
+  if (left < 10) left = 10
+  if (left + popupWidth > screenWidth - 10) left = screenWidth - popupWidth - 10
+  if (y < 150) {
+    top = y + offset
+    isFlipped = true
   }
-  
-  const effectivePhraseKind = isLearningGlossary(glossary) ? glossary.phraseType : undefined
-  const effectiveLookupKind = 'lookupKind' in (mark ?? {}) ? mark!.lookupKind : undefined
-  const professionalLabel = ((effectivePhraseKind || effectiveLookupKind) && PHRASE_KIND_LABELS[effectivePhraseKind || effectiveLookupKind || ''])
-    ? PHRASE_KIND_LABELS[effectivePhraseKind || effectiveLookupKind || '']
-    : (toneMeta?.label || 'AI 解析')
 
-  const miniLabel = (effectivePhraseKind && MINI_LABEL_MAP[effectivePhraseKind])
-    ? MINI_LABEL_MAP[effectivePhraseKind]
-    : (mark ? MINI_LABEL_MAP[mark.visualTone] : 'AI')
+  const popupStyle: React.CSSProperties = {
+    position: 'fixed',
+    left: `${left}px`,
+    top: `${top}px`,
+    zIndex: 1000,
+    width: `${popupWidth}px`,
+    transform: isFlipped ? 'none' : 'translateY(-100%)',
+  }
 
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
-  const detailMeanings = entry?.meanings || []
-  const miniMeaning = glossary?.zh || (isLearningGlossary(glossary) ? glossary.gloss : undefined) || getEntrySummary(entry)
-  const isLLMAnnotated = !!glossary
 
-  // Render context excerpt with highlight
-  const renderContextExcerpt = () => {
-    if (!contextSentence || !lookupText) return null
-    const parts = contextSentence.split(new RegExp(`(${lookupText})`, 'gi'))
-    return (
-      <View className='source-context-excerpt'>
-        {parts.map((part, i) => 
-          part.toLowerCase() === lookupText.toLowerCase() 
-            ? <Text key={i} className='excerpt-highlight'>{part}</Text> 
-            : <Text key={i}>{part}</Text>
-        )}
-      </View>
-    )
-  }
-
-  const saveState = getLookupSaveState(lookupText, isSaved)
-  const saveBtnCopy = getSaveActionCopy(saveState)
-  const isSavedState = saveState !== 'not_saved'
-
-  // Hooks must ALWAYS be called in the same order. 
-  // Conditional return must happen AFTER all hook declarations.
-
-  useEffect(() => {
-    if (!visible || !lookupText) return
-    void fetchDictionary(lookupText)
-  }, [visible, lookupText, contextSentence, occurrence])
-
-  useEffect(() => {
-    Taro.getSystemInfo({}).then((info) => setScreenWidth(info.windowWidth || 375))
-  }, [])
-
-  useEffect(() => {
-    const isEntryResult = dictResult?.resultType === 'entry'
-    if (isEntryResult && entry) {
-      if (activeTab === 'phrases' && !entry.phrases?.length) setActiveTab('meanings')
-      if (activeTab === 'examples' && !entry.examples?.length) setActiveTab('meanings')
-    }
-  }, [dictResult, activeTab]) // Fixed dependency
-
-  const fetchDictionary = async (text: string) => {
-    const type = text.trim().includes(' ') ? 'phrase' : 'word'
-    const cached = getDictCache(text, type, contextSentence, occurrence)
-    if (cached) {
-      setDictResult(cached)
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setDictResult(null)
-    try {
-      const dto = await fetchDict(text, type, contextSentence, occurrence)
-      const vm = dictResponseDtoToVm(dto)
-      setDictResult(vm)
-      setDictCache(text, type, vm, contextSentence, occurrence)
-    } catch (err) {
-      console.error('[dict] fetch error', err)
-      setDictResult(null)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchEntryDetail = async (entryId: number, expand = false) => {
-    const cached = getEntryCache(entryId)
-    if (cached) {
-      setDictResult(cached)
-      if (expand) onExpand?.()
-      return
-    }
-    setLoading(true)
-    setDictResult(null)
-    try {
-      const dto = await fetchDictEntry(entryId)
-      const vm = dictResponseDtoToVm(dto)
-      setDictResult(vm)
-      setEntryCache(entryId, vm)
-      if (expand) onExpand?.()
-    } catch {
-      Taro.showToast({ title: '词条详情获取失败', icon: 'none' })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (!visible) return null
-
-  const isEntryResult = dictResult?.resultType === 'entry'
-  const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
-
-  if (mode === 'mini') {
-    const popupWidth = (screenWidth * 440) / 750
-    const offset = 12
-    let left = x - popupWidth / 2
-    let top = y - offset
-    let isFlipped = false
-
-    if (left < 10) left = 10
-    if (left + popupWidth > screenWidth - 10) left = screenWidth - popupWidth - 10
-    if (y < 150) {
-      top = y + offset
-      isFlipped = true
-    }
-
-    const popupStyle: React.CSSProperties = {
-      position: 'fixed',
-      left: `${left}px`,
-      top: `${top}px`,
-      zIndex: 1000,
-      width: `${popupWidth}px`,
-      transform: isFlipped ? 'none' : 'translateY(-100%)',
-    }
-
-    return (
-      <View className='word-popup-overlay mini-overlay' onClick={onClose} catchMove>
-        <View
-          className={`mini-word-card ${isLLMAnnotated ? 'is-ai' : ''} ${isFlipped ? 'is-flipped' : ''}`}
-          style={popupStyle}
-        >
-          <View className='mini-main-content' onClick={(e) => {
-            e.stopPropagation()
-            onExpand?.()
-          }}>
-            <View className='mini-header'>
-              <Text className='mini-word'>{entry?.word || lookupText}</Text>
-              <LucideIcon name='chevron-right' size={16} color='var(--reader-muted)' />
-            </View>
-            
-            {(entry?.phonetic || (isLLMAnnotated && mark)) && (
-              <View className='mini-sub-info'>
-                {entry?.phonetic && (
-                  <View className='mini-phonetic-row'>
-                    <LucideIcon name='volume-2' size={14} color='var(--reader-muted)' />
-                    <Text className='mini-phonetic'>/{entry.phonetic}/</Text>
-                  </View>
-                )}
-                {isLLMAnnotated && mark && (
-                  <View className='ai-tag'>
-                    {mark.visualTone === 'vocab' && <AnnotationGlyph type='vocab' size={16} state='active' />}
-                    {mark.visualTone === 'phrase' && <AnnotationGlyph type='phrase' size={16} state='active' />}
-                    {mark.visualTone === 'context' && <AnnotationGlyph type='context' size={16} state='active' />}
-                    <Text className='ai-tag-text'>{miniLabel}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            <View className='mini-content'>
-              {loading && !miniMeaning ? (
-                <View>
-                  <View className='mini-skeleton-line' />
-                  <View className='mini-skeleton-line' />
-                </View>
-              ) : miniMeaning ? (
-                <View className='mini-def-row'>
-                  <Text 
-                    className={`mini-def ${isLLMAnnotated ? 'is-ai-def' : ''}`} 
-                    numberOfLines={2}
-                  >
-                    {miniMeaning}
-                  </Text>
-                </View>
-              ) : isDisambiguationResult ? (
-                <View className='mini-disambiguation-hint'>
-                  <LucideIcon name='list' size={14} color='var(--reader-muted)' />
-                  <Text className='mini-def'>多个义项，点击查看</Text>
-                </View>
-              ) : (
-                <Text className='mini-loading'>
-                  {entry?.entryKind === 'fragment' ? '派生词，查看主词条' : '未找到释义'}
-                </Text>
-              )}
-            </View>
+  return (
+    <View className='word-popup-overlay mini-overlay' onClick={onClose} catchMove>
+      <View
+        className={`mini-word-card ${isLLMAnnotated ? 'is-ai' : ''} ${isFlipped ? 'is-flipped' : ''}`}
+        style={popupStyle}
+      >
+        <View className='mini-main-content' onClick={(e) => {
+          e.stopPropagation()
+          onExpand?.()
+        }}>
+          <View className='mini-header'>
+            <Text className='mini-word'>{entry?.word || lookupText}</Text>
+            <LucideIcon name='chevron-right' size={16} color='var(--reader-muted)' />
           </View>
-
-          {entry && entry.id > 0 && (
-            <View 
-              className={`mini-action-bar ${isSavedState ? 'saved' : 'not-saved'}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                onAddVocab?.(entry.word, dictResult)
-              }}
-            >
-              <View className='mini-action-left'>
-                {!isSavedState && <LucideIcon name='bookmark' size={14} color='var(--reader-ink)' />}
-                {isSavedState && <LucideIcon name='check' size={14} color='var(--reader-ink)' />}
-                <Text className='mini-action-text'>{saveBtnCopy}</Text>
-              </View>
-              <LucideIcon name='chevron-right' size={14} color={isSavedState ? 'var(--reader-ink)' : 'var(--reader-muted)'} />
+          
+          {(entry?.phonetic || (isLLMAnnotated && mark)) && (
+            <View className='mini-sub-info'>
+              {entry?.phonetic && (
+                <View className='mini-phonetic-row'>
+                  <LucideIcon name='volume-2' size={14} color='var(--reader-muted)' />
+                  <Text className='mini-phonetic'>/{entry.phonetic}/</Text>
+                </View>
+              )}
+              {isLLMAnnotated && mark && (
+                <View className='ai-tag'>
+                  {mark.visualTone === 'vocab' && <AnnotationGlyph type='vocab' size={16} state='active' />}
+                  {mark.visualTone === 'phrase' && <AnnotationGlyph type='phrase' size={16} state='active' />}
+                  {mark.visualTone === 'context' && <AnnotationGlyph type='context' size={16} state='active' />}
+                  <Text className='ai-tag-text'>{miniLabel}</Text>
+                </View>
+              )}
             </View>
           )}
 
-          <View className='mini-arrow' style={{ left: `${Math.max(20, Math.min(popupWidth - 20, x - left))}px` }} />
+          <View className='mini-content'>
+            {loading && !miniMeaning ? (
+              <View>
+                <View className='mini-skeleton-line' />
+                <View className='mini-skeleton-line' />
+              </View>
+            ) : miniMeaning ? (
+              <View className='mini-def-row'>
+                <Text 
+                  className={`mini-def ${isLLMAnnotated ? 'is-ai-def' : ''}`} 
+                  numberOfLines={2}
+                >
+                  {miniMeaning}
+                </Text>
+              </View>
+            ) : isDisambiguationResult ? (
+              <View className='mini-disambiguation-hint'>
+                <LucideIcon name='list' size={14} color='var(--reader-muted)' />
+                <Text className='mini-def'>多个义项，点击查看</Text>
+              </View>
+            ) : (
+              <Text className='mini-loading'>
+                {entry?.entryKind === 'fragment' ? '派生词，查看主词条' : '未找到释义'}
+              </Text>
+            )}
+          </View>
         </View>
+
+        {entry && entry.id > 0 && (
+          <View 
+            className={`mini-action-bar ${isSavedState ? 'saved' : 'not-saved'}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onAddVocab?.(entry.word, dictResult)
+            }}
+          >
+            <View className='mini-action-left'>
+              {!isSavedState && <LucideIcon name='bookmark' size={14} color='var(--reader-ink)' />}
+              {isSavedState && <AnnotationGlyph type='saved_vocab' size={14} state='active' />}
+              <Text className='mini-action-text'>{saveBtnCopy}</Text>
+            </View>
+            <LucideIcon name='chevron-right' size={14} color={isSavedState ? 'var(--reader-ink)' : 'var(--reader-muted)'} />
+          </View>
+        )}
+
+        <View className='mini-arrow' style={{ left: `${Math.max(20, Math.min(popupWidth - 20, x - left))}px` }} />
       </View>
-    )
-  }
+    </View>
+  )
+}
+
+function DictionaryNoteSheet({
+  lookupText,
+  dictResult,
+  loading,
+  glossary,
+  mark,
+  professionalLabel,
+  contextSentence,
+  readingGoal,
+  readingVariant,
+  activeTab,
+  isSavedState,
+  saveBtnCopy,
+  setActiveTab,
+  onClose,
+  onAddVocab,
+  setShowDictFeedback,
+  renderContextExcerpt,
+}: {
+  lookupText: string
+  dictResult: DictionaryResult | null
+  loading: boolean
+  glossary: InlineGlossary | AcademicInlineGlossary | undefined
+  mark: AnyInlineMarkModel | null
+  professionalLabel: string
+  contextSentence?: string
+  readingGoal?: string
+  readingVariant?: string
+  activeTab: string
+  isSavedState: boolean
+  saveBtnCopy: string
+  setActiveTab: (tab: 'meanings' | 'phrases' | 'examples') => void
+  onClose: () => void
+  onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
+  setShowDictFeedback: (v: boolean) => void
+  renderContextExcerpt: () => React.ReactNode
+}) {
+  const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
+  const detailMeanings = entry?.meanings || []
+  const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
+  const isEntryResult = dictResult?.resultType === 'entry'
 
   return (
     <View className='word-popup-overlay full-overlay' onClick={onClose}>
@@ -412,7 +367,7 @@ export default function WordPopup({
             ) : isDisambiguationResult ? (
               <View className='disambiguation-list'>
                 {dictResult.candidates.map((candidate) => (
-                  <View key={candidate.entryId} className='candidate-item' onClick={() => void fetchEntryDetail(candidate.entryId)}>
+                  <View key={candidate.entryId} className='candidate-item' onClick={() => {}}>
                     <View className='candidate-main'>
                       <View className='candidate-title-row'>
                         <Text className='candidate-label'>{candidate.label}</Text>
@@ -489,27 +444,188 @@ export default function WordPopup({
               onClick={() => onAddVocab?.(entry.word, dictResult)}
             >
               {!isSavedState && <LucideIcon name='plus' size={18} color='var(--reader-paper)' />}
-              {isSavedState && <AnnotationGlyph type='saved_vocab' size={16} />}
+              {isSavedState && <AnnotationGlyph type='saved_vocab' size={16} state='active' />}
               <Text>{saveBtnCopy}</Text>
             </View>
           )}
         </View>
-
-        {showDictFeedback && (
-          <View className='popup-feedback-overlay' onClick={() => setShowDictFeedback(false)}>
-            <DictionaryFeedback
-              word={lookupText}
-              phonetic={entry?.phonetic}
-              currentMeaning={getEntrySummary(entry) || undefined}
-              dictSource='tecd3'
-              dictEntryId={entry?.id}
-              contextSentence={contextSentence}
-              readingVariant={readingVariant}
-              onClose={() => setShowDictFeedback(false)}
-            />
-          </View>
-        )}
       </View>
     </View>
   )
 }
+
+export default function WordPopup({
+  visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant, readingGoal,
+  isSaved = false, onClose, onExpand, onAddVocab, onFavorite,
+}: WordPopupProps) {
+  const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [screenWidth, setScreenWidth] = useState(375)
+  const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
+  const [showDictFeedback, setShowDictFeedback] = useState(false)
+
+  const lookupText = mark?.lookupText || word
+  const glossary = mark?.glossary
+  const toneMeta = mark ? TONE_META[mark.visualTone] : null
+
+  const effectivePhraseKind = isLearningGlossary(glossary) ? glossary.phraseType : undefined
+  const effectiveLookupKind = 'lookupKind' in (mark ?? {}) ? mark!.lookupKind : undefined
+  const professionalLabel = ((effectivePhraseKind || effectiveLookupKind) && PHRASE_KIND_LABELS[effectivePhraseKind || effectiveLookupKind || ''])
+    ? PHRASE_KIND_LABELS[effectivePhraseKind || effectiveLookupKind || '']
+    : (toneMeta?.label || 'AI 解析')
+
+  const miniLabel = (effectivePhraseKind && MINI_LABEL_MAP[effectivePhraseKind])
+    ? MINI_LABEL_MAP[effectivePhraseKind]
+    : (mark ? MINI_LABEL_MAP[mark.visualTone] : 'AI')
+
+  const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
+  const miniMeaning = glossary?.zh || (isLearningGlossary(glossary) ? glossary.gloss : undefined) || getEntrySummary(entry)
+  const isLLMAnnotated = !!glossary
+
+  const renderContextExcerpt = () => {
+    if (!contextSentence || !lookupText) return null
+    const parts = contextSentence.split(new RegExp(`(${lookupText})`, 'gi'))
+    return (
+      <View className='source-context-excerpt'>
+        {parts.map((part, i) => 
+          part.toLowerCase() === lookupText.toLowerCase() 
+            ? <Text key={i} className='excerpt-highlight'>{part}</Text> 
+            : <Text key={i}>{part}</Text>
+        )}
+      </View>
+    )
+  }
+
+  const saveState = getLookupSaveState(lookupText, isSaved)
+  const saveBtnCopy = getSaveActionCopy(saveState)
+  const isSavedState = saveState !== 'not_saved'
+
+  useEffect(() => {
+    if (!visible || !lookupText) return
+    void fetchDictionary(lookupText)
+  }, [visible, lookupText, contextSentence, occurrence])
+
+  useEffect(() => {
+    Taro.getSystemInfo({}).then((info) => setScreenWidth(info.windowWidth || 375))
+  }, [])
+
+  useEffect(() => {
+    const isEntryResult = dictResult?.resultType === 'entry'
+    if (isEntryResult && entry) {
+      if (activeTab === 'phrases' && !entry.phrases?.length) setActiveTab('meanings')
+      if (activeTab === 'examples' && !entry.examples?.length) setActiveTab('meanings')
+    }
+  }, [dictResult, activeTab, entry])
+
+  const fetchDictionary = async (text: string) => {
+    const type = text.trim().includes(' ') ? 'phrase' : 'word'
+    const cached = getDictCache(text, type, contextSentence, occurrence)
+    if (cached) {
+      setDictResult(cached)
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    setDictResult(null)
+    try {
+      const dto = await fetchDict(text, type, contextSentence, occurrence)
+      const vm = dictResponseDtoToVm(dto)
+      setDictResult(vm)
+      setDictCache(text, type, vm, contextSentence, occurrence)
+    } catch (err) {
+      console.error('[dict] fetch error', err)
+      setDictResult(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchEntryDetail = async (entryId: number, expand = false) => {
+    const cached = getEntryCache(entryId)
+    if (cached) {
+      setDictResult(cached)
+      if (expand) onExpand?.()
+      return
+    }
+    setLoading(true)
+    setDictResult(null)
+    try {
+      const dto = await fetchDictEntry(entryId)
+      const vm = dictResponseDtoToVm(dto)
+      setDictResult(vm)
+      setEntryCache(entryId, vm)
+      if (expand) onExpand?.()
+    } catch {
+      Taro.showToast({ title: '词条详情获取失败', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!visible) return null
+
+  const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
+
+  if (mode === 'mini') {
+    return (
+      <WordLookupSlip
+        lookupText={lookupText}
+        dictResult={dictResult}
+        loading={loading}
+        miniMeaning={miniMeaning}
+        miniLabel={miniLabel}
+        isLLMAnnotated={isLLMAnnotated}
+        isDisambiguationResult={isDisambiguationResult}
+        isSavedState={isSavedState}
+        saveBtnCopy={saveBtnCopy}
+        mark={mark}
+        x={x}
+        y={y}
+        screenWidth={screenWidth}
+        onClose={onClose}
+        onExpand={onExpand}
+        onAddVocab={onAddVocab}
+      />
+    )
+  }
+
+  return (
+    <>
+      <DictionaryNoteSheet
+        lookupText={lookupText}
+        dictResult={dictResult}
+        loading={loading}
+        glossary={glossary}
+        mark={mark}
+        professionalLabel={professionalLabel}
+        contextSentence={contextSentence}
+        readingGoal={readingGoal}
+        readingVariant={readingVariant}
+        activeTab={activeTab}
+        isSavedState={isSavedState}
+        saveBtnCopy={saveBtnCopy}
+        setActiveTab={setActiveTab}
+        onClose={onClose}
+        onAddVocab={onAddVocab}
+        setShowDictFeedback={setShowDictFeedback}
+        renderContextExcerpt={renderContextExcerpt}
+      />
+
+      {showDictFeedback && (
+        <View className='popup-feedback-overlay' onClick={() => setShowDictFeedback(false)}>
+          <DictionaryFeedback
+            word={lookupText}
+            phonetic={entry?.phonetic}
+            currentMeaning={getEntrySummary(entry) || undefined}
+            dictSource='tecd3'
+            dictEntryId={entry?.id}
+            contextSentence={contextSentence}
+            readingVariant={readingVariant}
+            onClose={() => setShowDictFeedback(false)}
+          />
+        </View>
+      )}
+    </>
+  )
+}
+

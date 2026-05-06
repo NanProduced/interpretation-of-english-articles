@@ -1,9 +1,9 @@
-﻿/* 鍏ㄥ眬 Design Tokens - 閫傞厤鑷?Figma 鏂拌璁′笌 Goodnotes 璐ㄦ劅 */
+/* 鍏ㄥ眬 Design Tokens - 閫傞厤鑷?Figma 鏂拌璁′笌 Goodnotes 璐ㄦ劅 */
 
 page {
   // 鍝佺墝鑹?(Brand Palette) - 妯℃嫙楂樿川鎰熺焊寮?
   --color-ink: #121212;           // 鏋佹繁鐐粦锛屾浛浠ｇ函榛?(鏇存姢鐪硷紝鏇存湁璐ㄦ劅)
-  --color-bg: #FAF9F9;            // 椤甸潰鑳屾櫙 (Goodnotes 鏆栫櫧)
+  --color-bg: #FAF9F6;            // 温暖纸张色 (Design: reading-annotation-current-overview.png)
   --primary-color: var(--color-ink);
   --bg-color: var(--color-bg);
   --color-white: #FFFFFF;
@@ -168,24 +168,126 @@ page {
   --tone-logic-color: #C2410C;
   --tone-logic-bg: #FED7AA;
 
-  /* --- Reading Annotation System Tokens --- */
-  --reader-paper: #FAF9F6;
-  --reader-paper-deep: #F4F1EA;
-  --reader-ink: #111111;
-  --reader-muted: #7A7D86;
-  --annotation-grammar: #6B5FC7;
-  --annotation-analysis: #3F6FB6;
-  --annotation-vocab: #E4B000;
-  --annotation-phrase: #B9A8E6;
-  --annotation-context: #5A6F8F;
-  --annotation-merged: #3F6FB6;
+  /* ====================================================================
+   * READING ANNOTATION SYSTEM - Visual Design Tokens (v2.1)
+   *
+   * Design Reference:
+   *   - assets/product-direction-overview.png (色彩系统)
+   *   - assets/reading-annotation-current-overview.png (整体布局)
+   *   - assets/annotation-micro-rules.png (标注微规则)
+   *   - assets/sentence-analysis-final-detail.png (细节规范)
+   *
+   * Core Metaphor: "Paper reading + Light annotation + Note slips"
+   * Design Philosophy: "Low-noise, paper-like, doesn't break reading flow"
+   * ==================================================================== */
 
-  --annotation-vocab-bg: rgba(247, 231, 166, 0.28); /* warm highlighter wash */
-  --annotation-phrase-bg: rgba(185, 168, 230, 0.18); /* muted lavender sweep */
-  --annotation-context-line: rgba(58, 122, 254, 0.55); /* fine blue pencil */
-  --annotation-grammar-line: rgba(116, 102, 148, 0.4);
+  /* --- Surface: Warm Paper System (温暖纸张表面) --- */
+  --reader-paper: #FAF9F6;        /* Main warm paper */
+  --reader-surface: #FFFFFF;      /* Production note / sheet surface */
+  --reader-paper-deep: #F6F3EC;   /* Quiet excerpt surface, not primary cards */
+  --reader-paper-warm: #FBF9F4;   /* Pressed warm paper */
 
-  /* --- 鐘舵€佽壊 --- */
+  /* --- Ink: Typography Hierarchy (墨水层级) --- */
+  --reader-ink: #111111;          /* 主文字 - 近乎纯黑 */
+  --reader-muted: #7A7D86;        /* 次要文字 - 灰色 */
+  --reader-subtle: #9BA0A8;       /* 辅助文字 - 更淡的灰色 */
+
+  /* --- Annotation Semantic Colors (标注语义色 - 文具调色板) --- */
+  --annotation-vocab: #E4B000;     /* 词汇 - 温暖琥珀 */
+  --annotation-phrase: #B9A8E6;    /* 短语 - 薰衣草紫 */
+  --annotation-context: #4C91C2;   /* 语境 - 蓝灰 */
+  --annotation-grammar: #746694;   /* 语法 - 淡紫灰 */
+  --annotation-analysis: #3F6FB6;  /* 分析 - 靛蓝 */
+  --annotation-merged: #3F6FB6;    /* 合并笔记 - 靛蓝 */
+
+  /* --- Inline Mark Visual Tones (内联标注视觉色调) ---
+   * 关键原则：低噪声、低饱和度、像纸上的标记
+   * 所有opacity值都经过设计图精确提取
+   */
+  --annotation-vocab-bg: rgba(242, 196, 84, 0.28);           /* 黄色荧光笔 ~28% */
+  --annotation-vocab-bg-active: rgba(242, 196, 84, 0.38);    /* Active ~38% */
+  --annotation-phrase-bg: rgba(151, 126, 224, 0.18);         /* 薰衣草扫过 ~18% (更淡!) */
+  --annotation-phrase-bg-active: rgba(151, 126, 224, 0.28);   /* Active ~28% */
+  --annotation-context-line: rgba(76, 145, 194, 0.72);       /* 蓝色铅笔线 ~72% */
+  --annotation-context-line-active: rgba(76, 145, 194, 0.88); /* Active ~88% */
+  --annotation-grammar-line: rgba(116, 102, 148, 0.62);      /* 淡紫灰线 ~62% */
+  --annotation-grammar-line-active: rgba(116, 102, 148, 0.78);/* Active ~78% */
+  --annotation-grammar-surface: rgba(116, 102, 148, 0.06);    /* 极浅渐变 ~6% */
+
+  /* --- Reader Spacing Scale (4pt-based) --- */
+  --reader-space-xs: 8rpx;
+  --reader-space-sm: 16rpx;
+  --reader-space-md: 24rpx;
+  --reader-space-lg: 32rpx;
+  --reader-space-xl: 48rpx;
+  --reader-space-xxl: 64rpx;
+
+  /* --- Component-specific Dimensions --- */
+  --reader-padding: 40rpx;
+  --paragraph-gap: 64rpx;
+  --paragraph-gap-immersive: 80rpx;
+  --sentence-gap: 32rpx;
+  --translation-gap: 12rpx;
+
+  /* --- Border & Elevation (Paper-like, not card-like) --- */
+  --reader-border-light: rgba(0, 0, 0, 0.04);
+  --reader-border-subtle: rgba(0, 0, 0, 0.06);
+  --shadow-reader-xs: 0 1rpx 3rpx rgba(0, 0, 0, 0.02);
+  --shadow-reader-sm: 0 4rpx 14rpx rgba(0, 0, 0, 0.045);
+  --shadow-reader-md: 0 10rpx 30rpx rgba(17, 17, 17, 0.08);
+  --shadow-reader-lg: 0 18rpx 56rpx rgba(17, 17, 17, 0.12);
+  --ease-reader-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* --- Radius System (Softer, more organic) --- */
+  --radius-note: 18rpx;
+  --radius-slip: 24rpx;
+  --radius-card: 28rpx;
+  --radius-sheet: 34rpx;
+
+  /* --- Tab & Navigation --- */
+  --tab-height: 80rpx;
+  --tab-font-size: 28rpx;
+  --tab-active-color: var(--reader-ink);
+  --tab-inactive-color: var(--reader-muted);
+  --tab-indicator-height: 2rpx;
+  --tab-indicator-color: var(--reader-ink);
+
+  /* --- Context Bar (Quiet Metadata) --- */
+  --context-bar-bg: transparent;
+  --context-bar-text: var(--reader-muted);
+  --context-bar-font-size: 24rpx;
+  --context-bar-item-gap: 20rpx;
+
+  /* --- Annotation Entry (Compact Tab) --- */
+  --entry-tab-height: 58rpx;
+  --entry-tab-padding: 11rpx 20rpx;
+  --entry-tab-font-size: 25rpx;
+  --entry-tab-max-width: 60%;
+  --entry-tab-bg: var(--reader-surface);
+  --entry-tab-border: rgba(17, 17, 17, 0.075);
+  --entry-tab-radius: 10rpx;
+
+  /* --- Word Lookup Slip --- */
+  --slip-width: 408rpx;
+  --slip-padding: 22rpx 24rpx 18rpx;
+  --slip-word-size: 34rpx;
+  --slip-def-size: 25rpx;
+  --slip-shadow: 0 10rpx 30rpx rgba(17, 17, 17, 0.11), 0 1rpx 2rpx rgba(17, 17, 17, 0.04);
+
+  /* --- Dictionary Sheet --- */
+  --sheet-header-word-size: 60rpx;
+  --sheet-padding-x: 40rpx;
+  --sheet-radius: 34rpx;
+  --sheet-shadow: 0 -14rpx 44rpx rgba(17, 17, 17, 0.12);
+
+  /* --- Feedback (Quiet, secondary) --- */
+  --feedback-btn-size: 22rpx;
+  --feedback-color: var(--reader-muted);
+  --feedback-active-color: var(--reader-ink);
+  --annotation-chunk-marker-size: 28rpx;
+
+  /* --- State Colors --- */
   --color-success: #16A34A;
   --color-danger: #DC2626;
   --color-pending: #F59E0B;

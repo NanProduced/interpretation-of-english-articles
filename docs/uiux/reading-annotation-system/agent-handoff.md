@@ -16,15 +16,59 @@ The goal is not to rebuild the app. The goal is to upgrade the core reader annot
 2. `docs/uiux/reading-annotation-system/README.md`
 3. `docs/uiux/reading-annotation-system/implementation-mapping.md`
 4. `docs/uiux/reading-annotation-system/word-lookup-and-vocabulary-ux.md`
-5. `docs/uiux/reading-annotation-system/development-materials-checklist.md`
+5. `docs/uiux/reading-annotation-system/component-spec.md`
+6. `docs/uiux/reading-annotation-system/development-materials-checklist.md`
 
 Visual references:
 
-- `docs/uiux/reading-annotation-system/assets/product-direction-overview.png`
-- `docs/uiux/reading-annotation-system/assets/reading-annotation-current-overview.png`
-- `docs/uiux/reading-annotation-system/assets/reader-context-feedback-details.png`
-- `docs/uiux/reading-annotation-system/assets/annotation-micro-rules.png`
-- `docs/uiux/reading-annotation-system/assets/sentence-analysis-final-detail.png`
+- `docs/uiux/reading-annotation-system/assets/component-spec-board.png`
+- `docs/uiux/reading-annotation-system/assets/state-matrix-reference.png`
+- `docs/uiux/reading-annotation-system/assets/target-viewport-reader-annotations.png`
+- `docs/uiux/reading-annotation-system/assets/target-viewport-mini-lookup.png`
+- `docs/uiux/reading-annotation-system/assets/target-viewport-dictionary-sheet.png`
+- `docs/uiux/reading-annotation-system/assets/annotation-glyph-detail.svg`
+- `docs/uiux/reading-annotation-system/assets/annotation-note-card-detail.svg`
+- `docs/uiux/reading-annotation-system/assets/annotation-edge-states-detail.svg`
+
+## Visual Source Of Truth
+
+The reference images now use one aligned component language. Do not reference archived images from earlier rounds.
+
+### Production Component Styling
+
+Use `component-spec-board.png` and `component-spec.md` as the source of truth for production mobile UI surfaces:
+
+- `ReaderContextBar`
+- reader controls
+- expanded grammar and sentence-analysis notes
+- annotation feedback button rows
+- mini word lookup slip
+- full dictionary note sheet
+- article-end feedback
+- card radius, shadow, padding, dividers, and button hierarchy
+
+### Viewport Targets And State Rules
+
+Use the three `target-viewport-*.png` images for simulator screenshot matching, and use `state-matrix-reference.png` plus `component-spec.md` for behavior:
+
+- `target-viewport-reader-annotations.png`
+- `target-viewport-mini-lookup.png`
+- `target-viewport-dictionary-sheet.png`
+
+- `grammar_note` collapsed tab overflow.
+- Short titles may show `语法 · {title}`.
+- Long titles collapse to `语法`.
+- `sentence_analysis` collapsed copy is `句式解析`.
+- Do not show chunk counts such as `句式解析 · 4段`.
+- Expanded `sentence_analysis` may show temporary chunk rows and a compact reading map.
+- `AnnotationGlyph` should follow the paper-glyph shape language.
+- Note tabs should have max width, one-line truncation, and ellipsis behavior.
+
+Use `state-matrix-reference.png` for behavior and state coverage.
+
+Use the three `annotation-*-detail.svg` boards only for local component details: glyph construction, note-card anatomy, dense mark stacking, degraded lookup states, and feedback selection.
+
+If a local detail is not visible in screenshots, follow `component-spec.md` first, then `component-spec-board.png`.
 
 ## Product Hierarchy
 
@@ -66,6 +110,7 @@ If a UI choice helps English explanation but makes the article harder to read, c
 - New onboarding or paywall work.
 - Full vocabulary review system redesign.
 - Full feedback backend redesign.
+- Reader customization settings. Font size, line height, theme, translation visibility, annotation density, defaults, and persistence need a separate design and business-logic package under `docs/uiux/reading-settings-system/`.
 
 ## Data Constraints
 

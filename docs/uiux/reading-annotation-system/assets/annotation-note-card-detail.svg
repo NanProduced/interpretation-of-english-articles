@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+  <defs>
+    <style>
+      .bg{fill:#FAF9F6}
+      .surface{fill:#FFFFFF;stroke:rgba(17,17,17,.07);stroke-width:1.2}
+      .paper{fill:#F6F3EC}
+      .ink{fill:#111111;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .serif{fill:#111111;font-family:Georgia,"Times New Roman",serif}
+      .muted{fill:#7A7D86;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .subtle{fill:#9BA0A8;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .title{font-size:38px;font-weight:700}
+      .section{font-size:25px;font-weight:700}
+      .body{font-size:24px}
+      .small{font-size:19px}
+      .tiny{font-size:16px}
+      .line{stroke:rgba(17,17,17,.07);stroke-width:1}
+      .measure{stroke:rgba(76,145,194,.52);stroke-width:1.4;stroke-dasharray:5 5;fill:none}
+      .vocab{fill:rgba(242,196,84,.28)}
+      .phrase{fill:rgba(151,126,224,.18)}
+      .grammar{stroke:rgba(116,102,148,.62);stroke-width:3;stroke-linecap:round}
+      .context{stroke:rgba(76,145,194,.72);stroke-width:3;stroke-linecap:round}
+    </style>
+    <filter id="shadowSm" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#111111" flood-opacity=".055"/>
+    </filter>
+    <filter id="shadowMd" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#111111" flood-opacity=".08"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="900" class="bg"/>
+  <text x="56" y="70" class="ink title">Annotation Note Card Anatomy</text>
+  <text x="56" y="106" class="muted body">One production card language for collapsed note tabs, expanded grammar notes, sentence-analysis notes, and feedback rows.</text>
+
+  <g transform="translate(56 146)">
+    <rect width="332" height="684" rx="28" class="surface" filter="url(#shadowSm)"/>
+    <text x="28" y="50" class="ink section">Collapsed note tabs</text>
+    <text x="28" y="84" class="muted small">In-flow, compact, one line, never a full card.</text>
+
+    <rect x="28" y="132" width="168" height="58" rx="10" fill="#fff" stroke="rgba(17,17,17,.075)" filter="url(#shadowSm)"/>
+    <circle cx="54" cy="161" r="7" fill="rgba(116,102,148,.18)" stroke="rgba(116,102,148,.62)"/>
+    <text x="76" y="169" class="ink body">语法</text>
+    <text x="28" y="224" class="subtle small">Long grammar title collapses to label only.</text>
+
+    <rect x="28" y="274" width="212" height="58" rx="10" fill="#fff" stroke="rgba(17,17,17,.075)" filter="url(#shadowSm)"/>
+    <circle cx="54" cy="303" r="7" fill="rgba(116,102,148,.18)" stroke="rgba(116,102,148,.62)"/>
+    <text x="76" y="311" class="ink body">语法 · 定语从句</text>
+    <text x="28" y="366" class="subtle small">Short title may fit after a centered dot.</text>
+
+    <rect x="28" y="416" width="182" height="58" rx="10" fill="#fff" stroke="rgba(17,17,17,.075)" filter="url(#shadowSm)"/>
+    <circle cx="54" cy="445" r="7" fill="rgba(58,143,112,.18)" stroke="rgba(58,143,112,.72)"/>
+    <text x="76" y="453" class="ink body">句式解析</text>
+    <text x="28" y="508" class="subtle small">Never show chunk count in collapsed entry.</text>
+
+    <line x1="28" y1="562" x2="304" y2="562" class="line"/>
+    <text x="28" y="600" class="ink small">Max width</text>
+    <text x="132" y="600" class="muted small">60% of reading column</text>
+    <text x="28" y="632" class="ink small">Height</text>
+    <text x="132" y="632" class="muted small">about 58rpx</text>
+    <text x="28" y="664" class="ink small">Radius</text>
+    <text x="132" y="664" class="muted small">10rpx</text>
+  </g>
+
+  <g transform="translate(424 146)">
+    <rect width="362" height="684" rx="28" class="surface" filter="url(#shadowSm)"/>
+    <text x="28" y="50" class="ink section">Expanded grammar note</text>
+    <text x="28" y="84" class="muted small">A notebook slip attached to text, not a dashboard card.</text>
+
+    <rect x="28" y="124" width="306" height="376" rx="28" fill="#fff" stroke="rgba(17,17,17,.07)" filter="url(#shadowMd)"/>
+    <text x="54" y="168" class="ink section">条件状语从句</text>
+    <text x="304" y="168" class="subtle body">×</text>
+    <line x1="54" y1="194" x2="308" y2="194" class="line"/>
+    <text x="54" y="235" class="ink body">so long as 引导条件状语从句，</text>
+    <text x="54" y="270" class="ink body">表示“只要”。阅读时先抓住</text>
+    <text x="54" y="305" class="ink body">主干，再理解条件部分。</text>
+    <rect x="54" y="334" width="254" height="76" rx="14" class="paper"/>
+    <text x="72" y="366" class="serif small">Our union welcomes approaches</text>
+    <text x="72" y="394" class="serif small">so long as standards are kept.</text>
+    <line x1="54" y1="432" x2="308" y2="432" class="line"/>
+    <text x="64" y="468" class="muted small">有帮助</text>
+    <text x="148" y="468" class="muted small">不准确</text>
+    <text x="250" y="468" class="muted small">反馈</text>
+
+    <path d="M334 124h54" class="measure"/>
+    <text x="394" y="130" class="subtle tiny">radius 28rpx</text>
+    <path d="M28 520h306" class="measure"/>
+    <text x="74" y="548" class="subtle tiny">same width as reading column, not edge-to-edge</text>
+
+    <text x="28" y="588" class="ink small">Allowed nested surface</text>
+    <text x="28" y="620" class="muted small">Only source excerpt / insight block. Keep it lighter than the main card.</text>
+  </g>
+
+  <g transform="translate(822 146)">
+    <rect width="322" height="684" rx="28" class="surface" filter="url(#shadowSm)"/>
+    <text x="28" y="50" class="ink section">Sentence-analysis note</text>
+    <text x="28" y="84" class="muted small">Temporary structure view while expanded.</text>
+
+    <rect x="28" y="124" width="266" height="420" rx="28" fill="#fff" stroke="rgba(17,17,17,.07)" filter="url(#shadowMd)"/>
+    <text x="54" y="168" class="ink section">宾语从句 + 条件状语</text>
+    <text x="264" y="168" class="subtle body">×</text>
+    <line x1="54" y1="194" x2="268" y2="194" class="line"/>
+    <text x="54" y="232" class="muted small">主干是 Nick Daniels said ...</text>
+    <text x="54" y="260" class="muted small">直接引语中再包含条件结构。</text>
+    <line x1="54" y1="296" x2="268" y2="296" class="line"/>
+
+    <circle cx="68" cy="332" r="13" fill="rgba(64,110,184,.16)" stroke="rgba(64,110,184,.72)"/>
+    <text x="63" y="339" class="ink tiny">1</text>
+    <text x="92" y="327" class="ink small">说话者</text>
+    <text x="92" y="354" class="serif small">Nick Daniels, president...</text>
+
+    <circle cx="68" cy="398" r="13" fill="rgba(105,83,176,.16)" stroke="rgba(105,83,176,.72)"/>
+    <text x="63" y="405" class="ink tiny">2</text>
+    <text x="92" y="393" class="ink small">直接引语主句</text>
+    <text x="92" y="420" class="serif small">Our union welcomes...</text>
+
+    <circle cx="68" cy="464" r="13" fill="rgba(58,143,112,.16)" stroke="rgba(58,143,112,.72)"/>
+    <text x="63" y="471" class="ink tiny">3</text>
+    <text x="92" y="459" class="ink small">条件状语从句</text>
+    <text x="92" y="486" class="serif small">so long as standards...</text>
+
+    <text x="28" y="596" class="ink small">Interaction rule</text>
+    <text x="28" y="628" class="muted small">Chunk markers appear only while this card is expanded.</text>
+    <text x="28" y="658" class="muted small">Collapse returns the sentence to clean reading.</text>
+  </g>
+</svg>

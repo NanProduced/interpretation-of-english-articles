@@ -4,9 +4,15 @@
 
 Primary direction references:
 
-- `assets/product-direction-overview.png`
-- `assets/reading-annotation-current-overview.png`
-- `assets/reader-context-feedback-details.png`
+- `component-spec.md`
+- `assets/component-spec-board.png`
+- `assets/state-matrix-reference.png`
+- `assets/target-viewport-reader-annotations.png`
+- `assets/target-viewport-mini-lookup.png`
+- `assets/target-viewport-dictionary-sheet.png`
+- `assets/annotation-glyph-detail.svg`
+- `assets/annotation-note-card-detail.svg`
+- `assets/annotation-edge-states-detail.svg`
 
 ## What Is Already Enough For Development
 
@@ -23,6 +29,8 @@ The following UI pieces should be implemented with code, not raster images:
 - Feedback entry points.
 
 These are better as Taro components and SCSS tokens because they need to respond to text length, screen width, reading mode, and saved state.
+
+Reader customization settings are intentionally excluded from this checklist. Font size, line height, theme, translation visibility, annotation density, defaults, and persistence should be planned in a separate package under `docs/uiux/reading-settings-system/`.
 
 ## Assets To Prepare
 

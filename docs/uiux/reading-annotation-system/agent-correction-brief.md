@@ -73,9 +73,51 @@ If the implementation resembles the current rejected screenshots, treat these as
 
 The target is not pixel-perfect image matching. The target is product-language matching.
 
+## Visual Source Of Truth
+
+The current design references have been consolidated into one aligned component language. Do not reference archived images from earlier rounds.
+
+### Production Component Styling
+
+Use `assets/component-spec-board.png` and `component-spec.md` as the source of truth for production mobile UI surfaces:
+
+- `ReaderContextBar`.
+- Reader controls.
+- Expanded grammar and sentence-analysis notes.
+- Annotation feedback button rows.
+- Mini word lookup slip.
+- Full dictionary note sheet.
+- Article-end feedback.
+- Card radius, shadow, padding, dividers, and button hierarchy.
+
+### Viewport Targets And State Rules
+
+Use the three `assets/target-viewport-*.png` images for simulator screenshot matching, and use `assets/state-matrix-reference.png` plus `component-spec.md` for behavior:
+
+- `target-viewport-reader-annotations.png`
+- `target-viewport-mini-lookup.png`
+- `target-viewport-dictionary-sheet.png`
+
+- `grammar_note` collapsed tab overflow.
+- Short title display as `语法 · {title}`.
+- Long title collapse to `语法`.
+- `sentence_analysis` collapsed copy as `句式解析`.
+- No chunk count in collapsed entries, such as `句式解析 · 4段`.
+- Temporary chunk rows and compact reading map after sentence-analysis expansion.
+- `AnnotationGlyph` paper-glyph shape language.
+- Note-tab max width, one-line truncation, and ellipsis behavior.
+
+Use `assets/state-matrix-reference.png` for behavior and state coverage.
+
+Use the three `assets/annotation-*-detail.svg` boards only for local component details: glyph construction, note-card anatomy, dense mark stacking, degraded lookup states, and feedback selection.
+
+If a local detail is not visible in screenshots, follow `component-spec.md` first, then `assets/component-spec-board.png`.
+
 ## Module Boundaries
 
 Do not implement this as one giant "annotation system" change. Split the work into four UI modules.
+
+Reader customization settings are not one of these modules. Font size, line height, theme, translation visibility, annotation density, defaults, and persistence need a separate design and business-logic package under `docs/uiux/reading-settings-system/`.
 
 ### 1. Reading Shell
 
@@ -253,6 +295,7 @@ Before coding, read:
 - .impeccable.md
 - docs/uiux/reading-annotation-system/README.md
 - docs/uiux/reading-annotation-system/agent-correction-brief.md
+- docs/uiux/reading-annotation-system/component-spec.md
 - docs/uiux/reading-annotation-system/implementation-mapping.md
 - docs/uiux/reading-annotation-system/development-materials-checklist.md
 
@@ -266,16 +309,21 @@ Submit screenshots for the required review states listed in agent-correction-bri
 
 ## Need More Detail Images?
 
-Yes. The broad direction images are not enough for implementation precision.
+No additional reference image is required for the current core correction pass. The aligned spec board, state matrix, and three target viewport screenshots are enough to implement and review the reader, annotation cards, mini lookup, dictionary sheet, save states, and feedback entry points.
 
-Add detail design images for:
+Optional future detail sheets may still be useful for:
 
-1. `ReaderContextBar` plus reader controls.
-2. Feedback entry points across grammar, sentence analysis, word lookup, and article end.
-3. Dense annotation state with short/long grammar titles.
+1. Reader settings tray: font size, line height, theme, annotation density, and translation visibility.
+2. `AnnotationGlyph` construction detail: exact sizes, active states, and disabled states if the coded glyphs keep drifting.
+3. Loading, empty, and error states if they become part of the next review cycle.
 
-The existing word lookup and sentence analysis images are useful, but feedback and context-bar states are under-specified.
+Current reference set:
 
-Reference now available:
-
-- `assets/reader-context-feedback-details.png`
+- `assets/component-spec-board.png`
+- `assets/state-matrix-reference.png`
+- `assets/target-viewport-reader-annotations.png`
+- `assets/target-viewport-mini-lookup.png`
+- `assets/target-viewport-dictionary-sheet.png`
+- `assets/annotation-glyph-detail.svg`
+- `assets/annotation-note-card-detail.svg`
+- `assets/annotation-edge-states-detail.svg`

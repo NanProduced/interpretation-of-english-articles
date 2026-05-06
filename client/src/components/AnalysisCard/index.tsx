@@ -5,11 +5,10 @@ import LucideIcon from '../LucideIcon'
 import AnnotationGlyph, { type AnnotationGlyphType } from '../AnnotationGlyph'
 import type { StopPropagationEvent } from '../../types/taro-events'
 import { submitFeedback } from '../../services/api/feedback.client'
+import { parseSentenceAnalysis, type AnalysisChunk } from '../ParagraphBlock/utils'
 import './index.scss'
 
 export type AnalysisCardType = 'vocab' | 'grammar' | 'sentence' | 'term' | 'logic' | 'interpretation' | 'summary'
-
-import { parseSentenceAnalysis, type AnalysisChunk } from '../ParagraphBlock/utils'
 
 export interface AnalysisCardProps {
   type: AnalysisCardType
@@ -25,7 +24,6 @@ export interface AnalysisCardProps {
   onToggle?: (expanded: boolean) => void
   onFeedback?: () => void
   structuredData?: { summary?: string; chunks?: AnalysisChunk[] }
-  // Quick feedback props
   recordId?: string
   entryId?: string
   annotationType?: string
@@ -87,12 +85,10 @@ function renderMarkdownContent(content: string) {
 export default function AnalysisCard({
   type,
   title,
-  label,
   content,
   phonetic,
   tags,
   initiallyExpanded,
-  badgeIndex,
   isExpanded: controlledIsExpanded,
   snippet,
   onToggle,
@@ -103,11 +99,8 @@ export default function AnalysisCard({
   annotationType,
 }: AnalysisCardProps) {
   const [internalIsExpanded, setInternalIsExpanded] = useState(initiallyExpanded ?? false)
-  const isExpanded = controlledIsExpanded !== undefined ? controlledIsExpanded : internalIsExpanded
   const [quickFeedbackState, setQuickFeedbackState] = useState<'none' | 'positive' | 'negative'>('none')
-
-
-
+  const isExpanded = controlledIsExpanded !== undefined ? controlledIsExpanded : internalIsExpanded
   const config = TYPE_CONFIG[type]
   const structuredData = externalStructuredData || (type === 'sentence' ? parseSentenceAnalysis(content) : null)
 
@@ -128,7 +121,6 @@ export default function AnalysisCard({
     onToggle?.(false)
   }
 
-  // Quick feedback: 有帮助 / 不准确
   const handleQuickFeedback = useCallback(async (sentiment: 'positive' | 'negative') => {
     if (!recordId || !entryId || quickFeedbackState !== 'none') return
     setQuickFeedbackState(sentiment)
@@ -140,6 +132,7 @@ export default function AnalysisCard({
         sentiment,
         feedbackType: sentiment === 'positive' ? 'helpful' : 'inaccurate',
         annotationType: annotationType || type,
+        content: undefined,
         contextJson: { title, content_preview: content.slice(0, 200) },
       })
       Taro.showToast({ title: '感谢反馈', icon: 'success', duration: 1200 })
@@ -149,12 +142,9 @@ export default function AnalysisCard({
     }
   }, [recordId, entryId, quickFeedbackState, annotationType, type, title, content])
 
-  // Micro Rules for collapsed tab text
   const getCollapsedCopy = () => {
     if (type === 'sentence') return '句式解析'
-    if (type === 'grammar') {
-      return title.length > 8 ? '语法' : `语法 · ${title}`
-    }
+    if (type === 'grammar') return title.length > 8 ? '语法' : `语法 · ${title}`
     return title || config.defaultLabel
   }
 
@@ -170,20 +160,19 @@ export default function AnalysisCard({
           <Text className='card-collapsed-title' numberOfLines={1}>{getCollapsedCopy()}</Text>
         </View>
         <View className={`summary-icon ${isExpanded ? 'is-expanded' : ''}`}>
-          <LucideIcon name='chevron-down' size={14} color='var(--reader-muted)' />
+          <LucideIcon name='chevronDown' size={14} color='var(--text-muted)' />
         </View>
       </View>
 
       <View className={`card-content-expandable ${isExpanded ? 'show' : 'hide'}`}>
         <View className='card-body' onClick={(e) => e.stopPropagation()}>
-          {/* Expanded Full Title & Header */}
           {(type === 'grammar' || type === 'sentence') && (
-             <View className='expanded-title-row'>
-               <Text className='expanded-full-title'>{title && title !== config.defaultLabel ? title : config.defaultLabel}</Text>
-               <View className='collapse-btn' onClick={handleCollapse}>
-                 <Text className='collapse-btn-text'>收起</Text>
-               </View>
-             </View>
+            <View className='expanded-title-row'>
+              <Text className='expanded-full-title'>{title && title !== config.defaultLabel ? title : config.defaultLabel}</Text>
+              <View className='collapse-btn' onClick={handleCollapse}>
+                <LucideIcon name='x' size={17} color='var(--text-main)' strokeWidth={1.8} />
+              </View>
+            </View>
           )}
 
           {(phonetic || (tags && tags.length > 0)) && (
@@ -214,17 +203,15 @@ export default function AnalysisCard({
                 )}
                 {structuredData?.chunks && structuredData.chunks.length > 0 && (
                   <View className='analysis-chunks-list'>
-                    {structuredData.chunks.map((chunk: AnalysisChunk, idx: number) => {
-                      return (
-                        <View key={idx} className={`chunk-detail-item color-idx-${idx % 5}`}>
-                          <View className='chunk-detail-label'>
-                            <Text className='label-index'>{idx + 1}</Text>
-                            <Text className='label-text'>{chunk.label}</Text>
-                          </View>
-                          <Text className='chunk-detail-text' numberOfLines={2}>{chunk.text}</Text>
+                    {structuredData.chunks.map((chunk: AnalysisChunk, idx: number) => (
+                      <View key={idx} className={`chunk-detail-item color-idx-${idx % 5}`}>
+                        <View className='chunk-detail-label'>
+                          <Text className='label-index'>{idx + 1}</Text>
+                          <Text className='label-text'>{chunk.label}</Text>
                         </View>
-                      )
-                    })}
+                        <Text className='chunk-detail-text' numberOfLines={2}>{chunk.text}</Text>
+                      </View>
+                    ))}
                   </View>
                 )}
               </View>
@@ -232,8 +219,7 @@ export default function AnalysisCard({
               <Text className='card-content'>{renderMarkdownContent(content)}</Text>
             )}
           </View>
-          
-          {/* Feedback row: 有帮助 / 不准确 / 反馈 */}
+
           {(onFeedback || recordId) && (
             <View className='card-feedback-row'>
               {recordId && entryId && (
@@ -242,21 +228,21 @@ export default function AnalysisCard({
                     className={`feedback-quick-btn ${quickFeedbackState === 'positive' ? 'is-submitted' : ''} ${quickFeedbackState !== 'none' && quickFeedbackState !== 'positive' ? 'is-disabled' : ''}`}
                     onClick={(e) => { e.stopPropagation(); void handleQuickFeedback('positive') }}
                   >
-                    <Text className='feedback-quick-icon'>👍</Text>
+                    <LucideIcon name='thumbsUp' size={13} color='var(--text-muted)' strokeWidth={1.8} />
                     <Text className='feedback-quick-text'>{quickFeedbackState === 'positive' ? '已反馈' : '有帮助'}</Text>
                   </View>
                   <View
                     className={`feedback-quick-btn ${quickFeedbackState === 'negative' ? 'is-submitted' : ''} ${quickFeedbackState !== 'none' && quickFeedbackState !== 'negative' ? 'is-disabled' : ''}`}
                     onClick={(e) => { e.stopPropagation(); void handleQuickFeedback('negative') }}
                   >
-                    <Text className='feedback-quick-icon'>👎</Text>
+                    <LucideIcon name='thumbsDown' size={13} color='var(--text-muted)' strokeWidth={1.8} />
                     <Text className='feedback-quick-text'>{quickFeedbackState === 'negative' ? '已反馈' : '不准确'}</Text>
                   </View>
                 </>
               )}
               {onFeedback && (
                 <View className='feedback-detail-btn' onClick={(e) => { e.stopPropagation(); onFeedback() }}>
-                  <LucideIcon name='messageSquare' size={13} color='var(--reader-muted)' />
+                  <LucideIcon name='messageSquare' size={13} color='var(--text-muted)' strokeWidth={1.8} />
                   <Text className='feedback-detail-text'>反馈</Text>
                 </View>
               )}

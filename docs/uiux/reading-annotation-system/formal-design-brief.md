@@ -8,8 +8,15 @@ Create final UI detail drafts for Claread's mobile reading and annotation experi
 
 Primary current overview reference:
 
-- `assets/product-direction-overview.png`
-- `assets/reading-annotation-current-overview.png`
+- `component-spec.md`
+- `assets/component-spec-board.png`
+- `assets/state-matrix-reference.png`
+- `assets/target-viewport-reader-annotations.png`
+- `assets/target-viewport-mini-lookup.png`
+- `assets/target-viewport-dictionary-sheet.png`
+- `assets/annotation-glyph-detail.svg`
+- `assets/annotation-note-card-detail.svg`
+- `assets/annotation-edge-states-detail.svg`
 
 ## Must Match Current Workflow
 
@@ -70,8 +77,9 @@ Required states:
 3. `sentence_analysis` collapsed entry.
 4. `sentence_analysis` expanded chunk mode.
 5. Drop-cap first paragraph.
-6. Reader customization tray.
-7. Word lookup card in the same design language.
+6. Word lookup card in the same design language.
+
+Reader customization tray is excluded from this brief because it requires business-logic decisions. It should be evaluated in a separate package under `docs/uiux/reading-settings-system/`.
 
 ## Word Lookup And Vocabulary
 
@@ -113,7 +121,7 @@ Design requirements:
 - Glyphs should use a quiet paper-annotation style: rounded caps, thin strokes, muted default color, subtle active tint.
 - Required glyphs: `grammar_note`, `sentence_analysis`, `vocab`, `phrase`, `context`, `merged_note`.
 
-Reference: `assets/annotation-micro-rules.png`.
+Reference: `component-spec.md`, `assets/component-spec-board.png`, and `assets/annotation-glyph-detail.svg`.
 
 ### Sentence Analysis
 
@@ -122,7 +130,7 @@ Reference: `assets/annotation-micro-rules.png`.
 - Expanded state may temporarily show chunk underlines, circled sequence markers, and a compact reading map.
 - Collapsing the entry returns the sentence to clean reading.
 
-Reference: `assets/sentence-analysis-final-detail.png`.
+Reference: `assets/target-viewport-reader-annotations.png` and `assets/annotation-note-card-detail.svg`.
 
 ## Acceptance Criteria
 

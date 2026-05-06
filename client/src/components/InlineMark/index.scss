@@ -1,84 +1,88 @@
 .inline-mark {
   display: inline;
   position: relative;
-  transition: background-color 0.2s ease, opacity 0.2s ease;
+  transition: background-color 0.18s var(--ease-reader-out), border-color 0.18s var(--ease-reader-out), opacity 0.18s var(--ease-reader-out);
 
-  // Background marks (vocab, phrase) - stationery feel (marker wash)
   &.background {
-    border-radius: 2rpx; // sharp like a highlighter stroke
+    padding: 0 3rpx;
+    margin: 0 -2rpx;
+    border-radius: 4rpx;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
-    
+
     &.tone-vocab {
       background-color: var(--annotation-vocab-bg);
     }
-    
+
     &.tone-phrase {
       background-color: var(--annotation-phrase-bg);
     }
+
+    &.tone-vocab:active,
+    &.clickable:active.tone-vocab,
+    &.active.tone-vocab {
+      background-color: var(--annotation-vocab-bg-active);
+    }
+
+    &.tone-phrase:active,
+    &.clickable:active.tone-phrase,
+    &.active.tone-phrase {
+      background-color: var(--annotation-phrase-bg-active);
+    }
   }
 
-  // Underline marks (context, grammar)
   &.underline {
+    padding-bottom: 2rpx;
+    border-radius: 0;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+
     &.tone-context {
       border-bottom: 2rpx solid var(--annotation-context-line);
-      padding-bottom: 2rpx;
+    }
+
+    &.tone-grammar {
+      border-bottom: 2rpx solid var(--annotation-grammar-line);
+      background: linear-gradient(to top, var(--annotation-grammar-surface) 34%, transparent 34%);
+    }
+
+    &.tone-context:active,
+    &.clickable:active.tone-context,
+    &.active.tone-context {
+      border-bottom-color: var(--annotation-context-line-active);
+    }
+
+    &.tone-grammar:active,
+    &.active.tone-grammar {
+      border-bottom-color: var(--annotation-grammar-line-active);
     }
   }
 
   &.clickable {
     cursor: pointer;
+
     &:active {
-      opacity: 0.8;
-      
-      &.tone-vocab {
-        background-color: rgba(242, 196, 84, 0.35);
-      }
-      
-      &.tone-phrase {
-        background-color: rgba(151, 126, 224, 0.25);
-      }
-      
-      &.tone-context {
-        border-bottom-color: rgba(76, 145, 194, 0.8);
-      }
+      opacity: 0.82;
     }
   }
 
-  &.active {
-    // A faint yellow glow for the currently active inline mark across the entire page
-    background-color: rgba(242, 196, 84, 0.25) !important;
-  }
-
-  // Saved vocabulary folded-corner bookmark marker
   &.saved {
-    position: relative;
     border-bottom: none !important;
 
     &::after {
       content: '';
       position: absolute;
       right: -2rpx;
-      bottom: -2rpx;
+      bottom: -1rpx;
       width: 0;
       height: 0;
       border-style: solid;
-      border-width: 0 0 12rpx 12rpx;
-      border-color: transparent transparent rgba(180, 83, 9, 0.6) transparent; // Folded corner
-    }
-
-    &:active::after {
-      border-color: transparent transparent rgba(180, 83, 9, 0.9) transparent;
+      border-width: 0 0 11rpx 11rpx;
+      border-color: transparent transparent rgba(180, 83, 9, 0.62) transparent;
     }
   }
 
-  &.saved-mastered {
-    &::after {
-      border-color: transparent transparent rgba(16, 185, 129, 0.6) transparent;
-    }
-
-    &:active::after {
-      border-color: transparent transparent rgba(16, 185, 129, 0.9) transparent;
-    }
+  &.saved-mastered::after {
+    border-color: transparent transparent rgba(16, 120, 87, 0.62) transparent;
   }
 }

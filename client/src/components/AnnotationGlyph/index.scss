@@ -1,14 +1,301 @@
 .annotation-glyph {
-  display: inline-block;
-  vertical-align: middle;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  
-  &--disabled {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  /* --- Common Glyph Styles --- */
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    border-radius: inherit;
+  }
+
+  /* State Variations */
+  &.glyph-state-active {
+    opacity: 1;
+  }
+
+  &.glyph-state-disabled {
     opacity: 0.35;
   }
-  
-  // Optional tiny pop animation on active
-  &--active {
-    transform: scale(1.05);
+
+  /* =========================================================
+   * GLYPH: vocab (小荧光笔nib / 短标记)
+   * Visual: Diagonal highlighter stroke, warm amber
+   * ========================================================= */
+  &.glyph-vocab {
+    &::before {
+      width: 60%;
+      height: 3rpx;
+      background: var(--annotation-vocab);
+      transform: rotate(-45deg);
+      border-radius: 2rpx;
+      opacity: 0.8;
+    }
+
+    &::after {
+      width: 40%;
+      height: 3rpx;
+      background: var(--annotation-vocab);
+      transform: rotate(-45deg) translate(4rpx, -4rpx);
+      border-radius: 2rpx;
+      opacity: 0.5;
+    }
+
+    &.glyph-state-active {
+      &::before, &::after {
+        opacity: 1;
+        background: var(--annotation-vocab);
+      }
+    }
+  }
+
+  /* =========================================================
+   * GLYPH: phrase (两个连接的荧光笔笔画)
+   * Visual: Two parallel strokes, lavender
+   * ========================================================= */
+  &.glyph-phrase {
+    &::before {
+      width: 55%;
+      height: 3rpx;
+      background: var(--annotation-phrase);
+      transform: rotate(-45deg);
+      border-radius: 2rpx;
+      opacity: 0.75;
+    }
+
+    &::after {
+      width: 50%;
+      height: 3rpx;
+      background: var(--annotation-phrase);
+      transform: rotate(-45deg) translate(3rpx, 6rpx);
+      border-radius: 2rpx;
+      opacity: 0.5;
+    }
+
+    &.glyph-state-active {
+      &::before, &::after {
+        opacity: 1;
+        background: var(--annotation-phrase);
+      }
+    }
+  }
+
+  /* =========================================================
+   * GLYPH: context (细下划线 + 小点)
+   * Visual: Fine underline with dot, blue
+   * ========================================================= */
+  &.glyph-context {
+    &::before {
+      width: 65%;
+      height: 2rpx;
+      background: var(--annotation-context);
+      bottom: 40%;
+      left: 17.5%;
+      border-radius: 1rpx;
+      opacity: 0.8;
+    }
+
+    &::after {
+      width: 6rpx;
+      height: 6rpx;
+      background: var(--annotation-context);
+      border-radius: 50%;
+      bottom: 38%;
+      right: 18%;
+      opacity: 0.8;
+    }
+
+    &.glyph-state-active {
+      &::before, &::after {
+        opacity: 1;
+        background: var(--annotation-context);
+      }
+    }
+  }
+
+  /* =========================================================
+   * GLYPH: grammar_note (两个小节点 + 软曲线)
+   * Visual: Two nodes connected by curve, purple-gray
+   * ========================================================= */
+  &.glyph-grammar_note {
+    &::before {
+      width: 10rpx;
+      height: 10rpx;
+      border: 2rpx solid var(--annotation-grammar);
+      border-radius: 50%;
+      top: 25%;
+      left: 20%;
+      opacity: 0.7;
+      background: transparent;
+    }
+
+    &::after {
+      width: 10rpx;
+      height: 10rpx;
+      border: 2rpx solid var(--annotation-grammar);
+      border-radius: 50%;
+      bottom: 25%;
+      right: 20%;
+      opacity: 0.7;
+      background: transparent;
+    }
+
+    .grammar-curve {
+      position: absolute;
+      width: 50%;
+      height: 50%;
+      border: 2rpx solid var(--annotation-grammar);
+      border-top: none;
+      border-left: none;
+      border-bottom-right-radius: 100%;
+      top: 30%;
+      left: 28%;
+      opacity: 0.6;
+    }
+
+    &.glyph-state-active {
+      &::before, &::after, .grammar-curve {
+        opacity: 1;
+        border-color: var(--annotation-grammar);
+      }
+    }
+  }
+
+  /* =========================================================
+   * GLYPH: sentence_analysis (三个错落的句子层)
+   * Visual: Three staggered lines, blue
+   * ========================================================= */
+  &.glyph-sentence_analysis {
+    &::before {
+      width: 70%;
+      height: 2rpx;
+      background: var(--annotation-analysis);
+      top: 30%;
+      left: 15%;
+      border-radius: 1rpx;
+      opacity: 0.7;
+    }
+
+    &::after {
+      width: 55%;
+      height: 2rpx;
+      background: var(--annotation-analysis);
+      top: 48%;
+      left: 22%;
+      border-radius: 1rpx;
+      opacity: 0.6;
+    }
+
+    .analysis-line-3 {
+      position: absolute;
+      width: 45%;
+      height: 2rpx;
+      background: var(--annotation-analysis);
+      bottom: 28%;
+      right: 18%;
+      border-radius: 1rpx;
+      opacity: 0.5;
+    }
+
+    &.glyph-state-active {
+      &::before, &::after, .analysis-line-3 {
+        opacity: 1;
+        background: var(--annotation-analysis);
+      }
+    }
+  }
+
+  /* =========================================================
+   * GLYPH: saved_vocab (已保存词汇 - 折角书签)
+   * Visual: Folded corner bookmark, brown
+   * ========================================================= */
+  &.glyph-saved_vocab {
+    &::before {
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 0 24rpx 24rpx;
+      border-color: transparent transparent rgba(180, 83, 9, 0.7) transparent;
+      bottom: 15%;
+      right: 15%;
+    }
+
+    &.glyph-state-active {
+      &::before {
+        border-color: transparent transparent rgba(180, 83, 9, 1) transparent;
+      }
+    }
+  }
+
+  /* =========================================================
+   * GLYPH: merged_note (合并笔记 - 堆叠纸片)
+   * Visual: Stacked paper layers
+   * ========================================================= */
+  &.glyph-merged_note {
+    &::before {
+      width: 75%;
+      height: 80%;
+      border: 1.5rpx solid var(--reader-muted);
+      border-radius: 2rpx;
+      top: 12%;
+      left: 12%;
+      transform: rotate(-3deg);
+      opacity: 0.5;
+      background: transparent;
+    }
+
+    &::after {
+      width: 75%;
+      height: 80%;
+      border: 1.5rpx solid var(--reader-ink);
+      border-radius: 2rpx;
+      bottom: 12%;
+      right: 12%;
+      transform: rotate(2deg);
+      opacity: 0.7;
+      background: transparent;
+    }
+
+    &.glyph-state-active {
+      &::before { opacity: 0.7; border-color: var(--annotation-merged); }
+      &::after { opacity: 1; border-color: var(--annotation-merged); }
+    }
+  }
+
+  /* =========================================================
+   * GLYPH: feedback (反馈入口 - 安静的对话气泡)
+   * Visual: Small quiet speech bubble
+   * ========================================================= */
+  &.glyph-feedback {
+    &::before {
+      width: 20rpx;
+      height: 14rpx;
+      border: 1.5rpx solid var(--reader-muted);
+      border-radius: 4rpx;
+      top: 35%;
+      left: 25%;
+      opacity: 0.6;
+      background: transparent;
+    }
+
+    &::after {
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 4rpx 5rpx 4rpx;
+      border-color: transparent transparent var(--reader-muted) transparent;
+      bottom: 42%;
+      left: 30%;
+      opacity: 0.6;
+    }
+
+    &.glyph-state-active {
+      &::before { opacity: 1; border-color: var(--reader-ink); }
+      &::after { opacity: 1; border-color: transparent transparent var(--reader-ink) transparent; }
+    }
   }
 }

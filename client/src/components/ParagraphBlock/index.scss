@@ -1,61 +1,53 @@
-﻿.paragraph-block {
-  margin-bottom: 64rpx;
-  padding: 0 40rpx;
+.paragraph-block {
+  margin-bottom: var(--paragraph-gap);
+  padding: 0 var(--reader-padding);
 
-  // --- Immersive Mode (鏋佽嚧鍘熸枃浣撻獙) ---
   &.immersive {
-    margin-bottom: 80rpx;
+    margin-bottom: var(--paragraph-gap-immersive);
 
     .english-paragraph {
-      line-height: var(--leading-relaxed); // 1.8
       text-align: left;
-      letter-spacing: -0.01em;
+      line-height: var(--leading-relaxed);
+      letter-spacing: 0;
     }
 
     .english-flow {
-      font-size: 36rpx; // 绋嶅井澧炲ぇ锛屾彁鍗囬槄璇昏垝閫傚害
-      color: var(--text-main);
+      color: var(--reader-ink);
       font-family: var(--font-english-serif), serif;
-      font-variant-numeric: oldstyle-nums; // 琛嚎浣撳紑鍚棫浣撴暟瀛楁洿鏄句笓涓?
+      font-size: 36rpx;
+      font-variant-numeric: oldstyle-nums;
+      line-height: var(--leading-relaxed);
     }
   }
 
-  // --- Intensive Mode (绮鹃洉缁嗙悽瑙ｆ瀽) ---
   &.intensive {
-    margin-bottom: 120rpx; // 澧炲姞娈佃惤闂磋窛锛屽己鍖栧垎闅旀劅
-
     .paragraph-header {
       display: flex;
       align-items: center;
       gap: 16rpx;
-      margin-bottom: 32rpx;
-      opacity: 0.8;
+      margin-bottom: var(--reader-space-md);
+      opacity: 0.72;
 
       .paragraph-anchor {
+        color: var(--reader-muted);
         font-family: var(--font-english-serif), serif;
-        font-size: 28rpx;
-        color: var(--text-muted);
+        font-size: 27rpx;
         font-weight: var(--weight-medium);
-        letter-spacing: 0.05em;
+        letter-spacing: 0.04em;
       }
 
       .paragraph-divider {
         flex: 1;
         height: 1rpx;
-        background: linear-gradient(to right,
-          rgba(18, 18, 18, 0.1) 0%,
-          rgba(18, 18, 18, 0.05) 50%,
-          transparent 100%
-        );
+        background: linear-gradient(to right, rgba(17, 17, 17, 0.08), rgba(17, 17, 17, 0.035), transparent);
       }
     }
 
     .sentence-block {
-      margin-bottom: 32rpx; // 缂╁噺鍘熷厛搴炲ぇ鐨勯棿璺?
-      // 褰诲簳绉婚櫎 border-bottom 鍜屽ぇ padding锛屾秷闄ゅ壊瑁傛劅锛屽洖褰掕嚜鐒剁殑鏂囧瓧娴?
+      margin-bottom: var(--sentence-gap);
 
       &.chunk-merged {
-        margin-bottom: 32rpx;
+        margin-bottom: var(--sentence-gap);
 
         .sentence-translation.merged {
           margin-bottom: 0;
@@ -64,55 +56,56 @@
     }
 
     .sentence-main {
-      margin-bottom: 0rpx; // 璁╄嫳鏂囦笌涓嬫柟鐨勭炕璇戠揣瀵嗚创鍚?
+      margin-bottom: 0;
     }
 
     .english-flow {
-      font-size: 34rpx;
-      line-height: var(--leading-normal);
-      font-weight: var(--weight-medium);
-      color: var(--color-ink);
+      color: var(--reader-ink);
       font-family: var(--font-english-serif), serif;
-      letter-spacing: var(--tracking-tight);
+      font-size: 32rpx;
+      font-weight: var(--weight-medium);
+      line-height: 1.58;
+      letter-spacing: 0;
     }
 
     .sentence-translation {
-      margin-top: 12rpx;
-      margin-bottom: 20rpx; // 涓庝笅鏂硅В鏋愬崱鐗囩殑璺濈锛岀暀鐧介€備腑
+      margin-top: var(--translation-gap);
+      margin-bottom: var(--reader-space-sm);
 
       .translation-text {
-        font-size: 28rpx; // 瀛楀彿灞傜骇鏄庣‘鍖哄垎涓嫳
-        line-height: var(--leading-relaxed);
-        color: rgba(0,0,0,0.45); // 鏋佸ぇ骞呭害闄嶄綆瀵规瘮搴︼紝浣撶幇 secondary 鏉冮噸
-        font-weight: var(--weight-normal);
+        color: rgba(17, 17, 17, 0.36);
         font-family: var(--font-sans);
-        letter-spacing: var(--tracking-normal);
+        font-size: 24rpx;
+        font-weight: var(--weight-normal);
+        line-height: 1.78;
+        letter-spacing: 0;
       }
     }
 
     .analysis-cards-list {
       display: flex;
       flex-direction: column;
-      gap: 16rpx;
+      gap: 14rpx;
+      margin-top: 8rpx;
     }
   }
 
-  // --- Common Elements ---
   .drop-cap {
     float: left;
-    font-size: 3.2em;
-    line-height: 0.85;
+    margin-top: 10rpx;
     margin-right: 12rpx;
     margin-bottom: -12rpx;
-    margin-top: 10rpx;
-    font-family: var(--font-english-serif), serif;
     color: var(--reader-ink);
+    font-family: var(--font-english-serif), serif;
+    font-size: 3.2em;
+    line-height: 0.85;
   }
 
-  .sentence-span, .english-flow {
+  .sentence-span,
+  .english-flow {
     display: inline;
-    transition: background-color 0.3s var(--ease-out-expo);
     border-radius: 4rpx;
+    transition: background-color 0.24s var(--ease-reader-out);
 
     &.is-highlighted-source {
       background-color: var(--highlight-surface);
@@ -122,29 +115,64 @@
 
   .sentence-text {
     &.is-highlighted {
-      background-color: var(--highlight-surface);
-      border-radius: 4rpx;
-      padding: 0 4rpx;
       margin: 0 -2rpx;
+      padding: 0 4rpx;
+      border-radius: 4rpx;
+      background-color: var(--highlight-surface);
+    }
+
+    &.is-analyzing {
+      .analysis-atom {
+        display: inline;
+        position: relative;
+        padding: 2rpx 0;
+        border-radius: 2rpx;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+      }
+
+      .chunk-inline-index {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20rpx;
+        height: 20rpx;
+        margin-right: 4rpx;
+        border-radius: 50%;
+        background: var(--annotation-analysis);
+        color: var(--reader-surface);
+        font-size: 14rpx;
+        font-weight: var(--weight-bold);
+        line-height: 1;
+        vertical-align: super;
+      }
+
+      .is-chunk {
+        &.color-type-0 { background-color: rgba(63, 111, 182, 0.06); border-bottom: 2rpx solid rgba(63, 111, 182, 0.42); }
+        &.color-type-1 { background-color: rgba(107, 95, 199, 0.06); border-bottom: 2rpx solid rgba(107, 95, 199, 0.42); }
+        &.color-type-2 { background-color: rgba(4, 120, 87, 0.055); border-bottom: 2rpx solid rgba(4, 120, 87, 0.34); }
+        &.color-type-3 { background-color: rgba(180, 83, 9, 0.052); border-bottom: 2rpx solid rgba(180, 83, 9, 0.34); }
+        &.color-type-4 { background-color: rgba(113, 113, 122, 0.055); border-bottom: 2rpx solid rgba(113, 113, 122, 0.38); }
+      }
     }
   }
 
   .sentence-translation {
     &.is-highlighted {
-      background-color: var(--highlight-soft);
-      border-radius: 8rpx;
-      padding-left: 8rpx;
-      padding-right: 8rpx;
-      margin-left: -8rpx;
       margin-right: -8rpx;
-      transition: all 0.35s var(--ease-out-expo);
+      margin-left: -8rpx;
+      padding-right: 8rpx;
+      padding-left: 8rpx;
+      border-radius: 8rpx;
+      background-color: var(--highlight-soft);
+      transition: all 0.24s var(--ease-reader-out);
     }
 
     .translation-text.segment {
       display: inline;
       padding: 2rpx 8rpx;
       border-radius: 4rpx;
-      transition: all 0.3s var(--ease-out-expo);
+      transition: all 0.24s var(--ease-reader-out);
 
       &.is-highlighted {
         background-color: var(--highlight-surface);
@@ -161,62 +189,22 @@
 
   .annotation-feedback-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
+    inset: 0;
     z-index: 999;
     display: flex;
     align-items: flex-end;
+    background: rgba(17, 17, 17, 0.36);
   }
 
   .tone-grammar {
     display: inline;
-    border-bottom: 2.5rpx solid var(--grammar-accent);
-    background: linear-gradient(to top, var(--grammar-surface) 40%, transparent 40%);
+    border-bottom: 2rpx solid var(--annotation-grammar-line);
+    background: linear-gradient(to top, var(--annotation-grammar-surface) 36%, transparent 36%);
     font-weight: var(--weight-medium);
-    white-space: normal; // 鍏佽鑷劧鎹㈣锛岄槻姝㈢敱浜?white-space: pre 瀵艰嚧鐨勯暱鍙ユ孩鍑?
+    white-space: normal;
 
     &.is-highlighted {
-      background: transparent !important; // 鍚屾牱澶勭悊绌烘牸鐨勯珮浜啿绐?
-    }
-  }
-
-  .sentence-text {
-    &.is-analyzing {
-      .analysis-atom {
-        display: inline;
-        border-radius: 2rpx;
-        padding: 2rpx 0;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone;
-        position: relative;
-      }
-
-      .chunk-inline-index {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 20rpx;
-        height: 20rpx;
-        font-size: 14rpx;
-        background: var(--annotation-analysis);
-        color: var(--reader-paper);
-        border-radius: 50%;
-        margin-right: 4rpx;
-        vertical-align: super;
-        font-weight: var(--weight-bold);
-      }
-
-      .is-chunk {
-        &.color-type-0 { background-color: rgba(63, 111, 182, 0.06); border-bottom: 2rpx solid rgba(63, 111, 182, 0.4); }
-        &.color-type-1 { background-color: rgba(107, 95, 199, 0.06); border-bottom: 2rpx solid rgba(107, 95, 199, 0.4); }
-        &.color-type-2 { background-color: rgba(4, 120, 87, 0.06); border-bottom: 2rpx solid rgba(4, 120, 87, 0.3); }
-        &.color-type-3 { background-color: rgba(180, 83, 9, 0.05); border-bottom: 2rpx solid rgba(180, 83, 9, 0.3); }
-        &.color-type-4 { background-color: rgba(113, 113, 122, 0.06); border-bottom: 2rpx solid rgba(113, 113, 122, 0.4); }
-      }
+      background: transparent !important;
     }
   }
 }
-

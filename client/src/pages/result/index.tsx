@@ -111,6 +111,8 @@ export default function Result() {
           readingVariant={request.readingVariant}
           pageMode={pageMode}
           isAcademicMode={isAcademicMode}
+          onModeToggle={() => setPageMode(pageMode === 'immersive' ? 'intensive' : 'immersive')}
+          onEdit={() => setShowModeSheet(true)}
         />
       </View>
     )
@@ -174,26 +176,6 @@ export default function Result() {
       <View className='result-nav-spacer' style={{ height: navBarHeight + 'px' }} />
 
       <View className='result-content-root'>
-        <View className='mode-tabs-container' role='tablist' aria-label='阅读模式切换'>
-          <View className='mode-tabs'>
-            {PAGE_MODE_OPTIONS.map((mode) => (
-              <View
-                key={mode.value}
-                className={`mode-tab ${pageMode === mode.value ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setPageMode(mode.value as PageMode)
-                }}
-                role='tab'
-                aria-selected={pageMode === mode.value}
-                aria-label={`${mode.label}模式`}
-              >
-                <Text className='mode-tab-label'>{mode.label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
         <DegradedBanner pageState={pageState} sceneData={sceneData} onRetry={actions.handleRetry} />
 
         {isAcademicMode && sceneData?.warnings?.some(w => w.level === 'info' || w.code === 'NON_ACADEMIC_TEXT_DETECTED' || w.code === 'FRAGMENT_INPUT_DETECTED') && (
