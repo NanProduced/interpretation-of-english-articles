@@ -1,6 +1,6 @@
 # Claread Academic Reading System
 
-> Status: draft design direction for review.
+> Status: text-first design specification.
 > Scope: academic mode result page, academic inline notes, research brief, term detail, logic/interpretation notes.
 > Related source: `docs/differentiated/academic_reading_differentiation.md`.
 
@@ -15,29 +15,21 @@ For implementation agents:
 1. Read `PRODUCT.md`.
 2. Read `docs/differentiated/academic_reading_differentiation.md`, especially section 12.
 3. Read this file and `component-spec.md`.
-4. Use the PNGs in `assets/` as visual references.
+4. Implement from the written design language and schema contract. Do not rely on generated design images.
 5. Do not copy the exam/grammar annotation card rhythm into academic mode.
 
-## Approved Draft Assets
+## Design References
 
-| File | Purpose |
-|---|---|
-| `assets/target-viewport-academic-reader.png` | Main academic result page, title, quiet context bar, compact research brief, and reading flow. |
-| `assets/target-viewport-academic-notes.png` | In-reading term, logic, and interpretation note treatment. |
-| `assets/target-viewport-academic-term-sheet.png` | Term detail sheet for `term_note` and academic context definition. |
-| `assets/academic-component-spec-board.png` | Component vocabulary, tokens, and mapping from academic schema to UI. |
+This package intentionally has no design-image dependency.
 
-These images should stay visually close to `../reading-annotation-system/assets/`:
+Implementation should be guided by:
 
-- Same warm paper surface.
-- Same restrained navigation.
-- Same reader-first hierarchy.
-- Same low-noise stationery feeling.
+- Product design context in `PRODUCT.md`.
+- Academic product requirements in `docs/differentiated/academic_reading_differentiation.md`.
+- The written component rules in `component-spec.md`.
+- The current academic schema and frontend VM types.
 
-They intentionally differ in information architecture:
-
-- Academic mode uses research brief and local scholarly notes.
-- Exam/daily mode uses grammar notes, sentence analysis, and word lookup.
+Do not treat any generated academic screenshots as authoritative. If a mock image exists elsewhere, it is illustrative only and must not override this text spec.
 
 ## Product Positioning
 
@@ -84,6 +76,27 @@ The main shift is from "annotation cards after sentences" to "scholarly notes ar
 - Interpretation notes appear only when a sentence needs decontextualization or disambiguation.
 - Translation is important but still visually secondary to the English source.
 
+## Visual Language
+
+Academic mode should feel like a quiet research reading desk:
+
+- Warm paper, deep ink, and restrained secondary text.
+- Scholarly notes that feel like margin annotations or paper slips, not dashboard widgets.
+- Low-chroma academic tones: blue-gray for concepts, muted amber for argument movement, muted green-gray for interpretation.
+- Thin lines, soft borders, and small labels instead of bold badges.
+- Sparse, deliberate color. Color identifies semantic type; it does not decorate the page.
+- Typography should support long reading: English source uses the reader serif stack; Chinese UI, translation, and notes use system sans.
+- The page should have a clear reading rhythm: title, quiet context, optional compact brief, then text. It should not start with a heavy AI summary.
+
+Avoid:
+
+- Purple-heavy AI labels.
+- Thick colored side stripes.
+- Large summary panels before the article.
+- Dense stacks of explanation cards.
+- Exam tags, vocabulary-drill language, grammar labels, or classroom phrasing.
+- Raw backend values such as `academic_general`.
+
 ## Implementation Bias
 
 Create academic-specific components instead of stretching `AnalysisCard`:
@@ -103,4 +116,3 @@ Reuse shared primitives where appropriate:
 - `FeedbackSystem` entry points
 
 Avoid making academic mode a large branch inside `ParagraphBlock`. If the same component needs too many academic-only conditions, split it.
-

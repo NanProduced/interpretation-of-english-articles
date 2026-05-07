@@ -77,14 +77,6 @@ async def _run_ingestion(
 
     settings = get_settings()
 
-    if not settings.zilliz_uri or not settings.zilliz_token:
-        logger.error("ZILLIZ_URI and ZILLIZ_TOKEN must be configured in .env")
-        sys.exit(1)
-
-    if not settings.bailian_api_key:
-        logger.error("BAILIAN_API_KEY must be configured in .env")
-        sys.exit(1)
-
     records = _load_seed(seed_file)
     logger.info("Loaded %d seed records from %s", len(records), seed_file)
 
@@ -100,15 +92,28 @@ async def _run_ingestion(
         logger.info("=== DRY RUN MODE ===")
         for r in records:
             mapped = _map_record_to_zilliz(r, [0.0] * settings.bailian_embedding_dimension)
+            collection = (
+                "grammar_note_examples"
+                if r["output_type"] == "grammar_note"
+                else "sentence_analysis_examples"
+            )
             logger.info(
                 "  %s → collection=%s, variant=%s, label=%s",
                 mapped["example_id"],
-                "grammar_note_examples" if r["output_type"] == "grammar_note" else "sentence_analysis_examples",
+                collection,
                 mapped["reading_variant"],
                 mapped["label"],
             )
         logger.info("Total: %d records to ingest", len(records))
         return
+
+    if not settings.zilliz_uri or not settings.zilliz_token:
+        logger.error("ZILLIZ_URI and ZILLIZ_TOKEN must be configured in .env")
+        sys.exit(1)
+
+    if not settings.bailian_api_key:
+        logger.error("BAILIAN_API_KEY must be configured in .env")
+        sys.exit(1)
 
     await init_zilliz(uri=settings.zilliz_uri, token=settings.zilliz_token)
 

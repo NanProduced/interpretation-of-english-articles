@@ -29,8 +29,10 @@ from app.services.analysis.prompting.prompt_strategy import (
 @dataclass
 class StrategyBundle:
     """策略Bundle，包含 prompt 和 example 策略。"""
+
     prompt_strategy: PromptStrategy
     example_strategy: ExampleStrategy
+    rag_debug: dict | None = None
 
 
 def build_vocabulary_bundle(
@@ -60,9 +62,38 @@ async def build_grammar_bundle_async(
     sentences: list[dict] | None = None,
 ) -> StrategyBundle:
     """构建 grammar agent 的 strategy bundle（异步版本，支持 RAG）。"""
+    from app.config.settings import get_settings
+    from app.services.analysis.prompting.rag.grammar_rag_service import (
+        build_rag_debug_info,
+        query_grammar_rag,
+    )
+
+    settings = get_settings()
+    rag_debug = None
+    example_strategy = await get_grammar_example_strategy_async(
+        plan, sentences=sentences
+    )
+
+    if settings.grammar_rag_enabled and sentences:
+        gn_result = await query_grammar_rag(
+            variant=plan.variant_id,
+            sentences=sentences,
+            output_type="grammar_note",
+        )
+        sa_result = await query_grammar_rag(
+            variant=plan.variant_id,
+            sentences=sentences,
+            output_type="sentence_analysis",
+        )
+        rag_debug = {
+            "grammar_note": build_rag_debug_info(gn_result),
+            "sentence_analysis": build_rag_debug_info(sa_result),
+        }
+
     return StrategyBundle(
         prompt_strategy=build_grammar_prompt_strategy(plan),
-        example_strategy=await get_grammar_example_strategy_async(plan, sentences=sentences),
+        example_strategy=example_strategy,
+        rag_debug=rag_debug,
     )
 
 

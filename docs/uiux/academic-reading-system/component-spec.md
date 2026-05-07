@@ -14,9 +14,29 @@ The hierarchy is:
 3. Academic notes: term, logic, interpretation.
 4. Research brief and feedback.
 
+## Design Language
+
+Academic mode should express Claread as a calm reading product with scholarly assistance.
+
+Use these principles before choosing component shapes:
+
+- **Reading surface first**: the English article remains the strongest visual element. Notes and translations support it.
+- **Research desk, not classroom**: language should sound like a research assistant, not an English teacher.
+- **Paper slip, not dashboard card**: academic explanations can have surfaces, but they should feel light, local, and optional.
+- **Progressive depth**: show a small signal first, then local note, then deeper sheet only after user intent.
+- **Low-noise semantics**: color is reserved for note type, not for decoration.
+- **Sparse controls**: avoid visible tool clutter inside the article.
+
+Academic color roles:
+
+- Concept / term: muted blue-gray.
+- Argument / logic: muted amber.
+- Interpretation / paraphrase: muted green-gray.
+- Warning / uncertainty: quiet neutral text first; only use warning color for actual degraded states.
+
 ## Token Direction
 
-Use the same reader tokens from `../reading-annotation-system/component-spec.md` and add only academic semantic tones.
+Use the app's existing reader tokens where possible and add only academic semantic tones.
 
 ```scss
 --academic-term-line: rgba(73, 111, 143, 0.72);
@@ -34,6 +54,7 @@ Rules:
 - Keep academic colors lower in chroma than exam or vocabulary colors.
 - Do not use purple-heavy AI badges.
 - Do not use thick left stripes. Use thin lines, small labels, or quiet dot markers.
+- Do not introduce a separate visual universe for academic mode. It should still feel like Claread.
 
 ## Academic Header
 
@@ -59,6 +80,7 @@ Rules:
 - Do not show strong academic badges.
 - Do not show `academic_general` raw values.
 - Do not show a large summary card before the reader.
+- If title length is long, prefer 2 lines and then continue into context. Do not shrink it aggressively.
 
 ## AcademicResearchBrief
 
@@ -101,6 +123,7 @@ Rules:
 - Do not place a thick colored side stripe on the brief.
 - Do not expand automatically if it pushes the first paragraph below the fold.
 - If `content_summary` is null, render nothing.
+- The brief is orientation, not the main result. If the first paragraph feels visually secondary, the brief is too heavy.
 
 ## Academic Inline Marks
 
@@ -116,6 +139,7 @@ Rules:
 - Do not show exam tags in academic mode.
 - Do not use the dictionary word sheet for `term_note` unless the user explicitly asks for dictionary depth.
 - Dense academic marks should remain readable; prefer underlines over saturated backgrounds.
+- If a sentence has both `term_note` and `logic_note`, avoid overlapping backgrounds. Use line styles and z-order consistently.
 
 ## AcademicNoteSlip
 
@@ -145,6 +169,8 @@ Rules:
 - A note slip should explain one idea.
 - Avoid multiple note slips directly stacked after every sentence.
 - If several entries belong to one sentence, group them under one compact `学术注释` entry and reveal details inside.
+- Note slips should not use grammar labels such as `语法`, `句式`, `定语从句`.
+- Note slip titles should be semantic: `术语`, `论证`, `解释`, `限定`, `证据`, `转折`, `指代`.
 
 ## AcademicTermSheet
 
@@ -177,6 +203,8 @@ Rules:
 - Do not render `记入生词本` as the primary action for academic terms unless the product decides academic terms also enter vocabulary.
 - Current v1 can use `写反馈` only in the footer.
 - If `zh_uncertain` is true, show a quiet uncertainty note, not a warning block.
+- Put `本文语境` before any generic dictionary-like content.
+- If the term category is present, show it as a tiny muted label, not as a strong badge.
 
 ## Translation Layer
 
@@ -196,6 +224,7 @@ Rules:
 - Preserve paragraph rhythm.
 - Do not render translations in beige boxes by default.
 - Translation notes are not currently exposed in `AcademicRenderSceneVm`; do not invent them.
+- Translation should never visually compete with the English source. If both have equal weight, reduce translation contrast.
 
 ## Feedback
 
@@ -228,3 +257,21 @@ Feedback entry copy should be quiet:
 9. Fragment input warning.
 10. Degraded academic result.
 
+## Implementation Boundaries
+
+Do not require backend changes for v1.
+
+Allowed with current VM:
+
+- Render compact research brief from `contentSummary`.
+- Render term and logic inline marks from `inlineMarks`.
+- Render local academic notes from `sentenceEntries`.
+- Open a term detail sheet using `lookupText` and `glossary`.
+- Submit feedback for academic note targets.
+
+Not allowed without schema/projection changes:
+
+- Paragraph role rail, unless paragraph roles are projected into the frontend VM.
+- Citation cards, unless citation metadata is added.
+- Translation decision notes, unless exposed in `AcademicRenderSceneVm`.
+- Concept map or term network, unless grouped concept data is added.

@@ -13,7 +13,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from app.config.settings import get_settings
 from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.services.analysis.prompting.prompt_loader import load_examples
 
@@ -65,17 +64,27 @@ async def _resolve_rag_examples_async(
     variant: str,
     sentences: list[dict] | None = None,
 ) -> list[ExampleEntry]:
-    """异步版本：调用 grammar_rag_service 获取 RAG 示例。"""
+    """异步版本：调用 grammar_rag_service 获取 RAG 示例。
+
+    同时拉取 grammar_note（最多 2 条）和 sentence_analysis（最多 1 条），
+    合并后返回。
+    """
     if sentences is None:
         return []
-    from app.services.analysis.prompting.rag.grammar_rag_service import query_grammar_rag
-    output_type = "sentence_analysis" if example_name == "sentence_analysis" else "grammar_note"
-    result = await query_grammar_rag(
+    from app.services.analysis.prompting.rag.grammar_rag_service import (
+        query_grammar_rag,
+    )
+    gn_result = await query_grammar_rag(
         variant=variant,
         sentences=sentences,
-        output_type=output_type,
+        output_type="grammar_note",
     )
-    return result.examples
+    sa_result = await query_grammar_rag(
+        variant=variant,
+        sentences=sentences,
+        output_type="sentence_analysis",
+    )
+    return gn_result.examples + sa_result.examples
 
 
 def get_vocabulary_example_strategy(
@@ -112,6 +121,8 @@ def get_grammar_example_strategy(
     同步版本不调用 RAG，RAG 场景请使用 get_grammar_example_strategy_async。
     """
     if plan.few_shot_mode == "rag":
+        from app.config.settings import get_settings
+
         settings = get_settings()
         if settings.grammar_rag_enabled:
             # 同步版本无法调用 async RAG，直接 fallback
@@ -123,7 +134,7 @@ def get_grammar_example_strategy(
             examples=_load_baseline_examples("grammar", plan.variant_id),
             selection_mode="baseline",
         )
-    if plan.few_shot_mode != "baseline":
+    if plan.few_shot_mode not in ("baseline", "rag"):
         return ExampleStrategy(examples=[], selection_mode=plan.few_shot_mode)
 
     return ExampleStrategy(
@@ -140,22 +151,23 @@ async def get_grammar_example_strategy_async(
 
     RAG 仅在 GRAMMAR_RAG_ENABLED=true 时激活。
     异步版本可调用 grammar_rag_service 获取 RAG 示例。
+    当 GRAMMAR_RAG_ENABLED=true 时，即使 plan.few_shot_mode="baseline"，
+    也会内部切换到 RAG 模式（不暴露给前端）。
     """
-    if plan.few_shot_mode == "rag":
-        settings = get_settings()
-        if settings.grammar_rag_enabled:
-            rag_examples = await _resolve_rag_examples_async("grammar", plan.variant_id, sentences)
-            if rag_examples:
-                return ExampleStrategy(examples=rag_examples, selection_mode="rag")
-            return ExampleStrategy(
-                examples=_load_baseline_examples("grammar", plan.variant_id),
-                selection_mode="rag_fallback",
-            )
+    from app.config.settings import get_settings
+
+    settings = get_settings()
+    if settings.grammar_rag_enabled:
+        rag_examples = await _resolve_rag_examples_async(
+            "grammar", plan.variant_id, sentences
+        )
+        if rag_examples:
+            return ExampleStrategy(examples=rag_examples, selection_mode="rag")
         return ExampleStrategy(
             examples=_load_baseline_examples("grammar", plan.variant_id),
-            selection_mode="baseline",
+            selection_mode="rag_fallback",
         )
-    if plan.few_shot_mode != "baseline":
+    if plan.few_shot_mode not in ("baseline", "rag"):
         return ExampleStrategy(examples=[], selection_mode=plan.few_shot_mode)
 
     return ExampleStrategy(

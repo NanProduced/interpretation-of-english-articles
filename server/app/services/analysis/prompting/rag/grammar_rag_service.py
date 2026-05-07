@@ -198,15 +198,26 @@ async def _retrieve_from_backend(
         else settings.zilliz_collection_sentence_analysis
     )
 
-    filter_expr = f'approved == true and output_type == "{output_type}"'
+    base_filter = f'approved == true and output_type == "{output_type}"'
 
     t0 = time.monotonic()
+    filter_expr = f'{base_filter} and reading_variant == "{variant}"'
     search_results = await zilliz_search(
         collection_name=collection_name,
         query_vector=query_vector,
         top_k=settings.grammar_rag_ann_topk,
         filter_expr=filter_expr,
     )
+
+    if not search_results and variant != "default":
+        filter_expr = f'{base_filter} and reading_variant == "default"'
+        search_results = await zilliz_search(
+            collection_name=collection_name,
+            query_vector=query_vector,
+            top_k=settings.grammar_rag_ann_topk,
+            filter_expr=filter_expr,
+        )
+
     result.ann_latency_ms = (time.monotonic() - t0) * 1000
     result.ann_topk = settings.grammar_rag_ann_topk
 

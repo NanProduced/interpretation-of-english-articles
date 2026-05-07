@@ -126,6 +126,7 @@ def _build_learning_preview(
     if include_instructions:
         instructions = load_agent_instructions(agent_type)
 
+    rag_debug = bundle.rag_debug or {}
     return PromptPreviewResponse(
         prompt_version=get_prompt_version(),
         instructions=instructions,
@@ -140,13 +141,14 @@ def _build_learning_preview(
             "selection_mode": bundle.example_strategy.selection_mode,
             "few_shot_mode": few_shot_mode,
             "example_count": len(example_entries),
-            "fallback_reason": None if bundle.example_strategy.selection_mode in ("baseline", "rag") else "rag_not_enabled_or_empty",
-            "selected_example_ids": [],
-            "ann_topk": 0,
-            "rerank_topn": 0,
-            "embedding_latency_ms": 0.0,
-            "ann_latency_ms": 0.0,
-            "rerank_latency_ms": 0.0,
+            "fallback_reason": rag_debug.get("grammar_note", {}).get("fallback_reason"),
+            "selected_example_ids": rag_debug.get("grammar_note", {}).get("selected_example_ids", []),
+            "ann_topk": rag_debug.get("grammar_note", {}).get("ann_topk", 0),
+            "rerank_topn": rag_debug.get("grammar_note", {}).get("rerank_topn", 0),
+            "embedding_latency_ms": rag_debug.get("grammar_note", {}).get("embedding_latency_ms", 0.0),
+            "ann_latency_ms": rag_debug.get("grammar_note", {}).get("ann_latency_ms", 0.0),
+            "rerank_latency_ms": rag_debug.get("grammar_note", {}).get("rerank_latency_ms", 0.0),
+            "rag_debug": rag_debug,
         },
     )
 

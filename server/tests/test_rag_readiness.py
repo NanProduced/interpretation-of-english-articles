@@ -82,7 +82,7 @@ class TestRAGRestriction:
         )
         assert strategy.selection_mode == "baseline"
 
-    @patch("app.services.analysis.prompting.example_strategy.get_settings")
+    @patch("app.config.settings.get_settings")
     def test_grammar_rag_disabled_falls_back_to_baseline(self, mock_settings):
         mock_settings.return_value.grammar_rag_enabled = False
         plan = _make_plan(few_shot_mode="rag")
@@ -91,7 +91,7 @@ class TestRAGRestriction:
         )
         assert strategy.selection_mode == "baseline"
 
-    @patch("app.services.analysis.prompting.example_strategy.get_settings")
+    @patch("app.config.settings.get_settings")
     def test_grammar_rag_enabled_attempts_rag_then_fallback(self, mock_settings):
         mock_settings.return_value.grammar_rag_enabled = True
         plan = _make_plan(few_shot_mode="rag")

@@ -115,6 +115,17 @@
 | RAG-17 | 接入 prompt composition 异步链路 | GLM | DONE | RAG-16 | 新增 get_grammar_example_strategy_async + build_grammar_bundle_async；analyze_nodes 改用 async；同步版本保留 | 2026-05-07 22:30 |
 | RAG-18 | 可观测性与集成测试 | GLM | DONE | RAG-16, RAG-17 | prompt_debug 扩展 observability 字段；10 条集成测试覆盖完整链路和 5 种 fallback；118 条测试全绿 | 2026-05-07 22:30 |
 
+## 5.3 P1 RAG 正式接入前收口（RAG-19）
+
+| ID | 任务 | Owner | 状态 | 依赖 | 验收标准 | 最后更新 |
+|----|------|-------|------|------|----------|----------|
+| RAG-19.1 | GRAMMAR_RAG_ENABLED=true 时后端内部切 rag 模式 | GLM | DONE | RAG-17 | get_grammar_example_strategy_async 检查 grammar_rag_enabled 优先于 plan.few_shot_mode；RAG 禁用时 few_shot_mode=rag 降级为 baseline | 2026-05-07 23:50 |
+| RAG-19.2 | grammar RAG 同时拉取 grammar_note + sentence_analysis | GLM | DONE | RAG-16 | _resolve_rag_examples_async 查询两个池并合并；build_grammar_bundle_async 构建双池 rag_debug | 2026-05-07 23:50 |
+| RAG-19.3 | Zilliz filter 增加 reading_variant exact + default fallback | GLM | DONE | RAG-16 | _retrieve_from_backend 先按 variant exact 查询，空结果再 fallback 到 default | 2026-05-07 23:50 |
+| RAG-19.4 | --dry-run 不要求真实 key | GLM | DONE | RAG-15 | ingest_grammar_seed.py 的 key 验证移到 dry-run 检查之后 | 2026-05-07 23:50 |
+| RAG-19.5 | RAG observability 传到 prompt debug | GLM | DONE | RAG-17, RAG-18 | StrategyBundle 新增 rag_debug 字段；build_grammar_bundle_async 填充；prompt_debug.py 使用 | 2026-05-07 23:50 |
+| RAG-19.6 | 全量验证 + mock 修复 | GLM | DONE | RAG-19.1~5 | 90 条 RAG 测试全绿；compileall 通过；ruff clean | 2026-05-07 23:50 |
+
 ## 6. P1 测试补强任务
 
 | ID | 任务 | Owner | 状态 | 依赖 | 验收标准 | 最后更新 |
@@ -152,6 +163,8 @@ YYYY-MM-DD HH:mm | Agent | Task ID | 状态 | 摘要 | 验证 | 风险/下一步
 ```
 
 记录：
+
+- 2026-05-07 23:50 | GLM | RAG-19.1~19.6 | DONE | 完成 RAG 正式接入前收口全部 6 项任务：(1) RAG-19.1 get_grammar_example_strategy_async 改为 grammar_rag_enabled 优先判断，RAG 禁用时 few_shot_mode=rag 降级为 baseline（同步/异步版本均修复，条件改为 `not in ("baseline", "rag")`）；(2) RAG-19.2 _resolve_rag_examples_async 同时查询 grammar_note + sentence_analysis 两个池并合并，build_grammar_bundle_async 构建双池 rag_debug；(3) RAG-19.3 _retrieve_from_backend 先按 reading_variant exact 查询，空结果再 fallback 到 default；(4) RAG-19.4 ingest_grammar_seed.py 的 key 验证移到 dry-run 检查之后；(5) RAG-19.5 StrategyBundle 新增 rag_debug 字段，build_grammar_bundle_async 填充，prompt_debug.py 使用；(6) RAG-19.6 修复 example_strategy.py 的 get_settings 从模块级导入改为延迟导入（解决 mock patching 缓存引用问题），修复异步版本 few_shot_mode 降级逻辑，简化测试 mock patching。 | `pytest tests/test_rag_integration.py tests/test_rag_infra.py tests/test_rag_readiness.py -v` → 90 passed；`pytest tests/test_prompt_composition.py tests/test_grammar_retrieval_hints.py -v` → 20 passed；`python -m compileall app tests scripts` 通过；`ruff check` All checks passed | 下一步：配置 ZILLIZ_URI/ZILLIZ_TOKEN/BAILIAN_API_KEY → dry-run → 正式 ingestion → GRAMMAR_RAG_ENABLED=true 端到端验证
 
 - 2026-05-07 22:30 | GLM | RAG-14~18, M5, D-02 | DONE/REVIEW | 完成 Grammar RAG Phase 2 全部 5 项任务：(1) RAG-14 冻结 Zilliz schema（补 source_sentence/output_fragment/grammar_granularity 3 字段，共 12 字段），zilliz_search 返回 SearchResult（含 id/score/entity）；(2) RAG-15 实现 ingest_grammar_seed.py（支持 dry-run/幂等/批量，JSONL→embedding→Zilliz）；(3) RAG-16 实现 grammar_rag_service 真实检索（完整链路：候选句筛选→query构造→embedding→ANN→rerank→置信度过滤→多样性去重→注入预算控制），RAGQueryResult 新增 6 个 observability 字段；(4) RAG-17 新增 get_grammar_example_strategy_async + build_grammar_bundle_async，analyze_nodes 改用 async 版本，同步版本保留；(5) RAG-18 prompt_debug 扩展 observability 字段，10 条集成测试覆盖完整链路和 5 种 fallback。M5 里程碑标记 DONE。D-02 从 IN_PROGRESS 更新为 REVIEW。 | `python -m compileall app tests scripts` 通过；`pytest` 相关 118 passed；`ruff check` All checks passed | 需配置 Zilliz URI/Token 和百炼 API Key 后执行 ingestion 端到端验证
 
