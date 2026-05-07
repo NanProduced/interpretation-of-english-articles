@@ -39,7 +39,7 @@ from app.services.analysis.postprocess.normalize_and_ground import normalize_and
 from app.services.analysis.postprocess.projection import project_to_render_scene
 from app.services.analysis.preprocess.input_preparation import prepare_input
 from app.services.analysis.prompting.strategy_builder import (
-    build_grammar_bundle,
+    build_grammar_bundle_async,
     build_translation_bundle,
     build_vocabulary_bundle,
 )
@@ -335,7 +335,7 @@ async def _run_parallel_agents(
     ]
 
     vocab_bundle = build_vocabulary_bundle(plan)
-    grammar_bundle = build_grammar_bundle(plan, sentences=sentences_data)
+    grammar_bundle = await build_grammar_bundle_async(plan, sentences=sentences_data)
     translation_bundle = build_translation_bundle(plan)
 
     vocab_deps = VocabularyAgentDeps(

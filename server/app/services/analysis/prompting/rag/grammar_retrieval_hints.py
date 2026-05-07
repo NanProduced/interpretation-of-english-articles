@@ -17,7 +17,7 @@ Signals extracted:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 _LONG_SENTENCE_THRESHOLD = 20
 _MANY_COMMA_THRESHOLD = 2

@@ -4,7 +4,12 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.config.settings import get_settings
 from app.database.connection import is_db_ready, is_redis_ready
-from app.schemas.health import DbHealthResponse, DictCacheStats, HealthCheckResponse, ReadinessCheckResponse
+from app.schemas.health import (
+    DbHealthResponse,
+    DictCacheStats,
+    HealthCheckResponse,
+    ReadinessCheckResponse,
+)
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -18,6 +23,11 @@ async def health_check(request: Request) -> HealthCheckResponse:
     worker_snapshot = _get_worker_snapshot(request)
     worker_ready = bool(worker_snapshot["healthy"])
 
+    zilliz_ready: bool | None = None
+    if settings.grammar_rag_enabled:
+        from app.infra.zilliz_client import is_zilliz_ready as _is_zilliz_ready
+        zilliz_ready = await _is_zilliz_ready()
+
     return {
         "status": "ok" if db_ready and worker_ready else "degraded",
         "app": settings.app_name,
@@ -27,6 +37,7 @@ async def health_check(request: Request) -> HealthCheckResponse:
         "worker": worker_ready,
         "worker_inflight_tasks": int(worker_snapshot["inflight_tasks"]),
         "dict_cache": _get_dict_cache_stats(),
+        "zilliz": zilliz_ready,
     }
 
 

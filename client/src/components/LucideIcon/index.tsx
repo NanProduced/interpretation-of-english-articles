@@ -71,6 +71,10 @@ const SVG_PATHS: Record<string, string> = {
   tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5"/>',
   send: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.614-.614l-19 6.5a.5.5 0 0 0-.024.937l7.165 3.348a.5.5 0 0 1 .262.262l3.348 7.165Z"/><path d="m21.854 2.147-10.94 10.94"/>',
   inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  minusCircle: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/>',
+  plusCircle: '<circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/>',
+  gift: '<polyline points="20 12 20 22 4 22 4 12"/><rect height="14" rx="2" width="20" x="2" y="7"/><path d="m12 22 0-7"/><path d="M12 7V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2"/><path d="M12 7V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v2"/>',
+  circle: '<circle cx="12" cy="12" r="10"/>',
 }
 
 const COLOR_TOKENS: Record<string, string> = {

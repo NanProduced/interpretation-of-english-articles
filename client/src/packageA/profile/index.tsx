@@ -317,7 +317,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
             </View>
 
             {/* Achievement Coronation */}
-            <View className='dashboard-footer' onClick={() => setShowAchievementSheet(true)}>
+            <View className='dashboard-footer' onClick={(e) => { e.stopPropagation(); setShowAchievementSheet(true) }}>
               <View className='achievement-badge'>
                 <View className='medal-icon' style={{ borderColor: tier.color + '40' }}>
                   <LucideIcon name={tier.icon} size={36} color={tier.color} />

@@ -51,6 +51,25 @@ class Settings(BaseSettings):
     # Grammar RAG（默认关闭，Readiness Gate 阶段仅做骨架接入）
     grammar_rag_enabled: bool = False
 
+    # Zilliz 向量数据库（Grammar RAG 依赖）
+    zilliz_uri: str = ""
+    zilliz_token: str = ""
+    zilliz_collection_grammar_note: str = "grammar_note_examples"
+    zilliz_collection_sentence_analysis: str = "sentence_analysis_examples"
+
+    # 百炼 Embedding（Grammar RAG 依赖）
+    bailian_api_key: str = ""
+    bailian_embedding_model: str = "text-embedding-v4"
+    bailian_embedding_dimension: int = 1024
+
+    # 百炼 Rerank（Grammar RAG 依赖）
+    bailian_rerank_model: str = "qwen3-rerank"
+
+    # RAG 运行参数
+    grammar_rag_ann_topk: int = 8
+    grammar_rag_rerank_topn: int = 5
+    grammar_rag_confidence_threshold: float = 0.3
+
     # 内部 API Key（云函数调用等）
     internal_api_key: str = ""
 

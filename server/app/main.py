@@ -82,6 +82,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 2. 初始化 Redis（可选，第二阶段增强）
     await init_redis(redis_url=settings.redis_url, enabled=settings.redis_enabled)
 
+    # 2.5 初始化 Zilliz（可选，Grammar RAG 依赖）
+    if settings.grammar_rag_enabled:
+        try:
+            from app.infra.zilliz_client import init_zilliz, is_zilliz_ready
+
+            await init_zilliz(uri=settings.zilliz_uri, token=settings.zilliz_token)
+            ready = await is_zilliz_ready()
+            if ready:
+                logger.info("Zilliz connection established")
+            else:
+                logger.warning("Zilliz readiness check failed, RAG will fallback to baseline")
+        except Exception as e:
+            logger.warning("Zilliz initialization failed (non-blocking, RAG will fallback): %s", e)
+    else:
+        logger.info("Grammar RAG disabled, skipping Zilliz initialization")
+
     # 3. 初始化 LangSmith
     setup_langsmith(settings)
 
@@ -121,9 +137,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     # 关闭时清理
-    if hasattr(app.state, "analysis_task_worker"):
+    if hasattr(app.state, 'analysis_task_worker'):
         worker = app.state.analysis_task_worker
         await worker.stop()
+    from app.infra.zilliz_client import close_zilliz
+    await close_zilliz()
     await close_redis()
     await close_db()
     logger.info("Application shutdown complete")

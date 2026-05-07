@@ -21,7 +21,10 @@ from app.services.analysis.prompting.prompt_loader import load_examples
 @dataclass
 class ExampleEntry:
     """Example 条目。"""
-    example_type: Literal["vocab", "phrase", "context", "grammar", "sentence_analysis", "translation"]
+    example_type: Literal[
+        "vocab", "phrase", "context", "grammar",
+        "sentence_analysis", "translation",
+    ]
     sentence_text: str
     output_fragment: str
 
@@ -57,6 +60,24 @@ def _resolve_rag_examples(
     return []
 
 
+async def _resolve_rag_examples_async(
+    example_name: str,
+    variant: str,
+    sentences: list[dict] | None = None,
+) -> list[ExampleEntry]:
+    """异步版本：调用 grammar_rag_service 获取 RAG 示例。"""
+    if sentences is None:
+        return []
+    from app.services.analysis.prompting.rag.grammar_rag_service import query_grammar_rag
+    output_type = "sentence_analysis" if example_name == "sentence_analysis" else "grammar_note"
+    result = await query_grammar_rag(
+        variant=variant,
+        sentences=sentences,
+        output_type=output_type,
+    )
+    return result.examples
+
+
 def get_vocabulary_example_strategy(
     plan: GoalExecutionPlan,
     sentences: list[dict] | None = None,
@@ -85,21 +106,51 @@ def get_grammar_example_strategy(
     plan: GoalExecutionPlan,
     sentences: list[dict] | None = None,
 ) -> ExampleStrategy:
-    """获取 grammar agent 的 example 策略。
+    """获取 grammar agent 的 example 策略（同步版本）。
 
     RAG 仅在 GRAMMAR_RAG_ENABLED=true 时激活。
+    同步版本不调用 RAG，RAG 场景请使用 get_grammar_example_strategy_async。
     """
     if plan.few_shot_mode == "rag":
         settings = get_settings()
         if settings.grammar_rag_enabled:
-            rag_examples = _resolve_rag_examples("grammar", plan.variant_id, sentences)
+            # 同步版本无法调用 async RAG，直接 fallback
+            return ExampleStrategy(
+                examples=_load_baseline_examples("grammar", plan.variant_id),
+                selection_mode="rag_fallback",
+            )
+        return ExampleStrategy(
+            examples=_load_baseline_examples("grammar", plan.variant_id),
+            selection_mode="baseline",
+        )
+    if plan.few_shot_mode != "baseline":
+        return ExampleStrategy(examples=[], selection_mode=plan.few_shot_mode)
+
+    return ExampleStrategy(
+        examples=_load_baseline_examples("grammar", plan.variant_id),
+        selection_mode="baseline",
+    )
+
+
+async def get_grammar_example_strategy_async(
+    plan: GoalExecutionPlan,
+    sentences: list[dict] | None = None,
+) -> ExampleStrategy:
+    """获取 grammar agent 的 example 策略（异步版本）。
+
+    RAG 仅在 GRAMMAR_RAG_ENABLED=true 时激活。
+    异步版本可调用 grammar_rag_service 获取 RAG 示例。
+    """
+    if plan.few_shot_mode == "rag":
+        settings = get_settings()
+        if settings.grammar_rag_enabled:
+            rag_examples = await _resolve_rag_examples_async("grammar", plan.variant_id, sentences)
             if rag_examples:
                 return ExampleStrategy(examples=rag_examples, selection_mode="rag")
             return ExampleStrategy(
                 examples=_load_baseline_examples("grammar", plan.variant_id),
                 selection_mode="rag_fallback",
             )
-        # GRAMMAR_RAG_ENABLED=false 时直接 baseline
         return ExampleStrategy(
             examples=_load_baseline_examples("grammar", plan.variant_id),
             selection_mode="baseline",

@@ -14,6 +14,7 @@ from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.services.analysis.prompting.example_strategy import (
     ExampleStrategy,
     get_grammar_example_strategy,
+    get_grammar_example_strategy_async,
     get_translation_example_strategy,
     get_vocabulary_example_strategy,
 )
@@ -47,10 +48,21 @@ def build_grammar_bundle(
     plan: GoalExecutionPlan,
     sentences: list[dict] | None = None,
 ) -> StrategyBundle:
-    """构建 grammar agent 的 strategy bundle。"""
+    """构建 grammar agent 的 strategy bundle（同步版本）。"""
     return StrategyBundle(
         prompt_strategy=build_grammar_prompt_strategy(plan),
         example_strategy=get_grammar_example_strategy(plan, sentences=sentences),
+    )
+
+
+async def build_grammar_bundle_async(
+    plan: GoalExecutionPlan,
+    sentences: list[dict] | None = None,
+) -> StrategyBundle:
+    """构建 grammar agent 的 strategy bundle（异步版本，支持 RAG）。"""
+    return StrategyBundle(
+        prompt_strategy=build_grammar_prompt_strategy(plan),
+        example_strategy=await get_grammar_example_strategy_async(plan, sentences=sentences),
     )
 
 

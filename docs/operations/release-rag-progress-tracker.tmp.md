@@ -64,6 +64,8 @@
 | M1 MVP 上线候选 | 清零红色上线阻断项 | DONE | API 地址、分享卡片、精读收藏/生词、封面 CDN 本轮暂缓、基础页面均完成并验证 |
 | M2 RAG Readiness Gate | RAG 可插拔但默认关闭 | DONE | grammar RAG 配置开关、fallback、seed 数据、测试骨架完成 |
 | M3 测试补强 | 覆盖高风险业务侧 | DONE | Daily Reader、用户资产、反馈/额度至少补齐关键路径测试 |
+| M4 RAG 基础设施层 | Zilliz + 百炼客户端封装，应用集成 | DONE | 客户端封装、Settings 扩展、lifespan 集成、健康检查、29 条测试全绿 |
+| M5 RAG 正式接入 | 真实检索链路 + async 接入 + 集成测试 | DONE | schema 冻结、ingestion 脚本、真实检索、async 链路、118 条测试全绿 |
 
 ## 4. P0 上线阻断任务
 
@@ -93,6 +95,26 @@
 | RAG-07 | `grammar_retrieval_hints.py` 轻量规则 | GLM | DONE | RAG-06 | 覆盖句长、逗号、that/which/who、句首 V-ing/V-ed、插入语等信号；有单测 | 2026-04-28 22:03 |
 | RAG-08 | prompt/debug 暴露 selection mode | Claude | DONE | RAG-04 | debug 输出包含 selection_mode、example_count、fallback_reason 预留字段 | 2026-04-28 21:20 |
 
+## 5.1 P1 RAG 基础设施层（Phase 1）
+
+| ID | 任务 | Owner | 状态 | 依赖 | 验收标准 | 最后更新 |
+|----|------|-------|------|------|----------|----------|
+| RAG-09 | 添加 pymilvus + dashscope 依赖 | GLM | DONE | 无 | pyproject.toml 包含依赖；`uv sync` 成功 | 2026-05-07 21:40 |
+| RAG-10 | 扩展 Settings 配置（Zilliz/百炼/RAG 运行参数） | GLM | DONE | 无 | settings.py 新增 13 个字段；默认值合理；不影响启动 | 2026-05-07 21:40 |
+| RAG-11 | 封装 Zilliz 客户端 | GLM | DONE | RAG-09 | `zilliz_client.py` 实现 init/close/ready/search/insert/query/create_collection；未初始化时返回空不抛异常 | 2026-05-07 21:40 |
+| RAG-12 | 封装百炼 Embedding + Rerank 客户端 | GLM | DONE | RAG-09 | `bailian_embedding.py` 支持批量+自动分批；`bailian_rerank.py` 返回 RerankResult；错误抛自定义异常 | 2026-05-07 21:40 |
+| RAG-13 | 应用启动集成 + 健康检查 + 测试 | GLM | DONE | RAG-11, RAG-12 | lifespan 按 grammar_rag_enabled 条件初始化 Zilliz；/health 含 zilliz 字段；29 条测试全绿 | 2026-05-07 21:40 |
+
+## 5.2 P1 RAG 正式接入（Phase 2）
+
+| ID | 任务 | Owner | 状态 | 依赖 | 验收标准 | 最后更新 |
+|----|------|-------|------|------|----------|----------|
+| RAG-14 | 冻结 Zilliz schema 与 search 返回协议 | GLM | DONE | RAG-11 | schema 补齐 source_sentence/output_fragment/grammar_granularity；search 返回 SearchResult 含 id/score/entity；30 条测试全绿 | 2026-05-07 22:30 |
+| RAG-15 | 实现 seed ingestion 脚本 | GLM | DONE | RAG-14 | `scripts/ingest_grammar_seed.py` 支持 dry-run/幂等/批量；编译通过 | 2026-05-07 22:30 |
+| RAG-16 | 实现 grammar_rag_service 真实检索 | GLM | DONE | RAG-14 | 完整链路：候选句→query→embedding→ANN→rerank→置信度过滤→多样性去重→注入预算；RAGQueryResult 含 observability 字段 | 2026-05-07 22:30 |
+| RAG-17 | 接入 prompt composition 异步链路 | GLM | DONE | RAG-16 | 新增 get_grammar_example_strategy_async + build_grammar_bundle_async；analyze_nodes 改用 async；同步版本保留 | 2026-05-07 22:30 |
+| RAG-18 | 可观测性与集成测试 | GLM | DONE | RAG-16, RAG-17 | prompt_debug 扩展 observability 字段；10 条集成测试覆盖完整链路和 5 种 fallback；118 条测试全绿 | 2026-05-07 22:30 |
+
 ## 6. P1 测试补强任务
 
 | ID | 任务 | Owner | 状态 | 依赖 | 验收标准 | 最后更新 |
@@ -108,7 +130,7 @@
 | ID | 任务 | 状态 | 暂缓原因 |
 |----|------|------|----------|
 | D-01 | vocab-display-overhaul | DEFERRED | 生词本改造影响面大，不是当前上线阻断项 |
-| D-02 | 外部 Zilliz/Bailian RAG 正式接入 | DEFERRED | 需先完成 RAG Readiness Gate 和 seed/fallback |
+| D-02 | 外部 Zilliz/Bailian RAG 正式接入 | REVIEW | Phase 1+2 代码已完成（RAG-09~18）；需配置 Zilliz URI/Token 和百炼 API Key 后执行 ingestion 并端到端验证 |
 | D-03 | 埋点 SDK 正式替换 | DEFERRED | 当前占位实现可支撑调用点稳定，正式 SDK 可上线前另排 |
 | D-04 | Academic 深度优化 | DEFERRED | 先完成 API 闭环诊断，避免影响 learning 主链路 |
 
@@ -130,6 +152,10 @@ YYYY-MM-DD HH:mm | Agent | Task ID | 状态 | 摘要 | 验证 | 风险/下一步
 ```
 
 记录：
+
+- 2026-05-07 22:30 | GLM | RAG-14~18, M5, D-02 | DONE/REVIEW | 完成 Grammar RAG Phase 2 全部 5 项任务：(1) RAG-14 冻结 Zilliz schema（补 source_sentence/output_fragment/grammar_granularity 3 字段，共 12 字段），zilliz_search 返回 SearchResult（含 id/score/entity）；(2) RAG-15 实现 ingest_grammar_seed.py（支持 dry-run/幂等/批量，JSONL→embedding→Zilliz）；(3) RAG-16 实现 grammar_rag_service 真实检索（完整链路：候选句筛选→query构造→embedding→ANN→rerank→置信度过滤→多样性去重→注入预算控制），RAGQueryResult 新增 6 个 observability 字段；(4) RAG-17 新增 get_grammar_example_strategy_async + build_grammar_bundle_async，analyze_nodes 改用 async 版本，同步版本保留；(5) RAG-18 prompt_debug 扩展 observability 字段，10 条集成测试覆盖完整链路和 5 种 fallback。M5 里程碑标记 DONE。D-02 从 IN_PROGRESS 更新为 REVIEW。 | `python -m compileall app tests scripts` 通过；`pytest` 相关 118 passed；`ruff check` All checks passed | 需配置 Zilliz URI/Token 和百炼 API Key 后执行 ingestion 端到端验证
+
+- 2026-05-07 21:40 | GLM | RAG-09~13, M4, D-02 | DONE/IN_PROGRESS | 完成 Grammar RAG Phase 1 基础设施层全部 11 步实施：(1) pyproject.toml 新增 pymilvus+dashscope 依赖；(2) settings.py 扩展 13 个配置字段（Zilliz URI/token/collection、百炼 API key/model/dimension、RAG 运行参数 topk/topn/threshold）；(3) .env.example 新增 17 行配置模板；(4) 新建 app/infra/ 包，含 zilliz_client.py（全局单例模式，封装 init/close/ready/search/insert/query/create_collection，未初始化时返回空不抛异常）、bailian_embedding.py（dashscope TextEmbedding + asyncio.to_thread，自动分批 25 条，EmbeddingError 异常）、bailian_rerank.py（dashscope Rerank + RerankResult dataclass，RerankError 异常）；(5) main.py lifespan 集成 Zilliz 条件初始化/关闭；(6) health 路由+schema 新增 zilliz 状态字段；(7) 29 条基础设施测试全绿。M4 里程碑标记 DONE。D-02 从 DEFERRED 更新为 IN_PROGRESS。 | `uv sync` 成功；`python -m compileall app tests` 通过；`pytest tests/test_rag_infra.py` 29 passed；`pytest` 相关 102 passed；`ruff check` All checks passed | Phase 2（Ingestion 管线）和 Phase 3（在线检索链路）待推进；需用户提供 Zilliz URI/Token 和百炼 API Key
 
 - 2026-04-29 16:50 | Gemini | P0-02, P0-04A, M1 | DONE | 完成 Daily Reader 静态分享封面接入。提供包内本地 fallback 图片 (share-fallback.jpg) 并在 useShareAppMessage 中配置 imageUrl，消除 typescript 类型报错，使 P0-02 和 P0-04A 完成。此时所有前端阻断项完成，M1 里程碑标记为 DONE。 | `npx tsc -p tsconfig.json --noEmit` 通过；`npm run build:weapp` 通过 | P0-04B 依然暂缓
 

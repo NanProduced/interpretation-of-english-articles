@@ -14,6 +14,7 @@ class HealthCheckResponse(BaseModel):
     worker: bool
     worker_inflight_tasks: int
     dict_cache: DictCacheStats | None = None
+    zilliz: bool | None = None
 
 
 class DictCacheStats(BaseModel):
