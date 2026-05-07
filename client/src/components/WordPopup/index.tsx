@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { AnyInlineMarkModel, type VisualTone, type AcademicVisualTone, type InlineGlossary, type AcademicInlineGlossary, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
 import { fetchDict, fetchDictEntry } from '../../services/api/client'
 import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
@@ -23,6 +23,7 @@ interface WordPopupProps {
   y?: number
   readingVariant?: string
   readingGoal?: string
+  cloudId?: string
   isSaved?: boolean
   savedMasteryStatus?: string
   onClose: () => void
@@ -34,6 +35,8 @@ interface AudioVariant {
   label: string
   url: string
 }
+
+type HeightTier = 'compact' | 'standard' | 'rich' | 'expanded'
 
 function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): string {
   if (!entry?.meanings?.length) {
@@ -87,27 +90,6 @@ const MINI_LABEL_MAP: Record<string, string> = {
   logic: '逻辑',
 }
 
-const TERM_CATEGORY_LABELS: Record<string, string> = {
-  technical: '专业术语',
-  sub_technical: '半技术词汇',
-  abbreviation: '缩写',
-  notation: '符号引用',
-  concept_opposition: '概念对立',
-}
-
-const LOGIC_TYPE_LABELS: Record<string, string> = {
-  contrast: '对比转折',
-  causation: '因果关系',
-  concession: '让步',
-  condition: '条件假设',
-  evidence: '证据支撑',
-  elaboration: '阐释展开',
-  transition: '过渡衔接',
-  limitation: '限定',
-  hypothesis: '假设',
-  conclusion: '结论',
-}
-
 function WordLookupSlip({
   lookupText,
   dictResult,
@@ -122,13 +104,13 @@ function WordLookupSlip({
   x,
   y,
   screenWidth,
+  screenHeight,
   audioVariants,
   audioPlayingUrl,
   onPlayAudio,
   onClose,
   onExpand,
   onAddVocab,
-  onSelectEntry,
 }: {
   lookupText: string
   dictResult: DictionaryResult | null
@@ -143,24 +125,25 @@ function WordLookupSlip({
   x: number
   y: number
   screenWidth: number
+  screenHeight: number
   audioVariants: AudioVariant[]
   audioPlayingUrl: string | null
   onPlayAudio: (url: string) => void
   onClose: () => void
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
-  onSelectEntry?: (entryId: number) => void
 }) {
-    const popupWidth = (screenWidth * 408) / 750
-  const offset = 12
+  const popupWidth = (screenWidth * 408) / 750
+  const offset = 18
   let left = x - popupWidth / 2
-  let top = y - offset
+  let top = y + offset
   let isFlipped = false
 
-  if (left < 10) left = 10
-  if (left + popupWidth > screenWidth - 10) left = screenWidth - popupWidth - 10
-  if (y < 150) {
-    top = y + offset
+  if (left < 20) left = 20
+  if (left + popupWidth > screenWidth - 20) left = screenWidth - popupWidth - 20
+  
+  if (y + 300 > screenHeight) {
+    top = y - offset
     isFlipped = true
   }
 
@@ -170,10 +153,11 @@ function WordLookupSlip({
     top: `${top}px`,
     zIndex: 1000,
     width: `${popupWidth}px`,
-    transform: isFlipped ? 'none' : 'translateY(-100%)',
+    transform: isFlipped ? 'translateY(-100%)' : 'none',
   }
 
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
+  const headword = entry?.word || lookupText
 
   return (
     <View className='word-popup-overlay mini-overlay' onClick={onClose} catchMove>
@@ -186,7 +170,7 @@ function WordLookupSlip({
           onExpand?.()
         }}>
           <View className='mini-header'>
-            <Text className='mini-word'>{entry?.word || lookupText}</Text>
+            <Text className='mini-word'>{headword}</Text>
           </View>
           
           {(entry?.phonetic || audioVariants.length > 0 || (isLLMAnnotated && mark)) && (
@@ -213,9 +197,7 @@ function WordLookupSlip({
               )}
               {isLLMAnnotated && mark && (
                 <View className='ai-tag'>
-                  {mark.visualTone === 'vocab' && <AnnotationGlyph type='vocab' size={16} state='active' />}
-                  {mark.visualTone === 'phrase' && <AnnotationGlyph type='phrase' size={16} state='active' />}
-                  {mark.visualTone === 'context' && <AnnotationGlyph type='context' size={16} state='active' />}
+                  <AnnotationGlyph type={mark.visualTone as any} size='sm' state='active' />
                   <Text className='ai-tag-text'>{miniLabel}</Text>
                 </View>
               )}
@@ -228,31 +210,15 @@ function WordLookupSlip({
                 <View className='mini-skeleton-line' />
                 <View className='mini-skeleton-line' />
               </View>
-            ) : miniMeaning ? (
+            ) : (
               <View className='mini-def-row'>
                 <Text 
                   className={`mini-def ${isLLMAnnotated ? 'is-ai-def' : ''}`} 
                   numberOfLines={2}
                 >
-                  {miniMeaning}
+                  {miniMeaning || (isDisambiguationResult ? '多个义项，点击查看' : '暂未找到稳定释义，查看上下文')}
                 </Text>
               </View>
-            ) : isDisambiguationResult ? (
-              <View className='mini-disambiguation-hint' onClick={(e) => {
-                e.stopPropagation()
-                onExpand?.()
-              }}>
-                <LucideIcon name='list' size={14} color='var(--reader-muted)' />
-                <Text className='mini-def'>多个义项，点击查看</Text>
-              </View>
-            ) : (
-              <View className='mini-empty-state'>
-            <Text className='mini-empty-text'>暂未找到稳定释义</Text>
-            <Text
-              className='mini-empty-link'
-              onClick={(e) => { e.stopPropagation(); onExpand?.() }}
-            >点击查看上下文解释</Text>
-          </View>
             )}
           </View>
         </View>
@@ -266,11 +232,10 @@ function WordLookupSlip({
             }}
           >
             <View className='mini-action-left'>
-              {!isSavedState && <AnnotationGlyph type='saved_vocab' size={14} state='default' />}
-              {isSavedState && <AnnotationGlyph type='saved_vocab' size={14} state='active' />}
+              <AnnotationGlyph type='saved_vocab' size={24} state={isSavedState ? 'active' : 'default'} />
               <Text className='mini-action-text'>{saveBtnCopy}</Text>
             </View>
-            <LucideIcon name='chevron-right' size={14} color={isSavedState ? 'var(--reader-ink)' : 'var(--reader-muted)'} />
+            <LucideIcon name='chevron-right' size={14} color={isSavedState ? 'var(--reader-subtle)' : 'var(--reader-muted)'} />
           </View>
         )}
 
@@ -352,21 +317,41 @@ function DictionaryNoteSheet({
   const handleTouchEnd = () => {
     if (!isDraggingRef.current) return
     isDraggingRef.current = false
-    if (dragY > 60) {
+    if (dragY > 80) {
       onClose()
     } else {
       setDragY(0)
     }
   }
 
+  // Tier Logic: Calculate preferred initial height based on content
+  const heightTier: HeightTier = useMemo(() => {
+    if (loading) return 'compact'
+    if (isDisambiguationResult) return 'compact'
+    if (!entry) return 'compact'
+    
+    let score = 0
+    if (contextSentence) score += 2
+    if (glossary) score += 3
+    if (entry.meanings?.length) score += entry.meanings.length * 2
+    if (entry.phrases?.length) score += 2
+    if (entry.examples?.length) score += 2
+    
+    if (score <= 4) return 'compact'
+    if (score <= 10) return 'standard'
+    return 'rich'
+  }, [entry, loading, isDisambiguationResult, contextSentence, glossary])
+
+  const showFooter = isEntryResult && entry && entry.id > 0
+
   return (
     <View className='word-popup-overlay full-overlay' onClick={onClose} catchMove>
       <View 
-        className='word-popup-container' 
+        className={`word-popup-container tier-${heightTier}`}
         onClick={(e) => e.stopPropagation()}
         style={{ 
           transform: dragY > 0 ? `translateY(${dragY}px)` : '',
-          transition: dragY > 0 ? 'none' : 'transform 0.26s var(--ease-reader-out)'
+          transition: dragY > 0 ? 'none' : 'transform 0.28s var(--ease-reader-out)'
         }}
       >
         <View 
@@ -423,12 +408,20 @@ function DictionaryNoteSheet({
 
         <ScrollView className='popup-scroll-content' scrollY style={{ flex: 1, height: '1px' }}>
           
-          {contextSentence && renderContextExcerpt()}
+          {contextSentence && (
+            <View className='context-section'>
+              <View className='section-title'>
+                <LucideIcon name='bookOpen' size={24} color='var(--reader-muted)' />
+                <Text>来源语境</Text>
+              </View>
+              {renderContextExcerpt()}
+            </View>
+          )}
 
           {glossary && (
             <View className='glossary-section'>
               <View className='section-title'>
-                {mark?.visualTone === 'phrase' ? <AnnotationGlyph type='phrase' size={16} state='active' /> : <AnnotationGlyph type='context' size={16} state='active' />}
+                <AnnotationGlyph type={mark?.visualTone as any || 'context'} size='sm' state='active' />
                 <Text>语境解析 · {professionalLabel}</Text>
               </View>
               <View className='glossary-content'>
@@ -546,18 +539,17 @@ function DictionaryNoteSheet({
           </View>
         </ScrollView>
 
-        <View className='popup-footer-actions safe-area-bottom'>
+        <View className={`popup-footer-actions safe-area-bottom ${showFooter ? 'has-footer' : 'no-footer'}`}>
           <View className='footer-action-btn secondary' onClick={() => setShowDictFeedback(true)}>
-            <View className='btn-icon'><AnnotationGlyph type='feedback' size={18} state='default' /></View>
+            <AnnotationGlyph type='feedback' size={32} state='default' />
             <Text>反馈</Text>
           </View>
-          {isEntryResult && entry && entry.id > 0 && (
+          {showFooter && (
             <View 
               className={`footer-action-btn ${isSavedState ? 'saved' : 'primary'}`} 
-              onClick={() => onAddVocab?.(entry.word, dictResult)}
+              onClick={() => onAddVocab?.(entry!.word, dictResult)}
             >
-              {!isSavedState && <View className='btn-icon'><AnnotationGlyph type='saved_vocab' size={16} state='default' className='white-glyph' /></View>}
-              {isSavedState && <View className='btn-icon'><AnnotationGlyph type='saved_vocab' size={16} state='active' /></View>}
+              <AnnotationGlyph type='saved_vocab' size={36} state={isSavedState ? 'active' : 'default'} className={isSavedState ? '' : 'white-glyph'} />
               <Text>{saveBtnCopy}</Text>
             </View>
           )}
@@ -569,11 +561,12 @@ function DictionaryNoteSheet({
 
 export default function WordPopup({
   visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant, readingGoal,
-  isSaved = false, savedMasteryStatus, onClose, onExpand, onAddVocab,
+  cloudId, isSaved = false, savedMasteryStatus, onClose, onExpand, onAddVocab,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [screenWidth, setScreenWidth] = useState(375)
+  const [screenHeight, setScreenHeight] = useState(667)
   const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
   const [showDictFeedback, setShowDictFeedback] = useState(false)
   const fetchVersionRef = useRef(0)
@@ -636,7 +629,10 @@ export default function WordPopup({
   }, [visible, lookupText, contextSentence, occurrence])
 
   useEffect(() => {
-    Taro.getSystemInfo({}).then((info) => setScreenWidth(info.windowWidth || 375))
+    Taro.getSystemInfo({}).then((info) => {
+      setScreenWidth(info.windowWidth || 375)
+      setScreenHeight(info.windowHeight || 667)
+    })
   }, [])
 
   const loadAudio = useCallback(async (wordToFetch: string) => {
@@ -781,6 +777,7 @@ export default function WordPopup({
         x={x}
         y={y}
         screenWidth={screenWidth}
+        screenHeight={screenHeight}
         audioVariants={audioVariants}
         audioPlayingUrl={audioPlayingUrl}
         onPlayAudio={playAudio}
@@ -828,6 +825,7 @@ export default function WordPopup({
             dictEntryId={entry?.id}
             contextSentence={contextSentence}
             readingVariant={readingVariant}
+            recordId={cloudId}
             onClose={() => setShowDictFeedback(false)}
           />
         </View>
@@ -835,4 +833,3 @@ export default function WordPopup({
     </>
   )
 }
-

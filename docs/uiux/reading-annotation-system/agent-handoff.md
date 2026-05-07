@@ -104,7 +104,7 @@ If a UI choice helps English explanation but makes the article harder to read, c
   - vocabulary save actions
 - Add source-context excerpt in the full dictionary sheet.
 - Add a small `LookupSaveState` helper.
-- Add quiet feedback entry points for annotation details, word lookup, and article-end feedback.
+- Add quiet feedback entry points for annotation details, word lookup, and article-end feedback. Do not redesign the full feedback workflow here; use `docs/uiux/feedback-system/` for sheets, storage, review status, rewards, and user follow-up.
 - Add local fixtures or an internal preview path if useful for state coverage.
 
 ### Out Of Scope For First Pass
@@ -116,7 +116,7 @@ If a UI choice helps English explanation but makes the article harder to read, c
 - Decorative reader backgrounds.
 - New onboarding or paywall work.
 - Full vocabulary review system redesign.
-- Full feedback backend redesign.
+- Full feedback workflow/backend redesign. This is now separated into `docs/uiux/feedback-system/`.
 - Reader customization settings. Font size, line height, theme, translation visibility, annotation density, defaults, and persistence need a separate design and business-logic package under `docs/uiux/reading-settings-system/`.
 
 ## Data Constraints

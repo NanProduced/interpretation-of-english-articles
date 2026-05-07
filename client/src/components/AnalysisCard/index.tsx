@@ -5,6 +5,7 @@ import LucideIcon from '../LucideIcon'
 import AnnotationGlyph, { type AnnotationGlyphType } from '../AnnotationGlyph'
 import type { StopPropagationEvent } from '../../types/taro-events'
 import { submitFeedback } from '../../services/api/feedback.client'
+import { ensureLoggedIn } from '../../services/auth'
 import { parseSentenceAnalysis, type AnalysisChunk } from '../ParagraphBlock/utils'
 import './index.scss'
 
@@ -25,6 +26,7 @@ export interface AnalysisCardProps {
   onFeedback?: () => void
   structuredData?: { summary?: string; chunks?: AnalysisChunk[] }
   recordId?: string
+  cloudId?: string
   entryId?: string
   annotationType?: string
 }
@@ -95,6 +97,7 @@ export default function AnalysisCard({
   onFeedback,
   structuredData: externalStructuredData,
   recordId,
+  cloudId,
   entryId,
   annotationType,
 }: AnalysisCardProps) {
@@ -123,12 +126,14 @@ export default function AnalysisCard({
 
   const handleQuickFeedback = useCallback(async (sentiment: 'positive' | 'negative') => {
     if (!recordId || !entryId || quickFeedbackState !== 'none') return
+    const loginRes = await ensureLoggedIn()
+    if (!loginRes.success) return
     setQuickFeedbackState(sentiment)
     try {
       await submitFeedback({
         feedbackScope: 'annotation',
         targetId: entryId,
-        analysisRecordId: recordId,
+        analysisRecordId: cloudId || undefined,
         sentiment,
         feedbackType: sentiment === 'positive' ? 'helpful' : 'inaccurate',
         annotationType: annotationType || type,

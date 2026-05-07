@@ -1,6 +1,7 @@
 import { View, Text, Textarea } from '@tarojs/components'
 import { useState } from 'react'
 import { submitFeedback } from '../../services/api/feedback.client'
+import { ensureLoggedIn } from '../../services/auth'
 import LucideIcon from '../LucideIcon'
 import Taro from '@tarojs/taro'
 import './index.scss'
@@ -15,6 +16,7 @@ const NEGATIVE_OPTIONS = [
 
 interface FeedbackWidgetProps {
   recordId: string
+  cloudId?: string
   readingGoal?: string
   readingVariant?: string
   userFacingState?: string
@@ -24,6 +26,7 @@ interface FeedbackWidgetProps {
 
 export default function FeedbackWidget({
   recordId,
+  cloudId,
   readingGoal,
   readingVariant,
   userFacingState,
@@ -38,12 +41,14 @@ export default function FeedbackWidget({
 
   const handleThumbsUp = async () => {
     if (submitting || submitted) return
+    const loginRes = await ensureLoggedIn()
+    if (!loginRes.success) return
     setSubmitting(true)
     try {
       await submitFeedback({
         feedbackScope: 'analysis_result',
-        targetId: recordId,
-        analysisRecordId: recordId,
+        targetId: cloudId || recordId,
+        analysisRecordId: cloudId || undefined,
         sentiment: 'positive',
         feedbackType: 'thumbs_up',
         contextJson: { reading_goal: readingGoal, reading_variant: readingVariant, source_text_length: sourceTextLength, annotation_count: annotationCount, user_facing_state: userFacingState },
@@ -64,12 +69,14 @@ export default function FeedbackWidget({
 
   const handleSubmitNegative = async () => {
     if (!selectedType || submitting) return
+    const loginRes = await ensureLoggedIn()
+    if (!loginRes.success) return
     setSubmitting(true)
     try {
       await submitFeedback({
         feedbackScope: 'analysis_result',
-        targetId: recordId,
-        analysisRecordId: recordId,
+        targetId: cloudId || recordId,
+        analysisRecordId: cloudId || undefined,
         sentiment: 'negative',
         feedbackType: selectedType,
         content: content || undefined,

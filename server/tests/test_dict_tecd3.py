@@ -97,10 +97,9 @@ class TestTecd3ProviderLemmaFallback:
     def clear_cache(self) -> None:
         """Clear L1 cache before each test to prevent cross-test pollution."""
         from app.services.dictionary import cache as cache_module
-        with cache_module._L1_LOCK:
-            cache_module._L1_CACHE.clear()
-            cache_module._cache_hits = 0
-            cache_module._cache_misses = 0
+        cache_module._L1_CACHE.clear()
+        cache_module._cache_hits = 0
+        cache_module._cache_misses = 0
 
     @pytest.fixture
     def provider(self) -> Tecd3Provider:
@@ -372,10 +371,9 @@ class TestTecd3ProviderFragmentFallback:
     @pytest.fixture(autouse=True)
     def clear_cache(self) -> None:
         from app.services.dictionary import cache as cache_module
-        with cache_module._L1_LOCK:
-            cache_module._L1_CACHE.clear()
-            cache_module._cache_hits = 0
-            cache_module._cache_misses = 0
+        cache_module._L1_CACHE.clear()
+        cache_module._cache_hits = 0
+        cache_module._cache_misses = 0
 
     @pytest.fixture
     def provider(self) -> Tecd3Provider:

@@ -1,6 +1,7 @@
 import { View, Text } from '@tarojs/components'
 import { useState, useEffect } from 'react'
 import { fetchFeedbackList, FeedbackListItem, deleteFeedback } from '../../services/api/feedback.client'
+import { useAuthStore } from '../../stores/auth'
 import Taro from '@tarojs/taro'
 import './my-feedback.scss'
 
@@ -19,14 +20,15 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 }
 
 export default function MyFeedbackPage() {
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const [items, setItems] = useState<FeedbackListItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    loadMore()
-  }, [])
+    if (isLoggedIn) loadMore()
+  }, [isLoggedIn])
 
   const loadMore = async () => {
     if (loading) return

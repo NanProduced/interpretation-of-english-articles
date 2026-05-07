@@ -94,10 +94,9 @@ class TestLemmaFallbackADJADV:
     @pytest.fixture(autouse=True)
     def clear_cache(self) -> None:
         from app.services.dictionary import cache as cache_module
-        with cache_module._L1_LOCK:
-            cache_module._L1_CACHE.clear()
-            cache_module._cache_hits = 0
-            cache_module._cache_misses = 0
+        cache_module._L1_CACHE.clear()
+        cache_module._cache_hits = 0
+        cache_module._cache_misses = 0
 
     @pytest.fixture
     def provider(self) -> Tecd3Provider:
@@ -160,10 +159,9 @@ class TestContextPhraseSniff:
     @pytest.fixture(autouse=True)
     def clear_cache(self) -> None:
         from app.services.dictionary import cache as cache_module
-        with cache_module._L1_LOCK:
-            cache_module._L1_CACHE.clear()
-            cache_module._cache_hits = 0
-            cache_module._cache_misses = 0
+        cache_module._L1_CACHE.clear()
+        cache_module._cache_hits = 0
+        cache_module._cache_misses = 0
 
     @pytest.fixture
     def provider(self) -> Tecd3Provider:
@@ -220,10 +218,9 @@ class TestTemplatePhrase:
     @pytest.fixture(autouse=True)
     def clear_cache(self) -> None:
         from app.services.dictionary import cache as cache_module
-        with cache_module._L1_LOCK:
-            cache_module._L1_CACHE.clear()
-            cache_module._cache_hits = 0
-            cache_module._cache_misses = 0
+        cache_module._L1_CACHE.clear()
+        cache_module._cache_hits = 0
+        cache_module._cache_misses = 0
 
     @pytest.fixture
     def provider(self) -> Tecd3Provider:
@@ -268,10 +265,9 @@ class TestPhraseQueryTemplateMatch:
     @pytest.fixture(autouse=True)
     def clear_cache(self) -> None:
         from app.services.dictionary import cache as cache_module
-        with cache_module._L1_LOCK:
-            cache_module._L1_CACHE.clear()
-            cache_module._cache_hits = 0
-            cache_module._cache_misses = 0
+        cache_module._L1_CACHE.clear()
+        cache_module._cache_hits = 0
+        cache_module._cache_misses = 0
 
     @pytest.fixture
     def provider(self) -> Tecd3Provider:
@@ -312,10 +308,9 @@ class TestPhaseSortPriority:
     @pytest.fixture(autouse=True)
     def clear_cache(self) -> None:
         from app.services.dictionary import cache as cache_module
-        with cache_module._L1_LOCK:
-            cache_module._L1_CACHE.clear()
-            cache_module._cache_hits = 0
-            cache_module._cache_misses = 0
+        cache_module._L1_CACHE.clear()
+        cache_module._cache_hits = 0
+        cache_module._cache_misses = 0
 
     @pytest.fixture
     def provider(self) -> Tecd3Provider:

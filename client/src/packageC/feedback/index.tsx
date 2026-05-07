@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import Taro from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import { submitFeedback, fetchFeedbackList } from '../../services/api/feedback.client'
+import { ensureLoggedIn } from '../../services/auth'
+import { useAuthStore } from '../../stores/auth'
 import './index.scss'
 
 const FEEDBACK_CATEGORIES = [
@@ -15,21 +17,26 @@ const FEEDBACK_CATEGORIES = [
 ]
 
 export default function FeedbackPage() {
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const [selectedCategory, setSelectedCategory] = useState('')
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [feedbackCount, setFeedbackCount] = useState<number | null>(null)
 
   useEffect(() => {
-    fetchFeedbackList({ limit: 1 }).then(res => {
-      setFeedbackCount(res.items.length)
-    }).catch(() => {})
-  }, [])
+    if (isLoggedIn) {
+      fetchFeedbackList({ limit: 1 }).then(res => {
+        setFeedbackCount(res.items.length)
+      }).catch(() => {})
+    }
+  }, [isLoggedIn])
 
   const canSubmit = selectedCategory && content.trim()
 
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return
+    const loginRes = await ensureLoggedIn()
+    if (!loginRes.success) return
     setSubmitting(true)
     try {
       await submitFeedback({

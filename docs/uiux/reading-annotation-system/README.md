@@ -2,6 +2,7 @@
 
 > Status: approved design direction, ready for development handoff.
 > Scope: reader surface, inline annotations, sentence notes, word lookup, saved vocabulary, and reader controls.
+> Feedback entry placement is included here, but full feedback UX, data, review, reward, and user follow-up are specified in `../feedback-system/`.
 
 This directory is the UI/UX handoff package for the Claread reading and annotation redesign. It should be treated as the source of truth for development agents working on this area.
 
@@ -49,10 +50,10 @@ The approved assets now use one aligned component language. Do not reference arc
    - `ReaderContextBar`
    - reader controls
    - annotation expanded notes
-   - feedback button rows
+   - feedback button rows as entry points only
    - mini word lookup slip
    - full dictionary note sheet
-   - article-end feedback
+   - article-end feedback entry placement
    - card radius, shadow, spacing, and button hierarchy
 2. Use `assets/component-spec-board.png` and `component-spec.md` for micro rules:
    - `grammar_note` collapsed tab overflow behavior
@@ -118,8 +119,8 @@ The design must respect the current workflow output:
 - `vocab_highlight`, `phrase_gloss`, and `context_gloss` need distinct mini/full lookup states because their schema payloads differ.
 - Saved vocabulary must distinguish `记入生词本`, `加入当前语境`, `已记入`, `已记入 · n个语境`, and `已掌握`.
 - `reading_goal` and `reading_variant` belong in a quiet `ReaderContextBar`, not a strong exam-style badge.
-- Feedback is a separate UI layer with entry points inside annotation detail, word lookup, and article-end states.
-- `assets/component-spec-board.png` and `component-spec.md` are the references for context bar and feedback implementation.
+- Feedback is a separate product loop with entry points inside annotation detail, word lookup, and article-end states.
+- `assets/component-spec-board.png` and `component-spec.md` are the references for where feedback entry points sit inside the reader. Full feedback sheets, storage, review status, rewards, and user follow-up live in `../feedback-system/`.
 - Reader settings are out of scope for this package. Treat font size, line height, theme, translation visibility, annotation density, defaults, and persistence as a separate future package under `docs/uiux/reading-settings-system/`.
 
 ## Recommended Development Order
@@ -130,7 +131,7 @@ The design must respect the current workflow output:
 4. Refactor `WordPopup` visually into `WordLookupSlip` and `DictionaryNoteSheet`.
 5. Add `LookupSaveState` helper and action copy.
 6. Add source-context excerpt in the full sheet.
-7. Add feedback entry points for annotation, lookup, and article-level feedback.
+7. Add feedback entry points for annotation, lookup, and article-level feedback, then hand detailed feedback behavior to `docs/uiux/feedback-system/`.
 8. Add fixture states for local UI preview.
 9. Do not implement reader customization tray in this package; start a separate reading settings design and business-logic package first.
 

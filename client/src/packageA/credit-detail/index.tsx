@@ -1,6 +1,7 @@
 import { View, Text } from '@tarojs/components'
 import { useState, useEffect } from 'react'
 import { fetchCreditLedger, LedgerEntry } from '../../services/api/credit.client'
+import { useAuthStore } from '../../stores/auth'
 import './index.scss'
 
 const ENTRY_TYPE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
@@ -58,14 +59,15 @@ function groupByDate(entries: LedgerEntry[]): GroupedEntries[] {
 }
 
 export default function CreditDetailPage() {
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const [entries, setEntries] = useState<LedgerEntry[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    loadMore()
-  }, [])
+    if (isLoggedIn) loadMore()
+  }, [isLoggedIn])
 
   const loadMore = async () => {
     if (loading) return

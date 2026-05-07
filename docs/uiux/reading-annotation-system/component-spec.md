@@ -299,6 +299,8 @@ Rules:
 
 Purpose: ask about overall analysis quality without interrupting reading.
 
+This section only specifies reader placement and visual weight. The complete feedback sheet, submission states, storage expectations, review lifecycle, rewards, and user-facing follow-up are owned by `../feedback-system/`.
+
 Spec:
 
 - Place after article-end actions.

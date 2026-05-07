@@ -41,6 +41,7 @@ interface ParagraphBlockProps {
   vocabList?: string[]
   vocabSavedMap?: Record<string, string>
   recordId?: string
+  cloudId?: string
   onWordClick?: (payload: WordClickPayload) => void
   onSentenceClick?: (sentenceId: string) => void
 }
@@ -334,6 +335,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   vocabList,
   vocabSavedMap,
   recordId,
+  cloudId,
   activeSentenceId,
   onWordClick,
   onSentenceClick,
@@ -447,6 +449,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
             content: e.content,
             snippet: snippet,
             recordId: recordId || undefined,
+            cloudId: cloudId || undefined,
             entryId: e.id,
             annotationType: 'grammar_note',
             onFeedback: recordId ? () => handleCardFeedback(e.id, 'grammar_note', e.title || e.label, e.content) : undefined,
@@ -466,6 +469,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
               isExpanded: activeAnalysisId === e.id,
               onToggle: (expanded: boolean) => handleAnalysisToggle(e.id, expanded),
               recordId: recordId || undefined,
+              cloudId: cloudId || undefined,
               entryId: e.id,
               annotationType: 'sentence_analysis',
               onFeedback: recordId ? () => handleCardFeedback(e.id, 'sentence_analysis', e.label, e.content) : undefined,
@@ -587,6 +591,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       onToggle={card.onToggle}
                       onFeedback={card.onFeedback}
                       recordId={(card as any).recordId}
+                      cloudId={(card as any).cloudId}
                       entryId={(card as any).entryId}
                       annotationType={(card as any).annotationType}
                     />
@@ -640,7 +645,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
       {feedbackTarget && recordId && (
         <View className='annotation-feedback-overlay' onClick={() => setFeedbackTarget(null)}>
           <AnnotationFeedback
-            recordId={recordId}
+            recordId={cloudId || recordId}
             targetId={feedbackTarget.targetId}
             annotationType={feedbackTarget.annotationType}
             contextJson={feedbackTarget.contextJson}

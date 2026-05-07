@@ -72,6 +72,19 @@ def canonicalize_sentence_span(span, target_token_indices: set[int] = None) -> s
         if chunk and chunk.start >= span.start and chunk.end <= span.end:
             chunk_indices = set(range(chunk.start, chunk.end))
             if not chunk_indices.intersection(target_token_indices):
+                poss_tokens = [t for t in chunk if t.dep_ == "poss" or t.tag_ == "PRP$"]
+                if poss_tokens:
+                    poss_slot = classify_slot(poss_tokens[0])
+                    if poss_slot == "sb's":
+                        for t in chunk:
+                            if t.dep_ == "case":
+                                continue
+                            if t.dep_ == "poss" or t.tag_ == "PRP$":
+                                words.append("sb's")
+                            else:
+                                words.append(t.lemma_.lower())
+                        i = chunk.end
+                        continue
                 slot = classify_slot(chunk)
                 if slot:
                     words.append(slot)

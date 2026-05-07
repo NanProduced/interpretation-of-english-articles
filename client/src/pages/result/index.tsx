@@ -121,6 +121,7 @@ export default function Result() {
           tailEntries={sceneData.sentenceEntries}
           pageMode={pageMode}
           recordId={recordId || undefined}
+          cloudId={cloudId || undefined}
           activeSentenceId={activeSentenceId}
           onWordClick={actions.handleWordClick}
           onSentenceClick={actions.handleSentenceClick}
@@ -204,6 +205,7 @@ export default function Result() {
             {sceneData && (pageState === 'normal' || pageState === 'degraded_light') && (
               <FeedbackWidget
                 recordId={recordId || ''}
+                cloudId={cloudId || undefined}
                 readingGoal={sceneData.request?.readingGoal}
                 readingVariant={sceneData.request?.readingVariant}
                 userFacingState={(sceneData as AnyRenderSceneVm).userFacingState}
@@ -225,6 +227,7 @@ export default function Result() {
         y={wordPopup.y}
         readingVariant={sceneData?.request?.readingVariant}
         readingGoal={sceneData?.request?.readingGoal}
+        cloudId={cloudId || undefined}
         isSaved={!!vocabSavedMap[wordPopup.word?.toLowerCase()]}
         savedMasteryStatus={vocabSavedMap[wordPopup.word?.toLowerCase()]}
         onClose={actions.handleClosePopup}

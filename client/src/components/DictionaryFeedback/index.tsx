@@ -1,6 +1,7 @@
 import { View, Text, Textarea } from '@tarojs/components'
 import { useState } from 'react'
 import { submitFeedback } from '../../services/api/feedback.client'
+import { ensureLoggedIn } from '../../services/auth'
 import Taro from '@tarojs/taro'
 import './index.scss'
 
@@ -44,6 +45,8 @@ export default function DictionaryFeedback({
 
   const handleSubmit = async () => {
     if (!selectedType || submitting) return
+    const loginRes = await ensureLoggedIn()
+    if (!loginRes.success) return
     setSubmitting(true)
     try {
       await submitFeedback({
