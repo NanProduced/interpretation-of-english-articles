@@ -66,6 +66,8 @@ const SVG_PATHS: Record<string, string> = {
   microscope: '<path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0-14 0"/><path d="M9 14h2"/><path d="M9 12a2 2 0 1 1-4 0V7a2 2 0 1 1 4 0v5Z"/><path d="M12 7a2 2 0 1 1 2 2h-5"/><path d="M11 8V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5"/>',
   arrowLeft: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
   messageSquare: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  'sliders-horizontal': '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="12" x2="12" y1="18" y2="22"/>',
+  'message-square-text': '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/>',
 }
 
 const COLOR_TOKENS: Record<string, string> = {
@@ -91,6 +93,12 @@ const COLOR_TOKENS: Record<string, string> = {
   'var(--reader-subtle)': '#9BA0A8',
   'var(--reader-paper)': '#FAF9F6',
   'var(--reader-surface)': '#FFFFFF',
+  'var(--annotation-vocab)': '#E4B000',
+  'var(--annotation-phrase)': '#B9A8E6',
+  'var(--annotation-context)': '#4C91C2',
+  'var(--annotation-grammar)': '#746694',
+  'var(--annotation-analysis)': '#3F6FB6',
+  'var(--annotation-merged)': '#3F6FB6',
 }
 
 function resolveColor(color: string) {

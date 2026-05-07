@@ -5,7 +5,7 @@
 
 This file is the component-level source of truth for implementation agents. Use it together with `.impeccable.md`, `README.md`, `agent-handoff.md`, and `agent-correction-brief.md`.
 
-For annotation icons, use `icon-spec.md` and the SVG files under `icons/`. Do not redraw annotation icons from screenshots during implementation.
+For annotation icons, use `icon-spec.md` and the existing `LucideIcon` pipeline. Do not redraw annotation icons from screenshots during implementation.
 
 ## Design References
 

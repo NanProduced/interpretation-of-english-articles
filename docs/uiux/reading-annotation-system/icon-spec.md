@@ -1,69 +1,71 @@
 # Annotation Icon Spec
 
-> Status: implementation asset spec.
-> Scope: fixed icon assets for the reading annotation system.
+> Status: implementation guidance.
+> Scope: icon choices for the reading annotation system in WeChat Mini Program.
 
-Use these icons as source assets for `AnnotationGlyph`. Do not ask implementation agents to redraw annotation icons with ad hoc CSS, emoji, or generic icon libraries.
+Use the existing `client/src/components/LucideIcon` runtime path first. Do not ship separate SVG icon files for this module unless a later design pass explicitly requires custom brand glyph assets.
 
-## Files
+The goal is not to exactly redraw icons from the reference images. The goal is to pick quiet, context-appropriate icons that support the paper-reading UI and render reliably in WeChat Mini Program.
 
-| Variant | File | Default token | Use |
-|---|---|---|---|
-| `grammar_note` | `icons/grammar-note.svg` | `--annotation-grammar-line` | Grammar note tab and expanded grammar card header. |
-| `sentence_analysis` | `icons/sentence-analysis.svg` | `--annotation-context-line` | Sentence analysis tab and expanded sentence card header. |
-| `vocab` | `icons/vocab.svg` | `rgba(185, 132, 24, 0.82)` | Vocabulary highlight and word lookup entry. |
-| `phrase` | `icons/phrase.svg` | `rgba(105, 83, 176, 0.72)` | Phrase gloss and phrase insight. |
-| `context` | `icons/context.svg` | `--annotation-context-line` | Context-sensitive gloss. |
-| `feedback` | `icons/feedback.svg` | `--reader-muted` | Quiet feedback entry. |
-| `saved_vocab` | `icons/saved-vocab.svg` | `--reader-ink` at low opacity | Saved vocabulary marker or save action. |
+## Preferred Icon Source
 
-## Rendering Rules
-
-- Base icon viewport: `48 x 48`.
-- Default rendered size in note tabs: `28rpx` to `32rpx`.
-- Expanded card header size: `32rpx` to `36rpx`.
-- Stroke color uses `currentColor`; implementation controls color through the wrapper.
-- Keep line caps rounded.
-- Do not add filled icon containers by default.
-- Do not replace these with lucide icons unless the design package explicitly changes.
-
-## State Rules
-
-| State | Rule |
-|---|---|
-| Default | Muted semantic color, opacity around `0.72` to `0.82`. |
-| Active | Same icon, slightly stronger color or subtle tinted background. |
-| Disabled | Same icon, opacity around `0.32`; do not switch icon shape. |
-| Dense reader | Prefer smaller icon size and lower opacity instead of hiding all note entries. |
-
-## Implementation Guidance
-
-Recommended component:
+Use:
 
 ```text
-client/src/components/AnnotationGlyph/index.tsx
-client/src/components/AnnotationGlyph/index.scss
+client/src/components/LucideIcon/index.tsx
 ```
 
-Recommended props:
+If an icon name is missing, add the Lucide path string to `SVG_PATHS` inside `LucideIcon` instead of adding external SVG files.
 
-```ts
-type AnnotationGlyphVariant =
-  | 'grammar_note'
-  | 'sentence_analysis'
-  | 'vocab'
-  | 'phrase'
-  | 'context'
-  | 'feedback'
-  | 'saved_vocab'
+Do not use:
 
-type AnnotationGlyphProps = {
-  variant: AnnotationGlyphVariant
-  state?: 'default' | 'active' | 'disabled'
-  size?: 'sm' | 'md' | 'lg'
-}
+- Emoji.
+- Random CSS-drawn icons.
+- External SVG files loaded with `Image`.
+- Web-style inline SVG assumptions that rely on `currentColor`.
+
+## Mapping
+
+| UI Meaning | Preferred LucideIcon | Fallback | Token |
+|---|---|---|---|
+| Grammar note | `network` | `layout-template` | `--annotation-grammar-line` |
+| Sentence analysis | `sliders-horizontal` or `list-tree` | `layout-template` | `--annotation-context-line` |
+| Vocabulary / save word | `bookmark` | `book` | `--reader-ink` or warm vocab tone |
+| Phrase gloss | `link-2` | `languages` | muted phrase tone |
+| Context gloss | `message-square-text` | `messageSquare` | `--annotation-context-line` |
+| Feedback | `messageSquare` | `thumbs-up` / `thumbs-down` for quick reactions | `--reader-muted` |
+| Close | `x` | none | `--reader-ink` |
+| Expand / next | `chevron-right` | none | `--reader-muted` |
+| Audio | `volume-2` | none | `--reader-muted` |
+
+Some preferred names may not exist in the current `LucideIcon` map yet. Add only the few missing path strings needed for this module.
+
+## Size Rules
+
+| Placement | Size |
+|---|---|
+| Note tab icon | `28rpx` to `32rpx` |
+| Expanded note header | `32rpx` to `36rpx` |
+| Mini lookup action | `28rpx` |
+| Sheet footer button | `28rpx` to `32rpx` |
+| Tiny metadata / inline hint | `20rpx` to `24rpx` |
+
+## Visual Rules
+
+- Icons should feel secondary to text.
+- Prefer line icons with rounded caps and moderate stroke.
+- Do not put every icon inside a colored chip.
+- Do not use strong purple or exam-style colors.
+- Do not use oversized icons inside reader text.
+- Use color tokens through `LucideIcon` props, not hard-coded one-off colors.
+
+## Implementation Rule
+
+`AnnotationGlyph` may remain as a semantic wrapper, but it should render `LucideIcon` internally:
+
+```text
+AnnotationGlyph(type="grammar_note") -> LucideIcon(name="network")
+AnnotationGlyph(type="sentence_analysis") -> LucideIcon(name="sliders-horizontal")
 ```
 
-In WeChat Mini Program, if direct external SVG rendering is inconvenient, translate each SVG into the component's inline shape implementation once. The shape should remain path-equivalent to the SVG assets.
-
-Do not create a new visual interpretation during implementation.
+This keeps component semantics stable while using a Mini Program-compatible icon pipeline.

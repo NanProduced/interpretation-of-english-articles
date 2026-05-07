@@ -10,6 +10,7 @@ import ParagraphBlock from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
 import ContentSummaryCard from '../../components/ContentSummaryCard'
 import LucideIcon from '../../components/LucideIcon'
+import AnnotationGlyph from '../../components/AnnotationGlyph'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
 import FeedbackWidget from '../../components/FeedbackWidget'
 import ReaderContextBar from '../../components/ReaderContextBar'
@@ -186,7 +187,7 @@ export default function Result() {
                 role='button'
                 aria-label={favorited ? '取消收藏' : '加入收藏'}
               >
-                <LucideIcon name='bookmark' size={18} color={favorited ? 'var(--color-warn)' : 'var(--text-main)'} />
+                <AnnotationGlyph type='saved_vocab' size={32} state={favorited ? 'active' : 'default'} />
                 <Text className={favorited ? 'favorited-text' : ''}>{favorited ? '已收藏' : '收藏'}</Text>
               </View>
               <View

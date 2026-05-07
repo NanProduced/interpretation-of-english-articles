@@ -31,15 +31,11 @@ Visual references:
 - `docs/uiux/reading-annotation-system/assets/annotation-note-card-detail.svg`
 - `docs/uiux/reading-annotation-system/assets/annotation-edge-states-detail.svg`
 
-Icon assets:
+Icon guidance:
 
-- `docs/uiux/reading-annotation-system/icons/grammar-note.svg`
-- `docs/uiux/reading-annotation-system/icons/sentence-analysis.svg`
-- `docs/uiux/reading-annotation-system/icons/vocab.svg`
-- `docs/uiux/reading-annotation-system/icons/phrase.svg`
-- `docs/uiux/reading-annotation-system/icons/context.svg`
-- `docs/uiux/reading-annotation-system/icons/feedback.svg`
-- `docs/uiux/reading-annotation-system/icons/saved-vocab.svg`
+- `docs/uiux/reading-annotation-system/icon-spec.md`
+- Use `client/src/components/LucideIcon` first.
+- Do not add external SVG icon files for this module unless a later design pass explicitly requires custom brand glyph assets.
 
 ## Visual Source Of Truth
 

@@ -246,9 +246,13 @@ function WordLookupSlip({
                 <Text className='mini-def'>多个义项，点击查看</Text>
               </View>
             ) : (
-              <Text className='mini-loading'>
-                {entry?.entryKind === 'fragment' ? '派生词，查看主词条' : '未找到释义'}
-              </Text>
+              <View className='mini-empty-state'>
+            <Text className='mini-empty-text'>暂未找到稳定释义</Text>
+            <Text
+              className='mini-empty-link'
+              onClick={(e) => { e.stopPropagation(); onExpand?.() }}
+            >点击查看上下文解释</Text>
+          </View>
             )}
           </View>
         </View>
@@ -456,7 +460,9 @@ function DictionaryNoteSheet({
 
             {loading && !isDisambiguationResult ? (
               <View className='popup-loading-state'>
-                <View className='loading-spinner' />
+                <View className='sheet-skeleton-line' style={{ width: '60%', marginBottom: '16rpx' }} />
+                <View className='sheet-skeleton-line' style={{ width: '100%', marginBottom: '16rpx' }} />
+                <View className='sheet-skeleton-line' style={{ width: '80%' }} />
               </View>
             ) : isDisambiguationResult ? (
               <View className='disambiguation-list'>
@@ -542,7 +548,7 @@ function DictionaryNoteSheet({
 
         <View className='popup-footer-actions safe-area-bottom'>
           <View className='footer-action-btn secondary' onClick={() => setShowDictFeedback(true)}>
-            <AnnotationGlyph type='feedback' size={18} state='default' />
+            <View className='btn-icon'><AnnotationGlyph type='feedback' size={18} state='default' /></View>
             <Text>反馈</Text>
           </View>
           {isEntryResult && entry && entry.id > 0 && (
@@ -550,8 +556,8 @@ function DictionaryNoteSheet({
               className={`footer-action-btn ${isSavedState ? 'saved' : 'primary'}`} 
               onClick={() => onAddVocab?.(entry.word, dictResult)}
             >
-              {!isSavedState && <AnnotationGlyph type='saved_vocab' size={16} state='default' className='white-glyph' />}
-              {isSavedState && <AnnotationGlyph type='saved_vocab' size={16} state='active' />}
+              {!isSavedState && <View className='btn-icon'><AnnotationGlyph type='saved_vocab' size={16} state='default' className='white-glyph' /></View>}
+              {isSavedState && <View className='btn-icon'><AnnotationGlyph type='saved_vocab' size={16} state='active' /></View>}
               <Text>{saveBtnCopy}</Text>
             </View>
           )}
