@@ -1,4 +1,3 @@
-import LucideIcon from '../../components/LucideIcon'
 import { View, Text, Textarea } from '@tarojs/components'
 import { useState } from 'react'
 import Taro from '@tarojs/taro'
@@ -12,6 +11,7 @@ import { FEEDBACK_CONFIG_BY_SCOPE } from '../../config/feedback'
 import './index.scss'
 
 const config = FEEDBACK_CONFIG_BY_SCOPE.app
+const MAX_CONTENT_LENGTH = 300
 
 export default function FeedbackPage() {
   const [selectedCategory, setSelectedCategory] = useState('')
@@ -21,14 +21,7 @@ export default function FeedbackPage() {
   const { navBarHeight } = useLayoutStore()
 
   const isSubmitDisabled = !selectedCategory || !content.trim()
-
-  /* 禁用态文案内嵌到按钮 */
-  const getSubmitLabel = () => {
-    if (submitting) return '提交中...'
-    if (!selectedCategory) return '请先选择问题类型'
-    if (!content.trim()) return '请补充问题描述'
-    return '发送反馈'
-  }
+  const isFormReady = selectedCategory && content.trim().length > 5
 
   const handleSubmit = async () => {
     if (isSubmitDisabled || submitting) return
@@ -69,60 +62,58 @@ export default function FeedbackPage() {
       <View className='nav-spacer' style={{ height: navBarHeight + 'px' }} />
 
       <View className='feedback-page__content'>
-        {/* Header - 衬线字体标题 */}
-        <View className='feedback-page__header'>
-          <Text className='feedback-page__title'>告诉我们你的想法</Text>
-          <Text className='feedback-page__subtitle'>遇到问题了？有新点子？随时告诉我们，我们一起让 Claread 更好用。</Text>
-        </View>
-
         {submitted ? (
           <View className='feedback-page__success-container'>
-            <FeedbackSuccessPanel inline onDismiss={resetForm} />
+            <FeedbackSuccessPanel inline onDismiss={resetForm} onViewMyFeedback={() => Taro.navigateBack()} />
           </View>
         ) : (
           <>
-            {/* Category Selection - 只标可选项 */}
-            <View className='feedback-page__section'>
-              <View className='feedback-page__section-header'>
-                <Text className='feedback-page__section-title'>问题类型</Text>
+            <View className='feedback-page__header'>
+              <View className='feedback-page__header-text'>
+                <Text className='feedback-page__title'>告诉我们你的想法</Text>
+                <Text className='feedback-page__subtitle'>遇到问题、发现不准确，或有一个小建议，都可以留在这里。</Text>
               </View>
-              <FeedbackOptionGrid
-                options={config.neutralOptions || []}
-                selectedValues={selectedCategory ? [selectedCategory] : []}
-                onChange={(vals) => setSelectedCategory(vals[0] || '')}
+              <View className={`feedback-page__mascot ${selectedCategory ? 'feedback-page__mascot--happy' : ''}`}>
+                <View className='doc-face' />
+                <View className='eye-left' />
+                <View className='eye-right' />
+                <View className='smile' />
+              </View>
+            </View>
+
+            <FeedbackOptionGrid
+              options={config.neutralOptions || []}
+              selectedValues={selectedCategory ? [selectedCategory] : []}
+              onChange={(vals) => setSelectedCategory(vals[0] || '')}
+            />
+
+            <View className='feedback-page__input-wrap'>
+              <Textarea
+                id='feedback-content'
+                className='feedback-page__textarea'
+                value={content}
+                onInput={(e) => setContent(e.detail.value)}
+                placeholder={'比如：在哪个页面遇到？你原本期待什么？'}
+                maxlength={MAX_CONTENT_LENGTH}
+                autoHeight
               />
+              <Text className={`feedback-page__char-count ${content.length > 0 ? 'feedback-page__char-count--active' : ''}`}>{content.length}/{MAX_CONTENT_LENGTH}</Text>
             </View>
 
-            {/* Description Input - 标注选填 */}
-            <View className='feedback-page__section'>
-              <View className='feedback-page__section-header'>
-                <Text className='feedback-page__section-title'>详细描述</Text>
-                <Text className='feedback-page__section-tag'>选填</Text>
-              </View>
-              <View className='feedback-page__input-wrap'>
-                <Textarea
-                  id='feedback-content'
-                  className='feedback-page__textarea'
-                  value={content}
-                  onInput={(e) => setContent(e.detail.value)}
-                  placeholder='请详细描述你的问题或建议，比如：在什么情况下出现的？你希望得到什么样的改进？'
-                  maxlength={2000}
-                  autoHeight
-                />
-              </View>
-            </View>
-
-            {/* Submit Button - 品牌主色 + 无图标 */}
-            <View className='feedback-page__footer'>
+            <View className='feedback-page__submit-wrap'>
               <View
-                className={`feedback-page__submit ${isSubmitDisabled ? 'feedback-page__submit--disabled' : ''}`}
+                className={`feedback-page__submit ${isSubmitDisabled ? 'feedback-page__submit--disabled' : ''} ${!isSubmitDisabled && isFormReady ? 'feedback-page__submit--ready' : ''}`}
                 onClick={handleSubmit}
               >
-                <Text>{getSubmitLabel()}</Text>
+                <Text>{submitting ? '提交中...' : '提交反馈'}</Text>
               </View>
             </View>
           </>
         )}
+
+        <View className='feedback-page__footer-note'>
+          <Text>可在「我的 → 我的反馈记录」中查看处理结果</Text>
+        </View>
       </View>
     </View>
   )
