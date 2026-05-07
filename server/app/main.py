@@ -44,15 +44,14 @@ async def _warm_dict_cache() -> None:
     provider = Tecd3Provider()
     candidates_list = await lookup_candidates_batch(_WARMUP_WORDS, source="tecd3")
     seen_ids: set[int] = set()
-    for candidates in candidates_list.values():
-        for c in candidates:
-            if c.entry_id not in seen_ids:
-                seen_ids.add(c.entry_id)
-                entry = await fetch_entry(c.entry_id, source="tecd3")
-                if entry is not None:
-                    cache_key = f"tecd3:v4:entry:{c.entry_id}"
-                    result = provider._build_entry_result(entry.display_headword, entry)
-                    await dict_cache.set(cache_key, result)
+    for c in candidates_list:
+        if c.entry_id not in seen_ids:
+            seen_ids.add(c.entry_id)
+            entry = await fetch_entry(c.entry_id, source="tecd3")
+            if entry is not None:
+                cache_key = f"tecd3:v4:entry:{c.entry_id}"
+                result = provider._build_entry_result(entry.display_headword, entry)
+                await dict_cache.set(cache_key, result)
     logger.info("Dict cache warmed: %d entries preloaded", len(seen_ids))
 
 

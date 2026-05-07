@@ -35,6 +35,8 @@ SOURCE_ROTATION_POLICY = {
     "topic_diversity": True,
 }
 
+SCORING_MAX_CANDIDATES = 15
+
 
 @dataclass
 class PipelineResult:
@@ -98,6 +100,12 @@ async def run_daily_pipeline(
             pre_filtered.append(a)
     logger.info("Pipeline heuristic pre-filter: %d / %d articles passed (threshold=%.1f)",
                 len(pre_filtered), len(candidates), HEURISTIC_THRESHOLD)
+
+    if len(pre_filtered) > SCORING_MAX_CANDIDATES:
+        pre_filtered.sort(key=lambda a: heuristic_score(a).score, reverse=True)
+        pre_filtered = pre_filtered[:SCORING_MAX_CANDIDATES]
+        logger.info("Pipeline scoring cap: trimmed to %d candidates (SCORING_MAX_CANDIDATES=%d)",
+                     len(pre_filtered), SCORING_MAX_CANDIDATES)
 
     # Layer 3: AI Scoring (concurrent, capped)
     if tracker:
@@ -265,8 +273,24 @@ async def _run_workflow_and_store(
         return None
 
     if final_state.get("abort"):
-        logger.info("Workflow aborted for: %s", article.title[:50])
+        review = final_state.get("review_result", {})
+        abort_reason = review.get("reason", "quality_review_rejected")
+        logger.info("Workflow aborted for: %s (reason: %s)", article.title[:50], abort_reason)
+        if tracker:
+            await tracker.add_error("workflow_abort", f"Aborted: {article.title[:40]}: {abort_reason}")
         return None
+
+    full_interp = final_state.get("full_interpretation", "")
+    footer = final_state.get("footer_analysis_json", {})
+    logger.info("Workflow final state: full_interpretation length=%d, footer keys=%s, has_full_article_analysis=%s",
+                len(full_interp) if full_interp else 0,
+                list(footer.keys()) if isinstance(footer, dict) else type(footer),
+                "full_article_analysis" in footer if isinstance(footer, dict) else False)
+
+    if full_interp and isinstance(footer, dict) and "full_article_analysis" not in footer:
+        footer = {**footer, "full_article_analysis": full_interp}
+        final_state["footer_analysis_json"] = footer
+        logger.info("Pipeline patched full_article_analysis into footer_analysis_json (length=%d)", len(full_interp))
 
     if tracker:
         await tracker.update_stage("cover_download")

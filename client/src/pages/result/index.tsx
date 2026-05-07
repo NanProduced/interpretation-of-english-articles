@@ -67,7 +67,7 @@ export default function Result() {
     const firstSentence = sceneData?.article.sentences[0]?.text
     const title = academicTitle
       || (firstSentence ? firstSentence.split('\n')[0].slice(0, 30) + '...' : null)
-      || 'Claread 透读 - AI 英语深度解析'
+      || 'Claread透读 - AI 英语深度解析'
     const path = recordId
       ? `${ROUTES.RESULT}?recordId=${recordId}&mode=replay`
       : ROUTES.RESULT

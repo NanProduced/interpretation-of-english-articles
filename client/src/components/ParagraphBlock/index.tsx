@@ -6,7 +6,7 @@ import ClickableWord from '../ClickableWord'
 import GrammarInlineSpan from '../GrammarInlineSpan'
 import InlineMark from '../InlineMark'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
-import AnnotationFeedback from '../AnnotationFeedback'
+import FeedbackSheet from '../FeedbackSystem/FeedbackSheet'
 import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis } from './utils'
 import type { ClickEvent } from '../../types/taro-events'
 import './index.scss'
@@ -345,6 +345,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
   const [feedbackTarget, setFeedbackTarget] = useState<{
     targetId: string
     annotationType: string
+    prefillSentiment?: 'positive' | 'negative' | 'neutral'
     contextJson: Record<string, unknown>
   } | null>(null)
   const containerClass = `paragraph-block ${pageMode} ${activeAnalysisId ? 'has-active-analysis' : ''}`
@@ -374,10 +375,11 @@ const ParagraphBlock = memo(function ParagraphBlock({
     setActiveAnalysisId(expanded ? entryId : null)
   }
 
-  const handleCardFeedback = useCallback((entryId: string, entryType: string, title: string, content: string) => {
+  const handleCardFeedback = useCallback((entryId: string, entryType: string, title: string, content: string, prefillSentiment?: 'positive' | 'negative' | 'neutral') => {
     setFeedbackTarget({
       targetId: entryId,
       annotationType: entryType,
+      prefillSentiment,
       contextJson: { title, content_preview: content.slice(0, 200) },
     })
   }, [])
@@ -452,7 +454,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
             cloudId: cloudId || undefined,
             entryId: e.id,
             annotationType: 'grammar_note',
-            onFeedback: recordId ? () => handleCardFeedback(e.id, 'grammar_note', e.title || e.label, e.content) : undefined,
+            onFeedback: recordId ? (sentiment?: 'positive' | 'negative' | 'neutral') => handleCardFeedback(e.id, 'grammar_note', e.title || e.label, e.content, sentiment) : undefined,
           }
         }),
         ...sentenceEntries
@@ -644,11 +646,16 @@ const ParagraphBlock = memo(function ParagraphBlock({
       })}
       {feedbackTarget && recordId && (
         <View className='annotation-feedback-overlay' onClick={() => setFeedbackTarget(null)}>
-          <AnnotationFeedback
-            recordId={cloudId || recordId}
-            targetId={feedbackTarget.targetId}
-            annotationType={feedbackTarget.annotationType}
-            contextJson={feedbackTarget.contextJson}
+          <FeedbackSheet
+            scope="annotation"
+            prefillSentiment={feedbackTarget.prefillSentiment}
+            payload={{
+              targetId: feedbackTarget.targetId,
+              analysisRecordId: cloudId || recordId,
+              annotationType: feedbackTarget.annotationType,
+              contextJson: feedbackTarget.contextJson,
+            }}
+            contextSummary={(feedbackTarget.contextJson.title as string) || (feedbackTarget.contextJson.content_preview as string)}
             onClose={() => setFeedbackTarget(null)}
           />
         </View>

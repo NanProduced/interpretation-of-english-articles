@@ -1,4 +1,5 @@
 import { View, Text } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import { getSafeDisplayLabel, getCompactLabel } from '../../config/purpose'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
@@ -24,26 +25,54 @@ export default function ReaderContextBar({
   onEdit,
   onModeToggle,
 }: ReaderContextBarProps) {
-  const sourceLabel = sourceType === 'user_input' ? '手动输入' : '每日文章'
   const goalLabel = getCompactLabel(readingGoal || 'daily_reading', readingVariant)
-  const modeLabel = pageMode === 'immersive' ? '原文' : '精读'
+  const isImmersive = pageMode === 'immersive'
+
+  const handleReparse = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation()
+    
+    Taro.showModal({
+      title: '更换解析模式',
+      content: '将使用新模式重新生成解析页面，当前页面的标注和笔记将被保留在历史记录中。\n\n是否继续？',
+      confirmText: '继续',
+      cancelText: '取消',
+      confirmColor: '#2E5BB2',
+      success: (res) => {
+        if (res.confirm) {
+          onEdit?.()
+        }
+      },
+    })
+  }
 
   return (
     <View className='reader-context-bar' onClick={onClick}>
       <View className='reader-context-items'>
-        <Text className='context-item source'>{sourceLabel}</Text>
-        <Text className='context-divider'>·</Text>
         <Text className='context-item goal' numberOfLines={1}>{goalLabel}</Text>
+
         <Text className='context-divider'>·</Text>
-        <View
-          className={`context-item mode ${pageMode || ''}`}
-          onClick={(e) => {
-            e.stopPropagation()
-            onModeToggle?.()
-          }}
-        >
-          <Text>{modeLabel}</Text>
+        
+        <View className='mode-switcher'>
+          <View
+            className={`mode-option ${!isImmersive ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (isImmersive) onModeToggle?.()
+            }}
+          >
+            <Text>精读</Text>
+          </View>
+          <View
+            className={`mode-option ${isImmersive ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!isImmersive) onModeToggle?.()
+            }}
+          >
+            <Text>原文</Text>
+          </View>
         </View>
+
         {isAcademicMode && (
           <>
             <Text className='context-divider'>·</Text>
@@ -51,14 +80,13 @@ export default function ReaderContextBar({
           </>
         )}
       </View>
+
       <View
-        className='context-edit-icon'
-        onClick={(e) => {
-          e.stopPropagation()
-          onEdit?.()
-        }}
+        className='reparse-button'
+        onClick={handleReparse}
       >
-        <LucideIcon name='pencil' size={13} color='var(--text-muted)' strokeWidth={1.8} />
+        <LucideIcon name='refresh-cw' size={16} color='currentColor' strokeWidth={1.8} />
+        <Text className='reparse-text'>换模式</Text>
       </View>
     </View>
   )

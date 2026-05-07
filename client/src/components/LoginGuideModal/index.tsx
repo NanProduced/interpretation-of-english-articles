@@ -61,7 +61,7 @@ export default function LoginGuideModal({ visible, onClose, onLogin }: LoginGuid
         </View>
 
         {/* 标题 */}
-        <Text className='login-guide-title'>欢迎使用 Claread 透读</Text>
+        <Text className='login-guide-title'>欢迎使用 Claread透读</Text>
 
         {/* 积分说明 */}
         <View className='login-guide-cards'>

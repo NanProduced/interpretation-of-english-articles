@@ -72,7 +72,7 @@ export default function DailyReaderPage() {
   })
 
   useShareAppMessage(() => {
-    if (!article) return { title: 'Claread 透读', path: ROUTES.HOME, imageUrl: SHARE_IMAGES[0] }
+    if (!article) return { title: 'Claread透读', path: ROUTES.HOME, imageUrl: SHARE_IMAGES[0] }
     return {
       title: `${article.title} — Claread 每日精读`,
       path: `${ROUTES.DAILY_READER}?id=${article.id}`,

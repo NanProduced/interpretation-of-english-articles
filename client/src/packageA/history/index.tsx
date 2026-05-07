@@ -221,7 +221,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
 
   return (
     <View className={`history-page ${isSubView ? 'sub-view' : ''} ${isEditMode ? 'is-edit-mode' : ''}`}>
-      {!isSubView && <NavBar title='历史解读' />}
+      {!isSubView && <NavBar title='Claread透读' />}
       {!isSubView && <View className='nav-spacer' style={{ height: navBarHeight + 'px' }} />}
 
       <View className='filter-tabs'>

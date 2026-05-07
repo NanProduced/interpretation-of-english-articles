@@ -15,30 +15,11 @@
     to { opacity: 1; }
   }
 
-  .header-nav {
-    padding-top: 100rpx;
-    padding-left: 48rpx;
-    padding-right: 48rpx;
-    padding-bottom: 32rpx;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    .nav-left {
-      .brand-motto {
-        font-size: 32rpx;
-        font-weight: 800;
-        color: var(--text-main, #030213);
-        letter-spacing: 2rpx;
-      }
-    }
-
-    .skip-btn {
-      font-size: 28rpx;
-      color: #999;
-      font-weight: 500;
-      padding: 10rpx 20rpx;
-    }
+  .skip-btn {
+    font-size: 28rpx;
+    color: #999;
+    font-weight: 500;
+    padding: 10rpx 20rpx;
   }
 
   .content-area {

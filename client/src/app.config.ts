@@ -34,8 +34,9 @@ export default {
   ],
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#fff',
+    navigationBarBackgroundColor: '#FAF9F6',
     navigationBarTitleText: 'Claread透读',
     navigationBarTextStyle: 'black',
+    navigationStyle: 'custom',
   },
 }

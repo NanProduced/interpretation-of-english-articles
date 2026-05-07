@@ -411,8 +411,18 @@
 
     &.primary { flex: 1; background: var(--reader-ink); color: #FFFFFF; }
     &.secondary {
-      width: 110rpx; background: transparent; border: 1.5rpx solid rgba(0, 0, 0, 0.06); color: var(--reader-muted);
+      width: 128rpx; 
+      background: var(--bg-tertiary, #F6F3EC); 
+      border: none; 
+      color: var(--reader-muted, #7A7D86);
       flex-shrink: 0;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+      &:active {
+        background: #EDEAE1;
+        transform: scale(0.96);
+        color: var(--text-primary, #111111);
+      }
     }
     &.saved {
       flex: 1; background: transparent; border: 1.5rpx solid rgba(0, 0, 0, 0.03);

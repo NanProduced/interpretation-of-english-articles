@@ -4,7 +4,7 @@ import { ReadingGoal, READING_CONFIG_MAP, ReadingVariant } from '../../config/pu
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 
-export type ConfigEditorMode = 'detailed' | 'compact'
+export type ConfigEditorMode = 'detailed' | 'compact' | 'reparse'
 
 interface ConfigEditorProps {
   mode?: ConfigEditorMode
@@ -38,7 +38,6 @@ export default function ConfigEditor({
     if (onSelect) onSelect(selectedGoal, level)
 
     if (!config.variants) {
-      // Academic or other goal without variants: Complete immediately
       if (onComplete) onComplete(selectedGoal, config.defaultVariant)
     } else {
       setStep(2)
@@ -59,6 +58,7 @@ export default function ConfigEditor({
 
   const goalList = Object.keys(READING_CONFIG_MAP) as ReadingGoal[]
   const isDetailed = mode === 'detailed'
+  const isReparse = mode === 'reparse'
 
   return (
     <View className={`config-editor ${mode} step-${step} layout-${layout}`}>
@@ -81,7 +81,7 @@ export default function ConfigEditor({
                   onClick={() => handleGoalSelect(g)}
                 >
                   <View className='card-icon'>
-                    <LucideIcon name={config.icon} size={isDetailed ? 64 : 40} color={isSelected ? 'var(--color-white)' : 'var(--text-main)'} />
+                    <LucideIcon name={config.icon} size={isDetailed ? 64 : (isReparse ? 48 : 24)} color={isSelected ? 'var(--color-info)' : 'var(--text-muted)'} strokeWidth={isDetailed ? 2 : (isReparse ? 1.8 : 1.8)} />
                   </View>
                   <View className='card-content'>
                     <Text className='card-label'>{config.label}</Text>
@@ -89,7 +89,7 @@ export default function ConfigEditor({
                       <Text className='card-desc'>{config.description}</Text>
                     )}
                   </View>
-                  {!isDetailed && config.variants && (
+                  {!isDetailed && !isReparse && config.variants && (
                     <LucideIcon name='chevronRight' size={16} color='var(--text-muted)' />
                   )}
                 </View>

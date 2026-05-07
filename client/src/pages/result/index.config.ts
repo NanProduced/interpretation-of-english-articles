@@ -1,5 +1,5 @@
 export default {
-  navigationBarTitleText: '文章解读',
+  navigationBarTitleText: 'Claread透读',
   navigationStyle: 'custom',
   enablePullDownRefresh: false,
   enableShareAppMessage: true,

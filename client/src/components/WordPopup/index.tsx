@@ -132,6 +132,7 @@ function WordLookupSlip({
   onClose: () => void
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
+  onSelectEntry?: (entryId: number, expand?: boolean) => void
 }) {
   const popupWidth = (screenWidth * 408) / 750
   const offset = 18
@@ -543,10 +544,11 @@ function DictionaryNoteSheet({
 
         <View className={`popup-footer-actions safe-area-bottom ${showFooter ? 'has-footer' : 'no-footer'}`}>
           <View className='footer-action-btn secondary' onClick={() => setShowDictFeedback(true)}>
-            <AnnotationGlyph type='feedback' size={32} state='default' />
+            <LucideIcon name='messageSquare' size={32} strokeWidth={2.2} color='var(--reader-muted)' />
             <Text>反馈</Text>
           </View>
           {showFooter && (
+
             <View 
               className={`footer-action-btn ${isSavedState ? 'saved' : 'primary'}`} 
               onClick={() => onAddVocab?.(entry!.word, dictResult)}
@@ -819,15 +821,23 @@ export default function WordPopup({
 
       {showDictFeedback && (
         <View className='popup-feedback-overlay' onClick={() => setShowDictFeedback(false)}>
-          <DictionaryFeedback
-            word={lookupText}
-            phonetic={entry?.phonetic}
-            currentMeaning={getEntrySummary(entry) || undefined}
-            dictSource='tecd3'
-            dictEntryId={entry?.id}
-            contextSentence={contextSentence}
-            readingVariant={readingVariant}
-            recordId={cloudId}
+          <FeedbackSheet
+            scope='dictionary'
+            prefillSentiment='negative'
+            payload={{
+              targetId: entry?.id ? String(entry.id) : lookupText,
+              analysisRecordId: cloudId,
+              contextJson: {
+                word: lookupText,
+                phonetic: entry?.phonetic || '',
+                current_meaning: getEntrySummary(entry) || '',
+                dict_source: 'tecd3',
+                dict_entry_id: entry?.id,
+                context_sentence: contextSentence || '',
+                reading_variant: readingVariant || '',
+              }
+            }}
+            contextSummary={`${lookupText}${entry?.phonetic ? ` ${entry.phonetic}` : ''}`}
             onClose={() => setShowDictFeedback(false)}
           />
         </View>

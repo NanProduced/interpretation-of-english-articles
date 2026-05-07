@@ -1,0 +1,50 @@
+/* ====================================================================
+ * FeedbackOptionGrid - Brand-colored, compact chips (Impeccable v3)
+ * 
+ * Design:
+ * - 未选中：浅米色填充，沉入背景
+ * - 选中：品牌钢青蓝 #2E5BB2，跳出来
+ * - 更瘦的胶囊，更好的呼吸感
+ * ==================================================================== */
+
+.feedback-option-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx; /* 统一行间距 */
+
+  &__item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60rpx; /* 压缩高度 (72rpx → 60rpx) */
+    padding: 0 12rpx; /* 减少内边距 */
+    border-radius: 14rpx;
+    font-size: 25rpx;
+    font-weight: 450;
+    line-height: 1.25;
+    transition: all 0.18s ease;
+    border: none;
+
+    /* 未选中态：浅米色填充 */
+    background-color: var(--reader-paper-deep, #F5F3EF);
+    color: var(--reader-muted, #7A7D86);
+
+    &:active {
+      transform: scale(0.97);
+      background-color: rgba(17, 17, 17, 0.04);
+    }
+
+    /* 选中态：品牌钢青蓝 */
+    &--selected {
+      background-color: var(--color-info, #2E5BB2);
+      color: #FFFFFF;
+      font-weight: 500;
+      box-shadow: 0 4rpx 16rpx rgba(46, 91, 178, 0.28);
+
+      &:active {
+        opacity: 0.9;
+        transform: scale(0.97);
+      }
+    }
+  }
+}

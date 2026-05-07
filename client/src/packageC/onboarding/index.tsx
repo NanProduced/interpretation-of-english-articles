@@ -3,6 +3,8 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import { useConfigStore, UserPurpose } from '../../stores/config'
+import { useLayoutStore } from '../../stores/layout'
+import NavBar from '../../components/NavBar'
 import ConfigEditor from '../../components/ConfigEditor'
 import './index.scss'
 
@@ -10,8 +12,8 @@ export default function Onboarding() {
   const router = Taro.useRouter()
   const [isReady, setIsReady] = useState(false)
   const { purpose, setPurpose, level, setLevel } = useConfigStore()
+  const { navBarHeight } = useLayoutStore()
 
-  // 记忆逻辑：如果已有配置且不是从 Profile 进来，直达首页
   useEffect(() => {
     const fromProfile = router.params.from === 'profile'
     const hasConfig = Taro.getStorageSync('user_configured')
@@ -43,13 +45,13 @@ export default function Onboarding() {
 
   return (
     <View className='onboarding-page fade-in'>
-      {/* Header */}
-      <View className='header-nav'>
-        <View className='nav-left'>
-          <Text className='brand-motto'>Claread 透读</Text>
-        </View>
-        <Text className='skip-btn' onClick={skip}>跳过</Text>
-      </View>
+      <NavBar
+        title='Claread透读'
+        renderRight={
+          <Text className='skip-btn' onClick={skip}>跳过</Text>
+        }
+      />
+      <View className='nav-spacer' style={{ height: `${navBarHeight}px` }} />
 
       <View className='content-area'>
         <ConfigEditor 

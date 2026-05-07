@@ -1,5 +1,6 @@
 import { View, Text } from '@tarojs/components'
 import LucideIcon from '../LucideIcon'
+import FeedbackInlineEntry from '../FeedbackSystem/FeedbackInlineEntry'
 import './index.scss'
 
 export interface AnnotationNoteCardProps {
@@ -44,21 +45,15 @@ export default function AnnotationNoteCard({
 
       {/* Feedback Bar */}
       <View className="note-card-footer">
-        <View className="note-card-feedback-actions">
-          <View className="feedback-action" onClick={onHelpful}>
-            <LucideIcon name="thumbsUp" size={16} color="var(--reader-muted)" />
-            <Text className="feedback-text">有帮助</Text>
-          </View>
-          <View className="feedback-action" onClick={onInaccurate}>
-            <LucideIcon name="thumbsDown" size={16} color="var(--reader-muted)" />
-            <Text className="feedback-text">不准确</Text>
-          </View>
-          <View className="feedback-action" onClick={onFeedback}>
-            <LucideIcon name="messageSquare" size={16} color="var(--reader-muted)" />
-            <Text className="feedback-text">反馈</Text>
-          </View>
-        </View>
+        <FeedbackInlineEntry 
+          actions={[
+            { id: 'helpful', label: '有帮助', icon: 'thumbsUp', sentiment: 'positive', onClick: () => onHelpful?.() },
+            { id: 'inaccurate', label: '不准确', icon: 'thumbsDown', sentiment: 'negative', onClick: () => onInaccurate?.() },
+            { id: 'feedback', label: '反馈', icon: 'messageSquare', sentiment: 'neutral', onClick: () => onFeedback?.() }
+          ]}
+        />
       </View>
     </View>
   )
 }
+

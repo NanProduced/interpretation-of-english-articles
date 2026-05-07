@@ -181,6 +181,12 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       title: "反馈与帮助",
       items: [
         {
+          label: "我的反馈记录",
+          icon: 'inbox',
+          url: ROUTES.FEEDBACK_MY,
+          color: 'blue',
+        },
+        {
           label: "意见反馈",
           icon: 'messageSquare',
           url: ROUTES.FEEDBACK,

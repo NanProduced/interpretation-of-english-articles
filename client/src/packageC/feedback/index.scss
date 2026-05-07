@@ -1,106 +1,161 @@
+/* ====================================================================
+ * FeedbackPage - Claread Brand-aligned Design (Impeccable v3)
+ * 
+ * Principles: 克制、纸面、品牌主色锚点
+ * 
+ * Changes from v2:
+ * 1. 品牌主色 #2E5BB2 用于选中态和 CTA
+ * 2. 标题回弹一档 + 衬线字体
+ * 3. 标签统一成属性维度（必选/选填）
+ * 4. 禁用态文案内嵌到按钮
+ * 5. 胶囊更瘦 (60rpx)
+ * 6. 统一间距节奏
+ * 7. 去掉纸飞机图标
+ * ==================================================================== */
+
 .feedback-page {
   min-height: 100vh;
-  background: #FAF9F9;
-  padding: 32rpx;
+  background-color: var(--reader-paper, #FAF9F6);
+  display: flex;
+  flex-direction: column;
 
+  &__content {
+    padding: 28rpx 36rpx calc(48rpx + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 28rpx; /* 统一 section gap */
+  }
+
+  /* Header - 回弹一档标题 */
+  &__header {
+    display: flex;
+    flex-direction: column;
+    padding-top: 8rpx; /* 微调顶部间距 */
+  }
+
+  &__title {
+    font-size: 36rpx; /* 回弹一档 (34rpx → 36rpx) */
+    font-weight: 500; /* Medium，不 Bold */
+    color: var(--reader-ink, #111111);
+    margin-bottom: 10rpx; /* 紧凑间距 */
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    display: block;
+    font-family: var(--font-english-serif), serif; /* 衬线字体呼应读物感 */
+  }
+
+  &__subtitle {
+    font-size: 26rpx;
+    color: var(--reader-subtle, #9BA0A8); /* 更灰拉开层次 */
+    line-height: 1.55;
+    font-weight: 400;
+    display: block;
+  }
+
+  /* Section - 统一节奏 */
   &__section {
-    margin-bottom: 40rpx;
+    display: flex;
+    flex-direction: column;
+    gap: 14rpx; /* 统一内部行间距 */
+  }
+
+  &__section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10rpx;
   }
 
   &__section-title {
     font-size: 28rpx;
-    font-weight: 600;
-    color: var(--color-ink, #030213);
-    display: block;
-    margin-bottom: 20rpx;
+    font-weight: 550;
+    color: var(--reader-ink, #111111);
+    letter-spacing: -0.005em;
   }
 
-  &__categories {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16rpx;
+  /* 统一属性维度标签（选填） */
+  &__section-tag {
+    font-size: 23rpx;
+    color: var(--reader-subtle, #9BA0A8);
+    font-weight: 400;
+    letter-spacing: 0.02em;
   }
 
-  &__chip {
-    padding: 16rpx 28rpx;
-    background: #fff;
-    border-radius: 40rpx;
-    font-size: 26rpx;
-    color: var(--text-sub, #717182);
-    border: 2rpx solid #e5e5e5;
-    transition: all 0.15s ease-out;
+  /* Textarea Input */
+  &__input-wrap {
+    background-color: var(--reader-surface, #FFFFFF);
+    border-radius: 16rpx;
+    padding: 22rpx 24rpx;
+    min-height: 180rpx; /* 稍微压缩 */
+    border: 1rpx solid rgba(17, 17, 17, 0.06);
+    transition: all 0.18s ease;
 
-    &--active {
-      border-color: var(--color-ink, #030213);
-      color: var(--color-ink, #030213);
-      background: #f0f0f0;
-      font-weight: 500;
-    }
-
-    &:active {
-      transform: scale(0.95);
+    &:focus-within {
+      border-color: rgba(46, 91, 178, 0.25); /* 品牌蓝色聚焦态 */
+      box-shadow: 0 2rpx 12rpx rgba(46, 91, 178, 0.08);
     }
   }
 
   &__textarea {
     width: 100%;
-    min-height: 240rpx;
-    padding: 24rpx;
-    background: #fff;
-    border-radius: var(--radius-md, 32rpx);
+    min-height: 136rpx;
     font-size: 28rpx;
-    color: var(--text-main, #171717);
-    box-sizing: border-box;
+    line-height: 1.62;
+    color: var(--reader-ink, #111111);
+    background: transparent;
+
+    &::placeholder {
+      color: var(--reader-subtle, #9BA0A8);
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    &:focus {
+      outline: none;
+    }
   }
 
+  /* Submit Area - 简洁 */
+  &__footer {
+    display: flex;
+    justify-content: center; /* 居中即可 */
+  }
+
+  /* Submit button - 品牌主色 + 纯文字无图标 */
   &__submit {
-    padding: 28rpx;
-    background: var(--color-ink, #030213);
-    color: #fff;
-    border-radius: var(--radius-md, 32rpx);
-    text-align: center;
-    font-size: 30rpx;
-    font-weight: 500;
-    margin-top: 20rpx;
-    transition: opacity 0.15s ease-out;
-
-    &--disabled {
-      background: #ccc;
-    }
-
-    &:active:not(&--disabled) {
-      opacity: 0.85;
-    }
-  }
-
-  &__divider {
-    height: 1rpx;
-    background: #e5e5e5;
-    margin: 48rpx 0;
-  }
-
-  &__my-feedback {
+    width: 100%;
+    height: 88rpx;
+    border-radius: 20rpx; /* 类Apple但稍方一点 */
+    background-color: var(--color-info, #2E5BB2); /* 品牌钢青蓝 */
+    color: #FFFFFF;
     display: flex;
     align-items: center;
-    padding: 28rpx;
-    background: #fff;
-    border-radius: var(--radius-md, 32rpx);
+    justify-content: center;
+    font-size: 30rpx;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
+    box-shadow: 0 4rpx 16rpx rgba(46, 91, 178, 0.22);
+
+    &:active {
+      opacity: 0.88;
+      transform: scale(0.98);
+    }
+
+    /* 禁用态：降透明度 + 内嵌文案 */
+    &--disabled {
+      background-color: var(--reader-paper-deep, #F0EDE6);
+      color: var(--reader-muted, #9A9590);
+      box-shadow: none;
+      pointer-events: none;
+    }
   }
 
-  &__my-feedback-label {
-    font-size: 28rpx;
-    color: var(--text-main, #171717);
-    flex: 1;
-  }
-
-  &__my-feedback-count {
-    font-size: 24rpx;
-    color: var(--text-muted, #999);
-    margin-right: 16rpx;
-  }
-
-  &__my-feedback-arrow {
-    font-size: 28rpx;
-    color: #ccc;
+  /* Success State */
+  &__success-container {
+    background-color: var(--reader-surface, #FFFFFF);
+    border-radius: 20rpx;
+    padding: 48rpx 36rpx;
+    box-shadow: 0 2rpx 16rpx rgba(17, 17, 17, 0.06);
   }
 }

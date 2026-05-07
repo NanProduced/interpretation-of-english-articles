@@ -7,6 +7,7 @@ import type { StopPropagationEvent } from '../../types/taro-events'
 import { submitFeedback } from '../../services/api/feedback.client'
 import { ensureLoggedIn } from '../../services/auth'
 import { parseSentenceAnalysis, type AnalysisChunk } from '../ParagraphBlock/utils'
+import FeedbackInlineEntry from '../FeedbackSystem/FeedbackInlineEntry'
 import './index.scss'
 
 export type AnalysisCardType = 'vocab' | 'grammar' | 'sentence' | 'term' | 'logic' | 'interpretation' | 'summary'
@@ -23,7 +24,7 @@ export interface AnalysisCardProps {
   isExpanded?: boolean
   snippet?: string
   onToggle?: (expanded: boolean) => void
-  onFeedback?: () => void
+  onFeedback?: (prefillSentiment?: 'positive' | 'negative' | 'neutral') => void
   structuredData?: { summary?: string; chunks?: AnalysisChunk[] }
   recordId?: string
   cloudId?: string
@@ -234,32 +235,40 @@ export default function AnalysisCard({
 
           {(onFeedback || recordId) && (
             <View className='card-feedback-row'>
-              {recordId && entryId && (
-                <>
-                  <View
-                    className={`feedback-quick-btn ${quickFeedbackState === 'positive' ? 'is-submitted' : ''} ${quickFeedbackState !== 'none' && quickFeedbackState !== 'positive' ? 'is-disabled' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); void handleQuickFeedback('positive') }}
-                  >
-                    <LucideIcon name='thumbsUp' size={13} color='var(--text-muted)' strokeWidth={1.8} />
-                    <Text className='feedback-quick-text'>{quickFeedbackState === 'positive' ? '已反馈' : '有帮助'}</Text>
-                  </View>
-                  <View className='feedback-divider' />
-                  <View
-                    className={`feedback-quick-btn ${quickFeedbackState === 'negative' ? 'is-submitted' : ''} ${quickFeedbackState !== 'none' && quickFeedbackState !== 'negative' ? 'is-disabled' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); void handleQuickFeedback('negative') }}
-                  >
-                    <LucideIcon name='thumbsDown' size={13} color='var(--text-muted)' strokeWidth={1.8} />
-                    <Text className='feedback-quick-text'>{quickFeedbackState === 'negative' ? '已反馈' : '不准确'}</Text>
-                  </View>
-                  <View className='feedback-divider' />
-                </>
-              )}
-              {onFeedback && (
-                <View className='feedback-detail-btn' onClick={(e) => { e.stopPropagation(); onFeedback() }}>
-                  <AnnotationGlyph type='feedback' size={28} />
-                  <Text className='feedback-detail-text'>反馈</Text>
-                </View>
-              )}
+              <FeedbackInlineEntry
+                actions={[
+                  ...(recordId && entryId ? [
+                    {
+                      id: 'helpful',
+                      label: quickFeedbackState === 'positive' ? '已感谢' : '有帮助',
+                      icon: 'thumbsUp',
+                      sentiment: 'positive' as const,
+                      submitted: quickFeedbackState === 'positive',
+                      onClick: () => {
+                        if (quickFeedbackState === 'none') {
+                          void handleQuickFeedback('positive')
+                        }
+                      }
+                    },
+                  ] : []),
+                  ...(onFeedback ? [
+                    {
+                      id: 'inaccurate',
+                      label: '不准确',
+                      icon: 'thumbsDown',
+                      sentiment: 'negative' as const,
+                      onClick: () => onFeedback('negative')
+                    },
+                    {
+                      id: 'feedback',
+                      label: '写反馈',
+                      icon: 'messageSquare',
+                      sentiment: 'neutral' as const,
+                      onClick: () => onFeedback()
+                    }
+                  ] : [])
+                ]}
+              />
             </View>
           )}
         </View>

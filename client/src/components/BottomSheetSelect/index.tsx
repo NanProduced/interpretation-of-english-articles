@@ -21,7 +21,7 @@ export default function BottomSheetSelect({
   title = '选择分析模式',
   currentGoal,
   currentLevel,
-  mode = 'compact',
+  mode = 'reparse',
   onClose,
   onSelect,
   children,

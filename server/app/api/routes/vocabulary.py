@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from logging import getLogger
 from uuid import UUID
 
@@ -27,6 +28,8 @@ router = APIRouter(prefix="/vocabulary", tags=["vocabulary"])
 
 
 def _vocab_row_to_response(row: dict) -> VocabularyResponse:
+    meanings_raw = row.get("meanings_json")
+    payload_raw = row.get("payload_json")
     return VocabularyResponse(
         id=row["id"],
         user_id=row["user_id"],
@@ -35,7 +38,7 @@ def _vocab_row_to_response(row: dict) -> VocabularyResponse:
         phonetic=row.get("phonetic"),
         part_of_speech=row.get("part_of_speech"),
         short_meaning=row["short_meaning"],
-        meanings_json=row.get("meanings_json"),
+        meanings_json=json.loads(meanings_raw) if isinstance(meanings_raw, str) else meanings_raw,
         tags=row.get("tags", []),
         exchange=row.get("exchange", []),
         source_provider=row.get("source_provider", "tecd3"),
@@ -45,7 +48,7 @@ def _vocab_row_to_response(row: dict) -> VocabularyResponse:
         mastery_status=row.get("mastery_status", "new"),
         review_count=row.get("review_count", 0),
         last_reviewed_at=row.get("last_reviewed_at"),
-        payload_json=row.get("payload_json"),
+        payload_json=json.loads(payload_raw) if isinstance(payload_raw, str) else payload_raw,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )

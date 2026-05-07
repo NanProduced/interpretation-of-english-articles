@@ -1,4 +1,4 @@
 export default {
-  navigationBarTitleText: 'Claread透读',
+  navigationBarTitleText: '我的反馈',
   navigationStyle: 'custom'
 }

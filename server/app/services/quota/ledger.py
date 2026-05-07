@@ -31,11 +31,11 @@ async def get_credit_ledger(
 
     limit_val = min(limit, 100)
     params: list = [user_id]
-    where_clauses = ["user_id = $1"]
+    where_clauses = ["l.user_id = $1"]
 
     if cursor:
         params.append(cursor)
-        where_clauses.append(f"id < ${len(params)}")
+        where_clauses.append(f"l.id < ${len(params)}")
 
     params.append(limit_val + 1)
     query_limit = f"${len(params)}"

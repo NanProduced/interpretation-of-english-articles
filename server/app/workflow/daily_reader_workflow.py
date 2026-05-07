@@ -44,7 +44,7 @@ from app.agents.daily_vocab_agent import (
     build_daily_vocab_prompt,
     get_daily_vocab_agent,
 )
-from app.llm.agent_runner import extract_run_usage, run_agent_with_route
+from app.llm.agent_runner import extract_model_metadata, extract_run_usage, run_agent_with_route
 from app.llm.routes import (
     MODEL_ROUTE_DAILY_ANALYSIS,
     MODEL_ROUTE_DAILY_ANNOTATION,
@@ -152,13 +152,14 @@ async def _vocab_highlight_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
+    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
     current_run = get_current_run_tree()
     if current_run is not None:
         draft = result.output if hasattr(result, "output") else None
         hl_count = len(_extract_highlights_from_vocab_draft(draft)) if draft else 0
         _set_current_run(
             run_tree=current_run,
-            metadata={**metadata, "highlight_count": hl_count},
+            metadata={**metadata, **model_meta, "highlight_count": hl_count},
             usage_metadata=usage,
         )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
@@ -200,13 +201,14 @@ async def _phrase_gloss_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
+    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
     current_run = get_current_run_tree()
     if current_run is not None:
         draft = result.output if hasattr(result, "output") else None
         hl_count = len(_extract_highlights_from_vocab_draft(draft)) if draft else 0
         _set_current_run(
             run_tree=current_run,
-            metadata={**metadata, "highlight_count": hl_count},
+            metadata={**metadata, **model_meta, "highlight_count": hl_count},
             usage_metadata=usage,
         )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
@@ -255,12 +257,13 @@ async def _footer_analysis_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
+    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
     current_run = get_current_run_tree()
     if current_run is not None:
         footer = result.output if hasattr(result, "output") else None
         _set_current_run(
             run_tree=current_run,
-            metadata={**metadata, "has_footer": footer is not None},
+            metadata={**metadata, **model_meta, "has_footer": footer is not None},
             usage_metadata=usage,
         )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
@@ -310,13 +313,14 @@ async def _full_interpretation_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
+    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
     current_run = get_current_run_tree()
     if current_run is not None:
         interp = result.output if hasattr(result, "output") else None
         text_len = len(getattr(interp, "full_article_analysis", "")) if interp else 0
         _set_current_run(
             run_tree=current_run,
-            metadata={**metadata, "interpretation_length": text_len},
+            metadata={**metadata, **model_meta, "interpretation_length": text_len},
             usage_metadata=usage,
         )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
@@ -365,13 +369,14 @@ async def _quality_review_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
+    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
     current_run = get_current_run_tree()
     if current_run is not None:
         review = result.output if hasattr(result, "output") else None
         passed = getattr(review, "passed", True) if review else True
         _set_current_run(
             run_tree=current_run,
-            metadata={**metadata, "review_passed": passed},
+            metadata={**metadata, **model_meta, "review_passed": passed},
             usage_metadata=usage,
         )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
@@ -417,13 +422,14 @@ async def _refinement_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
+    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
     current_run = get_current_run_tree()
     if current_run is not None:
         refinement = result.output if hasattr(result, "output") else None
         aborted = getattr(refinement, "abort", False) if refinement else False
         _set_current_run(
             run_tree=current_run,
-            metadata={**metadata, "refinement_aborted": aborted},
+            metadata={**metadata, **model_meta, "refinement_aborted": aborted},
             usage_metadata=usage,
         )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
@@ -486,12 +492,23 @@ async def refinement_node(state: DailyReaderState) -> dict:
 def daily_projection_node(state: DailyReaderState) -> dict:
     paragraphs = state.get("normalized_paragraphs", [])
     highlights = state.get("highlights_json", [])
+    footer = state.get("footer_analysis_json", {})
+    full_interp = state.get("full_interpretation", "")
+
+    logger.info("daily_projection_node: full_interpretation length=%d, footer keys=%s",
+                len(full_interp) if full_interp else 0, list(footer.keys()) if isinstance(footer, dict) else type(footer))
+
+    corrected = _reconcile_highlights(paragraphs, highlights)
+
+    if full_interp and isinstance(footer, dict):
+        footer = {**footer, "full_article_analysis": full_interp}
+        logger.info("daily_projection_node: merged full_article_analysis into footer (length=%d)", len(full_interp))
 
     body_paragraphs = []
     for para in paragraphs:
         pid = para.get("paragraph_id", "")
         text = para.get("text", "")
-        para_highlights = [h for h in highlights if h.get("paragraph_id") == pid]
+        para_highlights = [h for h in corrected if h.get("paragraph_id") == pid]
         body_paragraphs.append({
             "id": pid,
             "text": text,
@@ -503,7 +520,12 @@ def daily_projection_node(state: DailyReaderState) -> dict:
     if current_run is not None:
         current_run.set(outputs={"usage_summary": usage_summary})
 
-    return {"body_json": {"paragraphs": body_paragraphs}, "usage_summary": usage_summary}
+    return {
+        "body_json": {"paragraphs": body_paragraphs},
+        "highlights_json": corrected,
+        "footer_analysis_json": footer,
+        "usage_summary": usage_summary,
+    }
 
 
 def _should_refine(state: DailyReaderState) -> bool:
@@ -586,3 +608,49 @@ def _extract_highlights_from_vocab_draft(draft: Any) -> list[dict]:
                 "end": getattr(hl, "end", 0),
             })
     return highlights
+
+
+def _reconcile_highlights(
+    paragraphs: list[dict],
+    highlights: list[dict],
+) -> list[dict]:
+    if not paragraphs or not highlights:
+        return highlights
+
+    para_map: dict[str, str] = {}
+    for p in paragraphs:
+        pid = p.get("paragraph_id", "")
+        text = p.get("text", "")
+        if pid and text:
+            para_map[pid] = text
+
+    corrected = []
+    fix_count = 0
+    for hl in highlights:
+        hl_text = hl.get("text", "")
+        assigned_pid = hl.get("paragraph_id", "")
+        assigned_para = para_map.get(assigned_pid, "")
+
+        if hl_text and assigned_para and hl_text in assigned_para:
+            start = assigned_para.index(hl_text)
+            new_hl = {**hl, "start": start, "end": start + len(hl_text)}
+            corrected.append(new_hl)
+            continue
+
+        found = False
+        for pid, ptext in para_map.items():
+            if hl_text and hl_text in ptext:
+                start = ptext.index(hl_text)
+                new_hl = {**hl, "paragraph_id": pid, "start": start, "end": start + len(hl_text)}
+                corrected.append(new_hl)
+                fix_count += 1
+                found = True
+                break
+
+        if not found:
+            corrected.append(hl)
+
+    if fix_count > 0:
+        logger.info("Highlight reconciliation: fixed %d / %d misplaced highlights", fix_count, len(highlights))
+
+    return corrected

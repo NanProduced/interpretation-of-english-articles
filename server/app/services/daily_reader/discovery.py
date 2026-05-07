@@ -40,7 +40,7 @@ ARTICLE_SOURCES = {
         "sections": ["science", "technology", "culture"],
         "show_fields": "headline,standfirst,thumbnail,wordcount,body,byline",
         "wordcount_range": (500, 2000),
-        "page_size": 10,
+        "page_size": 5,
     },
     "bbc": {
         "type": "rss",
@@ -59,6 +59,8 @@ ARTICLE_SOURCES = {
         },
     },
 }
+
+DISCOVERY_MAX_PER_SOURCE = 5
 
 
 async def discover_guardian() -> list[DiscoveredArticle]:
@@ -138,7 +140,7 @@ async def discover_rss_sources() -> list[DiscoveredArticle]:
 
 
 def _parse_rss_feed(
-    source_name: str, section: str, feed_url: str, max_entries: int = 10,
+    source_name: str, section: str, feed_url: str, max_entries: int = DISCOVERY_MAX_PER_SOURCE,
 ) -> list[DiscoveredArticle]:
     feed = feedparser.parse(feed_url)
     articles: list[DiscoveredArticle] = []

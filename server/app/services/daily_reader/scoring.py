@@ -11,6 +11,7 @@ import logging
 from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict, Field
+from langsmith import get_current_run_tree, traceable
 
 from app.services.daily_reader.discovery import DiscoveredArticle
 
@@ -48,40 +49,80 @@ async def score_article(article: DiscoveredArticle) -> ArticleScore | None:
             logger.warning("daily_analysis model not available, using heuristic scoring")
             return heuristic_score(article)
 
-        from pydantic_ai import Agent
+        model_name = model_config.model_name if model_config else "unknown"
+        profile_name = model_config.profile_name if model_config else "unknown"
+        provider = model_config.provider if model_config else "unknown"
 
-        scoring_agent = Agent(
+        return await _score_article_llm_span(
+            article=article,
             model=model,
-            output_type=_ScoringOutput,
-            name="daily_scoring_agent",
-            retries=1,
-            output_retries=2,
-            instrument=False,
-        )
-
-        prompt = _build_scoring_prompt(article)
-        result = await scoring_agent.run(prompt)
-        output = result.output
-
-        overall = (
-            output.language_richness
-            + output.topic_interest
-            + output.structure_clarity
-            + output.cultural_value
-        ) / 4.0
-
-        return ArticleScore(
-            score=round(overall, 1),
-            difficulty=output.difficulty,
-            tags=output.tags,
-            language_richness=output.language_richness,
-            topic_interest=output.topic_interest,
-            structure_clarity=output.structure_clarity,
-            cultural_value=output.cultural_value,
+            model_name=model_name,
+            profile_name=profile_name,
+            provider=provider,
         )
     except Exception as e:
         logger.warning("LLM scoring failed, falling back to heuristic: %s", e)
         return heuristic_score(article)
+
+
+@traceable(name="daily_scoring_llm_call", run_type="llm")
+async def _score_article_llm_span(
+    *,
+    article: DiscoveredArticle,
+    model: object,
+    model_name: str,
+    profile_name: str,
+    provider: str,
+) -> ArticleScore:
+    from pydantic_ai import Agent
+    from app.llm.agent_runner import extract_run_usage
+
+    scoring_agent = Agent(
+        model=model,
+        output_type=_ScoringOutput,
+        name="daily_scoring_agent",
+        retries=1,
+        output_retries=2,
+        instrument=False,
+    )
+
+    prompt = _build_scoring_prompt(article)
+    result = await scoring_agent.run(prompt)
+    output = result.output
+
+    usage = extract_run_usage(result)
+    current_run = get_current_run_tree()
+    if current_run is not None:
+        current_run.set(
+            metadata={
+                "pipeline_stage": "scoring",
+                "model_route": "daily_analysis",
+                "model_name": model_name,
+                "profile_name": profile_name,
+                "ls_provider": provider,
+                "ls_model_name": model_name,
+                "article_title": article.title[:80],
+                "article_source": article.source,
+            },
+            usage_metadata=usage,
+        )
+
+    overall = (
+        output.language_richness
+        + output.topic_interest
+        + output.structure_clarity
+        + output.cultural_value
+    ) / 4.0
+
+    return ArticleScore(
+        score=round(overall, 1),
+        difficulty=output.difficulty,
+        tags=output.tags,
+        language_richness=output.language_richness,
+        topic_interest=output.topic_interest,
+        structure_clarity=output.structure_clarity,
+        cultural_value=output.cultural_value,
+    )
 
 
 def deduplicate(
