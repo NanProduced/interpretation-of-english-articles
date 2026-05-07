@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components'
-import { getSafeDisplayLabel } from '../../config/purpose'
+import { getSafeDisplayLabel, getCompactLabel } from '../../config/purpose'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 
@@ -25,7 +25,7 @@ export default function ReaderContextBar({
   onModeToggle,
 }: ReaderContextBarProps) {
   const sourceLabel = sourceType === 'user_input' ? '手动输入' : '每日文章'
-  const goalLabel = getSafeDisplayLabel(readingGoal || 'daily_reading', readingVariant)
+  const goalLabel = getCompactLabel(readingGoal || 'daily_reading', readingVariant)
   const modeLabel = pageMode === 'immersive' ? '原文' : '精读'
 
   return (

@@ -34,7 +34,7 @@ import LucideIcon from '../../components/LucideIcon'
 import CenterModal from '../../components/CenterModal'
 import ConfigEditor from '../../components/ConfigEditor'
 import { useLayoutStore } from '../../stores/layout'
-import { getDisplayLabel, ReadingGoal } from '../../config/purpose'
+import { getDisplayLabel, getStandardLabel, ReadingGoal } from '../../config/purpose'
 import { getReadingTier, getAllTiers } from '../../utils/achievement'
 import './index.scss'
 
@@ -163,7 +163,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
       items: [
         {
           label: "当前模式配置",
-          value: getDisplayLabel(purpose as ReadingGoal, level),
+          value: getStandardLabel(purpose as string, level),
           icon: 'settings',
           onClick: () => setShowModeSheet(true),
           color: 'blue',

@@ -157,9 +157,78 @@ export const filterExamTags = (tags: string[], readingVariant?: string | null): 
  * 从服务器返回的原始字段获取友好的显示文本
  */
 export const getSafeDisplayLabel = (serverGoal: string, serverVariant?: string | null) => {
-  // 兼容驼峰 (dailyReading -> daily_reading)
   const normalizedGoalKey = serverGoal.replace(/([A-Z])/g, "_$1").toLowerCase();
-  
+
   const goal = SERVER_GOAL_TO_UI_GOAL[serverGoal] || SERVER_GOAL_TO_UI_GOAL[normalizedGoalKey] || 'daily';
   return getDisplayLabel(goal, serverVariant);
+};
+
+/**
+ * 紧凑标签映射表（≤4字符）
+ * 用于：ReaderContextBar、History卡片tag、Input模式chip等紧凑空间
+ */
+const COMPACT_LABEL_MAP: Record<string, string> = {
+  cet: '四六级',
+  gaokao: '高考',
+  kaoyan: '考研',
+  tem: '专英',
+  ielts_toefl: '雅/托',
+  beginner_reading: '入门',
+  intermediate_reading: '进阶',
+  intensive_reading: '精读',
+  academic_general: '学术',
+};
+
+/**
+ * 标准标签映射表（优化版，无双层括号）
+ * 用于：Profile菜单项、Tooltip详细说明等宽松空间
+ */
+const STANDARD_LABEL_MAP: Record<string, string> = {
+  cet: '四六级考试',
+  gaokao: '高考英语',
+  kaoyan: '考研英语',
+  tem: '专业英语(TEM)',
+  ielts_toefl: '雅思/托福',
+  beginner_reading: '日常 · 入门',
+  intermediate_reading: '日常 · 进阶',
+  intensive_reading: '日常 · 精读',
+  academic_general: '学术文献',
+};
+
+/**
+ * 获取紧凑标签（≤4字符，绝不换行）
+ * 规则：仅显示最具体的子类型简称，省略父类别和括号
+ */
+export const getCompactLabel = (serverGoal: string, serverVariant?: string | null): string => {
+  const normalizedGoalKey = serverGoal.replace(/([A-Z])/g, "_$1").toLowerCase();
+  const goal = SERVER_GOAL_TO_UI_GOAL[serverGoal] || SERVER_GOAL_TO_UI_GOAL[normalizedGoalKey] || 'daily';
+  const currentVariant = serverVariant || READING_CONFIG_MAP[goal].defaultVariant;
+
+  if (COMPACT_LABEL_MAP[currentVariant]) {
+    return COMPACT_LABEL_MAP[currentVariant];
+  }
+
+  const GOAL_SHORT_MAP: Record<ReadingGoal, string> = {
+    exam: '考试',
+    daily: '日常',
+    academic: '学术',
+  };
+
+  return GOAL_SHORT_MAP[goal] || '阅读';
+};
+
+/**
+ * 获取标准标签（优化格式，避免双层括号）
+ * 规则：使用优化后的完整标签，信息清晰但不冗余
+ */
+export const getStandardLabel = (serverGoal: string, serverVariant?: string | null): string => {
+  const normalizedGoalKey = serverGoal.replace(/([A-Z])/g, "_$1").toLowerCase();
+  const goal = SERVER_GOAL_TO_UI_GOAL[serverGoal] || SERVER_GOAL_TO_UI_GOAL[normalizedGoalKey] || 'daily';
+  const currentVariant = serverVariant || READING_CONFIG_MAP[goal].defaultVariant;
+
+  if (STANDARD_LABEL_MAP[currentVariant]) {
+    return STANDARD_LABEL_MAP[currentVariant];
+  }
+
+  return READING_CONFIG_MAP[goal].label;
 };

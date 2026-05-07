@@ -490,15 +490,17 @@ function DictionaryNoteSheet({
                   <View className='meanings-list'>
                     {detailMeanings.map((meaning, idx) => (
                       <View key={`${meaning.partOfSpeech}-${idx}`} className='meaning-item'>
-                        {meaning.partOfSpeech && <Text className='pos-tag'>{meaning.partOfSpeech}</Text>}
+                        <View className='pos-column'>
+                          {meaning.partOfSpeech && <Text className='pos-tag'>{meaning.partOfSpeech}</Text>}
+                        </View>
                         <View className='definitions'>
                           {meaning.definitions.map((def, defIdx) => (
                             <View key={`${def.meaning?.slice(0, 20)}-${defIdx}`} className='def-row'>
-                              <View className='def-text'>{def.meaning}</View>
+                              <Text className='def-text'>{def.meaning}</Text>
                               {def.example && (
                                 <View className='def-example-block'>
-                                  <View className='def-example-en'>{def.example}</View>
-                                  {def.exampleTranslation && <View className='def-example-zh'>{def.exampleTranslation}</View>}
+                                  <Text className='def-example-en'>{def.example}</Text>
+                                  {def.exampleTranslation && <Text className='def-example-zh'>{def.exampleTranslation}</Text>}
                                 </View>
                               )}
                             </View>

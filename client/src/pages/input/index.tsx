@@ -11,7 +11,7 @@ import { track } from '../../services/analytics'
 import LucideIcon from '../../components/LucideIcon'
 import NavBar from '../../components/NavBar'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
-import { READING_CONFIG_MAP, getDisplayLabel, getApiParams, ReadingGoal } from '../../config/purpose'
+import { READING_CONFIG_MAP, getDisplayLabel, getApiParams, getCompactLabel, ReadingGoal } from '../../config/purpose'
 import './index.scss'
 
 export default function InputPage() {
@@ -163,7 +163,7 @@ export default function InputPage() {
         <View className='canvas-toolbar'>
           <View className='mode-chip-v2' onClick={handleModeChange}>
             <View className='dot' />
-            <Text className='mode-label'>{getDisplayLabel(tempConfig.purpose, tempConfig.level)}</Text>
+            <Text className='mode-label'>{getCompactLabel(tempConfig.purpose, tempConfig.level)}</Text>
             <LucideIcon name='chevronDown' size={14} color='var(--text-sub)' />
           </View>
           

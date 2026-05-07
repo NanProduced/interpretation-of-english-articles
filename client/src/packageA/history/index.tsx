@@ -13,7 +13,7 @@ import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
 import { useLayoutStore } from '../../stores/layout'
-import { getSafeDisplayLabel } from '../../config/purpose'
+import { getSafeDisplayLabel, getCompactLabel } from '../../config/purpose'
 import LucideIcon from '../../components/LucideIcon'
 import './index.scss'
 import { formatDate, getUTC8DayValue } from '../../utils/formatDate'
@@ -324,7 +324,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
                             </View>
                           )}
                           <View className='config-tag'>
-                            <Text>{getSafeDisplayLabel(record.requestPayload.reading_goal, record.requestPayload.reading_variant)}</Text>
+                            <Text>{getCompactLabel(record.requestPayload.reading_goal, record.requestPayload.reading_variant)}</Text>
                           </View>
                         </View>
                         <Text className='date-text'>{formatDate(record.createdAt)}</Text>

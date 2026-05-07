@@ -24,12 +24,12 @@
 .mini-word-card {
   position: relative;
   box-sizing: border-box;
-  width: 408rpx;
+  width: 400rpx;
   padding: 24rpx 28rpx;
   background: #FFFFFF;
   border: 1rpx solid rgba(0, 0, 0, 0.05);
-  border-radius: 28rpx;
-  box-shadow: 0rpx 8rpx 32rpx rgba(17, 17, 17, 0.08);
+  border-radius: 24rpx;
+  box-shadow: 0rpx 7rpx 10rpx rgba(17, 17, 17, 0.055);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: auto;
 
@@ -88,16 +88,22 @@
  * DictionaryNoteSheet (Full Lookup)
  * ========================================================= */
 .word-popup-container {
-  box-sizing: border-box; width: 100%; display: flex; flex-direction: column;
-  background: var(--reader-surface); border-top-left-radius: 48rpx; border-top-right-radius: 48rpx;
-  box-shadow: 0rpx -12rpx 64rpx rgba(17, 17, 17, 0.12);
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--reader-surface);
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
+  box-shadow: 0rpx -12rpx 18rpx rgba(17, 17, 17, 0.08);
   animation: sheetSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden; max-height: 86vh;
-  
-  // Tiered Height Strategy
-  &.tier-compact { height: 68vh; }
-  &.tier-standard { height: 74vh; }
-  &.tier-rich { height: 78vh; }
+  overflow: hidden;
+  max-height: 86vh;
+
+  // Tiered Height Strategy - Optimized for content density
+  &.tier-compact { height: 64vh; }
+  &.tier-standard { height: 68vh; }
+  &.tier-rich { height: 74vh; }
   &.tier-expanded { height: 86vh; }
 }
 
@@ -107,15 +113,38 @@
 }
 
 .popup-header {
-  padding: 8rpx 48rpx 28rpx; display: flex; justify-content: space-between; align-items: flex-start; flex-shrink: 0;
+  padding: 8rpx 48rpx 24rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0;
 
   .word-text {
-    font-family: Georgia, serif; font-size: 64rpx; font-weight: 800; color: var(--reader-ink);
-    letter-spacing: -0.5rpx; line-height: 1.1;
+    font-family: Georgia, serif;
+    font-size: 64rpx;
+    font-weight: 800;
+    color: var(--reader-ink);
+    letter-spacing: -0.5rpx;
+    line-height: 1.1;
+    margin-bottom: 12rpx;
   }
 
-  .word-sub-info { margin-top: 8rpx; display: flex; align-items: center; gap: 16rpx; }
-  .word-phonetic { font-family: Georgia, 'Times New Roman', serif; font-size: 28rpx; color: var(--reader-muted); font-style: italic; opacity: 0.85; }
+  /* Metadata Row: Phonetic + Tags in one clear line */
+  .word-sub-info {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    flex-wrap: wrap;
+    margin-top: 0;
+  }
+
+  .word-phonetic {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 26rpx;
+    color: var(--reader-muted);
+    font-style: italic;
+    opacity: 0.85;
+  }
 
   .audio-variants-row { display: flex; align-items: center; gap: 8rpx; }
   .audio-variant-btn {
@@ -125,52 +154,94 @@
   }
   .audio-variant-label { color: var(--reader-muted); font-size: 21rpx; font-weight: 500; }
 
-  .exam-tags-row { display: flex; align-items: center; gap: 6rpx; }
+  .exam-tags-row { display: flex; align-items: center; gap: 6rpx; margin-left: 8rpx; }
   .exam-tag-pill {
-    padding: 3rpx 9rpx; border-radius: 7rpx; background: rgba(0, 0, 0, 0.035);
+    padding: 3rpx 9rpx; border-radius: 7rpx; background: rgba(0, 0, 0, 0.03);
     color: var(--reader-muted); font-size: 19rpx; font-weight: 500;
   }
 
   .popup-close-btn {
     width: 60rpx; height: 60rpx; display: flex; align-items: center; justify-content: center;
     border-radius: 50%; background: #F4F1E9;
+    flex-shrink: 0;
+    margin-top: 4rpx;
     &:active { background: #EDEAE1; transform: scale(0.96); }
   }
 }
 
-.popup-scroll-content { flex: 1; padding: 0 48rpx 32rpx; }
+.popup-scroll-content {
+  flex: 1;
+  padding: 0 48rpx 160rpx;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
 
-/* Vertical Rhythm: Unified Baseline Axis */
+/* Vertical Rhythm: Unified Baseline Axis - Compact for note sheet feel */
 .context-section, .glossary-section, .dict-section {
-  margin-bottom: 40rpx;
-  
+  margin-bottom: 28rpx;  /* Reduced from 40rpx - tighter sections */
+
   .section-title {
-    display: flex; align-items: center; gap: 12rpx; margin-bottom: 20rpx;
+    display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx;  /* Reduced from 20rpx */
     color: var(--reader-subtle); font-size: 22rpx; font-weight: 600;
     letter-spacing: 1.5rpx; text-transform: uppercase;
   }
 }
 
 /* Blocks Alignment: Unified vertical baseline at container's edge */
+/* Source Context: Subtle background, lighter than core definitions */
 .source-context-excerpt {
-  background: #F6F3EC; border-radius: 20rpx; padding: 24rpx 32rpx;
-  color: var(--reader-ink); font-family: Georgia, serif; font-size: 29rpx; line-height: 1.6; opacity: 0.95;
-  .excerpt-highlight { background: rgba(242, 196, 84, 0.22); border-radius: 4rpx; padding: 0 4rpx; }
+  background: rgba(246, 243, 236, 0.5);
+  border-radius: 16rpx;
+  padding: 16rpx 22rpx;   /* Reduced from 18rpx 24rpx - more compact */
+  color: var(--reader-muted);
+  font-family: Georgia, serif;
+  font-size: 25rpx;        /* Reduced from 26rpx */
+  line-height: 1.45;       /* Tighter (was 1.5) */
+  opacity: 0.85;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow: hidden;
+
+  .excerpt-highlight {
+    background: rgba(242, 196, 84, 0.18);
+    border-radius: 3rpx;
+    padding: 0 3rpx;
+    color: var(--reader-ink);
+    word-break: normal;
+  }
 }
 
 .glossary-content {
-  background: #FAF9F6; border: 1.5rpx solid rgba(0, 0, 0, 0.025); border-radius: 20rpx; padding: 28rpx 32rpx;
-  .zh-text { font-size: 30rpx; font-weight: 700; color: var(--reader-ink); line-height: 1.5; }
+  background: #FAF9F6;
+  border: 1.5rpx solid rgba(0, 0, 0, 0.025);
+  border-radius: 20rpx;
+  padding: 22rpx 28rpx;  /* Reduced from 28rpx 32rpx */
+
+  .zh-text { font-size: 28rpx; font-weight: 700; color: var(--reader-ink); line-height: 1.45; }  /* Tighter */
   .glossary-reason-box {
-    margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid rgba(0, 0, 0, 0.04);
-    font-size: 25rpx; color: var(--reader-muted); line-height: 1.55;
+    margin-top: 12rpx; padding-top: 12rpx; border-top: 1rpx solid rgba(0, 0, 0, 0.04);  /* Reduced from 16rpx */
+    font-size: 24rpx; color: var(--reader-muted); line-height: 1.48;  /* Tighter */
   }
 }
 
 .dict-tabs {
-  display: flex; gap: 36rpx; margin-bottom: 32rpx; border-bottom: 1rpx solid rgba(0, 0, 0, 0.04);
+  display: flex;
+  gap: 36rpx;
+  margin-bottom: 24rpx;   /* Reduced from 32rpx */
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.04);
+
   .dict-tab {
-    padding-bottom: 12rpx; font-size: 27rpx; color: var(--reader-muted); position: relative;
+    padding-bottom: 10rpx; /* Reduced from 12rpx */
+    font-size: 26rpx;      /* Reduced from 27rpx */
+    color: var(--reader-muted);
+    position: relative;
+
     &.active {
       color: var(--reader-ink); font-weight: 600;
       &::after { content: ''; position: absolute; bottom: -1rpx; left: 0; right: 0; height: 3rpx; background: var(--reader-ink); border-radius: 1.5rpx; }
@@ -178,60 +249,173 @@
   }
 }
 
-/* Meanings List Alignment: Optimization for horizontal space */
+.dict-content-area {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Meanings List Alignment: Optimized for horizontal space */
+/* Redesigned: POS label inline with definition content */
+/* Layout Strategy: Compact note-like density, not dictionary sprawl */
 .meanings-list {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+
   .meaning-item {
-    margin-bottom: 40rpx;
+    display: grid;
+    grid-template-columns: 46rpx minmax(0, 1fr);
+    column-gap: 18rpx;
+    align-items: start;
+    margin-bottom: 28rpx;  /* Reduced from 36rpx - tighter grouping */
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+
     &:last-child { margin-bottom: 0; }
   }
 
-  /* POS tag as a quiet leader above or inline */
-  .pos-tag {
-    display: inline-block;
-    margin-bottom: 8rpx;
-    color: var(--reader-muted); font-family: Georgia, serif;
-    font-size: 24rpx; font-style: italic; font-weight: 600;
-    background: rgba(0, 0, 0, 0.03);
-    padding: 2rpx 10rpx;
-    border-radius: 6rpx;
-    text-transform: lowercase;
+  .pos-column {
+    min-width: 0;
+    max-width: 46rpx;
+    padding-top: 3rpx;
+    text-align: right;
   }
 
-  .def-row { margin-bottom: 24rpx; &:last-child { margin-bottom: 0; } }
-  .def-text { color: var(--reader-ink); font-size: 30rpx; line-height: 1.6; font-weight: 500; }
+  /* POS tag: small grammar marker, not a standalone chip */
+  .pos-tag {
+    display: block;
+    color: var(--reader-muted);
+    font-family: Georgia, serif;
+    font-size: 23rpx;      /* Slightly smaller */
+    font-style: italic;
+    font-weight: 600;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    text-transform: lowercase;
+    word-break: normal;
+  }
+
+  .definitions {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .def-row {
+    margin-bottom: 14rpx;  /* Reduced from 20rpx - definitions closer together */
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+
+    &:last-child { margin-bottom: 0; }
+  }
+
+  .def-text {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    color: var(--reader-ink);
+    font-size: 28rpx;      /* Reduced from 29rpx */
+    line-height: 1.58;
+    font-weight: 500;
+    overflow-wrap: break-word;
+    word-break: normal;
+    overflow: visible;
+    min-width: 0;
+  }
 }
 
 .def-example-block {
-  margin-top: 16rpx; padding-left: 24rpx; border-left: 3rpx solid rgba(0, 0, 0, 0.04);
-  .def-example-en { color: var(--reader-ink); font-family: Georgia, serif; font-size: 27rpx; line-height: 1.55; opacity: 0.9; }
-  .def-example-zh { margin-top: 6rpx; color: var(--reader-muted); font-size: 24rpx; line-height: 1.5; }
+  display: block;
+  margin-top: 10rpx;       /* Reduced from 14rpx - examples closer to definition */
+  padding-left: 16rpx;     /* Slightly less indent */
+  border-left: 2rpx solid rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+
+  .def-example-en {
+    display: block;
+    width: 100%;
+    color: var(--reader-ink);
+    font-family: Georgia, serif;
+    font-size: 25rpx;      /* Reduced from 26rpx */
+    line-height: 1.55;
+    opacity: 0.88;
+    overflow-wrap: break-word;
+    word-break: normal;
+    overflow: visible;
+  }
+
+  .def-example-zh {
+    display: block;
+    width: 100%;
+    margin-top: 2rpx;      /* Minimal spacing between EN/ZH */
+    color: var(--reader-muted);
+    font-size: 22rpx;      /* Reduced from 23rpx */
+    line-height: 1.48;
+    overflow-wrap: break-word;
+    word-break: normal;
+    overflow: visible;
+  }
 }
 
 .phrase-item, .example-item, .candidate-item {
-  padding: 24rpx 0; border-bottom: 1rpx solid rgba(0, 0, 0, 0.03);
+  padding: 20rpx 0;        /* Reduced from 24rpx */
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.03);
   &:last-child { border-bottom: 0; }
 }
-.phrase-text, .candidate-label { color: var(--reader-ink); font-family: Georgia, serif; font-size: 30rpx; font-weight: 700; }
-.phrase-meaning, .candidate-preview, .candidate-pos, .example-zh { display: block; margin-top: 8rpx; color: var(--reader-muted); font-size: 26rpx; line-height: 1.5; }
-.example-en { color: var(--reader-ink); font-family: Georgia, serif; font-size: 28rpx; line-height: 1.6; }
 
-/* Footer Actions */
+.phrase-text, .candidate-label { color: var(--reader-ink); font-family: Georgia, serif; font-size: 28rpx; font-weight: 700; }  /* Reduced from 30rpx */
+.phrase-meaning, .candidate-preview, .candidate-pos, .example-zh { display: block; margin-top: 6rpx; color: var(--reader-muted); font-size: 24rpx; line-height: 1.45; }  /* Tighter */
+.example-en { color: var(--reader-ink); font-family: Georgia, serif; font-size: 26rpx; line-height: 1.5; }  /* Reduced from 28rpx */
+
+/* Footer Actions - Lighter visual weight, paper-like feel */
 .popup-footer-actions {
-  padding: 20rpx 48rpx calc(24rpx + env(safe-area-inset-bottom));
-  display: flex; gap: 18rpx; background: var(--reader-surface);
-  border-top: 1rpx solid rgba(0, 0, 0, 0.035); flex-shrink: 0;
+  padding: 16rpx 40rpx calc(20rpx + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 16rpx;
+  background: var(--reader-surface);
+  border-top: 1rpx solid rgba(0, 0, 0, 0.025);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 
   .footer-action-btn {
-    height: 88rpx; border-radius: 24rpx;
-    display: flex; align-items: center; justify-content: center; gap: 10rpx;
-    font-size: 28rpx; font-weight: 600; transition: all 0.2s;
+    height: 80rpx;
+    border-radius: 22rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8rpx;
+    font-size: 27rpx;
+    font-weight: 600;
+    transition: all 0.2s;
+    box-sizing: border-box;
+    min-width: 0;
+    flex-shrink: 1;
 
     &.primary { flex: 1; background: var(--reader-ink); color: #FFFFFF; }
     &.secondary {
-      width: 120rpx; background: transparent; border: 1.5rpx solid rgba(0, 0, 0, 0.08); color: var(--reader-muted);
+      width: 110rpx; background: transparent; border: 1.5rpx solid rgba(0, 0, 0, 0.06); color: var(--reader-muted);
+      flex-shrink: 0;
     }
     &.saved {
-      flex: 1; background: transparent; border: 1.5rpx solid rgba(0, 0, 0, 0.04);
+      flex: 1; background: transparent; border: 1.5rpx solid rgba(0, 0, 0, 0.03);
       color: var(--reader-subtle); box-shadow: none;
       &:active { background: rgba(0, 0, 0, 0.01); }
     }
@@ -239,7 +423,7 @@
   }
 
   &.no-footer {
-    padding-top: 10rpx;
+    padding-top: 8rpx;
     .footer-action-btn.secondary { flex: 1; border: none; background: #F6F3EC; }
   }
 }
