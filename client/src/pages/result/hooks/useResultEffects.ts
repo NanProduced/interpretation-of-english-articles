@@ -4,7 +4,7 @@ import { useArticleStore } from '../../../stores/article'
 import { useAuthStore } from '../../../stores/auth'
 import { isFavorited, getVocabulary } from '../../../services/storage'
 import { fetchVocabHighlights } from '../../../services/api/vocabulary.client'
-import { getSimpleLemmaCandidates } from '../utils'
+import { getSimpleLemmaCandidates, hasRenderableScene } from '../utils'
 import type { VocabHighlightMatch } from '../../../types/view/vocabulary.vm'
 import type { WordPopupState } from './useResultState'
 
@@ -22,12 +22,6 @@ interface EffectDeps {
   setWordPopup: (v: WordPopupState | ((prev: WordPopupState) => WordPopupState)) => void
 }
 
-function hasRenderableScene(scene: import('../../../types/view/render-scene.vm').AnyRenderSceneVm | null): boolean {
-  if (!scene) return false
-  if (scene.article?.paragraphs?.length) return true
-  return (scene.article?.sentences ?? []).some((sentence) => !!sentence.text?.trim())
-}
-
 export function useResultEffects(deps: EffectDeps) {
   const {
     recordId, cloudId, sceneData, pageState,
@@ -35,6 +29,7 @@ export function useResultEffects(deps: EffectDeps) {
     loadRecord, recoverActiveTask, setWordPopup,
   } = deps
 
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const highlightsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -80,7 +75,6 @@ export function useResultEffects(deps: EffectDeps) {
   useEffect(() => {
     if (!sceneData || !hasRenderableScene(sceneData)) return
 
-    const isLoggedIn = useAuthStore.getState().isLoggedIn
     const sentences = sceneData.article.sentences.map(s => ({
       sentenceId: s.sentenceId,
       tokens: s.text.split(/\s+/).filter(Boolean),
@@ -109,14 +103,24 @@ export function useResultEffects(deps: EffectDeps) {
         const all = getVocabulary()
         const localMatches: VocabHighlightMatch[] = []
         const lemmaSet = new Map<string, { id: string; lemma: string; masteryStatus: string; collectedForms: string[] }>()
+        const formsReverseIndex = new Map<string, { id: string; lemma: string; masteryStatus: string; collectedForms: string[] }>()
         all.forEach(v => {
           const key = (v.lemma || v.word).toLowerCase()
-          lemmaSet.set(key, {
+          const entry = {
             id: v.id,
             lemma: v.lemma || v.word,
             masteryStatus: v.mastered ? 'mastered' : 'new',
             collectedForms: (v.collectedForms || []).map(f => f.toLowerCase()),
-          })
+          }
+          lemmaSet.set(key, entry)
+          if (entry.collectedForms.length > 0) {
+            formsReverseIndex.set(key, entry)
+            entry.collectedForms.forEach(f => {
+              if (!formsReverseIndex.has(f)) {
+                formsReverseIndex.set(f, entry)
+              }
+            })
+          }
         })
 
         for (const sent of sentences) {
@@ -125,12 +129,12 @@ export function useResultEffects(deps: EffectDeps) {
             const cleaned = token.replace(/[.,;:!?'"(){}[\]]/g, '').toLowerCase()
             if (!cleaned) continue
 
-            let match = lemmaSet.get(cleaned) || [...lemmaSet.values()].find(e => e.collectedForms.includes(cleaned))
+            let match = lemmaSet.get(cleaned) || formsReverseIndex.get(cleaned)
 
             if (!match) {
               const candidates = getSimpleLemmaCandidates(cleaned)
               for (const cand of candidates) {
-                const found = lemmaSet.get(cand)
+                const found = lemmaSet.get(cand) || formsReverseIndex.get(cand)
                 if (found) { match = found; break }
               }
             }
@@ -161,7 +165,7 @@ export function useResultEffects(deps: EffectDeps) {
     return () => {
       if (highlightsTimerRef.current) clearTimeout(highlightsTimerRef.current)
     }
-  }, [sceneData, recordId])
+  }, [sceneData, recordId, isLoggedIn])
 
   Taro.useDidShow(() => {
     if ((pageState === 'loading' || pageState === 'failed') && !sceneData) {

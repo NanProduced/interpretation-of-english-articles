@@ -68,8 +68,8 @@ export default function LottieAnimation({
           }
 
           // 适配高分屏和正确的宽高比例
-          const systemInfo = Taro.getSystemInfoSync()
-          const dpr = systemInfo.pixelRatio
+          const windowInfo = Taro.getWindowInfo()
+          const dpr = windowInfo.pixelRatio
           canvas.width = (res.width || 300) * dpr
           canvas.height = (res.height || 300) * dpr
           context.scale(dpr, dpr)

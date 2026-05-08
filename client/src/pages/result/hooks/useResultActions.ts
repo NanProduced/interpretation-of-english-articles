@@ -31,6 +31,7 @@ interface ActionDeps {
   setShowModeSheet: (v: boolean) => void
   setTempConfig: (v: { purpose: ReadingGoal; level: string | null }) => void
   analyze: ReturnType<typeof useArticleStore.getState>['analyze']
+  reset: ReturnType<typeof useArticleStore.getState>['reset']
 }
 
 export function useResultActions(deps: ActionDeps) {
@@ -39,15 +40,15 @@ export function useResultActions(deps: ActionDeps) {
     favorited, wordPopup, activeSentenceId,
     setFavorited, setAnimTrigger, setActiveMarkId, setSelectedWord,
     setActiveSentenceId, setWordPopup, setVocabList,
-    setShowModeSheet, setTempConfig, analyze,
+    setShowModeSheet, setTempConfig, analyze, reset,
   } = deps
 
   const handleWordClick = ({ word, mark, event, contextSentence, occurrence }: WordClickPayload) => {
     setActiveMarkId(mark?.id ?? null)
     setSelectedWord(word)
 
-    const sysInfo = Taro.getSystemInfoSync()
-    const windowWidth = sysInfo.windowWidth || 375
+    const windowInfo = Taro.getWindowInfo()
+    const windowWidth = windowInfo.windowWidth || 375
     let clientX = windowWidth / 2
     let clientY = 300
 
@@ -130,8 +131,7 @@ export function useResultActions(deps: ActionDeps) {
   }
 
   const handleRetry = () => {
-    const { pageState: currentState, reset } = useArticleStore.getState()
-    const isErrorState = ['failed', 'timeout', 'network_fail', 'empty', 'degraded_heavy'].includes(currentState)
+    const isErrorState = ['failed', 'timeout', 'network_fail', 'empty', 'degraded_heavy'].includes(pageState)
 
     if (isReplayMode || isErrorState) {
       if (requestParams) {

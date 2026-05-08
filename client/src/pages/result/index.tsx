@@ -59,6 +59,7 @@ export default function Result() {
     setVocabList: state.setVocabList,
     setShowModeSheet, setTempConfig: state.setTempConfig,
     analyze: state.analyze,
+    reset: state.reset,
   })
 
   useShareAppMessage(() => {
@@ -102,9 +103,10 @@ export default function Result() {
 
   const paragraphBlocks = useMemo(() => {
     if (!sceneData?.article?.paragraphs?.length) return null
+    const sentenceMap = new Map(sceneData.article.sentences.map(s => [s.sentenceId, s]))
     return sceneData.article.paragraphs.map((paragraph, idx) => {
       const sentences = paragraph.sentenceIds
-        .map((id) => sceneData.article.sentences.find((s) => s.sentenceId === id))
+        .map((id) => sentenceMap.get(id))
         .filter((s): s is NonNullable<typeof s> => !!s)
 
       return (
@@ -120,11 +122,13 @@ export default function Result() {
           vocabSavedMap={vocabSavedMap}
           tailEntries={sceneData.sentenceEntries}
           pageMode={pageMode}
+          isAcademicMode={isAcademicMode}  // 传递 academic 模式标志
           recordId={recordId || undefined}
           cloudId={cloudId || undefined}
           activeSentenceId={activeSentenceId}
           onWordClick={actions.handleWordClick}
           onSentenceClick={actions.handleSentenceClick}
+          onMarkActiveChange={state.setActiveMarkId}
         />
       )
     })
@@ -154,11 +158,11 @@ export default function Result() {
   }
 
   return (
-    <View className='result-page'>
+    <View className={`result-page ${isAcademicMode ? 'academic-mode' : ''}`}>
       <NavBar title='Claread透读' showBack showHome />
       <View className='result-nav-spacer' style={{ height: navBarHeight + 'px' }} />
 
-      <View className='result-content-root'>
+      <View className={`result-content-root ${isAcademicMode ? 'academic-mode' : ''}`}>
         <DegradedBanner pageState={pageState} sceneData={sceneData} onRetry={actions.handleRetry} />
 
         {isAcademicMode && sceneData?.warnings?.some(w => w.level === 'info' || w.code === 'NON_ACADEMIC_TEXT_DETECTED' || w.code === 'FRAGMENT_INPUT_DETECTED') && (

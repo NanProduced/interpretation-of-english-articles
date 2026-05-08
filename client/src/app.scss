@@ -365,3 +365,6 @@ page {
 .animate-spring {
   animation: springPop 0.4s var(--ease-spring);
 }
+
+/* Academic Mode Tokens - 安静的学术阅读桌面 */
+@import './styles/academic-tokens.scss';

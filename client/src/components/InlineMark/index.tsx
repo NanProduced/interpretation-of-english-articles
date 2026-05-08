@@ -19,10 +19,11 @@ interface InlineMarkProps {
   isActive?: boolean
   isSaved?: boolean
   savedStatus?: string
+  isAcademicMode?: boolean  // Clarify: 学术模式标识
   onWordClick?: (payload: WordClickPayload) => void
 }
 
-export default function InlineMark({ mark, text, isActive, isSaved, savedStatus, onWordClick }: InlineMarkProps) {
+export default function InlineMark({ mark, text, isActive, isSaved, savedStatus, isAcademicMode, onWordClick }: InlineMarkProps) {
   const toneClass = TONE_CLASSES[mark.visualTone]
 
   const handleClick = (e: ClickEvent) => {
@@ -35,10 +36,13 @@ export default function InlineMark({ mark, text, isActive, isSaved, savedStatus,
   const savedClass = isSaved
     ? `saved ${savedStatus === 'mastered' ? 'saved-mastered' : ''}`
     : ''
+  
+  // Clarify: 学术模式添加 academic-mode 类以应用细下划线样式
+  const academicClass = isAcademicMode ? 'academic-mode' : ''
 
   return (
     <Text
-      className={`inline-mark ${mark.renderType} ${toneClass} ${mark.clickable ? 'clickable' : ''} ${isActive ? 'active' : ''} ${savedClass}`}
+      className={`inline-mark ${mark.renderType} ${toneClass} ${mark.clickable ? 'clickable' : ''} ${isActive ? 'active' : ''} ${savedClass} ${academicClass}`}
       onClick={handleClick}
     >
       {text}

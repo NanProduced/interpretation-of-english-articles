@@ -30,6 +30,7 @@ export interface AnalysisCardProps {
   cloudId?: string
   entryId?: string
   annotationType?: string
+  isAcademicMode?: boolean  // Academic mode flag for styling variant
 }
 
 const TYPE_CONFIG: Record<AnalysisCardType, { icon: string; glyph?: AnnotationGlyphType; colorClass: string; defaultLabel: string }> = {
@@ -101,6 +102,7 @@ export default function AnalysisCard({
   cloudId,
   entryId,
   annotationType,
+  isAcademicMode = false,  // Academic mode flag
 }: AnalysisCardProps) {
   const [internalIsExpanded, setInternalIsExpanded] = useState(initiallyExpanded ?? false)
   const [quickFeedbackState, setQuickFeedbackState] = useState<'none' | 'positive' | 'negative'>('none')
@@ -155,7 +157,7 @@ export default function AnalysisCard({
   }
 
   return (
-    <View className={`analysis-card ${config.colorClass} ${isExpanded ? 'expanded' : 'collapsed'}`}>
+    <View className={`analysis-card ${config.colorClass} ${isExpanded ? 'expanded' : 'collapsed'} ${isAcademicMode ? 'academic-mode type-' + type : ''}`}>
       <View className='card-summary-row' onClick={handleToggle}>
         <View className='summary-main'>
           {config.glyph ? (

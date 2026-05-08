@@ -85,4 +85,74 @@
   &.saved-mastered::after {
     border-color: transparent transparent rgba(16, 120, 87, 0.62) transparent;
   }
+
+  /* =========================================================
+   * Academic Mode Variant - 低饱和度学术标注
+   *
+   * 设计原则:
+   * - term_note: 细蓝灰下划线（概念信号）
+   * - logic_note: 细琥珀下划线（论证信号）
+   * - interpretation_note: 无永久行内标记
+   * - 保持可读性，优先使用下划线而非背景色
+   * ========================================================= */
+  &.academic-mode {
+    /* Academic Term Note - 蓝灰概念下划线 */
+    &.underline.tone-term {
+      border-bottom: 1rpx solid var(--academic-term-line);  /* 极细线 */
+      padding-bottom: 2rpx;
+
+      &:active,
+      &.clickable:active,
+      &.active {
+        border-bottom-color: rgba(73, 111, 143, 0.88);  /* Active 时稍深 */
+        background: linear-gradient(to top, var(--academic-term-surface) 40%, transparent 40%);  /* 极浅背景 */
+      }
+    }
+
+    /* Academic Logic Note - 琥珀论证下划线 */
+    &.underline.tone-logic {
+      border-bottom: 1rpx solid var(--academic-logic-line);  /* 极细线 */
+      padding-bottom: 2rpx;
+
+      &:active,
+      &.clickable:active,
+      &.active {
+        border-bottom-color: rgba(181, 117, 35, 0.82);  /* Active 时稍深 */
+        background: linear-gradient(to top, var(--academic-logic-surface) 40%, transparent 40%);  /* 极浅背景 */
+      }
+    }
+
+    /* Academic Interpretation Note - 无行内标记 */
+    &.tone-interpretation {
+      /* 不显示任何视觉标记，仅作为交互入口 */
+      border-bottom: none !important;
+      background: none !important;
+    }
+
+    /* Academic Background Variant - 如果必须使用背景 */
+    &.background.tone-term {
+      background-color: var(--academic-term-surface);  /* 极淡的蓝灰 */
+
+      &:active,
+      &.clickable:active,
+      &.active {
+        background-color: rgba(73, 111, 143, 0.14);  /* 稍深但仍克制 */
+      }
+    }
+
+    &.background.tone-logic {
+      background-color: var(--academic-logic-surface);  /* 极淡的琥珀 */
+
+      &:active,
+      &.clickable:active,
+      &.active {
+        background-color: rgba(181, 117, 35, 0.16);  /* 稍深但仍克制 */
+      }
+    }
+
+    /* Active state - 更克制的反馈 */
+    &.clickable:active {
+      opacity: 0.9;  /* 更轻微的透明度变化 */
+    }
+  }
 }

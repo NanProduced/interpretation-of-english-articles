@@ -94,8 +94,31 @@
       flex-direction: column;
       gap: 10rpx; /* Tighter spacing for collapsed note tabs */
       margin-top: 8rpx;
-    }
-  }
+
+      /* Academic Mode: 极致紧凑但有视觉节奏 */
+    &.academic-mode {
+      gap: 6rpx;   /* Arrange: 从 0 增至 6rpx，微间距呼吸感 */
+      margin-top: 8rpx;  /* Arrange: 从 4rpx 增至 8rpx */
+      padding: 0;
+        
+      /* Arrange: 同段多卡片添加分隔线，增强视觉节奏 */
+      .academic-note-slip:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 24rpx;   /* Arrange: 从 48rpx 缩进至 24rpx */
+        right: 12rpx;  /* Arrange: 从 16rpx 调整 */
+        height: 1rpx;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba(17, 17, 17, 0.08) 15%,  /* Arrange: 从 0.04 增强至 0.08 */
+          rgba(17, 17, 17, 0.08) 85%,
+          transparent 100%
+        );
+      }
+    }  /* ← 关闭 &.academic-mode */
+  }    /* ← ⭐ 新增：关闭 .analysis-cards-list (之前缺失!) */
 
 
   .drop-cap {
@@ -239,4 +262,102 @@
       background: transparent !important;
     }
   }
-}
+
+  /* =========================================================
+   * Academic Mode Variant - 三级视觉层级重构
+   *
+   * 设计原则 (impeccable typeset):
+   * - 清晰的 1.25x 字号比例，创造明确的视觉层级
+   * - 主层: 英文原文（最强）- 用户的核心阅读对象
+   * - 次层: 中文翻译（明显弱化）- 辅助理解工具
+   * - 辅层: 学术注释（最弱）- 按需查看的参考信息
+   *
+   * 理想比例:
+   *   原文 32rpx : 翻译 24rpx : 注释 23rpx = 1.33 : 1.0 : 0.96
+   * ========================================================= */
+  &.academic-mode {
+    /* =========================================================
+     * 主层 (Primary): 英文原文
+     * - 视觉权重最强
+     * - 使用近乎纯黑的颜色
+     * - 舒适的行高和字距
+     * Typeset: 长单词智能断行处理
+     * ========================================================= */
+    .sentence-text,
+    .english-flow,
+    .sentence-span {
+      font-size: 32rpx;
+      font-weight: 500;  /* 中等字重，不是 bold */
+      color: var(--reader-ink);  /* 近乎纯黑 #111111 */
+      line-height: 1.62;  /* 舒适的行高 */
+      letter-spacing: 0;  /* 标准字距 */
+      font-family: var(--font-english-serif), serif;  /* 衬线字体增强学术感 */
+      
+      /* ⭐ Typeset: 长单词智能断行 (解决截图3问题) */
+      word-break: break-word;           /* 允许在单词内断行 */
+      overflow-wrap: break-word;         /* 兼容性属性 */
+      -webkit-hyphens: auto;             /* 自动连字符 (Safari) */
+      -ms-hyphens: auto;                 /* 自动连字符 (IE/Edge) */
+      hyphens: auto;                     /* 自动连字符 (标准) */
+      
+      /* 优化长文本容器行为 */
+      max-width: 100%;                   /* 不超过容器宽度 */
+      overflow-wrap: anywhere;            /* 更激进的断行策略 */
+      
+      /* 可选: 优化连字符样式 */
+      &::hyphen {
+        color: rgba(17, 17, 17, 0.5);   /* 连字符颜色稍淡 */
+        font-weight: 400;
+      }
+    }
+
+    /* =========================================================
+     * 次层 (Secondary): 中文翻译
+     * - 明显弱于原文
+     * - 颜色更淡、字号更小
+     * - 明确表达"辅助"地位
+     * ========================================================= */
+    .sentence-translation {
+      margin-top: 10rpx;  /* 更紧凑的间距 */
+      margin-bottom: 12rpx;
+
+      .translation-text {
+        color: rgba(17, 17, 17, 0.38);  /* 从 .42 降至 .38，更淡 */
+        font-size: 24rpx;  /* 从 25rpx 减至 24rpx */
+        line-height: 1.65;
+        font-weight: 400;  /* 正常字重 */
+        letter-spacing: 0.02em;  /* 稍微增加字距，提升可读性 */
+      }
+    }
+
+    /* Highlighted 状态也保持极度克制 */
+    .sentence-translation.is-highlighted {
+      background-color: rgba(73, 111, 143, 0.03);  /* 更淡 */
+
+      .translation-text.segment.is-highlighted {
+        background-color: rgba(73, 111, 143, 0.06);  /* 更淡 */
+        box-shadow: none;
+        color: rgba(17, 17, 17, 0.42);  /* 高亮时稍微深一点 */
+      }
+    }
+
+    /* =========================================================
+     * 辅层 (Tertiary): 分析卡片列表
+     * - 视觉权重最弱
+     * - 通过容器样式控制整体层级
+     * - 不与原文/翻译竞争注意力
+     * ========================================================= */
+    .analysis-cards-list {
+      opacity: 0.85;  /* 轻微降低透明度，表达"辅助"地位 */
+      
+      /* 卡片内部的文字已经通过 AnalysisCard 的 academic-mode 控制 */
+    }
+    
+    /* Drop Cap - 在学术模式下更加克制 */
+    .drop-cap {
+      color: rgba(17, 17, 17, 0.85);  /* 稍淡 */
+      opacity: 0.7;  /* 降低存在感 */
+    }
+  }  /* ⭐ 关闭 &.academic-mode (第278行) */
+}  /* ⭐ 关闭 &.intensive (第29行) */
+}  /* ⭐ 关闭 .paragraph-block (第1行) */

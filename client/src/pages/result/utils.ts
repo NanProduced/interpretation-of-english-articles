@@ -12,7 +12,7 @@ export function getSimpleLemmaCandidates(word: string): string[] {
     if (word.length > 4 && word[word.length - 3] === word[word.length - 4]) {
       candidates.push(word.slice(0, -3))
     }
-    candidates.push(word.slice(0, -2) + 'e' === word ? '' : word.slice(0, -1))
+    candidates.push((word.slice(0, -2) + 'e') === word ? '' : word.slice(0, -1))
   } else if (word.endsWith('ies')) {
     candidates.push(word.slice(0, -3) + 'y')
   } else if (word.endsWith('es')) {

@@ -11,6 +11,9 @@ export type AnnotationGlyphType =
   | 'saved_vocab'
   | 'merged_note'
   | 'feedback'
+  | 'term'
+  | 'logic'
+  | 'interpretation'
 
 interface AnnotationGlyphProps {
   /**
@@ -39,6 +42,9 @@ const GLYPH_MAP: Record<AnnotationGlyphType, { name: string; color: string }> = 
   feedback: { name: 'messageSquare', color: 'var(--reader-muted)' },
   saved_vocab: { name: 'bookmark', color: 'var(--reader-ink)' },
   merged_note: { name: 'clipboard', color: 'var(--annotation-merged)' },
+  term: { name: 'flaskConical', color: 'var(--term-accent)' },
+  logic: { name: 'gitBranch', color: 'var(--logic-accent)' },
+  interpretation: { name: 'messageSquareText', color: 'var(--interpretation-accent)' },
 }
 
 const SIZE_PRESETS: Record<string, number> = {

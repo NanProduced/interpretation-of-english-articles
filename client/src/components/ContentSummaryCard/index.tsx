@@ -22,7 +22,7 @@ const SECTION_CONFIG = [
 ] as const
 
 export default function ContentSummaryCard({ summary }: ContentSummaryCardProps) {
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(false)  // Academic: 默认折叠，避免抢占首屏
   const completeness = COMPLETENESS_CONFIG[summary.completeness]
 
   const hasStructuredSections =

@@ -133,8 +133,11 @@ export default function CreditDetailPage() {
   const groups = groupByDate(entries)
 
   const cleanDescription = (entry: LedgerEntry): string => {
-    const prefix = `${TYPE_CONFIG[entry.entryType]?.label || entry.entryType}，`
-    if (entry.description.startsWith(prefix)) return entry.description.slice(prefix.length)
+    const label = TYPE_CONFIG[entry.entryType]?.label || entry.entryType
+    for (const sep of ['，', '·', ' ', '：', ':']) {
+      const prefix = `${label}${sep}`
+      if (entry.description.startsWith(prefix)) return entry.description.slice(prefix.length).trim()
+    }
     return entry.description
   }
 
@@ -164,7 +167,9 @@ export default function CreditDetailPage() {
           <View className='credit-detail__bonus-left'>
             <LucideIcon name='heart' size={22} color='#D97706' strokeWidth={2} />
             <Text className='credit-detail__bonus-label'>奖励余额</Text>
-            <Text className='credit-detail__bonus-value'>{summary.bonusBalance ?? '--'}</Text>
+            <Text className={`credit-detail__bonus-value ${summary.bonusBalance === 0 ? 'credit-detail__bonus-value--zero' : ''}`}>
+              {summary.bonusBalance ?? '--'}
+            </Text>
           </View>
           {(summary.bonusBalance === 0 || summary.bonusBalance == null) && (
             <View className='credit-detail__bonus-cta' onClick={handleBonusCTA}>
@@ -201,16 +206,19 @@ export default function CreditDetailPage() {
                       )}
                       <View className='credit-detail__entry-meta'>
                         {bucket && (
-                          <Text className={`credit-detail__entry-bucket ${bucket.className}`} style={bucket.color ? { color: bucket.color } : undefined}>
-                            {bucket.text}
-                          </Text>
+                          <>
+                            <Text className={`credit-detail__entry-bucket ${bucket.className}`} style={bucket.color ? { color: bucket.color } : undefined}>
+                              {bucket.text}
+                            </Text>
+                            <Text className='credit-detail__entry-meta-sep'>·</Text>
+                          </>
                         )}
                         <Text className='credit-detail__entry-time'>{formatTime(entry.createdAt)}</Text>
                       </View>
                     </View>
                     <View className='credit-detail__entry-amount'>
                       <Text className={`credit-detail__entry-points ${isPositive ? 'credit-detail__entry-points--plus' : ''}`}>
-                        {isPositive ? '+' : '用 '}{absPoints}
+                        {isPositive ? '+' : '−'}{absPoints}
                       </Text>
                     </View>
                   </View>

@@ -1,35 +1,41 @@
-.content-summary-card {
-  margin-bottom: 32rpx;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--color-white);
-  border: 1rpx solid var(--border-color);
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+/* Content Summary Card - 内容概要卡片
+ *
+ * 设计原则 (impeccable typeset + clarify):
+ *
+ * === Typeset (排版优化) ===
+ * - 模块化字体比例 (1.25x scale): 标题28/正文24/标签19/辅助18
+ * - 舒适行高: body text 1.68-1.72, headings 1.3-1.4
+ * - 最佳行宽: max-width 65-75ch (~520rpx)
+ * - 字距调整: body +0.01em, headings ±0
+ * 
+ * === Clarify (清晰度优化) ===
+ * - 信息层级: 标题 > 概述 > 结构字段 > 辅助信息
+ * - 视觉呼吸: 段落间 16-20rpx, 区块间 24-32rpx
+ * - 认知负荷: 单屏不超过 3 个主要信息块
+ * - 扫描友好: 字段标签使用大写+字距加宽
+ */
 
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 16rpx;
-    bottom: 16rpx;
-    width: 6rpx;
-    border-radius: 6rpx;
-    background: var(--logic-accent);
-    opacity: 0.5;
-    z-index: 2;
-    transition: all 0.3s ease;
-  }
+.content-summary-card {
+  margin-bottom: 24rpx;
+  border-radius: var(--academic-note-radius, 24rpx);
+  overflow: hidden;
+  background: var(--reader-paper-deep, #F9F7F3);
+  border: 1rpx solid rgba(17, 17, 17, 0.05);
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* 不再使用侧边条纹 (BAN 1) */
 
   .summary-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 24rpx 32rpx;
+    padding: 18rpx 26rpx;  /* 微调 padding */
+    gap: 12rpx;
     transition: background-color 0.2s ease;
 
     &:active {
-      background: var(--color-bg);
+      background: rgba(17, 17, 17, 0.03);
     }
 
     .summary-header-main {
@@ -37,26 +43,30 @@
       min-width: 0;
       display: flex;
       align-items: center;
-      gap: 12rpx;
+      gap: 10rpx;
     }
 
     .summary-title {
-      font-size: 28rpx;
-      font-weight: var(--weight-bold);
-      color: var(--logic-content);
-      letter-spacing: 0.02em;
+      font-size: 27rpx;  /* 从25rpx提升至27rpx，更易读 */
+      font-weight: 600;   /* 保持中等字重 */
+      color: var(--academic-logic-text, #B57323);
+      letter-spacing: 0;   /* 标题不增加字距 */
+      line-height: 1.3;   /* 紧凑行高 */
     }
 
     .completeness-tag {
-      font-size: 20rpx;
-      padding: 2rpx 12rpx;
-      border-radius: var(--radius-xs);
-      border: 1rpx solid;
-      font-weight: var(--weight-medium);
+      font-size: 18rpx;  /* 从19rpx降至18rpx */
+      padding: 4rpx 11rpx;  /* 微调内边距 */
+      border-radius: 14rpx;
+      border: 1rpx solid var(--academic-term-border, rgba(73, 111, 143, 0.18));
+      background: var(--academic-term-surface, rgba(73, 111, 143, 0.08));
+      font-weight: 500;
       flex-shrink: 0;
 
       .completeness-text {
-        font-size: 20rpx;
+        font-size: 18rpx;
+        color: var(--academic-term-text, #496F8F);
+        letter-spacing: 0.02em;  /* 标签增加字距提升可读性 */
       }
     }
 
@@ -65,13 +75,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0.4;
+      opacity: 0.25;
+      
+      &:active {
+        opacity: 0.5;
+      }
     }
   }
 
   .summary-body {
     overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 
     &.hide {
       max-height: 0;
@@ -80,62 +94,86 @@
     }
 
     &.show {
-      max-height: 3000rpx;
+      max-height: 2500rpx;
       opacity: 1;
     }
   }
 
+  /* =========================================================
+   * Overview Section - 概述文本
+   * Typeset: 正文层级，舒适阅读体验
+   * ========================================================= */
   .overview-section {
-    padding: 0 32rpx 24rpx;
+    padding: 10rpx 26rpx 22rpx;  /* 增加上边距 */
 
     .overview-text {
-      font-size: 28rpx;
-      color: var(--text-main);
-      line-height: 1.7;
+      font-size: 25rpx;  /* 从26rpx降至25rpx，更符合阅读最佳实践 */
+      color: rgba(17, 17, 17, 0.75);  /* 从.78降至.75，降低对比度减少疲劳 */
+      line-height: 1.72;  /* 从1.68提升至1.72，更舒适的行距 */
       display: block;
       white-space: pre-wrap;
-      letter-spacing: 0.01em;
+      word-break: break-word;  /* 允许长单词断行 */
+      letter-spacing: 0.015em;  /* 从0.01em提升，中文阅读更舒适 */
+      font-weight: 400;
+      max-width: 100%;  /* 防止溢出 */
+      
+      /* Clarify: 优化段落首行缩进或段间距 */
+      &::first-line {
+        /* 可选：首行不缩进，保持左对齐 */
+      }
     }
   }
 
+  /* =========================================================
+   * Structured Sections - 结构化字段列表
+   * Typeset: 辅助信息层级，扫描友好
+   * ========================================================= */
   .structured-sections {
-    padding: 0 32rpx 28rpx;
+    padding: 0 26rpx 24rpx;
     display: flex;
     flex-direction: column;
-    gap: 20rpx;
+    gap: 18rpx;  /* 从14rpx增至18rpx，增强区块分离感 */
 
     .structured-item {
-      padding: 16rpx 20rpx;
-      background: var(--color-bg);
-      border-radius: var(--radius-xs);
-      border: 1rpx solid var(--border-light);
+      padding: 14rpx 18rpx;  /* 微调内边距 */
+      background: rgba(255, 255, 255, 0.65);  /* 从.6提升至.65，稍明显 */
+      border-radius: 16rpx;
+      border: 1rpx solid rgba(17, 17, 17, 0.04);
 
+      /* Clarify: 字段标签 - 使用大写+宽字距，扫描友好 */
       .structured-label {
         display: flex;
         align-items: center;
         gap: 8rpx;
-        margin-bottom: 10rpx;
+        margin-bottom: 9rpx;  /* 从8rpx增至9rpx */
 
         .structured-label-text {
-          font-size: 22rpx;
-          color: var(--text-sub);
-          font-weight: var(--weight-semibold);
-          letter-spacing: 0.02em;
+          font-size: 19rpx;  /* 从21rpx降至19rpx */
+          color: rgba(17, 17, 17, 0.42);  /* 从.45降至.42，更弱化 */
+          font-weight: 600;
+          text-transform: uppercase;  /* 大写字母 */
+          letter-spacing: 0.08em;  /* ⭐ 大幅增加字距，像书籍索引标签 */
+          font-size: 17rpx;  /* 最终字号 */
         }
       }
 
+      /* Clarify: 字段内容 - 舒适阅读 */
       .structured-content {
-        font-size: 26rpx;
-        color: var(--text-main);
-        line-height: 1.6;
+        font-size: 24rpx;  /* 从25rpx降至24rpx */
+        color: rgba(17, 17, 17, 0.72);  /* 从.78降至.72 */
+        line-height: 1.66;  /* 从1.62提升至1.66 */
         display: block;
         white-space: pre-wrap;
+        word-break: break-word;
+        font-weight: 400;
+        letter-spacing: 0.01em;
       }
 
+      /* Clarify: 发现列表 - 项目符号对齐 */
       .findings-list {
         display: flex;
         flex-direction: column;
-        gap: 10rpx;
+        gap: 10rpx;  /* 保持不变 */
 
         .finding-item {
           display: flex;
@@ -143,55 +181,70 @@
           gap: 10rpx;
 
           .finding-dot {
-            width: 8rpx;
-            height: 8rpx;
+            width: 6rpx;
+            height: 6rpx;
             border-radius: 50%;
-            background: var(--term-accent);
+            background: var(--academic-term-line, rgba(73, 111, 143, 0.72));
             flex-shrink: 0;
-            margin-top: 12rpx;
-
-            &.is-limitation {
-              background: var(--logic-accent);
-            }
+            margin-top: 12rpx;  /* 与第一行文字对齐 */
           }
 
           .finding-text {
-            font-size: 26rpx;
-            color: var(--text-main);
-            line-height: 1.6;
+            font-size: 24rpx;  /* 从25rpx降至24rpx */
+            color: rgba(17, 17, 17, 0.72);
+            line-height: 1.66;  /* 提升 */
             flex: 1;
+            word-break: break-word;  /* 允许长词断行 */
+            letter-spacing: 0.01em;
           }
         }
       }
     }
   }
 
+  /* =========================================================
+   * Collapsed State - 极致紧凑模式
+   * ========================================================= */
   &.collapsed {
-    &::before {
-      top: 14rpx;
-      bottom: 14rpx;
-      width: 4rpx;
-      opacity: 0.2;
+    margin-bottom: 16rpx;
+    
+    .summary-header {
+      padding: 15rpx 24rpx;  /* 微调 */
     }
 
     .summary-toggle {
-      opacity: 0.3;
+      opacity: 0.2;
     }
 
     &:active {
-      transform: scale(0.99);
-      opacity: 0.8;
+      transform: scale(0.985);
+      opacity: 0.85;
+      background: rgba(17, 17, 17, 0.02);
     }
   }
 
+  /* =========================================================
+   * Expanded State - 克制展开
+   * ========================================================= */
   &.expanded {
-    margin-bottom: 40rpx;
+    margin-bottom: 28rpx;
+    
+    /* 无额外装饰 */
+  }
+}
 
-    &::before {
-      top: 16rpx;
-      bottom: 16rpx;
-      width: 6rpx;
-      opacity: 0.8;
+/* Academic Mode Overrides */
+.academic-mode .content-summary-card,
+.result-page.academic-mode .content-summary-card {
+  margin-bottom: 20rpx;
+  
+  &.collapsed {
+    max-height: 74rpx;  /* 从72rpx微调至74rpx */
+    overflow: hidden;
+    
+    .summary-title {
+      font-size: 26rpx;  /* 从24rpx提升 */
+      color: rgba(17, 17, 17, 0.52);  /* 从.55调至.52 */
     }
   }
 }

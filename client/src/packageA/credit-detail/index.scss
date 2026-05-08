@@ -91,17 +91,23 @@
     font-weight: 500;
     color: var(--reader-ink, #111111);
     font-feature-settings: 'tnum';
+
+    &--zero {
+      color: var(--reader-subtle, #B0B4BC);
+    }
   }
 
   &__bonus-cta {
     display: flex;
     align-items: center;
     gap: 2rpx;
-    padding: 6rpx 14rpx 6rpx 6rpx;
-    transition: opacity 0.15s ease;
+    padding: 8rpx 16rpx 8rpx 10rpx;
+    background-color: rgba(59, 130, 246, 0.06);
+    border-radius: 20rpx;
+    transition: background-color 0.15s ease;
 
     &:active {
-      opacity: 0.55;
+      background-color: rgba(59, 130, 246, 0.14);
     }
   }
 
@@ -115,37 +121,38 @@
   &__list {
     display: flex;
     flex-direction: column;
-    gap: 6rpx;
+    gap: 10rpx;
   }
 
   /* === Date Group === */
   &__group {
     display: flex;
     flex-direction: column;
-    gap: 6rpx;
+    gap: 10rpx;
   }
 
   &__date-label {
     font-size: 21rpx;
     color: var(--reader-subtle, #B0B4BC);
     font-weight: 400;
-    padding: 12rpx 0 4rpx;
+    padding: 16rpx 0 6rpx;
     letter-spacing: 0.03em;
   }
 
-  /* === Entry Card — tighter, bordered, clickable === */
+  /* === Entry Card — comfortable spacing === */
   &__entry {
     display: flex;
     align-items: flex-start;
     background-color: var(--reader-surface, #FFFFFF);
-    border-radius: 12rpx;
-    padding: 16rpx 18rpx;
+    border-radius: 13rpx;
+    padding: 22rpx 24rpx;
     border: 0.5rpx solid rgba(17, 17, 17, 0.055);
     box-shadow: 0 1rpx 2rpx rgba(0, 0, 0, 0.025);
-    transition: background-color 0.12s ease;
+    transition: transform 0.1s ease-out, background-color 0.12s ease;
 
     &:active {
       background-color: rgba(0, 0, 0, 0.025);
+      transform: scale(0.99);
     }
 
     &--positive {
@@ -155,14 +162,14 @@
 
   /* Left icon */
   &__entry-icon-wrap {
-    width: 32rpx;
-    height: 32rpx;
+    width: 36rpx;
+    height: 36rpx;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    margin-top: 1rpx;
-    margin-right: 12rpx;
+    margin-top: 2rpx;
+    margin-right: 14rpx;
   }
 
   /* Center body */
@@ -171,7 +178,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2rpx;
+    gap: 6rpx;
   }
 
   &__entry-title-row {
@@ -203,8 +210,14 @@
   &__entry-meta {
     display: flex;
     align-items: center;
-    gap: 8rpx;
-    margin-top: 2rpx;
+    gap: 6rpx;
+    margin-top: 4rpx;
+  }
+
+  &__entry-meta-sep {
+    font-size: 18rpx;
+    color: var(--reader-subtle, #D0D3D8);
+    line-height: 1;
   }
 
   &__entry-bucket {
@@ -231,15 +244,15 @@
   /* Right amount */
   &__entry-amount {
     flex-shrink: 0;
-    margin-left: 12rpx;
-    padding-top: 1rpx;
+    margin-left: 16rpx;
+    padding-top: 2rpx;
   }
 
   &__entry-points {
     font-size: 26rpx;
     font-weight: 500;
-    color: #333333;
-    letter-spacing: -0.01em;
+    color: #6B7280;
+    letter-spacing: -0.015em;
     font-feature-settings: 'tnum';
 
     &--plus {
@@ -250,8 +263,12 @@
 
   /* === Load More === */
   &__load-more {
-    padding: 28rpx 0 12rpx;
+    padding: 32rpx 0 16rpx;
     text-align: center;
+    min-height: 80rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   &__load-more-text {

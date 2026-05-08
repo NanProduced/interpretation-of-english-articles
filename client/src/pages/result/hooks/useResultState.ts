@@ -54,6 +54,7 @@ export function useResultState() {
   const recordId = useArticleStore((s) => s.recordId)
   const cloudId = useArticleStore((s) => s.cloudId)
   const isReplayMode = useArticleStore((s) => s.isReplayMode)
+  const reset = useArticleStore((s) => s.reset)
 
   return {
     navBarHeight,
@@ -70,7 +71,7 @@ export function useResultState() {
     favorited, setFavorited,
     vocabHighlights, setVocabHighlights,
     pageState, sceneData, requestParams, errorCode, errorMsg,
-    analyze, loadRecord, recoverActiveTask, recordId, cloudId, isReplayMode,
+    analyze, loadRecord, recoverActiveTask, recordId, cloudId, isReplayMode, reset,
   }
 }
 

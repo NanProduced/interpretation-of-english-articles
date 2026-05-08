@@ -35,18 +35,17 @@ export default function NavBar({
   useEffect(() => {
     const capsule = Taro.getMenuButtonBoundingClientRect()
 
-    Taro.getSystemInfo({}).then((sysInfo) => {
-      const sH = sysInfo.statusBarHeight || 0
-      const nH = (capsule.top - sH) * 2 + capsule.height
+    const windowInfo = Taro.getWindowInfo()
+    const sH = windowInfo.statusBarHeight || 0
+    const nH = (capsule.top - sH) * 2 + capsule.height
 
-      setNavStyle({
-        statusBarHeight: sH,
-        navBarHeight: nH,
-        capsuleRight: (sysInfo.screenWidth || 375) - capsule.right,
-      })
-
-      setNavHeights(nH + sH, sH)
+    setNavStyle({
+      statusBarHeight: sH,
+      navBarHeight: nH,
+      capsuleRight: (windowInfo.screenWidth || 375) - capsule.right,
     })
+
+    setNavHeights(nH + sH, sH)
   }, [setNavHeights])
 
   const handleBack = () => { 

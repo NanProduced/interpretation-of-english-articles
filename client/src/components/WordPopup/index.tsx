@@ -633,10 +633,9 @@ export default function WordPopup({
   }, [visible, lookupText, contextSentence, occurrence])
 
   useEffect(() => {
-    Taro.getSystemInfo({}).then((info) => {
-      setScreenWidth(info.windowWidth || 375)
-      setScreenHeight(info.windowHeight || 667)
-    })
+    const windowInfo = Taro.getWindowInfo()
+    setScreenWidth(windowInfo.windowWidth || 375)
+    setScreenHeight(windowInfo.windowHeight || 667)
   }, [])
 
   const loadAudio = useCallback(async (wordToFetch: string) => {

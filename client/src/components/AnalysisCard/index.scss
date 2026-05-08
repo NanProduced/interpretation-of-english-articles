@@ -331,4 +331,134 @@
       box-shadow: var(--shadow-reader-sm);
     }
   }
+
+  /* =========================================================
+   * Academic Mode Variant - 轻量学术便笺风格
+   *
+   * 设计原则 (来自 docs/uiux/academic-reading-system):
+   * - Paper slip, not dashboard card
+   * - 低饱和度学术色调
+   * - 细线边框、轻阴影、小标签
+   * - 语义化标题（术语/论证/解释）
+   * ========================================================= */
+  &.academic-mode {
+    /* =========================================================
+     * Collapsed Entry - 极致轻量的标签
+     * 目标: 高度 < 56rpx，像行内标注而非独立卡片
+     * ========================================================= */
+    .card-summary-row {
+      background: transparent;  /* 无背景 */
+      border: none;             /* 无边框 */
+      border-radius: 0;         /* 无圆角 */
+      box-shadow: none;          /* 无阴影 */
+      padding: 6rpx 0;          /* 极简内边距 */
+
+      .card-collapsed-title {
+        font-size: 23rpx;       /* 更小 */
+        font-weight: 500;
+        color: rgba(17, 17, 17, 0.55);  /* 更淡 */
+        line-height: 1.35;
+      }
+
+      .summary-icon {
+        opacity: 0.28;           /* 几乎不可见 */
+        width: 24rpx;
+        height: 24rpx;
+      }
+    }
+
+    /* Type-specific colors for collapsed entry - 只用文字颜色区分 */
+    &.type-term .card-summary-row {
+      .card-collapsed-title {
+        color: rgba(68, 98, 122, 0.45);  // 从 var(--academic-term-text) 降至 0.45
+        font-weight: 400;  // 从 500 降至 400
+        
+        /* 添加极细的下划线作为类型信号 */
+        border-bottom: 1rpx solid rgba(68, 98, 122, 0.20);  // 更淡的下划线
+        display: inline;
+      }
+    }
+
+    &.type-logic .card-summary-row {
+      .card-collapsed-title {
+        color: var(--academic-logic-text);
+        font-weight: 500;
+        
+        border-bottom: 1rpx solid var(--academic-logic-line);
+        display: inline;
+      }
+    }
+
+    &.type-interpretation .card-summary-row {
+      .card-collapsed-title {
+        color: var(--academic-interpret-text);
+        font-weight: 400;  /* 解释类更轻 */
+        
+        /* 解释类不添加下划线 */
+      }
+    }
+
+    /* =========================================================
+     * Expanded Detail - Paper Slip 风格
+     * 目标: 最大高度 < 320rpx，避免占据整屏
+     * ========================================================= */
+    &.expanded {
+      margin: 8rpx 0;  /* 极小的外边距 */
+
+      .card-content-expandable {
+        background: var(--reader-paper-deep, #F9F7F3);  /* 温暖纸张 */
+        border: 1rpx solid rgba(17, 17, 17, 0.06);     /* 极淡边框 */
+        border-radius: var(--academic-note-radius, 24rpx);  /* 轻圆角 */
+        box-shadow: 0 4rpx 16rpx rgba(17, 17, 17, 0.03);  /* 极轻阴影 */
+        max-height: 300rpx;  /* ⚠️ 限制最大高度 */
+        overflow-y: auto;   /* 内容过长时允许滚动 */
+      }
+
+      .card-body {
+        padding: 20rpx 24rpx;  /* 更紧凑的 padding */
+
+        .expanded-title-row {
+          padding-bottom: 12rpx;
+          margin-bottom: 2rpx;
+          border-bottom-color: rgba(17, 17, 17, 0.04);
+
+          .expanded-full-title {
+            font-size: 26rpx;  /* 再小一点 */
+            font-weight: 600;
+            color: var(--reader-ink);
+            letter-spacing: 0.01em;
+          }
+        }
+
+        /* Content - 学术阅读字体大小和行高 */
+        .card-content-wrapper {
+          padding-top: 2rpx;
+        }
+
+        .card-content {
+          font-size: 25rpx;  /* 从 27rpx 减至 25rpx */
+          line-height: 1.65;
+          color: rgba(17, 17, 17, 0.75);  /* 更淡 */
+        }
+
+        /* Feedback Footer - 更加克制或完全隐藏 */
+        .card-feedback-row {
+          margin-top: 14rpx;
+          padding-top: 10rpx;
+          border-top-color: rgba(17, 17, 17, 0.03);
+
+          .feedback-quick-text,
+          .feedback-detail-text {
+            font-size: 20rpx;  /* 更小 */
+            color: rgba(17, 17, 17, 0.38);  /* 更淡 */
+          }
+        }
+      }
+    }
+
+    /* Grammar Snippet Box - 在 academic 模式下隐藏 */
+    .grammar-snippet-box {
+      display: none;
+    }
+  }
 }
