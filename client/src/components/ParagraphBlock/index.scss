@@ -23,6 +23,22 @@
       font-size: 36rpx;
       font-variant-numeric: oldstyle-nums;
       line-height: var(--leading-relaxed);
+
+      &.drop-cap-flow {
+        display: block;
+      }
+    }
+
+    .drop-cap-initial {
+      float: left;
+      margin: 8rpx 22rpx 0 0;
+      color: var(--reader-ink);
+      font-family: var(--font-english-serif), serif;
+      font-size: 132rpx;
+      font-weight: 700;
+      line-height: 0.78;
+      letter-spacing: -0.04em;
+      font-variant-numeric: normal;
     }
   }
 
@@ -104,23 +120,20 @@
 
 
   /* =========================================================
-   * Drop Cap — 首字下沉 (Editorial Typography)
+   * Drop Cap — 首字下沉 (Taro/WeChat 兼容版)
    *
-   * 设计参考: 经典期刊/书籍排版的首字母放大效果
-   * - float: left 让文字自然环绕
-   * - serif 字体 + 大字号 + 紧凑行高 = 编辑品质感
-   * - 仅在段落 1 的第 1 句触发 (order === 1 && idx === 0)
+   * 关键约束: 微信小程序中 <Text> 内嵌套 <Text> 的 float:left 不生效
+   * 解决方案: display:inline-block + vertical-align + 负 margin
    * ========================================================= */
   .drop-cap {
-    float: left;
-    margin-top: 4rpx;
-    margin-right: 10rpx;
-    margin-bottom: -4rpx;
+    display: inline-block;
+    vertical-align: -0.22em;
+    margin-right: 6rpx;
     color: var(--reader-ink);
     font-family: var(--font-english-serif), serif;
-    font-size: 3.6em;
+    font-size: 3.2em;
     font-weight: 650;
-    line-height: 0.82;
+    line-height: 0.85;
     letter-spacing: -0.02em;
   }
 
@@ -349,10 +362,11 @@
     /* Drop Cap - 学术模式下保持编辑品质，首字作为视觉锚点 */
     .drop-cap {
       color: rgba(17, 17, 17, 0.88);
-      font-size: 3.8em;
+      font-size: 3.4em;
       font-weight: 680;
       letter-spacing: -0.03em;
       opacity: 1;
+      vertical-align: -0.24em;
     }
   }  /* ⭐ 关闭 &.academic-mode (第278行) */
 }  /* ⭐ 关闭 &.intensive (第29行) */

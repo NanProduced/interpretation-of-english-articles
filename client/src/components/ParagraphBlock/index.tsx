@@ -218,6 +218,63 @@ function findMarkIdForEntry(entry: AnySentenceEntryModel, marks: AnyInlineMarkMo
   return best.mark.id
 }
 
+function splitDropCapText(text: string): { letter: string; bodyText: string; letterIndex: number } | null {
+  const match = text.match(/[a-zA-Z]/)
+  if (!match || match.index === undefined) return null
+
+  const letterIndex = match.index
+  return {
+    letter: match[0],
+    bodyText: `${text.slice(0, letterIndex)}${text.slice(letterIndex + 1)}`,
+    letterIndex,
+  }
+}
+
+function adjustMarkForDropCap(mark: AnyInlineMarkModel, sourceText: string, letterIndex: number): AnyInlineMarkModel | null {
+  if (mark.anchor.kind === 'text') {
+    const pos = findTextAnchorPosition(sourceText, mark.anchor.anchorText, mark.anchor.occurrence || 1)
+    if (pos !== letterIndex) return mark
+
+    const anchorText = mark.anchor.anchorText.slice(1)
+    if (!anchorText) return null
+
+    return {
+      ...mark,
+      anchor: {
+        ...mark.anchor,
+        anchorText,
+      },
+    }
+  }
+
+  const parts = mark.anchor.parts
+    .map(part => {
+      const pos = findTextAnchorPosition(sourceText, part.anchorText, part.occurrence || 1)
+      if (pos !== letterIndex) return part
+      return {
+        ...part,
+        anchorText: part.anchorText.slice(1),
+      }
+    })
+    .filter(part => part.anchorText.length > 0)
+
+  if (parts.length === 0) return null
+
+  return {
+    ...mark,
+    anchor: {
+      ...mark.anchor,
+      parts,
+    },
+  }
+}
+
+function adjustMarksForDropCap(marks: AnyInlineMarkModel[], sourceText: string, letterIndex: number): AnyInlineMarkModel[] {
+  return marks
+    .map(mark => adjustMarkForDropCap(mark, sourceText, letterIndex))
+    .filter((mark): mark is AnyInlineMarkModel => Boolean(mark))
+}
+
 function renderTextWithMarks(
   text: string,
   marks: AnyInlineMarkModel[],
@@ -520,24 +577,36 @@ const ParagraphBlock = memo(function ParagraphBlock({
   }, [tailEntries])
 
   if (pageMode === 'immersive') {
+    const shouldRenderDropCap = order === 1 && sentences.length > 0
+    const firstDropCap = shouldRenderDropCap ? splitDropCapText(sentences[0].text) : null
+
     return (
       <View className={containerClass}>
         <View className='english-paragraph'>
-          <Text className='english-flow'>
+          <View className={`english-flow ${firstDropCap ? 'drop-cap-flow' : ''}`}>
+            {firstDropCap && (
+              <Text className='drop-cap-initial'>{firstDropCap.letter}</Text>
+            )}
             {sentences.map((sentence, idx) => {
-              const sentenceMarks: AnyInlineMarkModel[] = marksBySentenceId.get(sentence.sentenceId) || []
+              const rawSentenceMarks: AnyInlineMarkModel[] = marksBySentenceId.get(sentence.sentenceId) || []
+              const isFirstDropCapSentence = Boolean(firstDropCap && idx === 0)
+              const sentenceText = isFirstDropCapSentence ? firstDropCap!.bodyText : sentence.text
+              const sentenceMarks = isFirstDropCapSentence
+                ? adjustMarksForDropCap(rawSentenceMarks, sentence.text, firstDropCap!.letterIndex)
+                : rawSentenceMarks
+
               return (
                 <Text
                   key={sentence.sentenceId}
                   className={`sentence-span ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                   onClick={() => onSentenceClick?.(sentence.sentenceId)}
                 >
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0, isAcademicMode, groupActiveMarkIds)}
+                  {renderTextWithMarks(sentenceText, sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
             })}
-          </Text>
+          </View>
         </View>
       </View>
     )
@@ -681,7 +750,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                 ) : (
                   // 普通精读模式：使用马克笔涂抹模式
                   <Text className='english-flow'>
-                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0, isAcademicMode, groupActiveMarkIds)}
+                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
                   </Text>
                 )}
               </View>
@@ -771,7 +840,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       className={`sentence-span ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                       onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
                     >
-                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0, isAcademicMode, groupActiveMarkIds)}
+                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
                       {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
                     </Text>
                   ))}
