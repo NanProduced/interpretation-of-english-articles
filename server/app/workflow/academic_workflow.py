@@ -182,7 +182,7 @@ async def _run_term_llm_span(
 ) -> dict[str, Any]:
     result = await run_term_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 @traceable(name="academic_translation_llm_call", run_type="llm")
@@ -194,7 +194,7 @@ async def _run_academic_translation_llm_span(
 ) -> dict[str, Any]:
     result = await run_academic_translation_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 async def parallel_term_translation_node(
@@ -248,8 +248,8 @@ async def parallel_term_translation_node(
 
     term_output = term_result.get("output") if term_result else None
     translation_output = translation_result.get("output") if translation_result else None
-    term_usage = term_result.get("usage") if term_result else None
-    translation_usage = translation_result.get("usage") if translation_result else None
+    term_usage = term_result.get("usage_metadata") if term_result else None
+    translation_usage = translation_result.get("usage_metadata") if translation_result else None
 
     usage_summary = _aggregate_usage_summary({
         "term": term_usage,
@@ -275,7 +275,7 @@ async def _run_understanding_llm_span(
 ) -> dict[str, Any]:
     result = await run_understanding_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 async def understanding_agent_node(
@@ -309,7 +309,7 @@ async def understanding_agent_node(
             deps=deps, metadata=meta, model_selection=model_sel
         )
         output = result.get("output")
-        usage = result.get("usage")
+        usage = result.get("usage_metadata")
         usage_summary = _aggregate_usage_summary({
             "term": state.get("term_usage"),
             "translation": state.get("translation_usage"),

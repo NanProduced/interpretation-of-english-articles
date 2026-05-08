@@ -164,7 +164,7 @@ async def _run_vocabulary_llm_span(
 ) -> dict[str, Any]:
     result = await run_vocabulary_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 @traceable(name="grammar_llm_call", run_type="llm")
@@ -176,7 +176,7 @@ async def _run_grammar_llm_span(
 ) -> dict[str, Any]:
     result = await run_grammar_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 @traceable(name="translation_llm_call", run_type="llm")
@@ -188,7 +188,7 @@ async def _run_translation_llm_span(
 ) -> dict[str, Any]:
     result = await run_translation_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 # -------------------------------------------------------------------
@@ -337,9 +337,9 @@ async def _run_parallel_agents(
     vocabulary_output = vocab_result.get("output") if vocab_result else None
     grammar_output = grammar_result.get("output") if grammar_result else None
     translation_output = translation_result.get("output") if translation_result else None
-    vocabulary_usage = vocab_result.get("usage") if vocab_result else None
-    grammar_usage = grammar_result.get("usage") if grammar_result else None
-    translation_usage = translation_result.get("usage") if translation_result else None
+    vocabulary_usage = vocab_result.get("usage_metadata") if vocab_result else None
+    grammar_usage = grammar_result.get("usage_metadata") if grammar_result else None
+    translation_usage = translation_result.get("usage_metadata") if translation_result else None
     usage_summary = _aggregate_usage_summary({"vocabulary": vocabulary_usage, "grammar": grammar_usage, "translation": translation_usage})
 
     return {
@@ -451,7 +451,7 @@ async def repair_agent_node(state: AnalyzeState, config: RunnableConfig) -> Anal
     try:
         repair_result = await _run_repair_llm_span(deps=repair_deps, metadata=repair_meta, error_context=error_context)
         repaired_result = repair_result.get("output")
-        repair_usage = repair_result.get("usage")
+        repair_usage = repair_result.get("usage_metadata")
         usage_summary = _aggregate_usage_summary({
             "vocabulary": state.get("vocabulary_usage"),
             "grammar": state.get("grammar_usage"),
@@ -501,7 +501,7 @@ async def _run_repair_llm_span(
         model_selection=None,
     )
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 async def project_render_scene_node(state: AnalyzeState) -> AnalyzeState:

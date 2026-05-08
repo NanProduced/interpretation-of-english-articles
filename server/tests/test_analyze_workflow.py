@@ -319,8 +319,6 @@ def test_llm_span_sets_usage_metadata_for_langsmith(monkeypatch) -> None:
             _FakeRunUsage(input_tokens=11, output_tokens=7),
         )
 
-    fake_run = _FakeRunTree()
-    monkeypatch.setattr(analyze_nodes, "get_current_run_tree", lambda: fake_run)
     monkeypatch.setattr(analyze_nodes, "run_vocabulary_agent", _fake_vocabulary_agent)
     prompt_strategy = analyze_nodes.build_vocabulary_bundle(
         analyze_nodes.build_goal_execution_plan("daily_reading", "intermediate_reading")
@@ -340,11 +338,4 @@ def test_llm_span_sets_usage_metadata_for_langsmith(monkeypatch) -> None:
         )
     )
 
-    assert result["usage"] == {"input_tokens": 11, "output_tokens": 7, "total_tokens": 18}
-    assert len(fake_run.calls) == 1
-    assert fake_run.calls[0]["usage_metadata"] == {
-        "input_tokens": 11,
-        "output_tokens": 7,
-        "total_tokens": 18,
-    }
-    assert "usage" not in fake_run.calls[0]["metadata"]
+    assert result["usage_metadata"] == {"input_tokens": 11, "output_tokens": 7, "total_tokens": 18}

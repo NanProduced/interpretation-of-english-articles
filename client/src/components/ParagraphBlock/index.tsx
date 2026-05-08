@@ -581,10 +581,12 @@ const ParagraphBlock = memo(function ParagraphBlock({
 
               {item.sentenceTranslation && (
                 <View 
-                  className={`sentence-translation ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted' : ''}`}
+                  className='sentence-translation'
                   onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
                 >
-                  <Text className='translation-text'>{item.sentenceTranslation}</Text>
+                  <Text className={`translation-text segment ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted' : ''}`}>
+                    {item.sentenceTranslation}
+                  </Text>
                 </View>
               )}
 

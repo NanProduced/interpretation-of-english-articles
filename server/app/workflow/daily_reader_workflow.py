@@ -137,7 +137,7 @@ async def _vocab_highlight_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 async def vocab_highlight_node(state: DailyReaderState) -> dict:
@@ -156,7 +156,7 @@ async def vocab_highlight_node(state: DailyReaderState) -> dict:
             route=MODEL_ROUTE_DAILY_ANNOTATION, metadata=metadata,
         )
         draft = span_result["output"]
-        usage = span_result.get("usage")
+        usage = span_result.get("usage_metadata")
 
         vocab_dict = draft.model_dump() if draft else {}
         highlights = _extract_highlights_from_vocab_draft(draft)
@@ -176,7 +176,7 @@ async def _phrase_gloss_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 async def phrase_context_gloss_node(state: DailyReaderState) -> dict:
@@ -204,7 +204,7 @@ async def phrase_context_gloss_node(state: DailyReaderState) -> dict:
             route=MODEL_ROUTE_DAILY_ANNOTATION, metadata=metadata,
         )
         draft = span_result["output"]
-        usage = span_result.get("usage")
+        usage = span_result.get("usage_metadata")
 
         new_highlights = _extract_highlights_from_vocab_draft(draft)
         merged = existing_highlights + new_highlights
@@ -224,7 +224,7 @@ async def _footer_analysis_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 async def footer_analysis_node(state: DailyReaderState) -> dict:
@@ -252,7 +252,7 @@ async def footer_analysis_node(state: DailyReaderState) -> dict:
             route=MODEL_ROUTE_DAILY_ANALYSIS, metadata=metadata,
         )
         footer = span_result["output"]
-        usage = span_result.get("usage")
+        usage = span_result.get("usage_metadata")
 
         footer_dict = footer.model_dump() if footer else {}
 
@@ -271,7 +271,7 @@ async def _full_interpretation_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 async def full_interpretation_node(state: DailyReaderState) -> dict:
@@ -298,7 +298,7 @@ async def full_interpretation_node(state: DailyReaderState) -> dict:
             route=MODEL_ROUTE_DAILY_ANALYSIS, metadata=metadata,
         )
         interpretation = span_result["output"]
-        usage = span_result.get("usage")
+        usage = span_result.get("usage_metadata")
 
         updates: dict[str, Any] = {
             "full_interpretation": interpretation.full_article_analysis if interpretation else "",
@@ -317,7 +317,7 @@ async def _quality_review_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 async def quality_review_node(state: DailyReaderState) -> dict:
@@ -342,7 +342,7 @@ async def quality_review_node(state: DailyReaderState) -> dict:
             route=MODEL_ROUTE_DAILY_REVIEW, metadata=metadata,
         )
         review = span_result["output"]
-        usage = span_result.get("usage")
+        usage = span_result.get("usage_metadata")
 
         review_dict = review.model_dump() if review else {}
         updates: dict[str, Any] = {"review_result": review_dict}
@@ -360,7 +360,7 @@ async def _refinement_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
+    return {"output": result.output if hasattr(result, "output") else result, "usage_metadata": usage}
 
 
 async def refinement_node(state: DailyReaderState) -> dict:
@@ -389,7 +389,7 @@ async def refinement_node(state: DailyReaderState) -> dict:
             route=MODEL_ROUTE_DAILY_REVIEW, metadata=metadata,
         )
         refinement = span_result["output"]
-        usage = span_result.get("usage")
+        usage = span_result.get("usage_metadata")
 
         refinement_dict = refinement.model_dump() if refinement else {}
 

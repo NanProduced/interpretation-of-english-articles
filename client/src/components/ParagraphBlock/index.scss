@@ -227,6 +227,8 @@
       display: inline;
       padding: 2rpx 8rpx;
       border-radius: 4rpx;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
       transition: all 0.24s var(--ease-reader-out);
 
       &.is-highlighted {
