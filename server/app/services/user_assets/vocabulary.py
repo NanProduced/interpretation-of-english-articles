@@ -159,6 +159,10 @@ async def upsert_vocabulary(
                     dict_entry_id     = COALESCE(EXCLUDED.dict_entry_id, vocabulary_book.dict_entry_id),
                     source_sentence   = EXCLUDED.source_sentence,
                     source_context    = EXCLUDED.source_context,
+                    mastery_status    = CASE
+                        WHEN vocabulary_book.mastery_status = 'new' THEN EXCLUDED.mastery_status
+                        ELSE vocabulary_book.mastery_status
+                    END,
                     payload_json      = EXCLUDED.payload_json,
                     updated_at        = $16
                 WHERE vocabulary_book.user_id = $1
@@ -389,6 +393,11 @@ def _match_tokens_against_vocab(
             cleaned = token.strip(".,;:!?\"'()[]{}").lower()
             if not cleaned:
                 continue
+
+            if cleaned.endswith("'s") or cleaned.endswith("'\u2019s"):
+                cleaned = cleaned[:-2]
+            elif cleaned.endswith("'") and len(cleaned) > 1:
+                cleaned = cleaned[:-1]
 
             matched_entry = None
 

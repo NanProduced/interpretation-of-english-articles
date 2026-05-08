@@ -1,18 +1,19 @@
 /* Academic Mode Design Tokens v2 — 精简版
  *
  * 重构原则:
- * - 去除三套语义色系（蓝灰/琥珀/绿灰），统一为灰度
- * - 仅保留行内标注所需的最小色差信号
- * - 所有颜色基于 rgba(17,17,17,x) 灰度轴
- * - 不再定义 variant-specific 的 surface/border/text 变量
+ * - 保留低饱和学术语义色，不使用高噪声 AI 色块
+ * - term / logic / interpretation 只作为细线与轻 surface 信号
+ * - 容器仍复用 Claread paper tokens
  */
 
 .academic-mode {
-  /* === 行内标注 (Inline Marks) — 极低饱和度信号 === */
-  --academic-mark-term: rgba(17, 17, 17, 0.18);
-  --academic-mark-logic: rgba(17, 17, 17, 0.16);
-  --academic-mark-term-active: rgba(17, 17, 17, 0.28);
-  --academic-mark-logic-active: rgba(17, 17, 17, 0.26);
+  /* === 行内标注 (Inline Marks) — 低噪声语义色 === */
+  --academic-term-line: rgba(73, 111, 143, 0.72);
+  --academic-term-surface: rgba(73, 111, 143, 0.08);
+  --academic-logic-line: rgba(181, 117, 35, 0.62);
+  --academic-logic-surface: rgba(181, 117, 35, 0.09);
+  --academic-interpret-line: rgba(85, 118, 102, 0.62);
+  --academic-interpret-surface: rgba(85, 118, 102, 0.08);
 
   /* === 容器样式 (Paper System) — 复用 reader tokens === */
   --academic-surface: var(--reader-paper-deep, #F6F3EC);

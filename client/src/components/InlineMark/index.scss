@@ -97,7 +97,7 @@
    * ========================================================= */
   &.academic-mode {
     &.underline.tone-term {
-      border-bottom: 1rpx solid var(--academic-mark-term, rgba(17, 17, 17, 0.18));
+      border-bottom: 1rpx solid var(--academic-term-line, rgba(73, 111, 143, 0.54));
       padding-bottom: 2rpx;
       transition: border-bottom-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
                   background-color 0.3s ease,
@@ -106,15 +106,15 @@
       &:active,
       &.clickable:active,
       &.active {
-        border-bottom-color: var(--academic-mark-term-active, rgba(17, 17, 17, 0.38));
-        background: linear-gradient(to top, rgba(17, 17, 17, 0.06) 40%, transparent 40%);
-        box-shadow: 0 1rpx 4rpx rgba(17, 17, 17, 0.08);
-        animation: anchorPulse 2.5s ease-in-out infinite;
+        border-bottom-color: var(--academic-term-line, rgba(73, 111, 143, 0.82));
+        background: linear-gradient(to top, var(--academic-term-surface, rgba(73, 111, 143, 0.08)) 42%, transparent 42%);
+        box-shadow: none;
+        animation: academicAnchorSettle 360ms cubic-bezier(0.16, 1, 0.3, 1) 1;
       }
     }
 
     &.underline.tone-logic {
-      border-bottom: 1rpx solid var(--academic-mark-logic, rgba(17, 17, 17, 0.16));
+      border-bottom: 1rpx solid var(--academic-logic-line, rgba(181, 117, 35, 0.48));
       padding-bottom: 2rpx;
       transition: border-bottom-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
                   background-color 0.3s ease,
@@ -123,10 +123,10 @@
       &:active,
       &.clickable:active,
       &.active {
-        border-bottom-color: var(--academic-mark-logic-active, rgba(17, 17, 17, 0.35));
-        background: linear-gradient(to top, rgba(17, 17, 17, 0.055) 40%, transparent 40%);
-        box-shadow: 0 1rpx 4rpx rgba(17, 17, 17, 0.07);
-        animation: anchorPulse 2.5s ease-in-out infinite;
+        border-bottom-color: var(--academic-logic-line, rgba(181, 117, 35, 0.78));
+        background: linear-gradient(to top, var(--academic-logic-surface, rgba(181, 117, 35, 0.09)) 42%, transparent 42%);
+        box-shadow: none;
+        animation: academicAnchorSettle 360ms cubic-bezier(0.16, 1, 0.3, 1) 1;
       }
     }
 
@@ -136,30 +136,30 @@
     }
 
     &.background.tone-term {
-      background-color: rgba(17, 17, 17, 0.05);
+      background-color: var(--academic-term-surface, rgba(73, 111, 143, 0.08));
       transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
                   box-shadow 0.3s ease;
 
       &:active,
       &.clickable:active,
       &.active {
-        background-color: rgba(17, 17, 17, 0.12);
-        box-shadow: 0 1rpx 6rpx rgba(17, 17, 17, 0.10);
-        animation: anchorPulseBg 2.5s ease-in-out infinite;
+        background-color: rgba(73, 111, 143, 0.13);
+        box-shadow: none;
+        animation: academicAnchorSettle 360ms cubic-bezier(0.16, 1, 0.3, 1) 1;
       }
     }
 
     &.background.tone-logic {
-      background-color: rgba(17, 17, 17, 0.04);
+      background-color: var(--academic-logic-surface, rgba(181, 117, 35, 0.09));
       transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
                   box-shadow 0.3s ease;
 
       &:active,
       &.clickable:active,
       &.active {
-        background-color: rgba(17, 17, 17, 0.11);
-        box-shadow: 0 1rpx 6rpx rgba(17, 17, 17, 0.09);
-        animation: anchorPulseBg 2.5s ease-in-out infinite;
+        background-color: rgba(181, 117, 35, 0.14);
+        box-shadow: none;
+        animation: academicAnchorSettle 360ms cubic-bezier(0.16, 1, 0.3, 1) 1;
       }
     }
 
@@ -179,20 +179,17 @@
  * - 纯 transform + opacity，GPU 加速
  * ========================================================= */
 
-@keyframes anchorPulse {
-  0%, 100% {
-    box-shadow: 0 1rpx 4rpx rgba(17, 17, 17, 0.08);
+@keyframes academicAnchorSettle {
+  0% {
+    opacity: 0.72;
   }
-  50% {
-    box-shadow: 0 1rpx 8rpx rgba(17, 17, 17, 0.14);
+  100% {
+    opacity: 1;
   }
 }
 
-@keyframes anchorPulseBg {
-  0%, 100% {
-    background-color: rgba(17, 17, 17, 0.12);
-  }
-  50% {
-    background-color: rgba(17, 17, 17, 0.16);
+@media (prefers-reduced-motion: reduce) {
+  .inline-mark.academic-mode.active {
+    animation: none;
   }
 }

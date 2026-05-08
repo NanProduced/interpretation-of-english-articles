@@ -10,38 +10,55 @@ interface ContentSummaryCardProps {
 
 export default function ContentSummaryCard({ summary }: ContentSummaryCardProps) {
   const [expanded, setExpanded] = useState(false)
-  const [detailExpanded, setDetailExpanded] = useState(false)
 
-  const hasDetails =
-    summary.researchQuestion ||
-    summary.methodology ||
-    (summary.keyFindings && summary.keyFindings.length > 0) ||
-    (summary.limitations && summary.limitations.length > 0)
+  const hasStructuredDetails = !!(summary.researchQuestion || summary.methodology)
 
   const coreFindings = summary.keyFindings?.slice(0, 3) ?? []
   const hasFindings = coreFindings.length > 0
+  const completenessLabel: Record<string, string> = {
+    full: '完整导读',
+    partial: '部分导读',
+    minimal: '简要导读',
+  }
 
   return (
     <View className={`research-brief ${expanded ? 'is-expanded' : 'is-collapsed'}`}>
       <View className='brief-header' onClick={() => setExpanded(!expanded)}>
         <View className='brief-header-left'>
-          <LucideIcon name='file-text' size={14} color='var(--reader-muted)' />
-          <Text className='brief-label'>本文主旨</Text>
+          <Text className='brief-label'>内容导读</Text>
+          <Text className='brief-completeness'>{completenessLabel[summary.completeness] || '导读'}</Text>
         </View>
         <View className={`brief-chevron ${expanded ? 'is-open' : ''}`}>
           <LucideIcon name='chevron-right' size={14} color='var(--reader-subtle)' />
         </View>
       </View>
 
+      <View className='brief-overview' onClick={() => setExpanded(!expanded)}>
+        <Text className='overview-text' numberOfLines={expanded ? 8 : 2}>{summary.overview}</Text>
+      </View>
+
       <View className={`brief-body ${expanded ? 'show' : 'hide'}`}>
-        <View className='brief-overview'>
-          <Text className='overview-text'>{summary.overview}</Text>
-        </View>
+        {hasStructuredDetails && (
+          <View className='brief-detail-body'>
+            {summary.researchQuestion && (
+              <View className='detail-section'>
+                <Text className='detail-key'>研究问题</Text>
+                <Text className='detail-value'>{summary.researchQuestion}</Text>
+              </View>
+            )}
+            {summary.methodology && (
+              <View className='detail-section'>
+                <Text className='detail-key'>研究方法</Text>
+                <Text className='detail-value'>{summary.methodology}</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {hasFindings && (
           <View className='brief-findings'>
             <View className='findings-header'>
-              <Text className='findings-label'>核心观点</Text>
+              <Text className='findings-label'>关键论点</Text>
               <Text className='findings-count'>{coreFindings.length}</Text>
             </View>
             <View className='findings-list'>
@@ -55,51 +72,30 @@ export default function ContentSummaryCard({ summary }: ContentSummaryCardProps)
           </View>
         )}
 
-        {hasDetails && (
-          <>
-            <View className='brief-detail-toggle' onClick={(e) => {
-              e.stopPropagation()
-              setDetailExpanded(!detailExpanded)
-            }}>
-              <View className='toggle-left'>
-                <Text className='toggle-text'>
-                  {detailExpanded ? '收起结构' : '展开结构'}
-                </Text>
-              </View>
-              <View className={`toggle-right ${detailExpanded ? 'is-open' : ''}`}>
-                <LucideIcon name='chevron-down' size={13} color='var(--reader-subtle)' />
+        {summary.limitations && summary.limitations.length > 0 && (
+          <View className='brief-detail-body limitations'>
+            <View className='detail-section'>
+              <Text className='detail-key'>研究局限</Text>
+              <View className='detail-list'>
+                {summary.limitations.map((item, idx) => (
+                  <Text key={idx} className='detail-list-item'>· {item}</Text>
+                ))}
               </View>
             </View>
-
-            {detailExpanded && (
-              <View className='brief-detail-body'>
-                {summary.researchQuestion && (
-                  <View className='detail-section'>
-                    <Text className='detail-key'>研究问题</Text>
-                    <Text className='detail-value'>{summary.researchQuestion}</Text>
-                  </View>
-                )}
-                {summary.methodology && (
-                  <View className='detail-section'>
-                    <Text className='detail-key'>研究方法</Text>
-                    <Text className='detail-value'>{summary.methodology}</Text>
-                  </View>
-                )}
-                {summary.limitations && summary.limitations.length > 0 && (
-                  <View className='detail-section'>
-                    <Text className='detail-key'>研究局限</Text>
-                    <View className='detail-list'>
-                      {summary.limitations.map((item, idx) => (
-                        <Text key={idx} className='detail-list-item'>· {item}</Text>
-                      ))}
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
-          </>
+          </View>
         )}
       </View>
+
+      {(hasStructuredDetails || hasFindings || (summary.limitations && summary.limitations.length > 0)) && (
+        <View className='brief-detail-toggle' onClick={() => setExpanded(!expanded)}>
+          <Text className='toggle-text'>
+            {expanded ? '收起导读' : '查看研究问题、论点与局限'}
+          </Text>
+          <View className={`toggle-right ${expanded ? 'is-open' : ''}`}>
+            <LucideIcon name='chevron-down' size={13} color='var(--reader-subtle)' />
+          </View>
+        </View>
+      )}
     </View>
   )
 }

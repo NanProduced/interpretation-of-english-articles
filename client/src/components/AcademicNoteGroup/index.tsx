@@ -1,17 +1,17 @@
-import { useState, useEffect, useRef } from 'react'
+import { useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import LucideIcon from '../LucideIcon'
-import type { AcademicSentenceEntryType } from '../../types/view/render-scene.vm'
 import './index.scss'
 
 type NoteVariant = 'term' | 'logic' | 'interpretation'
 
 interface GroupedNoteItem {
   id: string
-  markId: string
+  markId?: string | null
   variant: NoteVariant
   title: string
   content: string
+  sourceText?: string
 }
 
 interface AcademicNoteGroupProps {
@@ -36,13 +36,25 @@ export default function AcademicNoteGroup({
   const [isExpanded, setIsExpanded] = useState(initiallyExpanded)
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
 
+  const activeIdsForItems = (targetItems: GroupedNoteItem[]) =>
+    targetItems.map(item => item.markId).filter((id): id is string => !!id)
+
+  const summary = useMemo(() => {
+    const titles = items
+      .map(item => item.title)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join('、')
+    return titles ? `学术注释 ${items.length} 条 · ${titles}` : `学术注释 ${items.length} 条`
+  }, [items])
+
   if (!items || items.length === 0) return null
 
   const handleToggle = () => {
     const next = !isExpanded
     setIsExpanded(next)
     if (next) {
-      const ids = items.map(item => item.markId)
+      const ids = activeIdsForItems(items)
       onToggle?.(true, ids)
       onActiveChange?.(ids)
     } else {
@@ -57,24 +69,17 @@ export default function AcademicNoteGroup({
     setActiveItemId(nextActive)
     if (nextActive) {
       const item = items.find(i => i.id === itemId)
-      onActiveChange?.(item ? [item.markId] : [])
+      onActiveChange?.(item?.markId ? [item.markId] : [])
     } else {
-      onActiveChange?.(isExpanded ? items.map(i => i.markId) : [])
+      onActiveChange?.(isExpanded ? activeIdsForItems(items) : [])
     }
   }
 
   return (
     <View className={`academic-note-group ${isExpanded ? 'is-expanded' : 'is-collapsed'} ${activeItemId ? 'has-active-item' : ''}`}>
       <View className='group-header' onClick={handleToggle}>
-        <View className='group-chips'>
-          {items.map((item, idx) => (
-            <View key={item.id} className={`group-chip variant-${item.variant} ${activeItemId === item.id ? 'is-item-active' : ''}`}>
-              <Text className='chip-type'>{VARIANT_LABEL[item.variant]}</Text>
-              <Text className='chip-sep'>·</Text>
-              <Text className='chip-title' numberOfLines={1}>{item.title}</Text>
-              {idx < items.length - 1 && <Text className='chip-divider'>/</Text>}
-            </View>
-          ))}
+        <View className='group-summary'>
+          <Text className='summary-text' numberOfLines={2}>{summary}</Text>
         </View>
         <View className={`group-chevron ${isExpanded ? 'is-open' : ''}`}>
           <LucideIcon name='chevron-right' size={14} color='var(--reader-muted)' />
@@ -86,7 +91,7 @@ export default function AcademicNoteGroup({
           {items.map(item => (
             <View
               key={item.id}
-              className={`group-item ${activeItemId === item.id ? 'is-active' : ''}`}
+              className={`group-item variant-${item.variant} ${activeItemId === item.id ? 'is-active' : ''}`}
               onClick={() => handleItemToggle(item.id)}
             >
               <View className='item-label-row'>
@@ -100,6 +105,12 @@ export default function AcademicNoteGroup({
               <View className={`item-content ${activeItemId === item.id ? 'show' : 'hide'}`}>
                 <View className='item-text-container'>
                   <Text className='item-text'>{item.content}</Text>
+                  {!item.markId && item.sourceText && (
+                    <View className='source-hint'>
+                      <Text className='source-label'>来源句</Text>
+                      <Text className='source-text'>{item.sourceText}</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             </View>

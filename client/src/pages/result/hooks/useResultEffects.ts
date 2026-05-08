@@ -126,8 +126,14 @@ export function useResultEffects(deps: EffectDeps) {
         for (const sent of sentences) {
           const occMap: Record<string, number> = {}
           for (const token of sent.tokens) {
-            const cleaned = token.replace(/[.,;:!?'"(){}[\]]/g, '').toLowerCase()
+            let cleaned = token.replace(/[.,;:!?'"(){}[\]]/g, '').toLowerCase()
             if (!cleaned) continue
+
+            if (cleaned.endsWith("'s") || cleaned.endsWith("\u2019s")) {
+              cleaned = cleaned.slice(0, -2)
+            } else if (cleaned.endsWith("'") && cleaned.length > 1) {
+              cleaned = cleaned.slice(0, -1)
+            }
 
             let match = lemmaSet.get(cleaned) || formsReverseIndex.get(cleaned)
 

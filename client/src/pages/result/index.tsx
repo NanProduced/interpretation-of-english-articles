@@ -18,6 +18,7 @@ import { useResultState } from './hooks/useResultState'
 import { useResultEffects } from './hooks/useResultEffects'
 import { useResultActions } from './hooks/useResultActions'
 import { PAGE_MODE_OPTIONS, hasRenderableScene } from './utils'
+import { getVocabEntryByLemma } from '../../services/storage'
 import DegradedBanner from './components/DegradedBanner'
 import SourceFallback from './components/SourceFallback'
 import StateViews from './components/StateViews'
@@ -234,6 +235,8 @@ export default function Result() {
         cloudId={cloudId || undefined}
         isSaved={!!vocabSavedMap[wordPopup.word?.toLowerCase()]}
         savedMasteryStatus={vocabSavedMap[wordPopup.word?.toLowerCase()]}
+        savedSourceRefs={getVocabEntryByLemma(wordPopup.word?.toLowerCase() || '')?.sourceRefs}
+        currentSentenceId={wordPopup.mark?.anchor?.sentenceId || activeSentenceId || undefined}
         onClose={actions.handleClosePopup}
         onExpand={() => setWordPopup({ ...wordPopup, mode: 'full' })}
         onAddVocab={actions.handleAddVocab}

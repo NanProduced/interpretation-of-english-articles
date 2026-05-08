@@ -1,33 +1,71 @@
 export function getSimpleLemmaCandidates(word: string): string[] {
   const candidates: string[] = []
+
+  if (word.endsWith('ying')) {
+    candidates.push(word.slice(0, -4) + 'ie')
+  }
   if (word.endsWith('ing')) {
     candidates.push(word.slice(0, -3))
     if (word.length > 5 && word[word.length - 4] === word[word.length - 5]) {
       candidates.push(word.slice(0, -4))
     }
     candidates.push(word.slice(0, -3) + 'e')
-  } else if (word.endsWith('ed')) {
+  }
+
+  if (word.endsWith('ied')) {
+    candidates.push(word.slice(0, -3) + 'y')
+  }
+  if (word.endsWith('ed')) {
     candidates.push(word.slice(0, -2))
     candidates.push(word.slice(0, -1))
     if (word.length > 4 && word[word.length - 3] === word[word.length - 4]) {
       candidates.push(word.slice(0, -3))
     }
-    candidates.push((word.slice(0, -2) + 'e') === word ? '' : word.slice(0, -1))
-  } else if (word.endsWith('ies')) {
+  }
+
+  if (word.endsWith('ies')) {
     candidates.push(word.slice(0, -3) + 'y')
-  } else if (word.endsWith('es')) {
+  }
+  if (word.endsWith('ves') && word.length > 4) {
+    candidates.push(word.slice(0, -3) + 'f')
+    candidates.push(word.slice(0, -3) + 'fe')
+  }
+  if (word.endsWith('es')) {
     candidates.push(word.slice(0, -2))
     candidates.push(word.slice(0, -1))
-  } else if (word.endsWith('s') && !word.endsWith('ss')) {
+  }
+  if (word.endsWith('s') && !word.endsWith('ss') && !word.endsWith('us')) {
     candidates.push(word.slice(0, -1))
-  } else if (word.endsWith('er')) {
+  }
+
+  if (word.endsWith('er')) {
     candidates.push(word.slice(0, -2))
     candidates.push(word.slice(0, -1))
-  } else if (word.endsWith('est')) {
+    if (word.length > 4 && word[word.length - 3] === word[word.length - 4]) {
+      candidates.push(word.slice(0, -3))
+    }
+    candidates.push(word.slice(0, -2) + 'e')
+  }
+
+  if (word.endsWith('est')) {
     candidates.push(word.slice(0, -3))
     candidates.push(word.slice(0, -2))
+    if (word.length > 5 && word[word.length - 4] === word[word.length - 5]) {
+      candidates.push(word.slice(0, -4))
+    }
   }
-  return candidates.filter(c => c.length >= 2)
+
+  if (word.endsWith('ly') && word.length > 4) {
+    candidates.push(word.slice(0, -2))
+    if (word.endsWith('ily') && word.length > 5) {
+      candidates.push(word.slice(0, -3) + 'y')
+    }
+    if (word.endsWith('ally') && word.length > 6) {
+      candidates.push(word.slice(0, -4) + 'al')
+    }
+  }
+
+  return [...new Set(candidates)].filter(c => c.length >= 2)
 }
 
 export const PAGE_MODE_OPTIONS = [
@@ -50,11 +88,11 @@ export const PAGE_STATE_MESSAGES: Record<import('../../types/view/render-scene.v
   },
   timeout: {
     title: '分析超时',
-    subtitle: '内容较长时需要更多处理时间，请稍后重试',
+    subtitle: '内容较长时需要更多处理时间，请稍后重试。',
   },
   network_fail: {
     title: '网络不给力',
-    subtitle: '请检查网络后重新尝试',
+    subtitle: '请检查网络后重新尝试。',
   },
 }
 

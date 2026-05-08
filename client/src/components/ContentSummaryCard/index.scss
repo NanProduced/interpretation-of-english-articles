@@ -1,311 +1,212 @@
-/* ContentSummaryCard → Research Brief v3
- * 编辑排版级重设计 (bolder + delight + animate)
- *
- * 设计方向:
- * - 从"数据展示"转为"学术期刊摘要"的排版品质
- * - Overview → 摘要段落（暖纸色底 + 舒适行距）
- * - Findings → 编号列表（01/02/03 表格数字，编辑风格）
- * - Detail Toggle → 明确的交互入口（图标+文字+边框）
- * - Detail Sections → 键值对层级清晰（小大写标签 + 正文值）
- * - 动画 → 平滑展开 + 交错入场感
- *
- * 色彩: 全灰度轴 rgba(17,17,17,x)，温纸色 #F6F3EC
- * 不使用任何彩色信号、渐变、BAN 1 条纹
- */
-
 .research-brief {
-  margin-bottom: 20rpx;
+  margin: 0 0 30rpx;
+  padding: 20rpx 22rpx 18rpx;
   overflow: hidden;
+  background: rgba(255, 253, 248, 0.72);
+  border: 1rpx solid rgba(17, 17, 17, 0.065);
+  border-radius: 22rpx;
+  box-shadow: 0 8rpx 24rpx rgba(17, 17, 17, 0.025);
 
-  /* ===== Header: 折叠态入口 ===== */
+  .brief-header,
+  .brief-detail-toggle {
+    cursor: pointer;
+  }
+
   .brief-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16rpx 16rpx;
-    cursor: pointer;
-    background: rgba(17, 17, 17, 0.025);
-    border-radius: 12rpx;
-    transition: background-color 0.2s ease;
+    min-height: 44rpx;
+  }
 
-    &:active {
-      background: rgba(17, 17, 17, 0.05);
-    }
+  .brief-header-left {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 12rpx;
+  }
 
-    .brief-header-left {
-      display: flex;
-      align-items: center;
-      gap: 10rpx;
-    }
+  .brief-label {
+    color: rgba(17, 17, 17, 0.68);
+    font-size: 24rpx;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
 
-    .brief-label {
-      font-size: 25rpx;
-      font-weight: 520;
-      color: rgba(17, 17, 17, 0.58);
-      letter-spacing: 0.03em;
-    }
+  .brief-completeness {
+    padding: 3rpx 10rpx;
+    border-radius: 999rpx;
+    background: rgba(73, 111, 143, 0.07);
+    color: rgba(73, 111, 143, 0.78);
+    font-size: 19rpx;
+    font-weight: 520;
+    line-height: 1.35;
+  }
 
-    .brief-chevron {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 36rpx;
-      height: 36rpx;
-      flex-shrink: 0;
-      opacity: 0.50;
-      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  .brief-chevron,
+  .toggle-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.52;
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
 
-      &.is-open {
-        transform: rotate(90deg);
-        opacity: 0.70;
-      }
+    &.is-open {
+      transform: rotate(90deg);
+      opacity: 0.72;
     }
   }
 
-  /* ===== Body: 展开内容区 (max-height 兼容 Taro) ===== */
+  .brief-overview {
+    margin-top: 12rpx;
+    cursor: pointer;
+  }
+
+  .overview-text {
+    display: block;
+    color: rgba(17, 17, 17, 0.70);
+    font-size: 25rpx;
+    font-weight: 400;
+    letter-spacing: 0.005em;
+    line-height: 1.62;
+    word-break: break-word;
+  }
+
   .brief-body {
     max-height: 0;
     overflow: hidden;
     opacity: 0;
-    transition: max-height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-                opacity 0.35s ease-out,
-                margin-top 0.2s ease;
+    transition: max-height 0.34s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s ease, margin-top 0.2s ease;
 
     &.hide {
-      max-height: 0;
-      opacity: 0;
-      pointer-events: none;
       margin-top: 0;
+      pointer-events: none;
     }
 
     &.show {
-      max-height: 2000rpx;
+      max-height: 1800rpx;
+      margin-top: 18rpx;
       opacity: 1;
-      margin-top: 12rpx;
     }
   }
 
-  /* ===== Overview: 摘要段落 — 编辑排版核心区 ===== */
-  .brief-overview {
-    padding: 20rpx 18rpx 18rpx;
-    margin: 0 4rpx;
-    background: var(--reader-paper-deep, #F6F3EC);
-    border-radius: 12rpx;
-    position: relative;
-
-    .overview-text {
-      display: block;
-      font-size: 26rpx;
-      line-height: 1.78;
-      color: rgba(17, 17, 17, 0.72);
-      letter-spacing: 0.015em;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-weight: 400;
-      text-align: justify;
-    }
-  }
-
-  /* ===== Findings: 核心观点 — 编号列表 ===== */
+  .brief-detail-body,
   .brief-findings {
-    padding: 16rpx 8rpx 8rpx;
-    margin-top: 4rpx;
+    border-top: 1rpx solid rgba(17, 17, 17, 0.055);
+  }
 
-    .findings-header {
-      display: flex;
-      align-items: baseline;
-      gap: 8rpx;
-      padding: 0 10rpx 10rpx;
+  .brief-detail-body {
+    padding-top: 14rpx;
 
-      .findings-label {
-        font-size: 20rpx;
-        font-weight: 580;
-        color: rgba(17, 17, 17, 0.42);
-        letter-spacing: 0.06em;
-      }
-
-      .findings-count {
-        font-size: 18rpx;
-        font-weight: 500;
-        color: rgba(17, 17, 17, 0.28);
-        letter-spacing: 0;
-      }
-    }
-
-    .findings-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-
-    .finding-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 14rpx;
-      padding: 13rpx 10rpx;
-      border-radius: 8rpx;
-      transition: background-color 0.15s ease;
-
-      &:active {
-        background: rgba(17, 17, 17, 0.025);
-      }
-
-      .finding-num {
-        font-size: 19rpx;
-        font-weight: 600;
-        color: rgba(17, 17, 17, 0.26);
-        letter-spacing: 0.04em;
-        font-variant-numeric: tabular-nums;
-        flex-shrink: 0;
-        min-width: 28rpx;
-        margin-top: 2rpx;
-      }
-
-      .finding-text {
-        font-size: 24rpx;
-        line-height: 1.68;
-        color: rgba(17, 17, 17, 0.62);
-        letter-spacing: 0.008em;
-        word-break: break-word;
-        flex: 1;
-      }
-
-      & + .finding-item {
-        border-top: 1rpx solid rgba(17, 17, 17, 0.05);
-      }
+    &.limitations {
+      margin-top: 2rpx;
     }
   }
 
-  /* ===== Detail Toggle: 展开/收起结构 —— 交互入口 ===== */
+  .detail-section {
+    padding: 10rpx 0 12rpx;
+
+    & + .detail-section {
+      border-top: 1rpx solid rgba(17, 17, 17, 0.04);
+    }
+  }
+
+  .detail-key,
+  .findings-label {
+    display: block;
+    color: rgba(17, 17, 17, 0.42);
+    font-size: 20rpx;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .detail-value,
+  .detail-list-item {
+    display: block;
+    margin-top: 7rpx;
+    color: rgba(17, 17, 17, 0.62);
+    font-size: 24rpx;
+    line-height: 1.65;
+    word-break: break-word;
+  }
+
+  .detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+  }
+
+  .brief-findings {
+    margin-top: 4rpx;
+    padding-top: 16rpx;
+  }
+
+  .findings-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8rpx;
+    margin-bottom: 4rpx;
+  }
+
+  .findings-count {
+    color: rgba(17, 17, 17, 0.32);
+    font-size: 19rpx;
+  }
+
+  .findings-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .finding-item {
+    display: flex;
+    gap: 14rpx;
+    padding: 12rpx 0;
+
+    & + .finding-item {
+      border-top: 1rpx solid rgba(17, 17, 17, 0.04);
+    }
+  }
+
+  .finding-num {
+    min-width: 32rpx;
+    color: rgba(17, 17, 17, 0.30);
+    font-size: 19rpx;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .finding-text {
+    flex: 1;
+    color: rgba(17, 17, 17, 0.62);
+    font-size: 24rpx;
+    line-height: 1.65;
+    word-break: break-word;
+  }
+
   .brief-detail-toggle {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14rpx 16rpx;
-    margin: 8rpx 4rpx 0;
-    cursor: pointer;
-    border: 1rpx solid rgba(17, 17, 17, 0.07);
-    border-radius: 10rpx;
-    background: transparent;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
-
-    &:active {
-      background: rgba(17, 17, 17, 0.03);
-      border-color: rgba(17, 17, 17, 0.12);
-    }
-
-    .toggle-left {
-      display: flex;
-      align-items: center;
-    }
-
-    .toggle-text {
-      font-size: 21rpx;
-      font-weight: 480;
-      color: rgba(17, 17, 17, 0.46);
-      letter-spacing: 0.04em;
-    }
-
-    .toggle-right {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 30rpx;
-      height: 30rpx;
-      opacity: 0.45;
-      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
-
-      &.is-open {
-        transform: rotate(180deg);
-        opacity: 0.65;
-      }
-    }
+    min-height: 44rpx;
+    margin-top: 12rpx;
+    padding-top: 10rpx;
+    border-top: 1rpx solid rgba(17, 17, 17, 0.045);
   }
 
-  /* ===== Detail Body: 研究结构详情 ===== */
-  .brief-detail-body {
-    padding: 4rpx 4rpx 12rpx;
-    margin-top: 8rpx;
-    animation: detailFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-
-    @keyframes detailFadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-4rpx);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .detail-section {
-      padding: 15rpx 14rpx;
-      margin: 0 4rpx;
-      border-radius: 8rpx;
-
-      &:active {
-        background: rgba(17, 17, 17, 0.018);
-      }
-
-      & + .detail-section {
-        border-top: 1rpx solid rgba(17, 17, 17, 0.045);
-        margin-top: 2rpx;
-      }
-
-      .detail-key {
-        display: block;
-        font-size: 18rpx;
-        font-weight: 600;
-        color: rgba(17, 17, 17, 0.40);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        margin-bottom: 7rpx;
-      }
-
-      .detail-value {
-        display: block;
-        font-size: 24rpx;
-        line-height: 1.70;
-        color: rgba(17, 17, 17, 0.64);
-        letter-spacing: 0.008em;
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-
-      .detail-list {
-        display: flex;
-        flex-direction: column;
-        gap: 7rpx;
-
-        .detail-list-item {
-          font-size: 23rpx;
-          line-height: 1.66;
-          color: rgba(17, 17, 17, 0.58);
-          letter-spacing: 0.008em;
-          padding-left: 4rpx;
-        }
-      }
-    }
-  }
-
-  &.is-collapsed {
-    max-height: none;
+  .toggle-text {
+    color: rgba(17, 17, 17, 0.44);
+    font-size: 22rpx;
+    line-height: 1.45;
   }
 
   &.is-expanded {
-    margin-bottom: 28rpx;
+    margin-bottom: 34rpx;
   }
 }
 
-/* Academic Mode page-level override */
 .academic-mode .research-brief,
 .result-page.academic-mode .research-brief {
-  margin-bottom: 20rpx;
-
-  &.is-collapsed {
-    .brief-label {
-      color: rgba(17, 17, 17, 0.52);
-    }
-  }
+  margin-bottom: 30rpx;
 }

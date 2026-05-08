@@ -156,6 +156,7 @@ export function useResultActions(deps: ActionDeps) {
       .filter(Boolean)
       .join('；') || ''
     const lemma = detailEntry.baseWord ?? detailEntry.word
+    const sentenceId = wordPopup.mark?.anchor?.sentenceId || activeSentenceId || undefined
     const vocabEntry: VocabEntry = {
       id: `${recordId}_${lemma.toLowerCase()}_${Date.now()}`,
       lemma,
@@ -185,6 +186,7 @@ export function useResultActions(deps: ActionDeps) {
         clientRecordId: recordId,
         cloudRecordId: cloudId || undefined,
         sourceSentence: wordPopup.contextSentence || undefined,
+        sourceSentenceId: sentenceId,
         sourceAnchorText: w,
         sourceOccurrence: wordPopup.occurrence,
         collectedAt: new Date().toISOString(),

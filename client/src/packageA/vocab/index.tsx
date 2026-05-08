@@ -70,7 +70,18 @@ function mergeVocabCloudWithLocal(cloudItems: VocabEntry[], localItems: VocabEnt
       continue
     }
 
-    result.push({ ...cloud, mastered: local.mastered !== cloud.mastered ? local.mastered : cloud.mastered })
+    const localRefsCount = local.sourceRefs?.length || 0
+    const cloudRefsCount = cloud.sourceRefs?.length || 0
+    const mergedSourceRefs = localRefsCount >= cloudRefsCount ? local.sourceRefs : cloud.sourceRefs
+    const mergedCollectedForms = (local.collectedForms?.length || 0) >= (cloud.collectedForms?.length || 0) ? local.collectedForms : cloud.collectedForms
+    result.push({
+      ...cloud,
+      mastered: local.mastered !== cloud.mastered ? local.mastered : cloud.mastered,
+      sourceRefs: mergedSourceRefs,
+      collectedForms: mergedCollectedForms,
+      sentence: local.sentence || cloud.sentence,
+      context: local.context || cloud.context,
+    })
   }
 
   for (const local of localItems) {

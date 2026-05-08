@@ -314,29 +314,32 @@ async function executeUpsertVocab(item: SyncQueueItem): Promise<void> {
     const target = currentVocab.find(v => v.id === entry.id)
     if (target) {
       removeVocabEntry(entry.id)
-      saveVocabEntry({ ...target, id: res.id, sourceRefs: syncedRefs, syncState: 'synced' })
+      const newEntry: VocabEntry = { ...target, id: res.id, sourceRefs: syncedRefs, syncState: 'synced' }
+      saveVocabEntry(newEntry)
     }
   } else {
     updateVocabEntry(entry.id, { syncState: 'synced' })
   }
 }
 
+function _isCloudUuid(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+}
+
 async function executeUpdateVocabMastery(item: SyncQueueItem): Promise<void> {
-  const { lemma, masteryStatus, cloudId } = item.payload as { lemma: string; masteryStatus: string; cloudId?: string }
-  const targetId = cloudId || resolveCurrentVocabId(lemma, item.entityId)
+  const { lemma, masteryStatus } = item.payload as { lemma: string; masteryStatus: string; cloudId?: string }
+  const targetId = resolveCurrentVocabId(lemma, item.entityId)
   if (!targetId) return
+  if (!_isCloudUuid(targetId)) throw new Error(`vocab mastery sync: local ID not yet replaced by cloud UUID (${lemma})`)
   await updateCloudVocabulary(targetId, { mastery_status: masteryStatus as 'new' | 'learning' | 'review' | 'mastered' | 'archived' })
 }
 
 async function executeDeleteVocab(item: SyncQueueItem): Promise<void> {
-  const { lemma, cloudId } = item.payload as { lemma: string; cloudId?: string }
-  if (cloudId) {
-    await deleteCloudVocabulary(cloudId)
-    return
-  }
-  const currentId = resolveCurrentVocabId(lemma, item.entityId)
-  if (!currentId) return
-  await deleteCloudVocabulary(currentId)
+  const { lemma } = item.payload as { lemma: string; cloudId?: string }
+  const targetId = resolveCurrentVocabId(lemma, item.entityId)
+  if (!targetId) return
+  if (!_isCloudUuid(targetId)) throw new Error(`vocab delete sync: local ID not yet replaced by cloud UUID (${lemma})`)
+  await deleteCloudVocabulary(targetId)
 }
 
 function resolveCurrentVocabId(lemma: string, fallbackId: string): string | null {

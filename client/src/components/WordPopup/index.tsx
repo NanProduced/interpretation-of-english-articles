@@ -10,6 +10,7 @@ import LucideIcon from '../LucideIcon'
 import AnnotationGlyph from '../AnnotationGlyph'
 import DictionaryFeedback from '../DictionaryFeedback'
 import { getLookupSaveState, getSaveActionCopy } from './lookupSaveState'
+import type { SourceRef } from '../../types/view/vocabulary.vm'
 import './index.scss'
 
 interface WordPopupProps {
@@ -26,6 +27,8 @@ interface WordPopupProps {
   cloudId?: string
   isSaved?: boolean
   savedMasteryStatus?: string
+  savedSourceRefs?: SourceRef[]
+  currentSentenceId?: string
   onClose: () => void
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
@@ -588,7 +591,7 @@ function DictionaryNoteSheet({
 
 export default function WordPopup({
   visible, mode = 'mini', mark, word, contextSentence, occurrence, x = 0, y = 0, readingVariant, readingGoal,
-  cloudId, isSaved = false, savedMasteryStatus, onClose, onExpand, onAddVocab,
+  cloudId, isSaved = false, savedMasteryStatus, savedSourceRefs, currentSentenceId, onClose, onExpand, onAddVocab,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -634,8 +637,8 @@ export default function WordPopup({
     )
   }
 
-  const saveState = getLookupSaveState(lookupText, isSaved, undefined, savedMasteryStatus ? [{ status: savedMasteryStatus }] : undefined)
-  const saveBtnCopy = getSaveActionCopy(saveState)
+  const saveState = getLookupSaveState(lookupText, isSaved, currentSentenceId, savedSourceRefs, savedMasteryStatus === 'mastered')
+  const saveBtnCopy = getSaveActionCopy(saveState, savedSourceRefs?.length)
   const isSavedState = saveState !== 'not_saved'
 
   useEffect(() => {

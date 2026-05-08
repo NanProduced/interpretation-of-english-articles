@@ -180,7 +180,7 @@ export async function addVocabToCloud(
       tags: entry.tags || [],
       exchange: entry.exchange || [],
       source_provider: entry.provider || 'tecd3',
-      dict_entry_id: entry.dictEntryId || null,
+      dict_entry_id: entry.dictEntryId ?? null,
       source_sentence: entry.sentence || null,
       source_context: entry.context || null,
       payload_json: payloadJson,

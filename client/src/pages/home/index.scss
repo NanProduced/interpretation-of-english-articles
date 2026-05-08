@@ -11,7 +11,7 @@
 
   .recommendation-list {
     flex: 1;
-    overflow: hidden;
+    overflow-y: auto;
 
     .header-section {
       padding: 40rpx 48rpx 48rpx;

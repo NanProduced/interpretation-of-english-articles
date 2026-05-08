@@ -1,12 +1,11 @@
 import { useMemo, memo, useState, useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
-import { InlineMarkModel, AnyInlineMarkModel, SentenceEntryModel, AnySentenceEntryModel, VisualTone, AcademicVisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
+import { AnyInlineMarkModel, AnySentenceEntryModel, VisualTone, AcademicVisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
 import ClickableWord from '../ClickableWord'
 import GrammarInlineSpan from '../GrammarInlineSpan'
 import InlineMark from '../InlineMark'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
-import AcademicNoteSlip from '../AcademicNoteSlip'
 import AcademicNoteGroup from '../AcademicNoteGroup'  // 学术注释聚合组
 import FeedbackSheet from '../FeedbackSystem/FeedbackSheet'
 import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis } from './utils'
@@ -126,12 +125,97 @@ function renderTextWithAnalysis(
 
 const normalizeId = (id: string | null | undefined) => id ? id.replace(/^[^_]+_/, '') : null;
 
-function findMarkIdForEntry(entryId: string, marks: AnyInlineMarkModel[]): string {
-  const direct = marks.find(m => m.id === entryId)
+function normalizeForMatch(value: string | null | undefined): string {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[^\u3400-\u9fff\w\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function compactForMatch(value: string): string {
+  return value.replace(/\s+/g, '')
+}
+
+function includesMatch(haystack: string, needle: string): boolean {
+  const compactNeedle = compactForMatch(needle)
+  if (compactNeedle.length < 2) return false
+  return haystack.includes(needle) || compactForMatch(haystack).includes(compactNeedle)
+}
+
+function getAnchorTexts(mark: AnyInlineMarkModel): string[] {
+  if (mark.anchor.kind === 'text') return [mark.anchor.anchorText]
+  return mark.anchor.parts.map(part => part.anchorText).filter(Boolean)
+}
+
+function getMarkTerms(mark: AnyInlineMarkModel): string[] {
+  const glossary = mark.glossary as Record<string, unknown> | undefined
+  const terms: string[] = [
+    mark.lookupText,
+    ...getAnchorTexts(mark),
+    glossary?.zh,
+    glossary?.gloss,
+    glossary?.contextDefinition,
+    glossary?.termCategory,
+    glossary?.logicType,
+  ].filter((term): term is string => typeof term === 'string' && term.trim().length > 0)
+
+  if (Array.isArray(glossary?.hedgingWords)) {
+    terms.push(...glossary.hedgingWords.filter((term): term is string => typeof term === 'string'))
+  }
+
+  return Array.from(new Set(terms.map(normalizeForMatch).filter(Boolean)))
+}
+
+function getExpectedAcademicType(entryType: string): 'term_note' | 'logic_note' | null {
+  if (entryType === 'term_note') return 'term_note'
+  if (entryType === 'logic_note') return 'logic_note'
+  return null
+}
+
+function scoreMarkForEntry(entry: AnySentenceEntryModel, mark: AnyInlineMarkModel): number {
+  const title = normalizeForMatch(entry.title || '')
+  const label = normalizeForMatch(entry.label || '')
+  const content = normalizeForMatch(entry.content || '')
+  let score = 0
+
+  getMarkTerms(mark).forEach(term => {
+    if (includesMatch(title, term)) score += 55
+    if (includesMatch(label, term)) score += 25
+    if (includesMatch(content, term)) score += 18
+    if (includesMatch(term, title)) score += 40
+  })
+
+  return score
+}
+
+function findMarkIdForEntry(entry: AnySentenceEntryModel, marks: AnyInlineMarkModel[]): string | null {
+  const entryNormId = normalizeId(entry.id)
+  const direct = marks.find(m => m.id === entry.id || normalizeId(m.id) === entryNormId)
   if (direct) return direct.id
-  const byParent = marks.find(m => m.parentId === entryId)
+  const byParent = marks.find(m => m.parentId === entry.id || normalizeId(m.parentId) === entryNormId)
   if (byParent) return byParent.id
-  return entryId
+
+  const expectedType = getExpectedAcademicType(entry.entryType)
+  if (!expectedType) return null
+
+  const candidates = marks.filter(mark => (
+    mark.annotationType === expectedType ||
+    (expectedType === 'term_note' && mark.visualTone === 'term') ||
+    (expectedType === 'logic_note' && mark.visualTone === 'logic')
+  ))
+
+  if (candidates.length === 1) return candidates[0].id
+  if (candidates.length === 0) return null
+
+  const ranked = candidates
+    .map(mark => ({ mark, score: scoreMarkForEntry(entry, mark) }))
+    .sort((a, b) => b.score - a.score)
+
+  const [best, second] = ranked
+  if (!best || best.score < 25) return null
+  if (second && best.score === second.score) return null
+  return best.mark.id
 }
 
 function renderTextWithMarks(
@@ -465,7 +549,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
     const sentenceEntries: AnySentenceEntryModel[] = entriesBySentenceId.get(sentence.sentenceId) || []
     const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
 
-    const analysisCards: (AnalysisCardProps & { id: string; markId: string })[] = [
+    const analysisCards: (AnalysisCardProps & { id: string; markId?: string | null })[] = [
       ...sentenceEntries
         .filter(e => e.entryType === 'grammar_note')
         .map(e => {
@@ -477,7 +561,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           }
           return {
             id: e.id,
-            markId: mark ? mark.id : e.id,
+            markId: mark ? mark.id : null,
             type: 'grammar' as const,
             title: getMappedEntryTitle('grammar_note', e.title, e.label) || '语法要点',
             label: '语法要点',
@@ -514,7 +598,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           .filter(e => e.entryType === 'term_note')
           .map(e => ({
             id: e.id,
-            markId: findMarkIdForEntry(e.id, sentenceMarks),
+            markId: findMarkIdForEntry(e, sentenceMarks),
             type: 'term' as const,
             title: getMappedEntryTitle('term_note', e.title, e.label) || '术语标注',
             label: '术语标注',
@@ -525,7 +609,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           .filter(e => e.entryType === 'logic_note')
           .map(e => ({
             id: e.id,
-            markId: findMarkIdForEntry(e.id, sentenceMarks),
+            markId: findMarkIdForEntry(e, sentenceMarks),
             type: 'logic' as const,
             title: getMappedEntryTitle('logic_note', e.title, e.label) || '逻辑关系',
             label: '逻辑关系',
@@ -536,7 +620,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           .filter(e => e.entryType === 'interpretation_note')
           .map(e => ({
             id: e.id,
-            markId: findMarkIdForEntry(e.id, sentenceMarks),
+            markId: findMarkIdForEntry(e, sentenceMarks),
             type: 'interpretation' as const,
             title: getMappedEntryTitle('interpretation_note', e.title, e.label) || '解释说明',
             label: '解释说明',
@@ -619,19 +703,24 @@ const ParagraphBlock = memo(function ParagraphBlock({
                     /* Academic Mode: 聚合为单一注释组，不破坏阅读流 */
                     <AcademicNoteGroup
                       key={`group-${item.sentence.sentenceId}`}
-                      items={item.analysisCards.map(card => ({
+                      items={item.analysisCards
+                        .filter(card => ['term', 'logic', 'interpretation'].includes(card.type))
+                        .map(card => ({
                         id: card.id,
                         markId: card.markId,
                         variant: (card.type === 'term' ? 'term' : card.type === 'logic' ? 'logic' : 'interpretation') as 'term' | 'logic' | 'interpretation',
                         title: card.title,
                         content: card.content,
+                        sourceText: item.sentence.text,
                       }))}
                       initiallyExpanded={false}
                       onToggle={(isExpanded, activeIds) => {
                         onMarkActiveChange?.(isExpanded && activeIds.length > 0 ? activeIds[0] : null)
+                        setGroupActiveMarkIds(new Set(isExpanded ? activeIds : []))
                       }}
                       onActiveChange={(activeIds) => {
                         setGroupActiveMarkIds(new Set(activeIds))
+                        onMarkActiveChange?.(activeIds[0] || null)
                       }}
                     />
                   ) : (
