@@ -224,9 +224,16 @@ async function executeSyncRecord(item: SyncQueueItem): Promise<void> {
   const record = getRecord(clientRecordId as string)
   if (!record || !record.sourceText) return
 
+  const fallbackTitle = record.sourceText.split('\n')[0]?.trim() || ''
+  const isFallbackTitle = record.title && (
+    record.title === fallbackTitle ||
+    record.title === (fallbackTitle.length > 50 ? `${fallbackTitle.slice(0, 50)}...` : fallbackTitle)
+  )
+  const syncTitle = isFallbackTitle ? null : (record.title ?? null)
+
   const res = await saveRecordToCloud({
     clientRecordId: record.recordId,
-    title: record.title ?? null,
+    title: syncTitle,
     sourceText: record.sourceText,
     sourceTextHash: hashString(record.sourceText),
     requestPayload: record.requestPayload,
