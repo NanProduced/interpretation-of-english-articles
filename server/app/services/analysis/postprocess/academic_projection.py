@@ -95,8 +95,10 @@ def _project_term_note(
         term_category=note.term_category,
     )
 
+    stable_payload = note.model_dump()
+
     inline_mark = AcademicInlineMark(
-        id=_stable_id("aim", {"type": "term_note", "anchor": note.model_dump()}),
+        id=_stable_id("aim", {"type": "term_note", "shared_binding": stable_payload}),
         annotation_type="term_note",
         anchor=anchor,
         render_type="background",
@@ -110,7 +112,7 @@ def _project_term_note(
     base_content = note.context_definition
 
     entries.append(AcademicSentenceEntry(
-        id=_stable_id("ase", {"type": "term_note", "role": "primary", "anchor": note.model_dump()}),
+        id=_stable_id("ase", {"type": "term_note", "shared_binding": stable_payload}),
         sentence_id=primary_sid,
         entry_type="term_note",
         label=base_label,
@@ -162,8 +164,10 @@ def _project_logic_note(
         hedging_words=note.hedging_words,
     )
 
+    stable_payload = note.model_dump()
+
     inline_mark = AcademicInlineMark(
-        id=_stable_id("aim", {"type": "logic_note", "anchor": note.model_dump()}),
+        id=_stable_id("aim", {"type": "logic_note", "shared_binding": stable_payload}),
         annotation_type="logic_note",
         anchor=anchor,
         render_type="underline",
@@ -177,7 +181,7 @@ def _project_logic_note(
     base_content = note.explanation
 
     entries.append(AcademicSentenceEntry(
-        id=_stable_id("ase", {"type": "logic_note", "role": "primary", "anchor": note.model_dump()}),
+        id=_stable_id("ase", {"type": "logic_note", "shared_binding": stable_payload}),
         sentence_id=primary_sid,
         entry_type="logic_note",
         label=base_label,
@@ -201,12 +205,20 @@ def _project_logic_note(
 def _project_interpretation_note(
     note: InterpretationNote,
 ) -> AcademicSentenceEntry:
+    title_mapping = {
+        "decontextualization": "语境还原",
+        "disambiguation": "消除歧义",
+    }
+    title = title_mapping.get(note.interpretation_type, note.interpretation_type)
+
+    stable_payload = note.model_dump()
+
     return AcademicSentenceEntry(
-        id=_stable_id("ase", {"type": "interpretation_note", "model": note.model_dump()}),
+        id=_stable_id("ase", {"type": "interpretation_note", "shared_binding": stable_payload}),
         sentence_id=note.sentence_id,
         entry_type="interpretation_note",
-        label=f"解释: {note.interpretation_type}",
-        title=note.interpretation_type,
+        label="解释",
+        title=title,
         content=note.interpretation,
     )
 

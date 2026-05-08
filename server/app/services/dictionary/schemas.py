@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter, field_validator
 
 
 class DictionaryMeaningDefinition(BaseModel):
@@ -21,8 +21,15 @@ class DictionaryLookupRequest(BaseModel):
 
 
 class DictionaryMeaning(BaseModel):
-    part_of_speech: str = Field(description="词性，如 'n.', 'v.', 'adj.'")
+    part_of_speech: str = Field(default="", description="词性，如 'n.', 'v.', 'adj.'")
     definitions: list[DictionaryMeaningDefinition] = Field(description="释义列表")
+
+    @field_validator("part_of_speech", mode="before")
+    @classmethod
+    def _coerce_pos(cls, v: object) -> str:
+        if v is None:
+            return ""
+        return str(v)
 
 
 class DictionaryExample(BaseModel):

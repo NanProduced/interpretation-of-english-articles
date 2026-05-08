@@ -4,8 +4,8 @@ from typing import TypedDict
 
 from app.schemas.analysis import AnalyzeRequest, RenderSceneModel, Warning
 from app.schemas.internal.analysis import PreparedInput
-from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.schemas.internal.drafts import GrammarDraft, TranslationDraft, VocabularyDraft
+from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.schemas.internal.normalized import DropLogEntry, NormalizedAnnotationResult
 
 

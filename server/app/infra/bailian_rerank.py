@@ -56,7 +56,7 @@ def _call_rerank_sync(
     Raises:
         RerankError: 调用失败时
     """
-    resp = dashscope.Rerank.call(
+    resp = dashscope.TextReRank.call(
         model=model,
         query=query,
         documents=documents,

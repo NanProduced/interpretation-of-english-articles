@@ -6,7 +6,7 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
-from langsmith import get_current_run_tree, traceable
+from langsmith import traceable
 
 from app.agents.academic_translation_agent import AcademicTranslationAgentDeps
 from app.agents.term_agent import TermAgentDeps
@@ -23,21 +23,14 @@ from app.schemas.analysis import (
     ArticleStructure,
     Warning,
 )
-from app.schemas.internal.academic_drafts import (
-    AcademicTranslationDraft,
-    TermDraft,
-    UnderstandingDraft,
-)
 from app.schemas.internal.analysis import PreparedSentence
 from app.services.analysis.postprocess.academic_normalize import academic_normalize_and_ground
 from app.services.analysis.postprocess.academic_projection import project_to_academic_render_scene
 from app.services.analysis.preprocess.input_preparation import prepare_input
 from app.services.analysis.prompting.example_strategy import ExampleEntry
-from app.services.analysis.prompting.prompt_composer import build_agent_prompt
 from app.services.analysis.prompting.prompt_loader import load_examples, load_policy_lines
 from app.services.analysis.prompting.prompt_strategy import (
     PromptStrategy,
-    build_prompt_sections,
 )
 from app.services.analysis.runtime.academic_runners import (
     run_academic_translation_agent,
@@ -142,21 +135,6 @@ def _build_agent_trace_metadata(
     )
 
 
-def _set_current_run(
-    *,
-    run_tree: Any,
-    metadata: dict[str, object],
-    outputs: dict[str, object] | None = None,
-    usage_metadata: dict[str, object] | None = None,
-) -> None:
-    kwargs: dict[str, object] = {"metadata": metadata}
-    if outputs is not None:
-        kwargs["outputs"] = outputs
-    if usage_metadata is not None:
-        kwargs["usage_metadata"] = usage_metadata
-    run_tree.set(**kwargs)
-
-
 async def prepare_input_node(state: AcademicState) -> AcademicState:
     payload = state["payload"]
     prepared_input = prepare_input(payload.text)
@@ -204,18 +182,6 @@ async def _run_term_llm_span(
 ) -> dict[str, Any]:
     result = await run_term_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        output = result.output if hasattr(result, "output") else result
-        _set_current_run(
-            run_tree=current_run,
-            metadata={
-                **metadata,
-                "term_note_count": len(output.term_notes),
-            },
-            usage_metadata=usage,
-            outputs={"term_draft": output.model_dump(mode="json")},
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -228,19 +194,6 @@ async def _run_academic_translation_llm_span(
 ) -> dict[str, Any]:
     result = await run_academic_translation_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        output = result.output if hasattr(result, "output") else result
-        _set_current_run(
-            run_tree=current_run,
-            metadata={
-                **metadata,
-                "translation_count": len(output.sentence_translations),
-                "translation_title": output.title,
-            },
-            usage_metadata=usage,
-            outputs={"translation_draft": output.model_dump(mode="json")},
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -322,19 +275,6 @@ async def _run_understanding_llm_span(
 ) -> dict[str, Any]:
     result = await run_understanding_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        output = result.output if hasattr(result, "output") else result
-        _set_current_run(
-            run_tree=current_run,
-            metadata={
-                **metadata,
-                "logic_note_count": len(output.logic_notes),
-                "interpretation_note_count": len(output.interpretation_notes),
-            },
-            usage_metadata=usage,
-            outputs={"understanding_draft": output.model_dump(mode="json")},
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -396,7 +336,6 @@ async def understanding_agent_node(
         }
 
 
-@traceable(name="academic_normalize_and_ground", run_type="chain")
 async def academic_normalize_node(state: AcademicState) -> AcademicState:
     payload = state["payload"]
     prepared_input = state["prepared_input"]
@@ -442,27 +381,12 @@ async def academic_normalize_node(state: AcademicState) -> AcademicState:
         policy=academic_policy,
     )
 
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        current_run.set(
-            metadata={
-                "term_annotation_count": len(normalized_result.term_annotations),
-                "logic_note_count": len(normalized_result.logic_notes),
-                "interpretation_note_count": len(normalized_result.interpretation_notes),
-                "translation_count": len(normalized_result.sentence_translations),
-            },
-            outputs={
-                "academic_normalized_result": normalized_result.model_dump(mode="json"),
-            },
-        )
-
     return {
         "academic_normalized_result": normalized_result,
         "drop_log": normalized_result.drop_log,
     }
 
 
-@traceable(name="academic_project_render_scene", run_type="chain")
 async def academic_project_render_scene_node(state: AcademicState) -> AcademicState:
     payload = state["payload"]
     prepared_input = state["prepared_input"]
@@ -487,13 +411,6 @@ async def academic_project_render_scene_node(state: AcademicState) -> AcademicSt
         profile_id=plan.prompt_profile if plan else "unknown",
         request_id=payload.request_id or "",
     )
-
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        current_run.set(metadata={
-            "inline_marks_count": len(projection_outcome.result.inline_marks),
-            "sentence_entries_count": len(projection_outcome.result.sentence_entries),
-        })
 
     return {
         "render_scene": projection_outcome.result,

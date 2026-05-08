@@ -18,7 +18,7 @@ from collections import Counter
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
-from langsmith import get_current_run_tree, traceable
+from langsmith import traceable
 
 from app.agents.grammar_agent import GrammarAgentDeps
 from app.agents.repair_agent import RepairAgentDeps
@@ -99,21 +99,6 @@ def _aggregate_usage_summary(
     }
 
 
-def _set_current_run(
-    *,
-    run_tree: Any,
-    metadata: dict[str, object],
-    outputs: dict[str, object] | None = None,
-    usage_metadata: dict[str, object] | None = None,
-) -> None:
-    kwargs: dict[str, object] = {"metadata": metadata}
-    if outputs is not None:
-        kwargs["outputs"] = outputs
-    if usage_metadata is not None:
-        kwargs["usage_metadata"] = usage_metadata
-    run_tree.set(**kwargs)
-
-
 def _empty_result(
     *,
     request_id: str,
@@ -179,23 +164,6 @@ async def _run_vocabulary_llm_span(
 ) -> dict[str, Any]:
     result = await run_vocabulary_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        output = result.output if hasattr(result, "output") else result
-        vocab_count = (
-            len(output.vocab_highlights)
-            + len(output.phrase_glosses)
-            + len(output.context_glosses)
-        )
-        _set_current_run(
-            run_tree=current_run,
-            metadata={
-                **metadata,
-                "vocabulary_annotation_count": vocab_count,
-            },
-            usage_metadata=usage,
-            outputs={"vocabulary_draft": output.model_dump(mode="json")},
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -208,19 +176,6 @@ async def _run_grammar_llm_span(
 ) -> dict[str, Any]:
     result = await run_grammar_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        output = result.output if hasattr(result, "output") else result
-        grammar_count = len(output.grammar_notes) + len(output.sentence_analyses)
-        _set_current_run(
-            run_tree=current_run,
-            metadata={
-                **metadata,
-                "grammar_annotation_count": grammar_count,
-            },
-            usage_metadata=usage,
-            outputs={"grammar_draft": output.model_dump(mode="json")},
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -233,19 +188,6 @@ async def _run_translation_llm_span(
 ) -> dict[str, Any]:
     result = await run_translation_agent(deps, model_selection=model_selection)
     usage = extract_run_usage(result)
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        output = result.output if hasattr(result, "output") else result
-        _set_current_run(
-            run_tree=current_run,
-            metadata={
-                **metadata,
-                "translation_count": len(output.sentence_translations),
-                "translation_title": output.title,
-            },
-            usage_metadata=usage,
-            outputs={"translation_draft": output.model_dump(mode="json")},
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -338,6 +280,13 @@ async def _run_parallel_agents(
     grammar_bundle = await build_grammar_bundle_async(plan, sentences=sentences_data)
     translation_bundle = build_translation_bundle(plan)
 
+    logger.info(
+        "Grammar strategy: mode=%s, examples=%d, rag_debug=%s",
+        grammar_bundle.example_strategy.selection_mode,
+        len(grammar_bundle.example_strategy.examples),
+        "yes" if grammar_bundle.rag_debug else "no",
+    )
+
     vocab_deps = VocabularyAgentDeps(
         sentences=sentences_data,
         prompt_strategy=vocab_bundle.prompt_strategy,
@@ -423,7 +372,6 @@ async def parallel_agents_node(state: AnalyzeState, config: RunnableConfig) -> A
     }
 
 
-@traceable(name="normalize_and_ground", run_type="chain")
 async def normalize_and_ground_node(state: AnalyzeState) -> AnalyzeState:
     """Normalize and ground node。"""
     prepared_input = state["prepared_input"]
@@ -453,20 +401,6 @@ async def normalize_and_ground_node(state: AnalyzeState) -> AnalyzeState:
         sentences=sentences,
         policy=state["goal_execution_plan"].policy,
     )
-
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        current_run.set(
-            metadata={
-                "normalized_annotation_count": len(normalized_result.annotations),
-                "drop_log_count": len(normalized_result.drop_log),
-                "translation_count": len(normalized_result.sentence_translations),
-            },
-            outputs={
-                "normalized_result": normalized_result.model_dump(mode="json"),
-                "drop_log": [d.model_dump(mode="json") for d in normalized_result.drop_log],
-            },
-        )
 
     return {
         "normalized_result": normalized_result,
@@ -567,13 +501,9 @@ async def _run_repair_llm_span(
         model_selection=None,
     )
     usage = extract_run_usage(result)
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        _set_current_run(run_tree=current_run, metadata=metadata, usage_metadata=usage)
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
-@traceable(name="project_render_scene", run_type="chain")
 async def project_render_scene_node(state: AnalyzeState) -> AnalyzeState:
     """Project to render scene node。"""
     payload = state["payload"]
@@ -595,10 +525,6 @@ async def project_render_scene_node(state: AnalyzeState) -> AnalyzeState:
         profile_id=plan.prompt_profile if plan else "unknown",
         request_id=payload.request_id or "",
     )
-
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        current_run.set(metadata={"inline_marks_count": len(projection_outcome.result.inline_marks), "sentence_entries_count": len(projection_outcome.result.sentence_entries), "projection_warnings_count": len(projection_outcome.warnings)})
 
     return {
         "render_scene": projection_outcome.result,

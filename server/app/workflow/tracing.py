@@ -71,29 +71,16 @@ def build_llm_trace_metadata(
 
 
 def build_usage_metadata(usage: RunUsage) -> dict[str, object]:
-    input_token_details: dict[str, int] = {}
-    output_token_details: dict[str, int] = {}
-
-    if usage.cache_read_tokens:
-        input_token_details["cache_read"] = usage.cache_read_tokens
-    if usage.cache_write_tokens:
-        input_token_details["cache_creation"] = usage.cache_write_tokens
-
-    for key, value in usage.details.items():
-        if not value:
-            continue
-        if key.startswith("output_"):
-            output_token_details[key.removeprefix("output_")] = value
-        else:
-            output_token_details[key] = value
-
     usage_metadata: dict[str, object] = {
         "input_tokens": usage.input_tokens,
         "output_tokens": usage.output_tokens,
         "total_tokens": usage.input_tokens + usage.output_tokens,
     }
-    if input_token_details:
-        usage_metadata["input_token_details"] = input_token_details
-    if output_token_details:
-        usage_metadata["output_token_details"] = output_token_details
+    if usage.cache_read_tokens:
+        usage_metadata["cache_read_tokens"] = usage.cache_read_tokens
+    if usage.cache_write_tokens:
+        usage_metadata["cache_write_tokens"] = usage.cache_write_tokens
+    for key, value in usage.details.items():
+        if value:
+            usage_metadata[key] = value
     return usage_metadata

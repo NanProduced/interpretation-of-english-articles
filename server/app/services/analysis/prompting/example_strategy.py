@@ -10,11 +10,14 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Literal
 
 from app.schemas.internal.execution_plan import GoalExecutionPlan
 from app.services.analysis.prompting.prompt_loader import load_examples
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -158,11 +161,14 @@ async def get_grammar_example_strategy_async(
 
     settings = get_settings()
     if settings.grammar_rag_enabled:
+        logger.info("Grammar RAG enabled, querying RAG for variant=%s", plan.variant_id)
         rag_examples = await _resolve_rag_examples_async(
             "grammar", plan.variant_id, sentences
         )
         if rag_examples:
+            logger.info("Grammar RAG returned %d examples", len(rag_examples))
             return ExampleStrategy(examples=rag_examples, selection_mode="rag")
+        logger.info("Grammar RAG returned 0 examples, falling back to baseline")
         return ExampleStrategy(
             examples=_load_baseline_examples("grammar", plan.variant_id),
             selection_mode="rag_fallback",

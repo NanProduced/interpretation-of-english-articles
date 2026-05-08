@@ -84,13 +84,30 @@ async def query_grammar_rag(
         RAGQueryResult，失败时自动 fallback。
     """
     if not sentences:
+        logger.info("RAG query skipped: no input sentences")
         return RAGQueryResult(
             fallback_reason="no_input_sentences",
             selection_mode="rag_fallback",
         )
 
+    logger.info(
+        "RAG query start: variant=%s, output_type=%s, sentences=%d",
+        variant, output_type, len(sentences),
+    )
     try:
-        return await _do_rag_query(variant, sentences, output_type, top_k)
+        result = await _do_rag_query(variant, sentences, output_type, top_k)
+        logger.info(
+            "RAG query done: mode=%s, examples=%d, ids=%s, "
+            "embed=%.0fms, ann=%.0fms, rerank=%.0fms, fallback=%s",
+            result.selection_mode,
+            result.example_count,
+            result.selected_example_ids,
+            result.embedding_latency_ms,
+            result.ann_latency_ms,
+            result.rerank_latency_ms,
+            result.fallback_reason or "none",
+        )
+        return result
     except Exception as exc:
         logger.warning(
             "Grammar RAG retrieval failed, falling back to baseline: %s",
@@ -140,9 +157,13 @@ async def _do_rag_query(
     budget = _INJECTION_BUDGET.get(output_type, 2)
     final = deduped[:budget]
 
+    _OUTPUT_TYPE_TO_EXAMPLE_TYPE = {
+        "grammar_note": "grammar",
+        "sentence_analysis": "sentence_analysis",
+    }
     examples = [
         ExampleEntry(
-            example_type=output_type,
+            example_type=_OUTPUT_TYPE_TO_EXAMPLE_TYPE.get(output_type, output_type),
             sentence_text=c.entity.get("source_sentence", ""),
             output_fragment=c.entity.get("output_fragment", ""),
         )
@@ -202,6 +223,7 @@ async def _retrieve_from_backend(
 
     t0 = time.monotonic()
     filter_expr = f'{base_filter} and reading_variant == "{variant}"'
+    logger.info("RAG ANN search: collection=%s, filter=%s", collection_name, filter_expr)
     search_results = await zilliz_search(
         collection_name=collection_name,
         query_vector=query_vector,
@@ -211,6 +233,7 @@ async def _retrieve_from_backend(
 
     if not search_results and variant != "default":
         filter_expr = f'{base_filter} and reading_variant == "default"'
+        logger.info("RAG ANN fallback to default variant: filter=%s", filter_expr)
         search_results = await zilliz_search(
             collection_name=collection_name,
             query_vector=query_vector,
@@ -222,7 +245,10 @@ async def _retrieve_from_backend(
     result.ann_topk = settings.grammar_rag_ann_topk
 
     if not search_results:
+        logger.info("RAG ANN returned 0 results")
         return []
+
+    logger.info("RAG ANN returned %d results, proceeding to rerank", len(search_results))
 
     rerank_docs = []
     for sr in search_results:

@@ -17,7 +17,7 @@ import re
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
-from langsmith import get_current_run_tree, traceable
+from langsmith import traceable
 
 from app.agents.daily_footer_agent import (
     DailyFooterAgentDeps,
@@ -44,7 +44,7 @@ from app.agents.daily_vocab_agent import (
     build_daily_vocab_prompt,
     get_daily_vocab_agent,
 )
-from app.llm.agent_runner import extract_model_metadata, extract_run_usage, run_agent_with_route
+from app.llm.agent_runner import extract_run_usage, run_agent_with_route
 from app.llm.routes import (
     MODEL_ROUTE_DAILY_ANALYSIS,
     MODEL_ROUTE_DAILY_ANNOTATION,
@@ -83,21 +83,6 @@ class DailyReaderState(TypedDict, total=False):
     content_sec_check: dict
 
     usage_summary: dict | None
-
-
-def _set_current_run(
-    *,
-    run_tree: Any,
-    metadata: dict[str, object],
-    outputs: dict[str, object] | None = None,
-    usage_metadata: dict[str, object] | None = None,
-) -> None:
-    kwargs: dict[str, object] = {"metadata": metadata}
-    if outputs is not None:
-        kwargs["outputs"] = outputs
-    if usage_metadata is not None:
-        kwargs["usage_metadata"] = usage_metadata
-    run_tree.set(**kwargs)
 
 
 def _aggregate_usage(state: DailyReaderState) -> dict[str, Any]:
@@ -152,16 +137,6 @@ async def _vocab_highlight_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        draft = result.output if hasattr(result, "output") else None
-        hl_count = len(_extract_highlights_from_vocab_draft(draft)) if draft else 0
-        _set_current_run(
-            run_tree=current_run,
-            metadata={**metadata, **model_meta, "highlight_count": hl_count},
-            usage_metadata=usage,
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -201,16 +176,6 @@ async def _phrase_gloss_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        draft = result.output if hasattr(result, "output") else None
-        hl_count = len(_extract_highlights_from_vocab_draft(draft)) if draft else 0
-        _set_current_run(
-            run_tree=current_run,
-            metadata={**metadata, **model_meta, "highlight_count": hl_count},
-            usage_metadata=usage,
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -222,7 +187,9 @@ async def phrase_context_gloss_node(state: DailyReaderState) -> dict:
         return {"highlights_json": existing_highlights}
 
     try:
-        from app.services.analysis.prompting.daily_prompt_strategy import build_phrase_gloss_strategy
+        from app.services.analysis.prompting.daily_prompt_strategy import (
+            build_phrase_gloss_strategy,
+        )
 
         deps = DailyVocabAgentDeps(
             paragraphs=paragraphs,
@@ -257,15 +224,6 @@ async def _footer_analysis_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        footer = result.output if hasattr(result, "output") else None
-        _set_current_run(
-            run_tree=current_run,
-            metadata={**metadata, **model_meta, "has_footer": footer is not None},
-            usage_metadata=usage,
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -313,16 +271,6 @@ async def _full_interpretation_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        interp = result.output if hasattr(result, "output") else None
-        text_len = len(getattr(interp, "full_article_analysis", "")) if interp else 0
-        _set_current_run(
-            run_tree=current_run,
-            metadata={**metadata, **model_meta, "interpretation_length": text_len},
-            usage_metadata=usage,
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -369,16 +317,6 @@ async def _quality_review_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        review = result.output if hasattr(result, "output") else None
-        passed = getattr(review, "passed", True) if review else True
-        _set_current_run(
-            run_tree=current_run,
-            metadata={**metadata, **model_meta, "review_passed": passed},
-            usage_metadata=usage,
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -422,16 +360,6 @@ async def _refinement_llm_span(
 ) -> dict[str, Any]:
     result = await run_agent_with_route(agent=agent, prompt=prompt, deps=deps, route=route)
     usage = extract_run_usage(result)
-    model_meta = extract_model_metadata(getattr(result, "_resolved_model_config", None))
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        refinement = result.output if hasattr(result, "output") else None
-        aborted = getattr(refinement, "abort", False) if refinement else False
-        _set_current_run(
-            run_tree=current_run,
-            metadata={**metadata, **model_meta, "refinement_aborted": aborted},
-            usage_metadata=usage,
-        )
     return {"output": result.output if hasattr(result, "output") else result, "usage": usage}
 
 
@@ -516,9 +444,6 @@ def daily_projection_node(state: DailyReaderState) -> dict:
         })
 
     usage_summary = _aggregate_usage(state)
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        current_run.set(outputs={"usage_summary": usage_summary})
 
     return {
         "body_json": {"paragraphs": body_paragraphs},

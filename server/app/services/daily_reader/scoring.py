@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict, Field
-from langsmith import get_current_run_tree, traceable
+from langsmith import traceable
 
 from app.services.daily_reader.discovery import DiscoveredArticle
 
@@ -89,23 +89,6 @@ async def _score_article_llm_span(
     prompt = _build_scoring_prompt(article)
     result = await scoring_agent.run(prompt)
     output = result.output
-
-    usage = extract_run_usage(result)
-    current_run = get_current_run_tree()
-    if current_run is not None:
-        current_run.set(
-            metadata={
-                "pipeline_stage": "scoring",
-                "model_route": "daily_analysis",
-                "model_name": model_name,
-                "profile_name": profile_name,
-                "ls_provider": provider,
-                "ls_model_name": model_name,
-                "article_title": article.title[:80],
-                "article_source": article.source,
-            },
-            usage_metadata=usage,
-        )
 
     overall = (
         output.language_richness

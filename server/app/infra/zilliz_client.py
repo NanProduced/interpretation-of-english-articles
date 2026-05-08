@@ -113,14 +113,29 @@ async def zilliz_search(
         )
         if not results or not results[0]:
             return []
-        return [
-            SearchResult(
-                id=str(hit["id"]),
-                score=1.0 - hit["distance"],
-                entity=hit["entity"],
+        parsed: list[SearchResult] = []
+        for hit in results[0]:
+            if isinstance(hit, dict):
+                hit_id = str(
+                    hit.get("id")
+                    or hit.get("example_id")
+                    or hit.get("entity", {}).get("example_id", "")
+                )
+                distance = hit.get("distance", 1.0)
+                entity = hit.get("entity", {})
+            else:
+                hit_id = str(
+                    getattr(hit, "id", None)
+                    or getattr(hit, "example_id", None)
+                    or getattr(hit, "entity", {}).get("example_id", "")
+                )
+                distance = getattr(hit, "distance", 1.0)
+                entity = getattr(hit, "entity", {})
+            score = max(0.0, 1.0 - abs(distance))
+            parsed.append(
+                SearchResult(id=hit_id, score=score, entity=entity)
             )
-            for hit in results[0]
-        ]
+        return parsed
     except Exception as e:
         logger.warning("Zilliz search failed: %s", e)
         return []
