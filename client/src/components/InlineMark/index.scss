@@ -87,72 +87,112 @@
   }
 
   /* =========================================================
-   * Academic Mode Variant - 低饱和度学术标注
+   * Academic Mode — 统一灰度标注 + 锚点高亮动画
    *
-   * 设计原则:
-   * - term_note: 细蓝灰下划线（概念信号）
-   * - logic_note: 细琥珀下划线（论证信号）
-   * - interpretation_note: 无永久行内标记
-   * - 保持可读性，优先使用下划线而非背景色
+   * 设计决策:
+   * - term / logic: 极细灰度下划线（默认态）
+   * - .active 态: 展开卡片时原文同步高亮 — 微暖脉冲信号
+   * - 动画原则 (animate): GPU 加速、< 500ms、ease-out-quart
+   * - 色彩原则 (delight): 全灰度轴，无彩色信号
    * ========================================================= */
   &.academic-mode {
-    /* Academic Term Note - 蓝灰概念下划线 */
     &.underline.tone-term {
-      border-bottom: 1rpx solid var(--academic-term-line);  /* 极细线 */
+      border-bottom: 1rpx solid var(--academic-mark-term, rgba(17, 17, 17, 0.18));
       padding-bottom: 2rpx;
+      transition: border-bottom-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  background-color 0.3s ease,
+                  box-shadow 0.3s ease;
 
       &:active,
       &.clickable:active,
       &.active {
-        border-bottom-color: rgba(73, 111, 143, 0.88);  /* Active 时稍深 */
-        background: linear-gradient(to top, var(--academic-term-surface) 40%, transparent 40%);  /* 极浅背景 */
+        border-bottom-color: var(--academic-mark-term-active, rgba(17, 17, 17, 0.38));
+        background: linear-gradient(to top, rgba(17, 17, 17, 0.06) 40%, transparent 40%);
+        box-shadow: 0 1rpx 4rpx rgba(17, 17, 17, 0.08);
+        animation: anchorPulse 2.5s ease-in-out infinite;
       }
     }
 
-    /* Academic Logic Note - 琥珀论证下划线 */
     &.underline.tone-logic {
-      border-bottom: 1rpx solid var(--academic-logic-line);  /* 极细线 */
+      border-bottom: 1rpx solid var(--academic-mark-logic, rgba(17, 17, 17, 0.16));
       padding-bottom: 2rpx;
+      transition: border-bottom-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  background-color 0.3s ease,
+                  box-shadow 0.3s ease;
 
       &:active,
       &.clickable:active,
       &.active {
-        border-bottom-color: rgba(181, 117, 35, 0.82);  /* Active 时稍深 */
-        background: linear-gradient(to top, var(--academic-logic-surface) 40%, transparent 40%);  /* 极浅背景 */
+        border-bottom-color: var(--academic-mark-logic-active, rgba(17, 17, 17, 0.35));
+        background: linear-gradient(to top, rgba(17, 17, 17, 0.055) 40%, transparent 40%);
+        box-shadow: 0 1rpx 4rpx rgba(17, 17, 17, 0.07);
+        animation: anchorPulse 2.5s ease-in-out infinite;
       }
     }
 
-    /* Academic Interpretation Note - 无行内标记 */
     &.tone-interpretation {
-      /* 不显示任何视觉标记，仅作为交互入口 */
       border-bottom: none !important;
       background: none !important;
     }
 
-    /* Academic Background Variant - 如果必须使用背景 */
     &.background.tone-term {
-      background-color: var(--academic-term-surface);  /* 极淡的蓝灰 */
+      background-color: rgba(17, 17, 17, 0.05);
+      transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.3s ease;
 
       &:active,
       &.clickable:active,
       &.active {
-        background-color: rgba(73, 111, 143, 0.14);  /* 稍深但仍克制 */
+        background-color: rgba(17, 17, 17, 0.12);
+        box-shadow: 0 1rpx 6rpx rgba(17, 17, 17, 0.10);
+        animation: anchorPulseBg 2.5s ease-in-out infinite;
       }
     }
 
     &.background.tone-logic {
-      background-color: var(--academic-logic-surface);  /* 极淡的琥珀 */
+      background-color: rgba(17, 17, 17, 0.04);
+      transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.3s ease;
 
       &:active,
       &.clickable:active,
       &.active {
-        background-color: rgba(181, 117, 35, 0.16);  /* 稍深但仍克制 */
+        background-color: rgba(17, 17, 17, 0.11);
+        box-shadow: 0 1rpx 6rpx rgba(17, 17, 17, 0.09);
+        animation: anchorPulseBg 2.5s ease-in-out infinite;
       }
     }
 
-    /* Active state - 更克制的反馈 */
     &.clickable:active {
-      opacity: 0.9;  /* 更轻微的透明度变化 */
+      opacity: 0.9;
     }
+  }
+}
+
+/* =========================================================
+ * 锚点高亮微动画 (delight + animate)
+ *
+ * 原则:
+ * - 非常克制 — 这是阅读应用，不是游戏
+ * - 仅在 .active 时触发（卡片展开 → 原文高亮）
+ * - 2.5s 循环，用户感知为"温和的呼吸感"
+ * - 纯 transform + opacity，GPU 加速
+ * ========================================================= */
+
+@keyframes anchorPulse {
+  0%, 100% {
+    box-shadow: 0 1rpx 4rpx rgba(17, 17, 17, 0.08);
+  }
+  50% {
+    box-shadow: 0 1rpx 8rpx rgba(17, 17, 17, 0.14);
+  }
+}
+
+@keyframes anchorPulseBg {
+  0%, 100% {
+    background-color: rgba(17, 17, 17, 0.12);
+  }
+  50% {
+    background-color: rgba(17, 17, 17, 0.16);
   }
 }

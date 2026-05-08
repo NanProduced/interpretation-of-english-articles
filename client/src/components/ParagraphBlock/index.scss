@@ -92,33 +92,15 @@
     .analysis-cards-list {
       display: flex;
       flex-direction: column;
-      gap: 10rpx; /* Tighter spacing for collapsed note tabs */
-      margin-top: 8rpx;
+      gap: 8rpx;   /* 8×1 模数间距 */
+      margin-top: 8rpx;  /* 8×1 */
 
-      /* Academic Mode: 极致紧凑但有视觉节奏 */
-    &.academic-mode {
-      gap: 6rpx;   /* Arrange: 从 0 增至 6rpx，微间距呼吸感 */
-      margin-top: 8rpx;  /* Arrange: 从 4rpx 增至 8rpx */
-      padding: 0;
-        
-      /* Arrange: 同段多卡片添加分隔线，增强视觉节奏 */
-      .academic-note-slip:not(:last-child)::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 24rpx;   /* Arrange: 从 48rpx 缩进至 24rpx */
-        right: 12rpx;  /* Arrange: 从 16rpx 调整 */
-        height: 1rpx;
-        background: linear-gradient(
-          90deg,
-          transparent 0%,
-          rgba(17, 17, 17, 0.08) 15%,  /* Arrange: 从 0.04 增强至 0.08 */
-          rgba(17, 17, 17, 0.08) 85%,
-          transparent 100%
-        );
+      &.academic-mode {
+        gap: 0;     /* AcademicNoteGroup 自行管理内部间距 */
+        margin-top: 8rpx;
+        padding: 0;
       }
-    }  /* ← 关闭 &.academic-mode */
-  }    /* ← ⭐ 新增：关闭 .analysis-cards-list (之前缺失!) */
+    }
 
 
   .drop-cap {
@@ -315,20 +297,19 @@
 
     /* =========================================================
      * 次层 (Secondary): 中文翻译
-     * - 明显弱于原文
-     * - 颜色更淡、字号更小
-     * - 明确表达"辅助"地位
+     * - 可读性优先：颜色从 0.38 提升至 0.52
+     * - 明确弱于原文但保持可读
      * ========================================================= */
     .sentence-translation {
-      margin-top: 10rpx;  /* 更紧凑的间距 */
-      margin-bottom: 12rpx;
+      margin-top: 8rpx;   /* 8×1 */
+      margin-bottom: 12rpx;  /* 8×1.5 → 对齐模数 */
 
       .translation-text {
-        color: rgba(17, 17, 17, 0.38);  /* 从 .42 降至 .38，更淡 */
-        font-size: 24rpx;  /* 从 25rpx 减至 24rpx */
-        line-height: 1.65;
-        font-weight: 400;  /* 正常字重 */
-        letter-spacing: 0.02em;  /* 稍微增加字距，提升可读性 */
+        color: var(--academic-translation-color, rgba(17, 17, 17, 0.52));
+        font-size: var(--academic-translation-size, 25rpx);
+        line-height: var(--academic-translation-line-height, 1.65);
+        font-weight: 400;
+        letter-spacing: 0.02em;
       }
     }
 

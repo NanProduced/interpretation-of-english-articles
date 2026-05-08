@@ -73,10 +73,10 @@ export default function ReaderContextBar({
           </View>
         </View>
 
-        {isAcademicMode && (
+        {isAcademicMode && goalLabel !== '学术' && (
           <>
             <Text className='context-divider'>·</Text>
-            <Text className='context-item academic'>学术模式</Text>
+            <Text className='context-item academic'>学术</Text>
           </>
         )}
       </View>

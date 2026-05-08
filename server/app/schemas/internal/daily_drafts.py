@@ -85,6 +85,23 @@ class DailyFooterDraft(BaseModel):
     misreading_points: list[MisreadingPoint] = Field(default_factory=list)
     discussion_questions: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_json_strings(cls, data: dict) -> dict:
+        if not isinstance(data, dict):
+            return data
+        for key in ("structure", "key_expressions", "misreading_points", "discussion_questions", "thesis_and_intent"):
+            val = data.get(key)
+            if isinstance(val, str):
+                try:
+                    data[key] = json.loads(val)
+                except (json.JSONDecodeError, ValueError):
+                    if key == "thesis_and_intent":
+                        data[key] = {}
+                    else:
+                        data[key] = []
+        return data
+
 
 class DailyInterpretationDraft(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)

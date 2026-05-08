@@ -1,250 +1,311 @@
-/* Content Summary Card - 内容概要卡片
+/* ContentSummaryCard → Research Brief v3
+ * 编辑排版级重设计 (bolder + delight + animate)
  *
- * 设计原则 (impeccable typeset + clarify):
+ * 设计方向:
+ * - 从"数据展示"转为"学术期刊摘要"的排版品质
+ * - Overview → 摘要段落（暖纸色底 + 舒适行距）
+ * - Findings → 编号列表（01/02/03 表格数字，编辑风格）
+ * - Detail Toggle → 明确的交互入口（图标+文字+边框）
+ * - Detail Sections → 键值对层级清晰（小大写标签 + 正文值）
+ * - 动画 → 平滑展开 + 交错入场感
  *
- * === Typeset (排版优化) ===
- * - 模块化字体比例 (1.25x scale): 标题28/正文24/标签19/辅助18
- * - 舒适行高: body text 1.68-1.72, headings 1.3-1.4
- * - 最佳行宽: max-width 65-75ch (~520rpx)
- * - 字距调整: body +0.01em, headings ±0
- * 
- * === Clarify (清晰度优化) ===
- * - 信息层级: 标题 > 概述 > 结构字段 > 辅助信息
- * - 视觉呼吸: 段落间 16-20rpx, 区块间 24-32rpx
- * - 认知负荷: 单屏不超过 3 个主要信息块
- * - 扫描友好: 字段标签使用大写+字距加宽
+ * 色彩: 全灰度轴 rgba(17,17,17,x)，温纸色 #F6F3EC
+ * 不使用任何彩色信号、渐变、BAN 1 条纹
  */
 
-.content-summary-card {
-  margin-bottom: 24rpx;
-  border-radius: var(--academic-note-radius, 24rpx);
+.research-brief {
+  margin-bottom: 20rpx;
   overflow: hidden;
-  background: var(--reader-paper-deep, #F9F7F3);
-  border: 1rpx solid rgba(17, 17, 17, 0.05);
-  position: relative;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* 不再使用侧边条纹 (BAN 1) */
-
-  .summary-header {
+  /* ===== Header: 折叠态入口 ===== */
+  .brief-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18rpx 26rpx;  /* 微调 padding */
-    gap: 12rpx;
+    padding: 16rpx 16rpx;
+    cursor: pointer;
+    background: rgba(17, 17, 17, 0.025);
+    border-radius: 12rpx;
     transition: background-color 0.2s ease;
 
     &:active {
-      background: rgba(17, 17, 17, 0.03);
+      background: rgba(17, 17, 17, 0.05);
     }
 
-    .summary-header-main {
-      flex: 1;
-      min-width: 0;
+    .brief-header-left {
       display: flex;
       align-items: center;
       gap: 10rpx;
     }
 
-    .summary-title {
-      font-size: 27rpx;  /* 从25rpx提升至27rpx，更易读 */
-      font-weight: 600;   /* 保持中等字重 */
-      color: var(--academic-logic-text, #B57323);
-      letter-spacing: 0;   /* 标题不增加字距 */
-      line-height: 1.3;   /* 紧凑行高 */
+    .brief-label {
+      font-size: 25rpx;
+      font-weight: 520;
+      color: rgba(17, 17, 17, 0.58);
+      letter-spacing: 0.03em;
     }
 
-    .completeness-tag {
-      font-size: 18rpx;  /* 从19rpx降至18rpx */
-      padding: 4rpx 11rpx;  /* 微调内边距 */
-      border-radius: 14rpx;
-      border: 1rpx solid var(--academic-term-border, rgba(73, 111, 143, 0.18));
-      background: var(--academic-term-surface, rgba(73, 111, 143, 0.08));
-      font-weight: 500;
-      flex-shrink: 0;
-
-      .completeness-text {
-        font-size: 18rpx;
-        color: var(--academic-term-text, #496F8F);
-        letter-spacing: 0.02em;  /* 标签增加字距提升可读性 */
-      }
-    }
-
-    .summary-toggle {
-      flex-shrink: 0;
+    .brief-chevron {
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0.25;
-      
-      &:active {
-        opacity: 0.5;
+      width: 36rpx;
+      height: 36rpx;
+      flex-shrink: 0;
+      opacity: 0.50;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+
+      &.is-open {
+        transform: rotate(90deg);
+        opacity: 0.70;
       }
     }
   }
 
-  .summary-body {
+  /* ===== Body: 展开内容区 (max-height 兼容 Taro) ===== */
+  .brief-body {
+    max-height: 0;
     overflow: hidden;
-    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity: 0;
+    transition: max-height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.35s ease-out,
+                margin-top 0.2s ease;
 
     &.hide {
       max-height: 0;
       opacity: 0;
       pointer-events: none;
+      margin-top: 0;
     }
 
     &.show {
-      max-height: 2500rpx;
+      max-height: 2000rpx;
       opacity: 1;
+      margin-top: 12rpx;
     }
   }
 
-  /* =========================================================
-   * Overview Section - 概述文本
-   * Typeset: 正文层级，舒适阅读体验
-   * ========================================================= */
-  .overview-section {
-    padding: 10rpx 26rpx 22rpx;  /* 增加上边距 */
+  /* ===== Overview: 摘要段落 — 编辑排版核心区 ===== */
+  .brief-overview {
+    padding: 20rpx 18rpx 18rpx;
+    margin: 0 4rpx;
+    background: var(--reader-paper-deep, #F6F3EC);
+    border-radius: 12rpx;
+    position: relative;
 
     .overview-text {
-      font-size: 25rpx;  /* 从26rpx降至25rpx，更符合阅读最佳实践 */
-      color: rgba(17, 17, 17, 0.75);  /* 从.78降至.75，降低对比度减少疲劳 */
-      line-height: 1.72;  /* 从1.68提升至1.72，更舒适的行距 */
       display: block;
+      font-size: 26rpx;
+      line-height: 1.78;
+      color: rgba(17, 17, 17, 0.72);
+      letter-spacing: 0.015em;
       white-space: pre-wrap;
-      word-break: break-word;  /* 允许长单词断行 */
-      letter-spacing: 0.015em;  /* 从0.01em提升，中文阅读更舒适 */
+      word-break: break-word;
       font-weight: 400;
-      max-width: 100%;  /* 防止溢出 */
-      
-      /* Clarify: 优化段落首行缩进或段间距 */
-      &::first-line {
-        /* 可选：首行不缩进，保持左对齐 */
-      }
+      text-align: justify;
     }
   }
 
-  /* =========================================================
-   * Structured Sections - 结构化字段列表
-   * Typeset: 辅助信息层级，扫描友好
-   * ========================================================= */
-  .structured-sections {
-    padding: 0 26rpx 24rpx;
-    display: flex;
-    flex-direction: column;
-    gap: 18rpx;  /* 从14rpx增至18rpx，增强区块分离感 */
+  /* ===== Findings: 核心观点 — 编号列表 ===== */
+  .brief-findings {
+    padding: 16rpx 8rpx 8rpx;
+    margin-top: 4rpx;
 
-    .structured-item {
-      padding: 14rpx 18rpx;  /* 微调内边距 */
-      background: rgba(255, 255, 255, 0.65);  /* 从.6提升至.65，稍明显 */
-      border-radius: 16rpx;
-      border: 1rpx solid rgba(17, 17, 17, 0.04);
+    .findings-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8rpx;
+      padding: 0 10rpx 10rpx;
 
-      /* Clarify: 字段标签 - 使用大写+宽字距，扫描友好 */
-      .structured-label {
-        display: flex;
-        align-items: center;
-        gap: 8rpx;
-        margin-bottom: 9rpx;  /* 从8rpx增至9rpx */
-
-        .structured-label-text {
-          font-size: 19rpx;  /* 从21rpx降至19rpx */
-          color: rgba(17, 17, 17, 0.42);  /* 从.45降至.42，更弱化 */
-          font-weight: 600;
-          text-transform: uppercase;  /* 大写字母 */
-          letter-spacing: 0.08em;  /* ⭐ 大幅增加字距，像书籍索引标签 */
-          font-size: 17rpx;  /* 最终字号 */
-        }
+      .findings-label {
+        font-size: 20rpx;
+        font-weight: 580;
+        color: rgba(17, 17, 17, 0.42);
+        letter-spacing: 0.06em;
       }
 
-      /* Clarify: 字段内容 - 舒适阅读 */
-      .structured-content {
-        font-size: 24rpx;  /* 从25rpx降至24rpx */
-        color: rgba(17, 17, 17, 0.72);  /* 从.78降至.72 */
-        line-height: 1.66;  /* 从1.62提升至1.66 */
-        display: block;
-        white-space: pre-wrap;
+      .findings-count {
+        font-size: 18rpx;
+        font-weight: 500;
+        color: rgba(17, 17, 17, 0.28);
+        letter-spacing: 0;
+      }
+    }
+
+    .findings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .finding-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14rpx;
+      padding: 13rpx 10rpx;
+      border-radius: 8rpx;
+      transition: background-color 0.15s ease;
+
+      &:active {
+        background: rgba(17, 17, 17, 0.025);
+      }
+
+      .finding-num {
+        font-size: 19rpx;
+        font-weight: 600;
+        color: rgba(17, 17, 17, 0.26);
+        letter-spacing: 0.04em;
+        font-variant-numeric: tabular-nums;
+        flex-shrink: 0;
+        min-width: 28rpx;
+        margin-top: 2rpx;
+      }
+
+      .finding-text {
+        font-size: 24rpx;
+        line-height: 1.68;
+        color: rgba(17, 17, 17, 0.62);
+        letter-spacing: 0.008em;
         word-break: break-word;
-        font-weight: 400;
-        letter-spacing: 0.01em;
+        flex: 1;
       }
 
-      /* Clarify: 发现列表 - 项目符号对齐 */
-      .findings-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10rpx;  /* 保持不变 */
-
-        .finding-item {
-          display: flex;
-          align-items: flex-start;
-          gap: 10rpx;
-
-          .finding-dot {
-            width: 6rpx;
-            height: 6rpx;
-            border-radius: 50%;
-            background: var(--academic-term-line, rgba(73, 111, 143, 0.72));
-            flex-shrink: 0;
-            margin-top: 12rpx;  /* 与第一行文字对齐 */
-          }
-
-          .finding-text {
-            font-size: 24rpx;  /* 从25rpx降至24rpx */
-            color: rgba(17, 17, 17, 0.72);
-            line-height: 1.66;  /* 提升 */
-            flex: 1;
-            word-break: break-word;  /* 允许长词断行 */
-            letter-spacing: 0.01em;
-          }
-        }
+      & + .finding-item {
+        border-top: 1rpx solid rgba(17, 17, 17, 0.05);
       }
     }
   }
 
-  /* =========================================================
-   * Collapsed State - 极致紧凑模式
-   * ========================================================= */
-  &.collapsed {
-    margin-bottom: 16rpx;
-    
-    .summary-header {
-      padding: 15rpx 24rpx;  /* 微调 */
-    }
-
-    .summary-toggle {
-      opacity: 0.2;
-    }
+  /* ===== Detail Toggle: 展开/收起结构 —— 交互入口 ===== */
+  .brief-detail-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14rpx 16rpx;
+    margin: 8rpx 4rpx 0;
+    cursor: pointer;
+    border: 1rpx solid rgba(17, 17, 17, 0.07);
+    border-radius: 10rpx;
+    background: transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 
     &:active {
-      transform: scale(0.985);
-      opacity: 0.85;
-      background: rgba(17, 17, 17, 0.02);
+      background: rgba(17, 17, 17, 0.03);
+      border-color: rgba(17, 17, 17, 0.12);
+    }
+
+    .toggle-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .toggle-text {
+      font-size: 21rpx;
+      font-weight: 480;
+      color: rgba(17, 17, 17, 0.46);
+      letter-spacing: 0.04em;
+    }
+
+    .toggle-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30rpx;
+      height: 30rpx;
+      opacity: 0.45;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+
+      &.is-open {
+        transform: rotate(180deg);
+        opacity: 0.65;
+      }
     }
   }
 
-  /* =========================================================
-   * Expanded State - 克制展开
-   * ========================================================= */
-  &.expanded {
+  /* ===== Detail Body: 研究结构详情 ===== */
+  .brief-detail-body {
+    padding: 4rpx 4rpx 12rpx;
+    margin-top: 8rpx;
+    animation: detailFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+    @keyframes detailFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4rpx);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .detail-section {
+      padding: 15rpx 14rpx;
+      margin: 0 4rpx;
+      border-radius: 8rpx;
+
+      &:active {
+        background: rgba(17, 17, 17, 0.018);
+      }
+
+      & + .detail-section {
+        border-top: 1rpx solid rgba(17, 17, 17, 0.045);
+        margin-top: 2rpx;
+      }
+
+      .detail-key {
+        display: block;
+        font-size: 18rpx;
+        font-weight: 600;
+        color: rgba(17, 17, 17, 0.40);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 7rpx;
+      }
+
+      .detail-value {
+        display: block;
+        font-size: 24rpx;
+        line-height: 1.70;
+        color: rgba(17, 17, 17, 0.64);
+        letter-spacing: 0.008em;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .detail-list {
+        display: flex;
+        flex-direction: column;
+        gap: 7rpx;
+
+        .detail-list-item {
+          font-size: 23rpx;
+          line-height: 1.66;
+          color: rgba(17, 17, 17, 0.58);
+          letter-spacing: 0.008em;
+          padding-left: 4rpx;
+        }
+      }
+    }
+  }
+
+  &.is-collapsed {
+    max-height: none;
+  }
+
+  &.is-expanded {
     margin-bottom: 28rpx;
-    
-    /* 无额外装饰 */
   }
 }
 
-/* Academic Mode Overrides */
-.academic-mode .content-summary-card,
-.result-page.academic-mode .content-summary-card {
+/* Academic Mode page-level override */
+.academic-mode .research-brief,
+.result-page.academic-mode .research-brief {
   margin-bottom: 20rpx;
-  
-  &.collapsed {
-    max-height: 74rpx;  /* 从72rpx微调至74rpx */
-    overflow: hidden;
-    
-    .summary-title {
-      font-size: 26rpx;  /* 从24rpx提升 */
-      color: rgba(17, 17, 17, 0.52);  /* 从.55调至.52 */
+
+  &.is-collapsed {
+    .brief-label {
+      color: rgba(17, 17, 17, 0.52);
     }
   }
 }

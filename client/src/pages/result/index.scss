@@ -513,167 +513,105 @@
 }
 
 /* =========================================================
- * Academic Mode Page-Level Styles - 身份标识增强
+ * Academic Mode Page-Level Styles v2 — 结构性重构版
  *
- * 设计原则 (impeccable bolder):
- * - 独特的视觉签名，一眼识别为"学术阅读模式"
- * - 模拟书籍/论文的排版美学
- * - 温暖、安静、专注的阅读环境
- * - 与 learning/exam 模式形成鲜明对比
- *
- * 关键差异化特征:
- * 1. 更宽松的段落间距 (模拟书籍章节)
- * 2. 微妙的段落装饰 (可选的段落编号)
- * 3. 零装饰性元素 (无条纹、无阴影、无渐变)
- * 4. 特殊的纸张色调 (#F9F7F3)
- * 5. 衬线字体主导
+ * 设计原则 (impeccable distill + typeset):
+ * - 零装饰性元素（无条纹、无彩色下划线、无渐变分隔）
+ * - 8rpx 模数间距体系
+ * - 温暖纸张 + 深墨文本 + 克制标注
+ * - 正文为主，注释为辅，概要最轻
  * ========================================================= */
 
 .result-page.academic-mode {
-  /* =========================================================
-   * 页面背景 - 学术专用温暖纸张
-   * ========================================================= */
-  background: #F9F7F3;  /* 硬编码确保一致性，比 var() 更可靠 */
-  
-  /* =========================================================
-   * Article Container - 书籍版面模拟
-   * 
-   * 设计决策:
-   * - 更宽的左右边距，创造"书页"感
-   * - 内容区域更窄，提升可读性 (65-75ch 最佳行宽)
-   * - 在大屏设备上自动居中
-   * ========================================================= */
+  background: #F9F7F3;
+
   .article-container {
-    padding-left: 48rpx;   /* 从默认值增加，模拟书籍页边距 */
+    padding-left: 48rpx;
     padding-right: 48rpx;
-    max-width: 680rpx;    /* 限制最大宽度，避免行过长 */
-    margin: 0 auto;        /* 居中显示 */
-    
+    max-width: 680rpx;
+    margin: 0 auto;
+
     @media (min-width: 750px) {
       padding-left: 64rpx;
       padding-right: 64rpx;
     }
   }
 
-  /* =========================================================
-   * Article Header - 学术标题风格
-   * ========================================================= */
   .article-header {
-    margin-bottom: 48rpx;  /* 标题与正文之间更多留白 */
-    
+    margin-bottom: 40rpx;  /* 8×5 */
+
     .article-title {
       font-family: var(--font-english-serif), serif;
-      font-size: 44rpx;     /* 更大的标题 */
+      font-size: 44rpx;
       font-weight: 600;
-      letter-spacing: -0.015em;  /* 轻微字距收缩 */
-      color: #1a1a1a;       /* 近乎纯黑 */
+      letter-spacing: -0.015em;
+      color: #1a1a1a;
       line-height: 1.25;
-      text-align: left;     /* 左对齐，非居中 */
-      
-      /* 可选: 添加微妙的下划线装饰 */
-      &::after {
-        content: '';
-        display: block;
-        width: 60rpx;
-        height: 3rpx;
-        background: rgba(181, 117, 35, 0.35);  /* 琥珀色装饰线 */
-        margin-top: 20rpx;
-        border-radius: 2rpx;
-      }
+      text-align: left;
     }
-    
-    /* 元信息 (作者、期刊等) */
+
     .article-meta {
-      margin-top: 16rpx;
+      margin-top: 16rpx;  /* 8×2 */
       font-size: 22rpx;
       color: rgba(17, 17, 17, 0.45);
       letter-spacing: 0.02em;
     }
   }
 
-  /* =========================================================
-   * Info Banner - 极度克制的提示条
-   * 如果存在的话，几乎不可见
-   * ========================================================= */
   .academic-info-banner {
-    background: transparent;  /* 无背景 */
-    border-bottom: 1rpx solid rgba(17, 17, 17, 0.04);  /* 几乎不可见 */
+    background: transparent;
+    border-bottom: 1rpx solid rgba(17, 17, 17, 0.04);
     padding: 12rpx 0;
 
     .academic-info-text {
-      color: rgba(17, 17, 17, 0.38);  /* 非常淡 */
+      color: rgba(17, 17, 17, 0.38);
       font-size: 21rpx;
       text-align: center;
-      font-style: italic;  /* 斜体，像编者注 */
+      font-style: italic;
     }
   }
 
-  /* =========================================================
-   * Paragraph Block - 学术段落样式
-   * 
-   * 关键特征:
-   * - 段落间距增加 50%+ (从 40rpx → 64rpx)
-   * - 首行缩进或首字母下沉 (可选)
-   * - 微妙的段落分隔线 (非实线)
-   * ========================================================= */
+  /* === Paragraph Spacing (8rpx modular) === */
   .paragraph-block.academic-mode {
-    margin-bottom: 64rpx;  /* 大幅增加段落间距 */
+    margin-bottom: 56rpx;  /* 8×7 */
     position: relative;
-    
-    /* 段落之间的微弱分隔 */
-    & + .paragraph-block {
-      &::before {
-        content: '';
-        position: absolute;
-        top: -32rpx;
-        left: 10%;
-        right: 10%;
-        height: 1rpx;
-        background: linear-gradient(
-          to right,
-          transparent,
-          rgba(17, 17, 17, 0.06),
-          transparent
-        );  /* 渐隐的分隔线，像书籍中的章节分隔 */
-      }
+
+    & + .paragraph-block::before {
+      content: '';
+      position: absolute;
+      top: -28rpx;
+      left: 10%;
+      right: 10%;
+      height: 1rpx;
+      background: linear-gradient(
+        to right,
+        transparent,
+        rgba(17, 17, 17, 0.055),
+        transparent
+      );
     }
   }
 
-  /* =========================================================
-   * End Actions - 极简操作区
-   * ========================================================= */
+  /* === End Actions === */
   .article-end-actions {
     gap: 24rpx;
-    margin-top: 80rpx;  /* 更多留白 */
-    padding-top: 40rpx;
+    margin-top: 72rpx;  /* 8×9 */
+    padding-top: 32rpx;  /* 8×4 */
     border-top: 1rpx solid rgba(17, 17, 17, 0.05);
 
     .end-btn-secondary {
       box-shadow: none;
-      border: 1rpx solid rgba(17, 17, 17, 0.1);
+      border: 1rpx solid rgba(17, 17, 17, 0.10);
       background: transparent;
-      color: rgba(17, 17, 17, 0.65);
-      font-weight: 500;
-      
+
       &:active {
         background: rgba(17, 17, 17, 0.04);
       }
     }
   }
-  
-  /* =========================================================
-   * Content Summary Card - 完全去除条纹
-   * 已在组件样式中处理，这里确保页面级覆盖
-   * ========================================================= */
-  .content-summary-card {
-    &::before {
-      display: none !important;  /* 强制隐藏侧边条纹 */
-    }
-  }
 }
 
 .result-content-root.academic-mode {
-  /* Content Root - 确保学术模式的 token 可用 */
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 

@@ -6,7 +6,8 @@ import ClickableWord from '../ClickableWord'
 import GrammarInlineSpan from '../GrammarInlineSpan'
 import InlineMark from '../InlineMark'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
-import AcademicNoteSlip from '../AcademicNoteSlip'  // 学术模式专用组件
+import AcademicNoteSlip from '../AcademicNoteSlip'
+import AcademicNoteGroup from '../AcademicNoteGroup'  // 学术注释聚合组
 import FeedbackSheet from '../FeedbackSystem/FeedbackSheet'
 import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis } from './utils'
 import { getMappedEntryTitle } from '../../utils/entryTitleMapping'
@@ -125,6 +126,14 @@ function renderTextWithAnalysis(
 
 const normalizeId = (id: string | null | undefined) => id ? id.replace(/^[^_]+_/, '') : null;
 
+function findMarkIdForEntry(entryId: string, marks: AnyInlineMarkModel[]): string {
+  const direct = marks.find(m => m.id === entryId)
+  if (direct) return direct.id
+  const byParent = marks.find(m => m.parentId === entryId)
+  if (byParent) return byParent.id
+  return entryId
+}
+
 function renderTextWithMarks(
   text: string,
   marks: AnyInlineMarkModel[],
@@ -137,6 +146,7 @@ function renderTextWithMarks(
   vocabSavedMap?: Record<string, string>,
   isDropCap?: boolean,
   isAcademicMode?: boolean,  // Clarify: 学术模式标识
+  groupActiveIds?: Set<string>,  // 组高亮 ID 集合（展开卡片时同步高亮原文）
 ) {
   // 用于追踪单词在整句中的出现次数
   const wordOccurrenceMap: Record<string, number> = {}
@@ -258,7 +268,11 @@ function renderTextWithMarks(
     }
 
     if (!item.mark.clickable) {
-      const isActive = !!(normalizeId(activeMarkId) === normalizeId(item.mark.id) || (item.mark.parentId && normalizeId(activeMarkId) === normalizeId(item.mark.parentId)))
+      const isActive = !!(
+        normalizeId(activeMarkId) === normalizeId(item.mark.id)
+        || (item.mark.parentId && normalizeId(activeMarkId) === normalizeId(item.mark.parentId))
+        || (groupActiveIds && (groupActiveIds.has(item.mark.id) || (item.mark.parentId && groupActiveIds.has(item.mark.parentId))))
+      )
       const role = item.role
 
       resultElements.push(
@@ -284,7 +298,11 @@ function renderTextWithMarks(
 
     const isVocabulary = ['vocab', 'phrase', 'context', 'term'].includes(item.mark.visualTone)
     const isAcademicMark = isAcademicMode && ['term', 'logic'].includes(item.mark.visualTone)
-    const isActive = !!(normalizeId(activeMarkId) === normalizeId(item.mark.id) || (item.mark.parentId && normalizeId(activeMarkId) === normalizeId(item.mark.parentId)))
+    const isActive = !!(
+      normalizeId(activeMarkId) === normalizeId(item.mark.id)
+      || (item.mark.parentId && normalizeId(activeMarkId) === normalizeId(item.mark.parentId))
+      || (groupActiveIds && (groupActiveIds.has(item.mark.id) || (item.mark.parentId && groupActiveIds.has(item.mark.parentId))))
+    )
     const isSaved = vocabSet?.has(item.text.toLowerCase())
     const savedStatus = vocabSavedMap?.[item.text.toLowerCase()]
 
@@ -355,6 +373,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
 }: ParagraphBlockProps) {
   const vocabSet = useMemo(() => new Set(vocabList ?? []), [vocabList])
   const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null)
+  const [groupActiveMarkIds, setGroupActiveMarkIds] = useState<Set<string>>(new Set())
   const [feedbackTarget, setFeedbackTarget] = useState<{
     targetId: string
     annotationType: string
@@ -429,7 +448,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                   className={`sentence-span ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                   onClick={() => onSentenceClick?.(sentence.sentenceId)}
                 >
-                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0, isAcademicMode)}
+                  {renderTextWithMarks(sentence.text, sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0, isAcademicMode, groupActiveMarkIds)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
@@ -446,7 +465,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
     const sentenceEntries: AnySentenceEntryModel[] = entriesBySentenceId.get(sentence.sentenceId) || []
     const sentenceTranslation = translations.find(t => t.sentenceId === sentence.sentenceId)?.translationZh
 
-    const analysisCards: (AnalysisCardProps & { id: string })[] = [
+    const analysisCards: (AnalysisCardProps & { id: string; markId: string })[] = [
       ...sentenceEntries
         .filter(e => e.entryType === 'grammar_note')
         .map(e => {
@@ -458,6 +477,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           }
           return {
             id: e.id,
+            markId: mark ? mark.id : e.id,
             type: 'grammar' as const,
             title: getMappedEntryTitle('grammar_note', e.title, e.label) || '语法要点',
             label: '语法要点',
@@ -494,6 +514,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           .filter(e => e.entryType === 'term_note')
           .map(e => ({
             id: e.id,
+            markId: findMarkIdForEntry(e.id, sentenceMarks),
             type: 'term' as const,
             title: getMappedEntryTitle('term_note', e.title, e.label) || '术语标注',
             label: '术语标注',
@@ -504,6 +525,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           .filter(e => e.entryType === 'logic_note')
           .map(e => ({
             id: e.id,
+            markId: findMarkIdForEntry(e.id, sentenceMarks),
             type: 'logic' as const,
             title: getMappedEntryTitle('logic_note', e.title, e.label) || '逻辑关系',
             label: '逻辑关系',
@@ -514,6 +536,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           .filter(e => e.entryType === 'interpretation_note')
           .map(e => ({
             id: e.id,
+            markId: findMarkIdForEntry(e.id, sentenceMarks),
             type: 'interpretation' as const,
             title: getMappedEntryTitle('interpretation_note', e.title, e.label) || '解释说明',
             label: '解释说明',
@@ -574,7 +597,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                 ) : (
                   // 普通精读模式：使用马克笔涂抹模式
                   <Text className='english-flow'>
-                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode)}
+                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
                   </Text>
                 )}
               </View>
@@ -592,24 +615,28 @@ const ParagraphBlock = memo(function ParagraphBlock({
 
               {item.analysisCards.length > 0 && (
                 <View className={`analysis-cards-list ${isAcademicMode ? 'academic-mode' : ''}`}>
-                  {item.analysisCards.map((card, cardIdx) => 
-                    isAcademicMode ? (
-                      /* Academic Mode: 使用轻量便笺组件 */
-                      <AcademicNoteSlip
-                        key={`${card.id}-${cardIdx}`}
-                        variant={card.type === 'term' ? 'term' : card.type === 'logic' ? 'logic' : 'interpretation'}
-                        title={card.title}
-                        content={card.content}
-                        label={card.label}
-                        initiallyExpanded={false}
-                        onToggle={(isExpanded) => {
-                          onMarkActiveChange?.(isExpanded ? card.id : null)
-                          card.onToggle?.(isExpanded)
-                        }}
-                        onFeedback={card.onFeedback}
-                      />
-                    ) : (
-                      /* Non-Academic Mode: 使用标准卡片组件 */
+                  {isAcademicMode ? (
+                    /* Academic Mode: 聚合为单一注释组，不破坏阅读流 */
+                    <AcademicNoteGroup
+                      key={`group-${item.sentence.sentenceId}`}
+                      items={item.analysisCards.map(card => ({
+                        id: card.id,
+                        markId: card.markId,
+                        variant: (card.type === 'term' ? 'term' : card.type === 'logic' ? 'logic' : 'interpretation') as 'term' | 'logic' | 'interpretation',
+                        title: card.title,
+                        content: card.content,
+                      }))}
+                      initiallyExpanded={false}
+                      onToggle={(isExpanded, activeIds) => {
+                        onMarkActiveChange?.(isExpanded && activeIds.length > 0 ? activeIds[0] : null)
+                      }}
+                      onActiveChange={(activeIds) => {
+                        setGroupActiveMarkIds(new Set(activeIds))
+                      }}
+                    />
+                  ) : (
+                    /* Non-Academic Mode: 使用标准卡片组件 */
+                    item.analysisCards.map((card, cardIdx) => (
                       <AnalysisCard
                         key={`${card.id}-${cardIdx}`}
                         type={card.type}
@@ -632,7 +659,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                         entryId={card.entryId}
                         annotationType={card.annotationType}
                       />
-                    )
+                    ))
                   )}
                 </View>
               )}
@@ -655,7 +682,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       className={`sentence-span ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                       onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
                     >
-                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode)}
+                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
                       {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
                     </Text>
                   ))}

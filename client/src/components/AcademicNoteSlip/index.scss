@@ -1,576 +1,140 @@
-/* Academic Note Slip - 轻量学术注释便笺 (v2)
+/* AcademicNoteSlip v3.1 — 增强可点击识别度
  *
- * 设计原则 (impeccable animate + bolder + delight):
- *
- * === Animate (动画) ===
- * - 流畅的展开/收起: cubic-bezier(0.16, 1, 0.3, 1)
- * - 微交互反馈: hover/active 状态有明确响应
- * - 渐进式揭示: 内容逐层淡入
- * - 弹性物理感: 轻微的 spring 效果
- *
- * === Bolder (增强个性) ===
- * - 类型差异化: term/logic/interpretation 有明显视觉区别
- *   - Term: 蓝灰 + 圆形图标 + 实线下划线
- *   - Logic: 琥珀 + 菱形图标 + 虚线边框
- *   - Interpretation: 绿灰 + 无图标 + 极简风格
- * - 关联指示器: 显示注释对应的原文位置
- * - 角标装饰: 不同类型有不同的角标样式
- *
- * === Delight (愉悦细节) ===
- * - Hover 时的微妙发光效果
- * - 展开时的"呼吸"动画
- * - 图标的旋转弹性
- * - 边框的颜色渐变过渡
+ * 与 AcademicNoteGroup 保持一致的视觉语言:
+ * - 折叠态有明确容器感 (背景+边框)
+ * - 文字对比度提升至可读区间
+ * - chevron 清晰可见
+ * - max-height 替代 grid (Taro/WeChat 兼容)
  */
 
 .academic-note-slip {
   width: 100%;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  background: transparent;  /* 默认透明背景 */
-  border: none;             /* 默认无边框 */
-  border-radius: 0;         /* 默认无圆角 */
-  overflow: visible;        /* 允许关联指示器溢出 */
-  
-  /* Delight: 整体容器有轻微的入场动画 */
-  animation: slipFadeIn 0.3s ease-out both;
-  
-  @keyframes slipFadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(6rpx);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+  margin-top: 10rpx;
 
-  /* =========================================================
-   * 关联指示器 (Context Indicator)
-   * BOLD: 解决"不知道卡片解释对应哪个文本"的问题
-   * ========================================================= */
-  &::before {
-    content: '';
-    position: absolute;
-    left: -12rpx;
-    top: 20rpx;
-    width: 3rpx;
-    height: 24rpx;
-    border-radius: 2rpx;
-    transition: all 0.25s ease;
-    opacity: 0;
-  }
-  
-  /* 展开时显示关联指示器 */
-  &.expanded::before {
-    opacity: 1;
-  }
-
-  /* =========================================================
-   * Header (Collapsed Entry)
-   * Animate: 流畅的交互反馈
-   * Clarify: 增强可点击性视觉提示
-   * ========================================================= */
-  .note-slip-header {
+  .slip-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14rpx 14rpx 14rpx 18rpx;  /* Animate: 稍微增加 padding，更舒适 */
-    gap: 10rpx;
+    padding: 12rpx 14rpx;
     cursor: pointer;
-    border-radius: 12rpx;
-    border: 1rpx solid transparent;
-
-    /* Animate: 平滑的背景过渡 */
-    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);  /* Animate: 更流畅的缓动 */
-
-    /* Clarify: Hover 状态添加背景 */
-    &:hover {
-      background: rgba(17, 17, 17, 0.025);  /* Animate: 稍微加深 hover 背景 */
-      
-      .expand-icon {
-        opacity: 0.5;  /* Animate: hover 时图标更明显 */
-      }
-    }
+    background: rgba(17, 17, 17, 0.028);
+    border: 1rpx solid rgba(17, 17, 17, 0.06);
+    border-radius: 10rpx;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 
     &:active {
-      transform: scale(0.98);
-      background: rgba(17, 17, 17, 0.045);
-
-      .header-title {
-        opacity: 0.7;
-      }
-      
-      .expand-icon {
-        transform: scale(0.9);  /* Animate: 点击时图标轻微缩放 */
-      }
+      background: rgba(17, 17, 17, 0.055);
+      border-color: rgba(17, 17, 17, 0.10);
     }
 
-    .header-main {
-      flex: 1;
-      min-width: 0;
+    .slip-header-main {
       display: flex;
       align-items: center;
-      gap: 10rpx;
+      gap: 4rpx;
+      flex: 1;
+      min-width: 0;
       overflow: hidden;
+      margin-right: 8rpx;
     }
 
-    /* BOLD: Semantic Label - 从隐藏文字改为显示小标签 */
-    .semantic-label {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 3rpx 10rpx;
-      border-radius: 8rpx;  /* 更小的圆角 */
-      font-size: 17rpx;
-      font-weight: 600;
-      letter-spacing: 0.04em;
+    .slip-variant {
+      font-size: 20rpx;
+      font-weight: 550;
+      color: rgba(17, 17, 17, 0.48);
+      letter-spacing: 0.03em;
       flex-shrink: 0;
-      transition: all 0.2s ease;
-
-      .label-text {
-        display: inline;  /* BOLD: 显示文字！ */
-        text-transform: uppercase;
-      }
     }
 
-    /* Title - 更紧凑 */
-    .header-title {
-      font-size: 23rpx;  /* 从25rpx减小 */
+    .slip-sep {
+      font-size: 20rpx;
+      color: rgba(17, 17, 17, 0.32);
+      flex-shrink: 0;
+    }
+
+    .slip-title {
+      font-size: 22rpx;
       font-weight: 500;
-      color: rgba(17, 17, 17, 0.65);  /* 更淡 */
-      line-height: 1.35;
+      color: rgba(17, 17, 17, 0.60);
       letter-spacing: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       flex: 1;
       min-width: 0;
-      transition: color 0.2s ease;
     }
 
-    /* Expand Icon - Animate: 弹性旋转 */
-    .expand-icon {
+    .slip-chevron {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 36rpx;  /* Animate: 稍微增大图标区域 */
-      height: 36rpx;
+      width: 32rpx;
+      height: 32rpx;
       flex-shrink: 0;
-      opacity: 0.3;  /* Animate: 默认更淡 */
-      border-radius: 50%;
-      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),  /* Delight: 弹性曲线 */
-                  opacity 0.25s ease,
-                  background-color 0.25s ease;
+      opacity: 0.55;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
 
-      &.is-expanded {
+      &.is-open {
         transform: rotate(90deg);
-        opacity: 0.55;  /* Animate: 展开时更明显 */
-        
-        /* Delight: 展开时显示淡背景 */
-        &:hover {
-          background-color: rgba(17, 17, 17, 0.06);
-        }
-      }
-      
-      /* Delight: hover 时有微妙的背景 */
-      &:hover:not(.is-expanded) {
-        background-color: rgba(17, 17, 17, 0.04);
-        opacity: 0.5;
+        opacity: 0.70;
       }
     }
   }
 
-  /* =========================================================
-   * Body (Expanded Content)
-   * Animate: 渐进式内容揭示
-   * Delight: 温暖的内容区域
-   * ========================================================= */
-  .note-slip-body {
-    display: grid;
+  /* 使用 max-height 替代 grid 以兼容 Taro/WeChat */
+  .slip-body {
+    max-height: 0;
     overflow: hidden;
-    
-    /* Animate: 使用更流畅的缓动函数 */
-    transition: grid-template-rows 0.4s cubic-bezier(0.22, 1, 0.36, 1),  /* Animate: 更慢更流畅 */
+    opacity: 0;
+    transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
                 opacity 0.3s ease-out,
-                margin-top 0.3s ease;
+                margin-top 0.2s ease;
 
     &.hide {
-      grid-template-rows: 0fr;
+      max-height: 0;
       opacity: 0;
       pointer-events: none;
+      margin-top: 0;
 
-      > .body-content {
-        min-height: 0;
-        overflow: hidden;
+      > .slip-body-inner {
+        display: none;
       }
     }
 
     &.show {
-      grid-template-rows: 1fr;
+      max-height: 1200rpx;
       opacity: 1;
-
-      > .body-content {
-        min-height: 0;
-        overflow: visible;
-        
-        /* Delight: 内容淡入动画（更慢更平滑） */
-        animation: contentReveal 0.35s ease-out 0.05s both;
-        
-        @keyframes contentReveal {
-          from {
-            opacity: 0;
-            transform: translateY(-6rpx);  /* Animate: 更大位移 */
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      }
-    }
-
-    /* BOLD: 内容区域使用温暖的纸张色调和轻边框 */
-    .body-content {
-      padding: 16rpx 20rpx 18rpx;  /* Polish: 调整内边距 */
-      margin: 0 6rpx;  /* Polish: 微调外边距 */
-      background: var(--reader-paper-deep, #F9F7F3);
-      border: 1rpx solid rgba(17, 17, 17, 0.05);  /* Polish: 更淡边框 */
-      border-radius: 14rpx;  /* Polish: 优化圆角 */
-      box-shadow: 0 3rpx 14rpx rgba(17, 17, 17, 0.025);  /* Polish: 更轻阴影 */
-      
-      /* ⭐ Layout: 高度限制，避免占据整屏 */
-      max-height: 280rpx;  /* 限制最大高度 */
-      overflow-y: auto;    /* 允许垂直滚动 */
-      -webkit-overflow-scrolling: touch;  /* Animate: iOS 平滑滚动 */
-      
-      /* Delight: 自定义滚动条样式 */
-      &::-webkit-scrollbar {
-        width: 4rpx;
-      }
-      
-      &::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      
-      &::-webkit-scrollbar-thumb {
-        background: rgba(17, 17, 17, 0.12);
-        border-radius: 2rpx;
-        
-        &:hover {
-          background: rgba(17, 17, 17, 0.18);
-        }
-      }
-
-      .content-text {
-        display: block;
-        font-size: 25rpx;  /* Polish: 优化字号 */
-        line-height: 1.72;  /* Polish: 优化行高 */
-        color: rgba(17, 17, 17, 0.72);  /* Polish: 优化对比度 */
-        white-space: pre-wrap;
-        word-break: break-word;  /* 允许长词断行 */
-        letter-spacing: 0.01em;
-        
-        /* Clarify: 为滚动条预留空间 */
-        padding-right: 8rpx;
-      }
-    }
-
-    /* Footer - Quiet Feedback Actions */
-    .note-slip-footer {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16rpx;
-      margin-top: 12rpx;
-      padding-top: 10rpx;
-      padding-bottom: 4rpx;
-      border-top: none;  /* 去掉分隔线，更简洁 */
-
-      .feedback-btn {
-        display: flex;
-        align-items: center;
-        gap: 5rpx;
-        padding: 7rpx 14rpx;
-        border-radius: 14rpx;
-        
-        /* Animate: 平滑过渡 */
-        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-
-        &:active {
-          transform: scale(0.95);  /* Animate: 点击缩放 */
-          background: rgba(17, 17, 17, 0.06);
-          opacity: 0.65;
-        }
-
-        /* Delight: hover 时微微上浮 */
-        &:hover {
-          transform: translateY(-1rpx);
-        }
-
-        &.feedback-detail {
-          margin-left: auto;
-        }
-
-        .feedback-text {
-          font-size: 20rpx;
-          color: var(--reader-muted);
-          font-weight: 500;
-        }
-      }
+      margin-top: 8rpx;
     }
   }
 
-  /* =========================================================
-   * Variant-specific Styles (BOLD: 强化类型区分)
-   *
-   * 每种类型都有独特的:
-   * - 颜色系统 (color palette)
-   * - 形状语言 (shape language)
-   * - 图标语义 (icon semantics)
-   * - 动画特征 (animation character)
-   * ========================================================= */
+  .slip-body-inner {
+    padding: 14rpx 18rpx;
+    background: var(--reader-paper-deep, #F6F3EC);
+    border: 1rpx solid rgba(17, 17, 17, 0.07);
+    border-radius: 12rpx;
 
-  /* =========================================================
-   * Term Variant - 蓝灰概念 (知识型)
-   * Colorize: 降低饱和度，更学术化
-   * 
-   * 视觉特征:
-   * - 圆形元素 (圆形标签、圆点)
-   * - 实线风格 (solid lines)
-   * - 冷静、精确的感觉
-   * ========================================================= */
-  &.variant-term {
-    &::before {
-      background: rgba(68, 98, 122, 0.35);  /* Colorize: 从 0.65 降至 0.35 */
-      border-radius: 2rpx;
-    }
-
-    .note-slip-header {
-      .semantic-label {
-        background: rgba(68, 98, 122, 0.06);  /* Colorize: 从 0.08 降至 0.06 */
-        color: rgba(68, 98, 122, 0.50);  /* Colorize: 从 #44627A (1.0) 降至 0.50 */
-        border-radius: 8rpx;  /* Colorize: 更紧凑的圆角 */
-        opacity: 0.85;  /* 添加透明度降低存在感 */
-        
-        /* Delight: 微妙的脉动效果（更慢更 subtle） */
-        animation: termPulse 4s ease-in-out infinite;
-        
-        @keyframes termPulse {
-          0%, 100% { opacity: 0.85; }
-          50% { opacity: 0.70; }  /* Colorize: 减小脉动幅度 */
-        }
-      }
-
-      .header-title {
-        color: rgba(68, 98, 122, 0.45);  /* Colorize: 从 #44627A (1.0) 降至 0.45 */
-        
-        /* BOLD: 术语标题添加细下划线 */
-        border-bottom: 1rpx solid transparent;
-        transition: border-color 0.2s ease;
-      }
-    }
-
-    &.expanded {
-      .note-slip-body .body-content {
-        border-color: rgba(68, 98, 122, 0.08);  /* Colorize: 从 0.12 降至 0.08 */
-        box-shadow: 0 4rpx 20rpx rgba(68, 98, 122, 0.025);  /* Colorize: 更淡阴影 */
-        
-        /* Delight: 展开时标题下划线显现 */
-        .header-title {
-          border-bottom-color: rgba(68, 98, 122, 0.18);  /* Colorize: 从 0.25 降至 0.18 */
-        }
-      }
+    .slip-content {
+      display: block;
+      font-size: 25rpx;
+      line-height: 1.72;
+      color: rgba(17, 17, 17, 0.70);
+      letter-spacing: 0.01em;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
   }
 
-  /* =========================================================
-   * Logic Variant - 琥珀论证 (论证型)
-   * Colorize: 降低饱和度，更柔和
-   * 
-   * 视觉特征:
-   * - 菱形/斜切元素 (diamond shapes)
-   * - 虚线/点状线条 (dashed/dotted)
-   * - 有活力、动态的感觉
-   * ========================================================= */
-  &.variant-logic {
-    &::before {
-      background: var(--academic-logic-line, rgba(168, 107, 32, 0.55));  /* Colorize: 降低饱和度 */
-      border-radius: 0;
-      height: 24rpx;  /* Colorize: 减小高度 */
-      width: 2rpx;
-    }
-
-    .note-slip-header {
-      .semantic-label {
-        background: var(--academic-logic-surface, rgba(168, 107, 32, 0.08));  /* Colorize: 更淡背景 */
-        color: var(--academic-logic-text, #A86B20);
-        border-radius: 2rpx;
-        transform: skewX(-5deg);
-        
-        .label-text {
-          transform: skewX(5deg);
-        }
-      }
-
-      .header-title {
-        color: var(--academic-logic-text, #A86B20);
-        font-weight: 550;
-      }
-    }
-
-    &.expanded {
-      .note-slip-body .body-content {
-        border: 1rpx dashed var(--academic-logic-border, rgba(168, 107, 32, 0.18));
-        background: linear-gradient(135deg, #FFFDFB 0%, #F9F7F3 100%);  /* Colorize: 更淡渐变 */
-        box-shadow: 0 4rpx 20rpx rgba(168, 107, 32, 0.04);
-      }
+  &.is-collapsed {
+    .slip-header:active .slip-title {
+      opacity: 0.75;
     }
   }
 
-  /* =========================================================
-   * Interpretation Variant - 绿灰解释 (辅助型)
-   * Colorize: 更柔和的绿灰色调
-   * 
-   * 视觉特征:
-   * - 虚线下划线暗示可交互 (新增)
-   * - 最弱的视觉存在感
-   * - 安静、辅助的感觉
-   * ========================================================= */
-  &.variant-interpretation {
-    &::before {
-      display: none;
-    }
-
-    .note-slip-header {
-      /* BOLD: 添加极简可点击提示 */
-      border-bottom: 1rpx dashed rgba(90, 122, 104, 0.20);  /* 虚线下划线 */
-      
-      .semantic-label {
-        display: none;  /* 保持隐藏，用下划线替代 */
-      }
-
-      .header-title {
-        color: rgba(90, 122, 104, 0.58);  /* Colorize: 稍微加深 */
-        font-style: italic;
-        font-weight: 400;
-        font-size: 23rpx;  /* 从 22rpx 增至 23rpx */
-        transition: all 0.2s ease;  /* Interaction: 平滑过渡 */
-        
-        /* Interaction: hover 时增强反馈 */
-        &:hover {
-          color: rgba(90, 122, 104, 0.75);
-          border-bottom-color: rgba(90, 122, 104, 0.35);
-        }
-      }
-
-      .expand-icon {
-        opacity: 0.18;  /* 从默认值降至 0.18，几乎不可见 */
-        transition: opacity 0.25s ease, transform 0.25s ease;
-        
-        /* Interaction: 交互时显现 */
-        &:hover:not(.is-expanded),
-        &:active {
-          opacity: 0.5;
-        }
-      }
-      
-      /* Active: 点击时有明确反馈 */
-      &:active {
-        background: rgba(90, 122, 104, 0.03);
-        
-        .header-title {
-          opacity: 0.8;
-        }
-        
-        .expand-icon {
-          transform: scale(0.95);
-          opacity: 0.65;
-        }
-      }
-    }
-
-    &.expanded {
-      .note-slip-body .body-content {
-        border: none;
-        background: transparent;
-        box-shadow: none;
-        padding-left: 22rpx;
-        
-        /* BOLD: 左侧极淡竖线作为展开状态指示 */
-        border-left: 2rpx solid rgba(90, 122, 104, 0.12);
-        border-radius: 0;
-        
-        .content-text {
-          font-size: 23rpx;
-          color: rgba(17, 17, 17, 0.68);
-          font-style: italic;
-        }
-      }
-    }
-  }
-
-  /* =========================================================
-   * State Variants
-   * Clarify: 强化折叠/展开状态视觉提示
-   * ========================================================= */
-
-  &.collapsed {
-    margin: 0;
-
-    /* Animate: 收起时的平滑过渡 */
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-
-    /* Clarify: 折叠状态添加淡边框，暗示可点击 */
-    .note-slip-header {
-      border-color: rgba(17, 17, 17, 0.06);  /* Clarify: 稍微加深边框 */
-      background: rgba(17, 17, 17, 0.01);    /* Clarify: 添加极淡背景 */
-      
-      /* Clarify: 折叠时标题文字稍淡，暗示未展开 */
-      .header-title {
-        opacity: 0.85;
-      }
-    }
-
-    /* Clarify: Hover 时增强可点击提示 */
-    &:hover .note-slip-header {
-      border-color: rgba(17, 17, 17, 0.1);
-      background: rgba(17, 17, 17, 0.02);
-    }
-
-    &:active {
-      transform: scale(0.985);
-      opacity: 0.85;
-    }
-  }
-
-  &.expanded {
-    margin: 6rpx 0 10rpx;
-    
-    /* Delight: 展开时有轻微的"呼吸"效果 */
-    animation: expandedBreathe 0.4s ease-out;
-    
-    @keyframes expandedBreathe {
-      0% {
-        transform: scaleY(0.98);
-        opacity: 0.9;
-      }
-      100% {
-        transform: scaleY(1);
-        opacity: 1;
-      }
-    }
-
-    .expand-icon {
-      opacity: 0.45;
-    }
-    
-    /* Clarify: 展开时 header 边框消失，融入内容 */
-    .note-slip-header {
-      border-color: transparent;
-      background: transparent;
+  &.is-expanded {
+    .slip-header {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-bottom-color: transparent;
     }
   }
 }

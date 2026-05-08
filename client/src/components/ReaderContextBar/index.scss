@@ -32,11 +32,9 @@
     &.academic {
       flex-shrink: 0;
       font-size: 22rpx;
-      font-weight: 500;
-      color: var(--color-phrase);
-      padding: 4rpx 14rpx;
-      background: rgba(109, 40, 217, 0.06);
-      border-radius: 8rpx;
+      font-weight: 450;
+      color: rgba(17, 17, 17, 0.42);
+      letter-spacing: 0.02em;
     }
   }
 
