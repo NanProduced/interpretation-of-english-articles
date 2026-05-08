@@ -56,6 +56,15 @@ function deriveFallbackTitle(text: string): string | null {
   return firstLine.length > 50 ? `${firstLine.slice(0, 50)}...` : firstLine
 }
 
+function extractTitleFromScene(scene: AnyRenderSceneVm | null): string | null {
+  if (!scene) return null
+  if (scene.schemaVersion === '3.0.0-academic') {
+    const academic = scene as import('../types/view/render-scene.vm').AcademicRenderSceneVm
+    if (academic.title?.trim()) return academic.title.trim()
+  }
+  return null
+}
+
 function generateLocalRecordId(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0
@@ -99,8 +108,14 @@ export const useArticleStore = create<ArticleState>((set, get) => {
       pageState = 'normal'
     }
 
+    const sceneTitle = extractTitleFromScene(vm)
+    const effectiveTitle = cloudRecord.title?.trim()
+      ? cloudRecord.title
+      : sceneTitle ?? cloudRecord.title
+
     const localRecord: AnalysisRecord = {
       ...cloudRecord,
+      title: effectiveTitle,
       pageState,
     }
     saveRecord(localRecord)
@@ -240,7 +255,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           
           const localRecord: AnalysisRecord = {
             recordId: clientRecordId,
-            title: deriveFallbackTitle(normalizedRequest.text),
+            title: extractTitleFromScene(vm) ?? deriveFallbackTitle(normalizedRequest.text),
             sourceText: normalizedRequest.text,
             requestPayload: {
               reading_goal: normalizedRequest.reading_goal,
@@ -289,7 +304,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
             recordId: clientRecordId,
             cloudId: serverRecordId,
             syncState: 'synced',
-            title: deriveFallbackTitle(normalizedRequest.text),
+            title: extractTitleFromScene(vm) ?? deriveFallbackTitle(normalizedRequest.text),
             sourceText: normalizedRequest.text,
             requestPayload: {
               reading_goal: normalizedRequest.reading_goal,

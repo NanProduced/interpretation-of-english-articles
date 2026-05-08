@@ -301,6 +301,42 @@ function DictionaryNoteSheet({
   const startYRef = useRef(0)
   const isDraggingRef = useRef(false)
 
+  // Tier only caps the sheet. Short entries should keep their natural height.
+  const heightTier: HeightTier = useMemo(() => {
+    if (loading) return 'compact'
+    if (isDisambiguationResult) return 'compact'
+    if (!entry) return 'compact'
+    
+    let score = 0
+    if (contextSentence) score += 2
+    if (glossary) score += 3
+    if (entry.meanings?.length) score += entry.meanings.length * 2
+    if (entry.phrases?.length) score += 2
+    if (entry.examples?.length) score += 2
+    
+    if (score <= 4) return 'compact'
+    if (score <= 10) return 'standard'
+    return 'rich'
+  }, [entry, loading, isDisambiguationResult, contextSentence, glossary])
+
+  const showFooter = isEntryResult && entry && entry.id > 0
+  const sheetMetrics = useMemo(() => {
+    const windowInfo = Taro.getWindowInfo()
+    const windowHeight = windowInfo.windowHeight || 667
+    const tierRatios: Record<HeightTier, number> = {
+      compact: 0.58,
+      standard: 0.68,
+      rich: 0.78,
+      expanded: 0.84,
+    }
+    const maxHeight = Math.round(windowHeight * tierRatios[heightTier])
+    const headerReserve = 156
+    const footerReserve = showFooter ? 118 : 86
+    const scrollMaxHeight = Math.max(220, maxHeight - headerReserve - footerReserve)
+
+    return { maxHeight, scrollMaxHeight }
+  }, [heightTier, showFooter])
+
   const handleTouchStart = (e: any) => {
     startYRef.current = e.touches[0].clientY
     isDraggingRef.current = true
@@ -325,32 +361,13 @@ function DictionaryNoteSheet({
     }
   }
 
-  // Tier Logic: Calculate preferred initial height based on content
-  const heightTier: HeightTier = useMemo(() => {
-    if (loading) return 'compact'
-    if (isDisambiguationResult) return 'compact'
-    if (!entry) return 'compact'
-    
-    let score = 0
-    if (contextSentence) score += 2
-    if (glossary) score += 3
-    if (entry.meanings?.length) score += entry.meanings.length * 2
-    if (entry.phrases?.length) score += 2
-    if (entry.examples?.length) score += 2
-    
-    if (score <= 4) return 'compact'
-    if (score <= 10) return 'standard'
-    return 'rich'
-  }, [entry, loading, isDisambiguationResult, contextSentence, glossary])
-
-  const showFooter = isEntryResult && entry && entry.id > 0
-
   return (
     <View className='word-popup-overlay full-overlay' onClick={onClose} catchMove>
       <View 
         className={`word-popup-container tier-${heightTier}`}
         onClick={(e) => e.stopPropagation()}
         style={{ 
+          maxHeight: `${sheetMetrics.maxHeight}px`,
           transform: dragY > 0 ? `translateY(${dragY}px)` : '',
           transition: dragY > 0 ? 'none' : 'transform 0.28s var(--ease-reader-out)'
         }}
@@ -407,7 +424,13 @@ function DictionaryNoteSheet({
           </View>
         </View>
 
-        <ScrollView className='popup-scroll-content' scrollY style={{ flex: 1, height: '1px' }}>
+        <ScrollView
+          className='popup-scroll-content'
+          scrollY
+          enhanced
+          showScrollbar={false}
+          style={{ maxHeight: `${sheetMetrics.scrollMaxHeight}px` }}
+        >
           
           {contextSentence && (
             <View className='context-section'>

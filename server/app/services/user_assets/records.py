@@ -80,7 +80,7 @@ async def upsert_record(
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
                 ON CONFLICT (user_id, client_record_id) DO UPDATE SET
-                    title            = EXCLUDED.title,
+                    title            = COALESCE(EXCLUDED.title, analysis_records.title),
                     source_text      = EXCLUDED.source_text,
                     source_text_hash = EXCLUDED.source_text_hash,
                     reading_goal        = EXCLUDED.reading_goal,

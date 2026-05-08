@@ -98,13 +98,12 @@
   box-shadow: 0rpx -12rpx 18rpx rgba(17, 17, 17, 0.08);
   animation: sheetSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
-  max-height: 86vh;
 
-  // Tiered Height Strategy - Optimized for content density
-  &.tier-compact { height: 64vh; }
-  &.tier-standard { height: 68vh; }
-  &.tier-rich { height: 74vh; }
-  &.tier-expanded { height: 86vh; }
+  // Tiered Height Strategy - cap height only. Content decides the natural sheet size.
+  &.tier-compact { max-height: 58vh; }
+  &.tier-standard { max-height: 68vh; }
+  &.tier-rich { max-height: 78vh; }
+  &.tier-expanded { max-height: 84vh; }
 }
 
 .popup-drag-handle {
@@ -170,13 +169,18 @@
 }
 
 .popup-scroll-content {
-  flex: 1;
-  padding: 0 48rpx 160rpx;
+  flex: 0 1 auto;
+  min-height: 0;
+  padding: 0 48rpx 28rpx;
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden;
+}
+
+.popup-scroll-content > .dict-section:last-child {
+  margin-bottom: 0;
 }
 
 /* Vertical Rhythm: Unified Baseline Axis - Compact for note sheet feel */
