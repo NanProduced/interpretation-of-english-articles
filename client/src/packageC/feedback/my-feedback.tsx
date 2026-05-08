@@ -7,7 +7,7 @@ import LucideIcon from '../../components/LucideIcon'
 import NavBar from '../../components/NavBar'
 import { useLayoutStore } from '../../stores/layout'
 import { FEEDBACK_STATUS_LABELS, FEEDBACK_CONFIG_BY_SCOPE } from '../../config/feedback'
-import emptyIllustration from '../../assets/illustrations/empty-feedback.png'
+import emptyIllustration from '../../assets/illustrations/empty-feedback.jpg'
 import './my-feedback.scss'
 
 const SCOPE_LABELS: Record<string, string> = {

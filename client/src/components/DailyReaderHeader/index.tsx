@@ -1,7 +1,7 @@
 import { View, Text, Image } from '@tarojs/components'
 import { memo } from 'react'
 import type { DailyReaderArticle } from '../../types/view/daily-reader.vm'
-import defaultCover from '../../assets/covers/daily-reader-default.png'
+import defaultCover from '../../assets/covers/daily-reader-default.jpg'
 import './index.scss'
 
 interface Props {

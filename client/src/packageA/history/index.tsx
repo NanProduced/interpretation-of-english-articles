@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import type { StopPropagationEvent } from '../../types/taro-events'
@@ -15,6 +15,7 @@ import TabBar from '../../components/TabBar'
 import { useLayoutStore } from '../../stores/layout'
 import { getSafeDisplayLabel, getCompactLabel } from '../../config/purpose'
 import LucideIcon from '../../components/LucideIcon'
+import emptyHistoryImg from '../../assets/illustrations/empty-history.jpg'
 import './index.scss'
 import { formatDate, getUTC8DayValue } from '../../utils/formatDate'
 
@@ -253,6 +254,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
       >
         {loading && records.length === 0 ? null : groupedRecords.length === 0 ? (
             <View className='empty-state'>
+              <Image className='empty-illustration' src={emptyHistoryImg} mode='aspectFit' />
               <Text className='empty-text'>
                 {activeTab === 'favorites' ? '暂无收藏记录' : '暂无解读记录'}
               </Text>

@@ -10,7 +10,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useDailyReaderStore } from '../../stores/daily-reader'
 import { ensureLoggedIn } from '../../services/auth'
 import { fetchAnonymousQuota } from '../../services/api/client'
-import defaultCover from '../../assets/covers/daily-reader-default.png'
+import defaultCover from '../../assets/covers/daily-reader-default.jpg'
 import emptyDailyReader from '../../assets/illustrations/empty-daily-reader.png'
 import './index.scss'
 

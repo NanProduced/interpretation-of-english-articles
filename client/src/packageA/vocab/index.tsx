@@ -5,7 +5,7 @@
  * 点击单词弹出详情视图。
  */
 
-import { View, Text, ScrollView, Input } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import type { InputEvent, StopPropagationEvent } from '../../types/taro-events'
@@ -21,6 +21,7 @@ import TabBar from '../../components/TabBar'
 import VocabDetailView from '../../components/VocabDetailView'
 import LucideIcon from '../../components/LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
+import emptyVocabImg from '../../assets/illustrations/empty-vocab.jpg'
 import './index.scss'
 
 interface VocabPageProps {
@@ -341,6 +342,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
           </View>
         ) : filteredList.length === 0 ? (
           <View className='empty-state'>
+            <Image className='empty-illustration' src={emptyVocabImg} mode='aspectFit' />
             <Text className='empty-text'>{debouncedQuery ? '未找到匹配的生词' : '暂无生词'}</Text>
             {!debouncedQuery && (
               <View className='empty-action' onClick={goToInput}>

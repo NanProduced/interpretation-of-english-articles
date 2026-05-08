@@ -330,11 +330,19 @@
   }
 
   .empty-state {
-    padding-top: 200rpx;
+    padding-top: 120rpx;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
+
+    .empty-illustration {
+      width: 280rpx;
+      height: 280rpx;
+      margin-bottom: 24rpx;
+      opacity: 0.85;
+    }
+
     .empty-text { font-size: 32rpx; font-weight: 500; color: var(--text-sub); margin-bottom: 16rpx; }
     .empty-action { padding: 12rpx 24rpx; background: var(--color-bg); border: 1rpx solid var(--border-color); border-radius: 16rpx; }
     .empty-sub { font-size: 26rpx; color: var(--text-sub); }

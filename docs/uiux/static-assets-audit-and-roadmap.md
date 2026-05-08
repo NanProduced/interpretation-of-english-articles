@@ -1,29 +1,33 @@
 # Claread 静态图片资源清单、审计与 UI/UX 物料路线图
 
-> 日期：2026-05-04  
+> 日期：2026-05-08  
 > 状态：作为静态图片、插画、动效与分享物料的唯一维护文档。  
 > 目的：记录当前资源、暴露体积/引用风险，并规划后续 UI/UX 优化所需物料。
+> 最近更新：2026-05-08 完成图片压缩替换，包体从 ~18MB 降至 1.51MB。
 
 ## 结论
 
-当前 MVP 品牌物料已经基本齐全，但资源体系仍偏“展示资产”，还没有形成可支持产品体验升级的完整视觉物料库。
+当前 MVP 品牌物料已经基本齐全，图片资源已完成压缩优化，包体已控制在微信小程序主包限制内。
 
-最需要优先处理的是：
+已完成：
 
-1. **压缩/重导出现有大图**：当前 Daily Reader 默认封面和分享图体积明显过大。
-2. **补齐状态插画与加载动效物料**：解析加载、错误、空状态、历史为空、生词本为空都需要统一风格。
+1. ~~**压缩/重导出现有大图**~~：✅ Daily Reader 默认封面、分享图、Logo、状态插画已全部 Squoosh 压缩并替换为 JPG，原图已删除。
+
+仍需后续处理：
+
+2. **补齐状态插画与加载动效物料**：解析加载 Lottie、错误、空状态、历史为空、生词本为空都需要统一风格。
 3. **建立阅读/笔记场景专属素材**：纸张、标注、文章卡、笔记层这类视觉语言应服务核心阅读体验。
-4. **准备分享与传播物料升级版**：需要 1:1 朋友圈图、轻量 5:4 分享图、未来公众号/运营封面。
+4. **准备分享与传播物料升级版**：需要 1:1 朋友圈图、未来公众号/运营封面。
 
 ## 资源目录总览
 
 | 目录 | 当前内容 | 用途 | 审计结论 |
 |------|----------|------|----------|
-| `client/src/assets/brand/` | 7 个 PNG | 品牌标识系统 | 源资产齐全，但 UI 场景需要轻量版 |
-| `client/src/assets/covers/` | 1 个 PNG | Daily Reader 默认封面 | 体积过大，需要重导出 |
-| `client/src/assets/images/share/` | 8 个 PNG | 分享卡片图 | 体积过大，需要重导出 |
+| `client/src/assets/brand/` | 6 个 PNG + 1 个 JPG | 品牌标识系统 | Logo 已压缩为 JPG，其余源资产保留 |
+| `client/src/assets/covers/` | 1 个 JPG | Daily Reader 默认封面 | ✅ 已压缩，47.74KB |
+| `client/src/assets/images/share/` | 8 个 JPG | 分享卡片图 | ✅ 已压缩，均 ≤65KB |
 | `client/src/assets/animations/` | 临时 TS 动画数据 | 解析加载页 Lottie 接入验证 | 等最终 Lottie JSON 替换 |
-| `client/src/assets/illustrations/` | 1 个 JPG + 6 个 PNG | 状态插画/兜底图 | Batch 1 源图已准备，接入前需 Squoosh 压缩 |
+| `client/src/assets/illustrations/` | 2 个 JPG + 1 个 PNG + 5 个 JPG（未引用） | 状态插画/兜底图 | ✅ 已压缩，已引用的 empty-feedback.jpg 仅 15KB |
 | `docs/uiux/loading-animation/` | 概念图、关键帧、brief | 解析加载页动效制作包 | 已准备，可交给 Lottie 制作 |
 
 ## 当前真实资源盘点
@@ -32,9 +36,9 @@
 
 | 文件 | 尺寸 | 体积 | 观察 |
 |------|------|------|------|
-| `app-icon.png` | 1024×1024 | 375KB | 平台上传用，不应在小程序 UI 中直接引用 |
-| `claread-logo.png` | 1254×1254 | 760KB | 登录弹窗正在引用，体积过大，建议生成轻量 UI 版 |
-| `claread-icon-fullcolor.png` | 759×759 | 351KB | 适合做源资产，不适合直接小尺寸 UI 引用 |
+| `app-icon.png` | 1024×1024 | 98KB | 平台上传用，不应在小程序 UI 中直接引用 |
+| `claread-logo.jpg` | — | 39KB | ✅ 登录弹窗引用，已压缩替换原 760KB PNG |
+| `claread-icon-fullcolor.png` | 759×759 | 87KB | 适合做源资产，不适合直接小尺寸 UI 引用 |
 | `claread-primary-fullcolor.png` | 1254×378 | 291KB | 可用于关于页/品牌页，日常 UI 应做轻量版 |
 | `claread-secondary-bilingual.png` | 1195×310 | 257KB | 适合首页/分享品牌区，但仍可压缩 |
 | `claread-horizontal-bilingual.png` | 1195×310 | 257KB | 同上 |
@@ -45,7 +49,7 @@
 | 文件 | 建议使用场景 |
 |------|--------------|
 | `app-icon.png` | 微信公众平台上传，不进入常规 UI |
-| `claread-logo.png` | 作为源图保留，登录弹窗应替换为轻量 UI 版 |
+| `claread-logo.jpg` | 登录弹窗（已替换原 PNG） |
 | `claread-icon-fullcolor.png` | Logo mark 源资产、动效制作参考 |
 | `claread-primary-fullcolor.png` | 启动页、关于页面、品牌展示 |
 | `claread-secondary-bilingual.png` | 首页标题区、分享卡片品牌区 |
@@ -65,7 +69,7 @@ SVG 源文件位置：
 
 | 文件 | 尺寸 | 体积 | 观察 |
 |------|------|------|------|
-| `daily-reader-default.png` | 1672×941 | 2232KB | 远超建议上限，应生成 1200×675 和 600×338 两档压缩版 |
+| `daily-reader-default.jpg` | — | 47.74KB | ✅ 已压缩替换原 2232KB PNG |
 
 #### Cover 使用场景
 
@@ -78,14 +82,14 @@ SVG 源文件位置：
 
 | 文件 | 尺寸 | 体积 | 观察 |
 |------|------|------|------|
-| `app-share.png` | 1448×1086 | 1706KB | 应重导出为 1000×800，≤300KB |
-| `daily-reader-01.png` | 1402×1122 | 2048KB | 应重导出为 1000×800，≤300KB |
-| `daily-reader-02.png` | 1402×1122 | 1715KB | 同上 |
-| `daily-reader-03.png` | 1402×1122 | 1838KB | 同上 |
-| `daily-reader-04.png` | 1402×1122 | 1820KB | 同上 |
-| `daily-reader-05.png` | 1402×1122 | 1755KB | 同上 |
-| `daily-reader-06.png` | 1402×1122 | 1661KB | 同上 |
-| `daily-reader-07.png` | 1402×1122 | 1716KB | 同上 |
+| `app-share.jpg` | — | 45.34KB | ✅ 已压缩替换原 1706KB PNG |
+| `daily-reader-01.jpg` | — | 62.05KB | ✅ 已压缩替换原 2048KB PNG |
+| `daily-reader-02.jpg` | — | 39.57KB | ✅ 已压缩替换原 1715KB PNG |
+| `daily-reader-03.jpg` | — | 46.02KB | ✅ 已压缩替换原 1838KB PNG |
+| `daily-reader-04.jpg` | — | 41.42KB | ✅ 已压缩替换原 1820KB PNG |
+| `daily-reader-05.jpg` | — | 38.87KB | ✅ 已压缩替换原 1755KB PNG |
+| `daily-reader-06.jpg` | — | 39.66KB | ✅ 已压缩替换原 1661KB PNG |
+| `daily-reader-07.jpg` | — | 37.24KB | ✅ 已压缩替换原 1716KB PNG |
 
 #### 微信分享规格
 
@@ -95,18 +99,22 @@ SVG 源文件位置：
 | 朋友圈分享 | 1:1 | 1000×1000 | ≤300KB |
 | 公众号封面 | 约 2.35:1 | 900×383 | 不进小程序包，建议 CDN/文档目录 |
 
-当前 5:4 分享图构图可保留，但需要按上表重导出轻量版。
+当前 5:4 分享图已全部压缩为 JPG，体积均 ≤65KB，远低于 300KB 目标。
 
 ## 当前代码引用情况
 
-实际被代码直接引用的图片主要是：
+实际被代码直接引用的图片（2026-05-08 更新）：
 
-- 登录弹窗：`assets/brand/claread-logo.png`
-- Daily Reader 默认封面：`assets/covers/daily-reader-default.png`
-- Daily Reader 分享图：`assets/images/share/daily-reader-01..07.png`
-- 结果页通用分享图：`assets/images/share/app-share.png`
+- 登录弹窗：`assets/brand/claread-logo.jpg`（原 PNG 已删除）
+- Daily Reader 默认封面：`assets/covers/daily-reader-default.jpg`（原 PNG 已删除）
+- Daily Reader 分享图：`assets/images/share/daily-reader-01..07.jpg`（原 PNG 已删除）
+- 结果页通用分享图：`assets/images/share/app-share.jpg`（原 PNG 已删除）
+- 反馈页空状态：`assets/illustrations/empty-feedback.jpg`（原 PNG 已删除）
+- 首页空状态：`assets/illustrations/empty-daily-reader.png`（体积 27KB，无需压缩）
 
-这意味着当前最影响包体和性能的是 **默认封面 + 分享图 + 登录 Logo**。
+未引用但已压缩备用的插画（JPG）：
+- `assets/illustrations/empty-history.jpg`、`empty-vocab.jpg`
+- `assets/illustrations/state-empty.jpg`、`state-error-network.jpg`、`state-error-timeout.jpg`、`state-no-credit.jpg`
 
 ## 命名与目录规范
 
@@ -179,34 +187,38 @@ docs/uiux/loading-animation/
 
 ```text
 client/src/assets/illustrations/loading-analysis-fallback.jpg
-client/src/assets/illustrations/state-empty.png
-client/src/assets/illustrations/state-error-network.png
-client/src/assets/illustrations/state-error-timeout.png
-client/src/assets/illustrations/state-no-credit.png
-client/src/assets/illustrations/empty-history.png
-client/src/assets/illustrations/empty-vocab.png
+client/src/assets/illustrations/state-empty.jpg
+client/src/assets/illustrations/state-error-network.jpg
+client/src/assets/illustrations/state-error-timeout.jpg
+client/src/assets/illustrations/state-no-credit.jpg
+client/src/assets/illustrations/empty-history.jpg
+client/src/assets/illustrations/empty-vocab.jpg
+client/src/assets/illustrations/empty-feedback.jpg
+client/src/assets/illustrations/empty-daily-reader.png
 ```
 
 #### 2. 结果页状态插画
 
 当前 `ResultIllustrations` 还是内联线条 SVG，风格偏临时。建议统一生成一组轻量插画。
 
-| 文件 | 规格 | 风格 |
+| 文件 | 体积 | 状态 |
 |------|------|------|
-| `state-empty.png` | 源图 1254×1254，1.36MB；上线前用 Squoosh 压缩 | 空白纸页 + 光圈弱水印，已准备 |
-| `state-error-network.png` | 源图 1254×1254，1.10MB；上线前用 Squoosh 压缩 | 断开的纸页/弱网络线，已准备 |
-| `state-error-timeout.png` | 源图 1254×1254，1.12MB；上线前用 Squoosh 压缩 | 纸页 + 轻量时间标记，已准备 |
-| `state-no-credit.png` | 源图 1254×1254，1.14MB；上线前用 Squoosh 压缩 | 纸页 + 额度票券意象，已准备 |
+| `state-empty.jpg` | 13.24KB | ✅ 已压缩，待代码接入 |
+| `state-error-network.jpg` | 24.29KB | ✅ 已压缩，待代码接入 |
+| `state-error-timeout.jpg` | 21.98KB | ✅ 已压缩，待代码接入 |
+| `state-no-credit.jpg` | 29.06KB | ✅ 已压缩，待代码接入 |
 
-优先考虑 SVG/Lottie；PNG 只做兜底。
+优先考虑 SVG/Lottie；JPG 只做兜底。
 
 #### 3. 轻量品牌 UI 版本
 
-不要在小尺寸 UI 中直接使用 700KB 级别 Logo。
+✅ `claread-logo.jpg`（39KB）已替代原 760KB PNG 用于登录弹窗。
+
+仍需准备的：
 
 | 文件 | 规格 | 用途 |
 |------|------|------|
-| `brand-icon-ui.png` | 192×192，透明底，≤30KB | 登录弹窗、空状态、loading |
+| `brand-icon-ui.png` | 192×192，透明底，≤30KB | 空状态、loading |
 | `brand-icon-ui@2x.png` | 384×384，透明底，≤50KB | 高清屏 |
 | `brand-lockup-bilingual-ui.png` | 宽 480，高自适应，≤80KB | 首页/关于页 |
 | `brand-watermark.png` | 256×256，低对比透明底，≤30KB | 阅读页水印/纸张背景 |
@@ -248,12 +260,12 @@ AI 生成的图片主要作为风格参考，最终交互层应尽量用 CSS/SVG
 
 #### 6. 空状态插画套件
 
-| 文件 | 场景 |
-|------|------|
-| `empty-history.png` | 历史记录为空，源图 1254×1254，1.49MB，已准备 |
-| `empty-vocab.png` | 生词本为空，源图 1254×1254，0.89MB，已准备 |
-| `empty-feedback.png` | 暂无反馈记录 |
-| `empty-daily-reader.png` | 每日精读暂无内容 |
+| 文件 | 体积 | 状态 |
+|------|------|------|
+| `empty-history.jpg` | 24.08KB | ✅ 已压缩，待代码接入 |
+| `empty-vocab.jpg` | 22.81KB | ✅ 已压缩，待代码接入 |
+| `empty-feedback.jpg` | 15.11KB | ✅ 已压缩，已代码接入 |
+| `empty-daily-reader.png` | 27.37KB | ✅ 已代码接入，体积达标 |
 
 风格：暖白纸张、轻线条、少量品牌蓝、可带淡紫高亮。
 
@@ -310,14 +322,14 @@ AI 生成的图片主要作为风格参考，最终交互层应尽量用 CSS/SVG
 | `share-timeline-reader.png` | 1000×1000，≤300KB |
 | `share-timeline-notes.png` | 1000×1000，≤300KB |
 
-#### 11. 重导出 5:4 分享图
+#### 11. ~~重导出 5:4 分享图~~
 
-现有分享图构图可保留，但必须重导出轻量版：
+✅ 已完成。现有分享图已全部 Squoosh 压缩为 JPG，体积均 ≤65KB：
 
 ```text
-1000×800 px
-≤300KB
-路径保持不变或迁移到 assets/share/
+1000×800 px (Squoosh resize)
+≤65KB (远低于 300KB 目标)
+格式：JPG (MozJPEG)
 ```
 
 #### 12. 公众号/运营封面
@@ -334,19 +346,21 @@ AI 生成的图片主要作为风格参考，最终交互层应尽量用 CSS/SVG
 
 ### Batch 1：加载与状态体验
 
-已生成源图：
+✅ 已完成压缩替换（2026-05-08）：
 
 ```text
-loading-analysis-fallback.jpg
-state-empty.png
-state-error-network.png
-state-error-timeout.png
-state-no-credit.png
-empty-history.png
-empty-vocab.png
+loading-analysis-fallback.jpg     22.36KB  (原已合格)
+state-empty.jpg                   13.24KB  (原 PNG 1391KB)
+state-error-network.jpg           24.29KB  (原 PNG 1131KB)
+state-error-timeout.jpg           21.98KB  (原 PNG 1147KB)
+state-no-credit.jpg               29.06KB  (原 PNG 1168KB)
+empty-history.jpg                 24.08KB  (原 PNG 1527KB)
+empty-vocab.jpg                   22.81KB  (原 PNG 908KB)
+empty-feedback.jpg                15.11KB  (原 PNG 1377KB)
+empty-daily-reader.png            27.37KB  (原已合格，保持 PNG)
 ```
 
-这批是后续重构最容易立刻用上的状态体验物料。除 `loading-analysis-fallback.jpg` 已是轻量 JPG 外，其余 PNG 保留高质量源图，接入前统一用 Squoosh 压缩。
+所有原图 PNG 已删除，代码 import 路径已更新为 `.jpg`。
 
 ### Batch 2：阅读与笔记语言
 

@@ -52,6 +52,13 @@
   animation: state-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.state-illustration-img {
+  width: 280rpx;
+  height: 280rpx;
+  opacity: 0;
+  animation: state-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .state-title {
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);

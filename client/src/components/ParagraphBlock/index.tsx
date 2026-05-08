@@ -681,7 +681,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                 ) : (
                   // 普通精读模式：使用马克笔涂抹模式
                   <Text className='english-flow'>
-                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
+                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0, isAcademicMode, groupActiveMarkIds)}
                   </Text>
                 )}
               </View>
@@ -771,7 +771,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                       className={`sentence-span ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted-source' : ''}`}
                       onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
                     >
-                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
+                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, order === 1 && idx === 0, isAcademicMode, groupActiveMarkIds)}
                       {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
                     </Text>
                   ))}

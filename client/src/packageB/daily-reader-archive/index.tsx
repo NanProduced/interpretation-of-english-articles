@@ -3,7 +3,7 @@ import { useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import { useDailyReaderStore } from '../../stores/daily-reader'
-import defaultCover from '../../assets/covers/daily-reader-default.png'
+import defaultCover from '../../assets/covers/daily-reader-default.jpg'
 import './index.scss'
 
 const DIFFICULTY_LABELS: Record<string, string> = {

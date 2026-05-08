@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import clareadLogo from '../../assets/brand/claread-logo.png'
+import clareadLogo from '../../assets/brand/claread-logo.jpg'
 import './index.scss'
 
 interface LoginGuideModalProps {

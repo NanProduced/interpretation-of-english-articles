@@ -103,15 +103,25 @@
     }
 
 
+  /* =========================================================
+   * Drop Cap — 首字下沉 (Editorial Typography)
+   *
+   * 设计参考: 经典期刊/书籍排版的首字母放大效果
+   * - float: left 让文字自然环绕
+   * - serif 字体 + 大字号 + 紧凑行高 = 编辑品质感
+   * - 仅在段落 1 的第 1 句触发 (order === 1 && idx === 0)
+   * ========================================================= */
   .drop-cap {
     float: left;
-    margin-top: 10rpx;
-    margin-right: 12rpx;
-    margin-bottom: -12rpx;
+    margin-top: 4rpx;
+    margin-right: 10rpx;
+    margin-bottom: -4rpx;
     color: var(--reader-ink);
     font-family: var(--font-english-serif), serif;
-    font-size: 3.2em;
-    line-height: 0.85;
+    font-size: 3.6em;
+    font-weight: 650;
+    line-height: 0.82;
+    letter-spacing: -0.02em;
   }
 
   .sentence-span,
@@ -336,10 +346,13 @@
       /* 卡片内部的文字已经通过 AnalysisCard 的 academic-mode 控制 */
     }
     
-    /* Drop Cap - 在学术模式下更加克制 */
+    /* Drop Cap - 学术模式下保持编辑品质，首字作为视觉锚点 */
     .drop-cap {
-      color: rgba(17, 17, 17, 0.85);  /* 稍淡 */
-      opacity: 0.7;  /* 降低存在感 */
+      color: rgba(17, 17, 17, 0.88);
+      font-size: 3.8em;
+      font-weight: 680;
+      letter-spacing: -0.03em;
+      opacity: 1;
     }
   }  /* ⭐ 关闭 &.academic-mode (第278行) */
 }  /* ⭐ 关闭 &.intensive (第29行) */

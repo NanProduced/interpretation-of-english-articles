@@ -22,7 +22,7 @@ import { getVocabEntryByLemma } from '../../services/storage'
 import DegradedBanner from './components/DegradedBanner'
 import SourceFallback from './components/SourceFallback'
 import StateViews from './components/StateViews'
-import appShare from '../../assets/images/share/app-share.png'
+import appShare from '../../assets/images/share/app-share.jpg'
 import './index.scss'
 
 export default function Result() {
