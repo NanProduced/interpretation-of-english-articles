@@ -6,6 +6,7 @@ import './index.scss'
 interface Props {
   highlight: DailyReaderHighlight
   isActive?: boolean
+  isHintTarget?: boolean
   onWordClick?: (highlight: DailyReaderHighlight) => void
 }
 
@@ -18,13 +19,14 @@ const TYPE_CLASS: Record<string, string> = {
 const DailyReaderHighlightWord = memo(function DailyReaderHighlightWord({
   highlight,
   isActive,
+  isHintTarget,
   onWordClick,
 }: Props) {
   const typeClass = TYPE_CLASS[highlight.type] || 'daily-hl--vocab'
 
   return (
     <Text
-      className={`daily-hl ${typeClass} ${isActive ? 'daily-hl--active' : ''}`}
+      className={`daily-hl ${typeClass} ${isActive ? 'daily-hl--active' : ''} ${isHintTarget ? 'daily-hl--hint' : ''}`}
       onClick={(e) => {
         e.stopPropagation()
         onWordClick?.(highlight)

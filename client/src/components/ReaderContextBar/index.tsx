@@ -13,6 +13,7 @@ interface ReaderContextBarProps {
   onClick?: () => void
   onEdit?: () => void
   onModeToggle?: () => void
+  onSettingsClick?: () => void
 }
 
 export default function ReaderContextBar({
@@ -24,6 +25,7 @@ export default function ReaderContextBar({
   onClick,
   onEdit,
   onModeToggle,
+  onSettingsClick,
 }: ReaderContextBarProps) {
   const goalLabel = getCompactLabel(readingGoal || 'daily_reading', readingVariant)
   const isImmersive = pageMode === 'immersive'
@@ -81,12 +83,26 @@ export default function ReaderContextBar({
         )}
       </View>
 
-      <View
-        className='reparse-button'
-        onClick={handleReparse}
-      >
-        <LucideIcon name='refresh-cw' size={16} color='currentColor' strokeWidth={1.8} />
-        <Text className='reparse-text'>换模式</Text>
+      <View className='actions-group'>
+        <View
+          className='settings-button'
+          onClick={(e) => {
+            e.stopPropagation()
+            onSettingsClick?.()
+          }}
+        >
+          <Text className='settings-text'>Aa</Text>
+        </View>
+        
+        <View className='action-divider' />
+
+        <View
+          className='reparse-button'
+          onClick={handleReparse}
+        >
+          <LucideIcon name='refresh-cw' size={16} color='currentColor' strokeWidth={1.8} />
+          <Text className='reparse-text'>换模式</Text>
+        </View>
       </View>
     </View>
   )

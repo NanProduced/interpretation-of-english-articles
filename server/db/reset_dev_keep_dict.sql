@@ -12,6 +12,7 @@
 BEGIN;
 
 TRUNCATE TABLE
+  user_annotations,
   analysis_audit_logs,
   analysis_task_events,
   analysis_tasks,

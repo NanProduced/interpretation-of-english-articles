@@ -10,6 +10,7 @@ interface Props {
   highlights: DailyReaderHighlight[]
   onHighlightClick?: (highlight: DailyReaderHighlight) => void
   onWordClick?: (word: string) => void
+  showHighlightHint?: boolean
 }
 
 const DailyReaderBody = memo(function DailyReaderBody({
@@ -17,6 +18,7 @@ const DailyReaderBody = memo(function DailyReaderBody({
   highlights,
   onHighlightClick,
   onWordClick,
+  showHighlightHint,
 }: Props) {
   const handleTextClick = useCallback(
     (e: ClickEvent) => {
@@ -37,7 +39,7 @@ const DailyReaderBody = memo(function DailyReaderBody({
         return (
           <View key={paragraph.id} className='daily-body__paragraph'>
             <Text className='daily-body__text' onClick={handleTextClick}>
-              {renderParagraphWithHighlights(paragraph.text, paraHighlights, onHighlightClick)}
+              {renderParagraphWithHighlights(paragraph.text, paraHighlights, onHighlightClick, showHighlightHint)}
             </Text>
           </View>
         )
@@ -50,6 +52,7 @@ function renderParagraphWithHighlights(
   text: string,
   highlights: DailyReaderHighlight[],
   onHighlightClick?: (highlight: DailyReaderHighlight) => void,
+  showHighlightHint?: boolean,
 ) {
   if (!highlights.length) return text
 
@@ -68,6 +71,7 @@ function renderParagraphWithHighlights(
         key={`hl-${hl.id}`}
         highlight={hl}
         onWordClick={onHighlightClick}
+        isHintTarget={showHighlightHint && idx === 0}
       />,
     )
     lastEnd = hl.end

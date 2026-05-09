@@ -1,0 +1,139 @@
+.un-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  animation: un-fade-in 0.2s ease-out;
+}
+
+@keyframes un-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.un-sheet {
+  width: 100%;
+  background: var(--bg-surface, #FFFFFF);
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 24rpx 32rpx 80rpx;
+  animation: un-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes un-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.un-handle {
+  width: 72rpx;
+  height: 8rpx;
+  background: var(--border-color, #E5E5E5);
+  border-radius: 4rpx;
+  margin: 0 auto 32rpx;
+}
+
+.un-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32rpx;
+}
+
+.un-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  width: 80rpx; /* fixed width to center title */
+  
+  &--right {
+    justify-content: flex-end;
+  }
+}
+
+.un-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  text-align: center;
+}
+
+.un-icon-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  
+  &--primary {
+    background: var(--color-primary);
+  }
+  
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.un-body {
+  display: flex;
+  flex-direction: column;
+  gap: 40rpx;
+}
+
+.un-textarea {
+  width: 100%;
+  min-height: 160rpx;
+  max-height: 400rpx;
+  font-size: 30rpx;
+  line-height: 1.6;
+  color: var(--text-primary);
+  padding: 24rpx;
+  background: var(--bg-secondary);
+  border-radius: 16rpx;
+  box-sizing: border-box;
+}
+
+.un-textarea-placeholder {
+  color: var(--text-muted);
+}
+
+.un-theme-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16rpx;
+}
+
+.un-theme-label {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.un-theme-options {
+  display: flex;
+  gap: 24rpx;
+}
+
+.un-theme-circle {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4rpx solid transparent;
+  transition: all 0.2s;
+  
+  &--active {
+    transform: scale(1.1);
+    box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.1);
+  }
+}

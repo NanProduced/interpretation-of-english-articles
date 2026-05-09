@@ -62,7 +62,9 @@ export async function fetchCloudFavorites(): Promise<{ items: FavoriteRecord[]; 
 export async function addFavoriteToCloud(
   cloudId: string | null,
   clientRecordId: string,
-  targetType: string = 'analysis_record'
+  targetType: string = 'analysis_record',
+  payloadJson: Record<string, any> = {},
+  note: string | null = null
 ): Promise<{ id: string }> {
   return request<{ id: string; ok: boolean }>({
     url: '/favorites',
@@ -71,8 +73,8 @@ export async function addFavoriteToCloud(
       target_type: targetType,
       target_key: clientRecordId,
       analysis_record_id: cloudId,
-      payload_json: {},
-      note: null,
+      payload_json: payloadJson,
+      note: note,
     },
   }).then((r) => ({ id: r.id }))
 }

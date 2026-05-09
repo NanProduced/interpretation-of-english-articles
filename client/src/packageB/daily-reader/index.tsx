@@ -1,8 +1,9 @@
 import { View, Text } from '@tarojs/components'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import Taro, { usePageScroll, useShareAppMessage } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import { useDailyReaderStore } from '../../stores/daily-reader'
+import NavBar from '../../components/NavBar'
 import DailyReaderHeader from '../../components/DailyReaderHeader'
 import DailyReaderBody from '../../components/DailyReaderBody'
 import DailyReaderFooterAnalysis from '../../components/DailyReaderFooterAnalysis'
@@ -36,6 +37,9 @@ function pickShareImage(id: string): string {
 }
 import './index.scss'
 
+const STICKY_SHOW_THRESHOLD = 600
+const STICKY_HIDE_THRESHOLD = 480
+
 export default function DailyReaderPage() {
   const {
     currentArticle: article,
@@ -52,12 +56,25 @@ export default function DailyReaderPage() {
   const [tapPosition, setTapPosition] = useState({ x: 0, y: 0 })
   const [favorited, setFavorited] = useState(false)
   const [animTrigger, setAnimTrigger] = useState(0)
+  const [showStickyBar, setShowStickyBar] = useState(false)
+  const [showHighlightHint, setShowHighlightHint] = useState(false)
+  const scrollThresholdPassed = useRef(false)
 
   useEffect(() => {
     if (article) {
       setFavorited(isFavorited(article.id))
+      const onboardingDone = Taro.getStorageSync('dr_onboarding_done')
+      if (!onboardingDone && article.highlights.length > 0) {
+        const timer = setTimeout(() => setShowHighlightHint(true), 1800)
+        return () => clearTimeout(timer)
+      }
     }
   }, [article])
+
+  const dismissHint = useCallback(() => {
+    setShowHighlightHint(false)
+    Taro.setStorageSync('dr_onboarding_done', '1')
+  }, [])
 
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params
@@ -69,6 +86,13 @@ export default function DailyReaderPage() {
 
   usePageScroll((res) => {
     Taro.eventCenter.trigger('dailyReaderPageScroll', res)
+    if (res.scrollTop > STICKY_SHOW_THRESHOLD && !scrollThresholdPassed.current) {
+      scrollThresholdPassed.current = true
+      setShowStickyBar(true)
+    } else if (res.scrollTop <= STICKY_HIDE_THRESHOLD && scrollThresholdPassed.current) {
+      scrollThresholdPassed.current = false
+      setShowStickyBar(false)
+    }
   })
 
   useShareAppMessage(() => {
@@ -81,19 +105,21 @@ export default function DailyReaderPage() {
   })
 
   const handleHighlightClick = useCallback((highlight: DailyReaderHighlight) => {
+    dismissHint()
     const mark = highlightToInlineMark(highlight)
     setActiveMark(mark)
     setActiveWord(highlight.text)
     setPopupMode('mini')
     setPopupVisible(true)
-  }, [])
+  }, [dismissHint])
 
   const handleWordClick = useCallback((word: string) => {
+    dismissHint()
     setActiveMark(null)
     setActiveWord(word)
     setPopupMode('mini')
     setPopupVisible(true)
-  }, [])
+  }, [dismissHint])
 
   const handleExpandPopup = useCallback(() => {
     setPopupMode('full')
@@ -206,6 +232,13 @@ export default function DailyReaderPage() {
 
   return (
     <View className='daily-page'>
+      <NavBar
+        title={article.source}
+        showBack
+        showHome
+        background='transparent'
+        color='#FFFFFF'
+      />
       <DailyReaderProgress />
       <DailyReaderHeader article={article} />
       <View className='daily-page__body-divider' />
@@ -214,6 +247,7 @@ export default function DailyReaderPage() {
         highlights={article.highlights}
         onHighlightClick={handleHighlightClick}
         onWordClick={handleWordClick}
+        showHighlightHint={showHighlightHint}
       />
       <DailyReaderFooterAnalysis
         footerAnalysis={article.footerAnalysis}
@@ -222,20 +256,45 @@ export default function DailyReaderPage() {
       />
       <View className='daily-page__end-actions'>
         <View
-          className={`daily-page__action-btn ${favorited ? 'daily-page__action-btn--favorited' : ''} ${animTrigger > 0 ? 'animate-spring' : ''}`}
+          className={`daily-page__action-btn daily-page__action-btn--primary ${favorited ? 'daily-page__action-btn--favorited' : ''} ${animTrigger > 0 ? 'animate-spring' : ''}`}
           onClick={handleFavorite}
         >
           <LucideIcon name='star' size={18} color={favorited ? 'var(--color-warning)' : 'var(--dr-text-sub)'} />
-          <Text>{favorited ? '已收藏全文' : '收藏全文'}</Text>
+          <Text>{favorited ? '已收藏' : '收藏全文'}</Text>
         </View>
         <View
-          className='daily-page__action-btn'
+          className='daily-page__action-btn daily-page__action-btn--secondary'
           onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
         >
           <LucideIcon name='archive' size={18} color='var(--dr-text-sub)' />
           <Text>往期精选</Text>
         </View>
       </View>
+      <View className={`daily-page__sticky-bar ${showStickyBar ? 'daily-page__sticky-bar--visible' : ''}`}>
+        <View
+          className={`daily-page__sticky-action ${favorited ? 'daily-page__sticky-action--favorited' : ''}`}
+          onClick={handleFavorite}
+        >
+          <LucideIcon name='star' size={20} color={favorited ? 'var(--color-warning)' : '#FFF'} />
+          <Text className='daily-page__sticky-label'>{favorited ? '已收藏' : '收藏'}</Text>
+        </View>
+        <View className='daily-page__sticky-divider' />
+        <View
+          className='daily-page__sticky-action'
+          onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
+        >
+          <LucideIcon name='clock' size={20} color='#FFF' />
+          <Text className='daily-page__sticky-label'>往期</Text>
+        </View>
+      </View>
+      {showHighlightHint && (
+        <View className='daily-page__hint-overlay' onClick={dismissHint}>
+          <View className='daily-page__hint-bubble' onClick={(e) => e.stopPropagation()}>
+            <Text className='daily-page__hint-text'>点击高亮词可查释义</Text>
+            <LucideIcon name='ArrowUp' size={14} color='var(--dr-accent)' />
+          </View>
+        </View>
+      )}
       <WordPopup
         visible={popupVisible}
         mode={popupMode}

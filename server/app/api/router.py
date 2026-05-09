@@ -13,6 +13,7 @@ from app.api.routes.prompt_debug import router as prompt_debug_router
 from app.api.routes.quota import router as quota_router
 from app.api.routes.records import router as records_router
 from app.api.routes.tasks import router as tasks_router
+from app.api.routes.user_annotations import router as user_annotations_router
 from app.api.routes.vocabulary import router as vocabulary_router
 
 api_router = APIRouter()
@@ -30,4 +31,5 @@ api_router.include_router(internal_feedback_router)
 api_router.include_router(daily_reader_router)
 api_router.include_router(daily_reader_admin_router)
 api_router.include_router(prompt_debug_router)
+api_router.include_router(user_annotations_router)
 

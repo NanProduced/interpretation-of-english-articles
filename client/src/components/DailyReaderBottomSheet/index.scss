@@ -93,9 +93,9 @@
   &__context {
     margin-top: 20rpx;
     padding: 20rpx 28rpx;
-    background: var(--dr-badge-tag-bg);
+    background: rgba(139, 115, 85, 0.05);
     border-radius: 12rpx;
-    border-left: 6rpx solid var(--dr-border-accent);
+    border-top: 3rpx solid rgba(139, 115, 85, 0.18);
   }
 
   &__context-label {

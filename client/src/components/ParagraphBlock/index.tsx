@@ -2,7 +2,9 @@ import { useMemo, memo, useState, useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { View, Text } from '@tarojs/components'
 import { AnyInlineMarkModel, AnySentenceEntryModel, VisualTone, AcademicVisualTone, SentenceModel, TranslationModel } from '../../types/view/render-scene.vm'
+import { UserAnnotationDto } from '../../services/api/user-annotations.client'
 import ClickableWord from '../ClickableWord'
+import LucideIcon from '../LucideIcon'
 import GrammarInlineSpan from '../GrammarInlineSpan'
 import InlineMark from '../InlineMark'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
@@ -43,10 +45,12 @@ interface ParagraphBlockProps {
   isAcademicMode?: boolean  // Academic mode flag for styling
   vocabList?: string[]
   vocabSavedMap?: Record<string, string>
+  userAnnotations?: UserAnnotationDto[]
   recordId?: string
   cloudId?: string
   onWordClick?: (payload: WordClickPayload) => void
   onSentenceClick?: (sentenceId: string) => void
+  onSentenceLongPress?: (sentenceId: string) => void
   onMarkActiveChange?: (markId: string | null) => void
 }
 
@@ -505,11 +509,13 @@ const ParagraphBlock = memo(function ParagraphBlock({
   isAcademicMode = false,  // Academic mode flag
   vocabList,
   vocabSavedMap,
+  userAnnotations,
   recordId,
   cloudId,
   activeSentenceId,
   onWordClick,
   onSentenceClick,
+  onSentenceLongPress,
   onMarkActiveChange,
 }: ParagraphBlockProps) {
   const vocabSet = useMemo(() => new Set(vocabList ?? []), [vocabList])
@@ -567,6 +573,14 @@ const ParagraphBlock = memo(function ParagraphBlock({
     return map
   }, [inlineMarks])
 
+  const annotationBySentenceId = useMemo(() => {
+    const map = new Map<string, UserAnnotationDto>()
+    userAnnotations?.forEach(a => {
+      if (!map.has(a.sentence_id)) map.set(a.sentence_id, a)
+    })
+    return map
+  }, [userAnnotations])
+
   const entriesBySentenceId = useMemo(() => {
     const map = new Map<string, AnySentenceEntryModel[]>()
     tailEntries.forEach((e) => {
@@ -594,12 +608,14 @@ const ParagraphBlock = memo(function ParagraphBlock({
               const sentenceMarks = isFirstDropCapSentence
                 ? adjustMarksForDropCap(rawSentenceMarks, sentence.text, firstDropCap!.letterIndex)
                 : rawSentenceMarks
+              const userAnno = annotationBySentenceId.get(sentence.sentenceId)
 
               return (
                 <Text
                   key={sentence.sentenceId}
-                  className={`sentence-span ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''}`}
+                  className={`sentence-span ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''} ${userAnno ? `user-highlighted user-highlighted--${userAnno.color}` : ''}`}
                   onClick={() => onSentenceClick?.(sentence.sentenceId)}
+                  onLongPress={() => onSentenceLongPress?.(sentence.sentenceId)}
                 >
                   {renderTextWithMarks(sentenceText, sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
@@ -740,7 +756,10 @@ const ParagraphBlock = memo(function ParagraphBlock({
           const item = chunk.items[0]
           return (
             <View key={`chunk-${chunk.id}-${cIdx}`} className='sentence-block'>
-              <View className='sentence-main'>
+              <View
+                className={`sentence-main ${annotationBySentenceId.get(item.sentence.sentenceId) ? `user-highlighted user-highlighted--${annotationBySentenceId.get(item.sentence.sentenceId)!.color}` : ''}`}
+                onLongPress={() => onSentenceLongPress?.(item.sentence.sentenceId)}
+              >
                 {activeAnalysisId && item.analysisCards.some(c => c.id === activeAnalysisId && c.type === 'sentence') ? (
                   // 正在进行句式分析：使用 Ruby 标注模式
                   renderTextWithAnalysis(
@@ -753,14 +772,26 @@ const ParagraphBlock = memo(function ParagraphBlock({
                     {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
                   </Text>
                 )}
+                
+                {/* 渲染用户批注 */}
+                {userAnnotations?.filter(a => a.sentence_id === item.sentence.sentenceId).map(anno => (
+                  <View key={anno.id} className={`user-annotation-wrapper theme-${anno.color}`}>
+                    {anno.note && (
+                      <View className='user-annotation-note'>
+                        <LucideIcon name='pen-line' size={14} color='var(--reader-muted)' />
+                        <Text className='note-text'>{anno.note}</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
               </View>
 
               {item.sentenceTranslation && (
                 <View 
                   className='sentence-translation'
                   onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
-                >
-                  <Text className={`translation-text segment ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted' : ''}`}>
+                  onLongPress={() => onSentenceLongPress?.(item.sentence.sentenceId)}
+                >                  <Text className={`translation-text segment ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted' : ''}`}>
                     {item.sentenceTranslation}
                   </Text>
                 </View>

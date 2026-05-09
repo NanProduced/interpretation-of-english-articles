@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
@@ -14,6 +14,13 @@ import AnnotationGlyph from '../../components/AnnotationGlyph'
 import BottomSheetSelect from '../../components/BottomSheetSelect'
 import FeedbackWidget from '../../components/FeedbackWidget'
 import ReaderContextBar from '../../components/ReaderContextBar'
+import ReadingSettingsSheet from '../../components/ReadingSettingsSheet'
+import ReadingSelectionToolbar, { SelectionContext } from '../../components/ReadingSelectionToolbar'
+import UserNoteSheet from '../../components/UserNoteSheet'
+import { useReadingPreferencesStore } from '../../stores/reading-preferences'
+import { UserAnnotationDto, listUserAnnotations, createUserAnnotation } from '../../services/api/user-annotations.client'
+import { addFavoriteToCloud } from '../../services/api/favorites.client'
+import FeedbackSheet from '../../components/FeedbackSystem/FeedbackSheet'
 import { useResultState } from './hooks/useResultState'
 import { useResultEffects } from './hooks/useResultEffects'
 import { useResultActions } from './hooks/useResultActions'
@@ -36,6 +43,131 @@ export default function Result() {
     pageState, sceneData, requestParams, errorCode, errorMsg,
     recordId, cloudId, isReplayMode,
   } = state
+
+  const [showSettingsSheet, setShowSettingsSheet] = useState(false)
+  const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null)
+  const [userAnnotations, setUserAnnotations] = useState<UserAnnotationDto[]>([])
+  const [showNoteSheet, setShowNoteSheet] = useState(false)
+  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false)
+  const { preferences } = useReadingPreferencesStore()
+
+  const readerStyles = useMemo(() => {
+    const fsRatios = { small: 0.85, standard: 1, large: 1.15, xlarge: 1.3 }
+    const lhRatios = { compact: 1.4, standard: 1.6, loose: 1.8 }
+    const psRatios = { compact: '16rpx', standard: '24rpx', loose: '32rpx' }
+    const trOpacity = { hidden: 0, muted: 0.6, standard: 1 }
+    
+    let bg = '#F9F5EC'
+    if (preferences.paper_theme === 'white') bg = '#FFFFFF'
+    else if (preferences.paper_theme === 'sage') bg = '#F0F4F0'
+    
+    return {
+      '--reader-font-size-ratio': fsRatios[preferences.font_size],
+      '--reader-line-height': lhRatios[preferences.line_height],
+      '--reader-para-spacing': psRatios[preferences.paragraph_spacing],
+      '--reader-bg-theme': bg,
+      '--reader-translation-opacity': trOpacity[preferences.translation_display],
+    } as React.CSSProperties
+  }, [preferences])
+
+  useEffect(() => {
+    const activeRecordId = cloudId || recordId
+    if (activeRecordId && pageState === 'normal') {
+      listUserAnnotations(activeRecordId).then(setUserAnnotations).catch(err => {
+        console.warn('Failed to load user annotations', err)
+      })
+    }
+  }, [cloudId, recordId, pageState])
+
+  const handleSentenceLongPress = useCallback((sentenceId: string) => {
+    if (!sceneData) return
+    const sentence = sceneData.article.sentences.find(s => s.sentenceId === sentenceId)
+    const translation = sceneData.translations.find(t => t.sentenceId === sentenceId)
+    
+    if (sentence) {
+      setSelectionContext({
+        recordId: cloudId || recordId || undefined,
+        sentenceId: sentence.sentenceId,
+        text: sentence.text,
+        translation: translation?.translationZh,
+        isShort: sentence.text.split(' ').length <= 5
+      })
+    }
+  }, [sceneData, cloudId, recordId])
+
+  const handleCopy = (mode: 'original' | 'translation' | 'bilingual') => {
+    if (!selectionContext) return
+    let text = ''
+    if (mode === 'original') {
+      text = selectionContext.text
+    } else if (mode === 'translation') {
+      text = selectionContext.translation || selectionContext.text
+    } else {
+      text = selectionContext.translation
+        ? `${selectionContext.text}\n${selectionContext.translation}`
+        : selectionContext.text
+    }
+    Taro.setClipboardData({
+      data: text,
+      success: () => {
+        Taro.showToast({ title: '已复制', icon: 'success' })
+        setSelectionContext(null)
+      }
+    })
+  }
+
+  const handleFavoriteSelection = async () => {
+    if (!selectionContext) return
+    const activeCloudId = cloudId || undefined
+    const targetKey = `record:${activeCloudId || recordId}:sentence:${selectionContext.sentenceId}`
+    try {
+      await addFavoriteToCloud(
+        activeCloudId || null,
+        targetKey,
+        'sentence',
+        {
+          paragraph_id: selectionContext.paragraphId,
+          sentence_id: selectionContext.sentenceId,
+          text: selectionContext.text,
+          translation: selectionContext.translation,
+        }
+      )
+      Taro.showToast({ title: '已收藏', icon: 'success' })
+      setSelectionContext(null)
+    } catch (err: any) {
+      Taro.showToast({ title: err.message || '收藏失败', icon: 'none' })
+    }
+  }
+
+  const handleHighlight = () => {
+    if (!selectionContext) return
+    setShowNoteSheet(true)
+  }
+
+  const handleNoteSave = async (color: string, note: string) => {
+    if (!selectionContext) return
+    const activeRecordId = cloudId || recordId || ''
+    try {
+      Taro.showLoading({ title: '保存中...' })
+      const res = await createUserAnnotation({
+        analysis_record_id: activeRecordId,
+        annotation_type: 'note',
+        anchor_type: 'sentence',
+        sentence_id: selectionContext.sentenceId,
+        selected_text: selectionContext.text,
+        color,
+        note
+      })
+      setUserAnnotations(prev => [res, ...prev])
+      Taro.hideLoading()
+      Taro.showToast({ title: '笔记已保存', icon: 'success' })
+      setSelectionContext(null)
+      setShowNoteSheet(false)
+    } catch (e: any) {
+      Taro.hideLoading()
+      Taro.showToast({ title: '保存失败', icon: 'none' })
+    }
+  }
 
   useResultEffects({
     recordId, cloudId, sceneData, pageState,
@@ -97,6 +229,7 @@ export default function Result() {
           isAcademicMode={isAcademicMode}
           onModeToggle={() => setPageMode(pageMode === 'immersive' ? 'intensive' : 'immersive')}
           onEdit={() => setShowModeSheet(true)}
+          onSettingsClick={() => setShowSettingsSheet(true)}
         />
       </View>
     )
@@ -129,11 +262,12 @@ export default function Result() {
           activeSentenceId={activeSentenceId}
           onWordClick={actions.handleWordClick}
           onSentenceClick={actions.handleSentenceClick}
+          onSentenceLongPress={handleSentenceLongPress}
           onMarkActiveChange={state.setActiveMarkId}
         />
       )
     })
-  }, [sceneData, activeMarkId, selectedWord, vocabList, vocabSavedMap, pageMode, recordId, activeSentenceId])
+  }, [sceneData, activeMarkId, selectedWord, vocabList, vocabSavedMap, pageMode, recordId, activeSentenceId, handleSentenceLongPress, userAnnotations])
 
   if (!sceneData) {
     if (pageState === 'loading') {
@@ -163,7 +297,7 @@ export default function Result() {
       <NavBar title='Claread透读' showBack showHome />
       <View className='result-nav-spacer' style={{ height: navBarHeight + 'px' }} />
 
-      <View className={`result-content-root ${isAcademicMode ? 'academic-mode' : ''}`}>
+      <View className={`result-content-root ${isAcademicMode ? 'academic-mode' : ''} translation-${preferences.translation_display} annotation-${preferences.annotation_intensity}`} style={{ ...readerStyles, backgroundColor: 'var(--reader-bg-theme)' }}>
         <DegradedBanner pageState={pageState} sceneData={sceneData} onRetry={actions.handleRetry} />
 
         {isAcademicMode && sceneData?.warnings?.some(w => w.level === 'info' || w.code === 'NON_ACADEMIC_TEXT_DETECTED' || w.code === 'FRAGMENT_INPUT_DETECTED') && (
@@ -249,6 +383,51 @@ export default function Result() {
         onClose={() => setShowModeSheet(false)}
         onSelect={actions.handleModeSelect}
       />
+
+      <ReadingSettingsSheet 
+        visible={showSettingsSheet} 
+        onClose={() => setShowSettingsSheet(false)} 
+      />
+
+      <ReadingSelectionToolbar
+        visible={!!selectionContext && !showNoteSheet}
+        context={selectionContext}
+        onClose={() => setSelectionContext(null)}
+        onCopy={handleCopy}
+        onFavorite={handleFavoriteSelection}
+        onNote={() => setShowNoteSheet(true)}
+        onHighlight={handleHighlight}
+        onFeedback={() => { setShowFeedbackSheet(true) }}
+        onDictionary={() => {
+          if (selectionContext?.isShort && selectionContext.text) {
+            actions.handleWordClick({ word: selectionContext.text, mark: null })
+            setSelectionContext(null)
+          }
+        }}
+      />
+
+      <UserNoteSheet
+        visible={showNoteSheet}
+        onClose={() => setShowNoteSheet(false)}
+        onSave={handleNoteSave}
+      />
+
+      {showFeedbackSheet && selectionContext && (
+        <FeedbackSheet
+          scope='annotation'
+          payload={{
+            targetId: selectionContext.sentenceId,
+            analysisRecordId: cloudId || recordId || undefined,
+            annotationType: 'sentence',
+            contextJson: {
+              sentenceId: selectionContext.sentenceId,
+              text: selectionContext.text,
+              translation: selectionContext.translation,
+            },
+          }}
+          onClose={() => { setShowFeedbackSheet(false); setSelectionContext(null) }}
+        />
+      )}
     </View>
   )
 }
