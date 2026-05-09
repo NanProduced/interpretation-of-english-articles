@@ -1,6 +1,6 @@
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { getSafeDisplayLabel, getCompactLabel } from '../../config/purpose'
+import { getCompactLabel } from '../../config/purpose'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 

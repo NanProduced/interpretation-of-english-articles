@@ -4,13 +4,13 @@
   left: 0;
   right: 0;
   height: 4rpx;
-  background: transparent;
+  background: rgba(139, 115, 85, 0.08);
   z-index: 100;
 
   &__bar {
     height: 100%;
-    background: linear-gradient(90deg, #c9b8a3, #8b7355);
-    transition: width 0.1s ease-out;
+    background: var(--dr-accent);
+    transition: width 0.15s ease-out;
     border-radius: 0 2rpx 2rpx 0;
   }
 }

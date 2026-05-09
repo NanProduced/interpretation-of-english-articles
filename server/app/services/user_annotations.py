@@ -65,6 +65,21 @@ async def create_user_annotation(user_id: UUID, req: UserAnnotationCreateRequest
                 text_hash, color, note, payload_json
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            ON CONFLICT (user_id, target_key) DO UPDATE SET
+                annotation_type = EXCLUDED.annotation_type,
+                anchor_type = EXCLUDED.anchor_type,
+                paragraph_id = EXCLUDED.paragraph_id,
+                sentence_id = EXCLUDED.sentence_id,
+                selected_text = EXCLUDED.selected_text,
+                start_offset = EXCLUDED.start_offset,
+                end_offset = EXCLUDED.end_offset,
+                text_hash = EXCLUDED.text_hash,
+                color = EXCLUDED.color,
+                note = COALESCE(EXCLUDED.note, user_annotations.note),
+                payload_json = EXCLUDED.payload_json,
+                deleted_at = NULL,
+                deleted_by = NULL,
+                updated_at = NOW()
             RETURNING {_ANNOTATION_FIELDS}
             """,
             user_id,

@@ -104,19 +104,25 @@ export default function DailyReaderPage() {
     }
   })
 
-  const handleHighlightClick = useCallback((highlight: DailyReaderHighlight) => {
+  const handleHighlightClick = useCallback((highlight: DailyReaderHighlight, tapPosition?: { x: number; y: number }) => {
     dismissHint()
     const mark = highlightToInlineMark(highlight)
     setActiveMark(mark)
     setActiveWord(highlight.text)
+    if (tapPosition) {
+      setTapPosition(tapPosition)
+    }
     setPopupMode('mini')
     setPopupVisible(true)
   }, [dismissHint])
 
-  const handleWordClick = useCallback((word: string) => {
+  const handleWordClick = useCallback((word: string, tapPosition?: { x: number; y: number }) => {
     dismissHint()
     setActiveMark(null)
     setActiveWord(word)
+    if (tapPosition) {
+      setTapPosition(tapPosition)
+    }
     setPopupMode('mini')
     setPopupVisible(true)
   }, [dismissHint])
@@ -213,9 +219,15 @@ export default function DailyReaderPage() {
   if (loading && !article) {
     return (
       <View className='daily-page daily-page--loading'>
-        <View className='daily-page__loading-dot' />
-        <View className='daily-page__loading-dot' />
-        <View className='daily-page__loading-dot' />
+        <NavBar title='精读' showBack background='transparent' color='#FFFFFF' />
+        <View className='daily-page__loading-container'>
+          <View className='daily-page__loading-icon'>
+            <View className='daily-page__loading-dot' />
+            <View className='daily-page__loading-dot' />
+            <View className='daily-page__loading-dot' />
+          </View>
+          <Text className='daily-page__loading-text'>正在加载文章...</Text>
+        </View>
       </View>
     )
   }
@@ -223,8 +235,28 @@ export default function DailyReaderPage() {
   if (error || !article) {
     return (
       <View className='daily-page daily-page--error'>
-        <View className='daily-page__error-text'>
-          {error || '文章未找到'}
+        <NavBar title='精读' showBack showHome background='var(--dr-bg)' color='var(--dr-text-heading)' />
+        <View className='daily-page__error-container'>
+          <Text className='daily-page__error-icon'>📄</Text>
+          <Text className='daily-page__error-text'>{error || '文章未找到'}</Text>
+          <View className='daily-page__error-actions'>
+            <View
+              className='daily-page__error-btn'
+              onClick={() => {
+                const params = Taro.getCurrentInstance().router?.params
+                const id = params?.id
+                if (id) fetchArticle(id)
+              }}
+            >
+              <Text className='daily-page__error-btn-text'>重新加载</Text>
+            </View>
+            <View
+              className='daily-page__error-btn daily-page__error-btn--secondary'
+              onClick={() => Taro.navigateBack()}
+            >
+              <Text className='daily-page__error-btn-text'>返回上页</Text>
+            </View>
+          </View>
         </View>
       </View>
     )
@@ -254,28 +286,12 @@ export default function DailyReaderPage() {
         sourceUrl={article.sourceUrl}
         source={article.source}
       />
-      <View className='daily-page__end-actions'>
-        <View
-          className={`daily-page__action-btn daily-page__action-btn--primary ${favorited ? 'daily-page__action-btn--favorited' : ''} ${animTrigger > 0 ? 'animate-spring' : ''}`}
-          onClick={handleFavorite}
-        >
-          <LucideIcon name='star' size={18} color={favorited ? 'var(--color-warning)' : 'var(--dr-text-sub)'} />
-          <Text>{favorited ? '已收藏' : '收藏全文'}</Text>
-        </View>
-        <View
-          className='daily-page__action-btn daily-page__action-btn--secondary'
-          onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
-        >
-          <LucideIcon name='archive' size={18} color='var(--dr-text-sub)' />
-          <Text>往期精选</Text>
-        </View>
-      </View>
       <View className={`daily-page__sticky-bar ${showStickyBar ? 'daily-page__sticky-bar--visible' : ''}`}>
         <View
           className={`daily-page__sticky-action ${favorited ? 'daily-page__sticky-action--favorited' : ''}`}
           onClick={handleFavorite}
         >
-          <LucideIcon name='star' size={20} color={favorited ? 'var(--color-warning)' : '#FFF'} />
+          <LucideIcon name='star' size={20} color={favorited ? 'var(--color-warning)' : 'var(--dr-text-sub)'} />
           <Text className='daily-page__sticky-label'>{favorited ? '已收藏' : '收藏'}</Text>
         </View>
         <View className='daily-page__sticky-divider' />
@@ -283,7 +299,7 @@ export default function DailyReaderPage() {
           className='daily-page__sticky-action'
           onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
         >
-          <LucideIcon name='clock' size={20} color='#FFF' />
+          <LucideIcon name='clock' size={20} color='var(--dr-text-sub)' />
           <Text className='daily-page__sticky-label'>往期</Text>
         </View>
       </View>

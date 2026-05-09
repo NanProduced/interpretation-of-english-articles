@@ -5,25 +5,29 @@ import './index.scss'
 
 interface Props {
   visible: boolean
+  selectionText?: string
   initialColor?: string
   initialNote?: string
   onClose: () => void
   onSave: (color: string, note: string) => void
+  onHighlightOnly?: (color: string) => void
   onDelete?: () => void
 }
 
 const THEMES = [
-  { value: 'warm_yellow', color: '#FCD34D' },
-  { value: 'soft_blue', color: '#93C5FD' },
-  { value: 'sage_green', color: '#86EFAC' },
+  { value: 'warm_yellow', label: '暖黄', color: '#FCD34D', bg: 'rgba(252, 211, 77, 0.12)' },
+  { value: 'soft_blue', label: '浅蓝', color: '#93C5FD', bg: 'rgba(147, 197, 253, 0.12)' },
+  { value: 'sage_green', label: '柔绿', color: '#86EFAC', bg: 'rgba(134, 239, 172, 0.12)' },
 ]
 
 const UserNoteSheet = memo(function UserNoteSheet({
   visible,
+  selectionText,
   initialColor = 'warm_yellow',
   initialNote = '',
   onClose,
   onSave,
+  onHighlightOnly,
   onDelete
 }: Props) {
   const [color, setColor] = useState(initialColor)
@@ -42,11 +46,17 @@ const UserNoteSheet = memo(function UserNoteSheet({
     onSave(color, note.trim())
   }
 
+  const handleHighlightOnly = () => {
+    onHighlightOnly?.(color)
+  }
+
+  const activeTheme = THEMES.find(t => t.value === color) || THEMES[0]
+
   return (
     <View className='un-overlay' onClick={onClose}>
       <View className='un-sheet' onClick={e => e.stopPropagation()}>
         <View className='un-handle' />
-        
+
         <View className='un-header'>
           <View className='un-actions un-actions--left'>
             {onDelete && (
@@ -55,15 +65,23 @@ const UserNoteSheet = memo(function UserNoteSheet({
               </View>
             )}
           </View>
-          <Text className='un-title'>添加笔记</Text>
+          <Text className='un-title'>{note.trim() ? '添加笔记' : '高亮标注'}</Text>
           <View className='un-actions un-actions--right'>
-            <View className='un-icon-btn un-icon-btn--primary' onClick={handleSave}>
-              <LucideIcon name='check' size={20} color='#FFFFFF' />
+            <View className='un-icon-btn' onClick={onClose}>
+              <LucideIcon name='x' size={20} color='var(--text-secondary)' />
             </View>
           </View>
         </View>
 
         <View className='un-body'>
+          {selectionText && (
+            <View className='un-selection-preview' style={{ backgroundColor: activeTheme.bg }}>
+              <Text className='un-selection-text' numberOfLines={3}>
+                {selectionText}
+              </Text>
+            </View>
+          )}
+
           <Textarea
             className='un-textarea'
             placeholder='写下你的想法...'
@@ -79,15 +97,28 @@ const UserNoteSheet = memo(function UserNoteSheet({
             <Text className='un-theme-label'>高亮颜色</Text>
             <View className='un-theme-options'>
               {THEMES.map(t => (
-                <View 
+                <View
                   key={t.value}
-                  className={`un-theme-circle ${color === t.value ? 'un-theme-circle--active' : ''}`}
-                  style={{ backgroundColor: t.color }}
+                  className={`un-theme-option ${color === t.value ? 'un-theme-option--active' : ''}`}
                   onClick={() => setColor(t.value)}
                 >
-                  {color === t.value && <LucideIcon name='check' size={14} color='rgba(0,0,0,0.6)' />}
+                  <View className='un-theme-circle' style={{ backgroundColor: t.color }}>
+                    {color === t.value && <LucideIcon name='check' size={14} color='rgba(0,0,0,0.6)' />}
+                  </View>
+                  <Text className='un-theme-name'>{t.label}</Text>
                 </View>
               ))}
+            </View>
+          </View>
+
+          <View className='un-actions-row'>
+            {onHighlightOnly && (
+              <View className='un-btn un-btn--secondary' onClick={handleHighlightOnly}>
+                <Text className='un-btn-text'>仅高亮</Text>
+              </View>
+            )}
+            <View className='un-btn un-btn--primary' onClick={handleSave}>
+              <Text className='un-btn-text un-btn-text--primary'>保存笔记</Text>
             </View>
           </View>
         </View>

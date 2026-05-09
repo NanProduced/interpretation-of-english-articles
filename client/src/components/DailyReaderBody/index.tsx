@@ -3,13 +3,14 @@ import { memo, useCallback } from 'react'
 import type { DailyReaderBody as DailyReaderBodyType, DailyReaderHighlight } from '../../types/view/daily-reader.vm'
 import DailyReaderHighlightWord from '../DailyReaderHighlightWord'
 import type { ClickEvent } from '../../types/taro-events'
+import type { ITouchEvent } from '@tarojs/components/types/common'
 import './index.scss'
 
 interface Props {
   body: DailyReaderBodyType
   highlights: DailyReaderHighlight[]
-  onHighlightClick?: (highlight: DailyReaderHighlight) => void
-  onWordClick?: (word: string) => void
+  onHighlightClick?: (highlight: DailyReaderHighlight, tapPosition?: { x: number; y: number }) => void
+  onWordClick?: (word: string, tapPosition?: { x: number; y: number }) => void
   showHighlightHint?: boolean
 }
 
@@ -24,7 +25,13 @@ const DailyReaderBody = memo(function DailyReaderBody({
     (e: ClickEvent) => {
       const target = e.target as HTMLElement
       if (!target || !target.dataset?.word) return
-      onWordClick?.(target.dataset.word)
+      
+      const touch = e.touches?.[0] || e.changedTouches?.[0]
+      const position = touch 
+        ? { x: touch.clientX, y: touch.clientY }
+        : undefined
+      
+      onWordClick?.(target.dataset.word, position)
     },
     [onWordClick],
   )
@@ -51,7 +58,7 @@ const DailyReaderBody = memo(function DailyReaderBody({
 function renderParagraphWithHighlights(
   text: string,
   highlights: DailyReaderHighlight[],
-  onHighlightClick?: (highlight: DailyReaderHighlight) => void,
+  onHighlightClick?: (highlight: DailyReaderHighlight, tapPosition?: { x: number; y: number }) => void,
   showHighlightHint?: boolean,
 ) {
   if (!highlights.length) return text

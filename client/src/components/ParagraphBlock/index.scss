@@ -304,6 +304,48 @@
       }
     }
 
+    /* =========================================================
+     * Annotation Intensity — 标注强度全局覆盖
+     * 从 .is-chunk 扩展到所有 AI inline mark 类型
+     * ========================================================= */
+    :global(.annotation-quiet) & {
+      .tone-grammar,
+      .tone-term,
+      .tone-logic,
+      .tone-context {
+        border-bottom-width: 1rpx !important;
+        background: transparent !important;
+      }
+      .tone-vocab,
+      .tone-phrase {
+        background-color: transparent !important;
+      }
+      .user-highlighted {
+        &--warm_yellow { background: rgba(252, 211, 77, 0.08); }
+        &--soft_blue { background: rgba(147, 197, 253, 0.08); }
+        &--sage_green { background: rgba(134, 239, 172, 0.08); }
+      }
+    }
+
+    :global(.annotation-clear) & {
+      .tone-grammar,
+      .tone-term,
+      .tone-logic,
+      .tone-context {
+        border-bottom-width: 3rpx !important;
+      }
+      .tone-vocab {
+        background-color: var(--annotation-vocab-bg-clear, rgba(46, 91, 178, 0.12)) !important;
+      }
+      .tone-phrase {
+        background-color: var(--annotation-phrase-bg-clear, rgba(109, 40, 217, 0.10)) !important;
+      }
+      .user-highlighted {
+        &--warm_yellow { background: rgba(252, 211, 77, 0.22); }
+        &--soft_blue { background: rgba(147, 197, 253, 0.22); }
+        &--sage_green { background: rgba(134, 239, 172, 0.22); }
+      }
+    }
   }
 
   .sentence-translation {

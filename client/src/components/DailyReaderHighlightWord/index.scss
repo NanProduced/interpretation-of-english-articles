@@ -5,6 +5,7 @@
   margin: 0 2rpx;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  position: relative;
 
   &--vocab {
     background-color: var(--dr-tone-vocab-bg);
@@ -46,6 +47,23 @@
       opacity: 0;
       animation: hintRing 2s ease-in-out infinite;
     }
+  }
+
+  &__icon {
+    display: inline-block;
+    font-size: 18rpx;
+    font-weight: 500;
+    color: var(--dr-text-muted);
+    margin-left: 4rpx;
+    vertical-align: super;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+  }
+
+  &:active &__icon,
+  &--active &__icon {
+    opacity: 0.9;
   }
 }
 

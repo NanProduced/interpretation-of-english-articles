@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20rpx;
+  gap: 14rpx;
   padding: 28rpx var(--reader-padding) 12rpx;
   min-height: 48rpx;
 
@@ -10,7 +10,7 @@
     display: flex;
     align-items: center;
     min-width: 0;
-    gap: 16rpx;
+    gap: 10rpx;
     flex: 1;
   }
 
@@ -23,7 +23,9 @@
     white-space: nowrap;
 
     &.goal {
-      flex-shrink: 1;
+      flex: 0 0 auto;
+      min-width: 58rpx;
+      max-width: 98rpx;
       font-size: 24rpx;
       font-weight: 400;
       color: var(--reader-muted);
@@ -57,7 +59,8 @@
     flex-shrink: 0;
 
     .mode-option {
-      padding: 10rpx 28rpx;
+      min-width: 60rpx;
+      padding: 10rpx 18rpx;
       font-size: 24rpx;
       font-weight: 500;
       color: var(--reader-muted);
@@ -82,7 +85,8 @@
   .actions-group {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 10rpx;
+  flex-shrink: 0;
 }
 
 .settings-button {
@@ -90,7 +94,8 @@
   align-items: center;
   justify-content: center;
   height: 52rpx;
-  padding: 0 16rpx;
+  min-width: 58rpx;
+  padding: 0 12rpx;
   border-radius: 26rpx;
   background: rgba(46, 91, 178, 0.05);
   color: var(--text-primary);
@@ -118,8 +123,8 @@
 .reparse-button {
     display: inline-flex;
     align-items: center;
-    gap: 8rpx;
-    padding: 8rpx 20rpx;
+    gap: 6rpx;
+    padding: 8rpx 14rpx;
     background: transparent;
     border: 2rpx solid rgba(17, 17, 17, 0.1);
     border-radius: 10rpx;

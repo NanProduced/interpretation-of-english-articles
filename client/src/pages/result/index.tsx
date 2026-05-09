@@ -151,16 +151,46 @@ export default function Result() {
       Taro.showLoading({ title: '保存中...' })
       const res = await createUserAnnotation({
         analysis_record_id: activeRecordId,
-        annotation_type: 'note',
+        annotation_type: note ? 'note' : 'highlight',
         anchor_type: 'sentence',
         sentence_id: selectionContext.sentenceId,
         selected_text: selectionContext.text,
         color,
-        note
+        note: note || undefined
       })
-      setUserAnnotations(prev => [res, ...prev])
+      setUserAnnotations(prev => {
+        const filtered = prev.filter(a => a.target_key !== res.target_key)
+        return [res, ...filtered]
+      })
       Taro.hideLoading()
-      Taro.showToast({ title: '笔记已保存', icon: 'success' })
+      Taro.showToast({ title: note ? '笔记已保存' : '高亮已添加', icon: 'success' })
+      setSelectionContext(null)
+      setShowNoteSheet(false)
+    } catch (e: any) {
+      Taro.hideLoading()
+      Taro.showToast({ title: '保存失败', icon: 'none' })
+    }
+  }
+
+  const handleHighlightOnly = async (color: string) => {
+    if (!selectionContext) return
+    const activeRecordId = cloudId || recordId || ''
+    try {
+      Taro.showLoading({ title: '保存中...' })
+      const res = await createUserAnnotation({
+        analysis_record_id: activeRecordId,
+        annotation_type: 'highlight',
+        anchor_type: 'sentence',
+        sentence_id: selectionContext.sentenceId,
+        selected_text: selectionContext.text,
+        color
+      })
+      setUserAnnotations(prev => {
+        const filtered = prev.filter(a => a.target_key !== res.target_key)
+        return [res, ...filtered]
+      })
+      Taro.hideLoading()
+      Taro.showToast({ title: '高亮已添加', icon: 'success' })
       setSelectionContext(null)
       setShowNoteSheet(false)
     } catch (e: any) {
@@ -256,10 +286,11 @@ export default function Result() {
           vocabSavedMap={vocabSavedMap}
           tailEntries={sceneData.sentenceEntries}
           pageMode={pageMode}
-          isAcademicMode={isAcademicMode}  // 传递 academic 模式标志
+          isAcademicMode={isAcademicMode}
           recordId={recordId || undefined}
           cloudId={cloudId || undefined}
           activeSentenceId={activeSentenceId}
+          userAnnotations={userAnnotations}
           onWordClick={actions.handleWordClick}
           onSentenceClick={actions.handleSentenceClick}
           onSentenceLongPress={handleSentenceLongPress}
@@ -408,8 +439,10 @@ export default function Result() {
 
       <UserNoteSheet
         visible={showNoteSheet}
+        selectionText={selectionContext?.text}
         onClose={() => setShowNoteSheet(false)}
         onSave={handleNoteSave}
+        onHighlightOnly={handleHighlightOnly}
       />
 
       {showFeedbackSheet && selectionContext && (

@@ -3,6 +3,8 @@ import { useEffect, useCallback } from 'react'
 import Taro from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import { useDailyReaderStore } from '../../stores/daily-reader'
+import { useLayoutStore } from '../../stores/layout'
+import NavBar from '../../components/NavBar'
 import defaultCover from '../../assets/covers/daily-reader-default.jpg'
 import './index.scss'
 
@@ -21,6 +23,8 @@ export default function DailyReaderArchivePage() {
     fetchList,
   } = useDailyReaderStore()
 
+  const { navBarHeight, statusBarHeight } = useLayoutStore()
+
   useEffect(() => {
     fetchList()
   }, [fetchList])
@@ -36,12 +40,16 @@ export default function DailyReaderArchivePage() {
     Taro.navigateTo({ url: `${ROUTES.DAILY_READER}?id=${id}` })
   }, [])
 
+  const navTotalHeight = navBarHeight + statusBarHeight
+
   return (
-    <View className='archive-page'>
-      <View className='archive-page__header'>
-        <Text className='archive-page__title'>往期精选</Text>
-        <Text className='archive-page__count'>{articleList.length} 篇</Text>
-      </View>
+    <View className='archive-page' style={{ '--navbar-total-height': `${navTotalHeight}px` } as React.CSSProperties}>
+      <NavBar
+        title='往期精选'
+        showBack
+        background='var(--dr-bg)'
+        color='var(--dr-text-heading)'
+      />
 
       {articleList.length === 0 && !loading && (
         <View className='archive-page__empty'>

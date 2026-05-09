@@ -218,7 +218,7 @@ CREATE TABLE anonymous_quotas (
 CREATE TABLE favorite_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  target_type TEXT NOT NULL CHECK (target_type IN ('analysis_record', 'sentence', 'phrase', 'vocab')),
+  target_type TEXT NOT NULL CHECK (target_type IN ('analysis_record', 'sentence', 'paragraph', 'phrase', 'vocab')),
   target_key TEXT NOT NULL,
   analysis_record_id UUID REFERENCES analysis_records(id) ON DELETE CASCADE,
   payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,

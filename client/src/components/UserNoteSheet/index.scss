@@ -48,8 +48,8 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
-  width: 80rpx; /* fixed width to center title */
-  
+  width: 80rpx;
+
   &--right {
     justify-content: flex-end;
   }
@@ -71,11 +71,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg-secondary);
-  
-  &--primary {
-    background: var(--color-primary);
-  }
-  
+
   &:active {
     opacity: 0.8;
   }
@@ -84,7 +80,24 @@
 .un-body {
   display: flex;
   flex-direction: column;
-  gap: 40rpx;
+  gap: 32rpx;
+}
+
+.un-selection-preview {
+  padding: 24rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(0, 0, 0, 0.06);
+}
+
+.un-selection-text {
+  font-family: var(--font-english-serif), serif;
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: rgba(17, 17, 17, 0.72);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .un-textarea {
@@ -106,9 +119,8 @@
 
 .un-theme-picker {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16rpx;
+  flex-direction: column;
+  gap: 20rpx;
 }
 
 .un-theme-label {
@@ -119,7 +131,21 @@
 
 .un-theme-options {
   display: flex;
-  gap: 24rpx;
+  gap: 32rpx;
+}
+
+.un-theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  padding: 8rpx;
+  border-radius: 12rpx;
+  transition: all 0.2s ease;
+
+  &--active {
+    background: rgba(0, 0, 0, 0.03);
+  }
 }
 
 .un-theme-circle {
@@ -131,9 +157,54 @@
   justify-content: center;
   border: 4rpx solid transparent;
   transition: all 0.2s;
-  
-  &--active {
+
+  .un-theme-option--active & {
     transform: scale(1.1);
     box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.1);
+  }
+}
+
+.un-theme-name {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.un-actions-row {
+  display: flex;
+  gap: 24rpx;
+  margin-top: 8rpx;
+}
+
+.un-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
+
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+
+  &--primary {
+    background: var(--color-primary);
+  }
+
+  &--secondary {
+    background: transparent;
+    border: 2rpx solid var(--border-color);
+  }
+}
+
+.un-btn-text {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: var(--text-primary);
+
+  &--primary {
+    color: #FFFFFF;
   }
 }

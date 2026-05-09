@@ -9,7 +9,7 @@ class UserAnnotationCreateRequest(BaseModel):
     anchor_type: str = Field(default="sentence", pattern="^(sentence|paragraph|text_range)$")
     target_key: Optional[str] = None
     paragraph_id: Optional[str] = None
-    sentence_id: str
+    sentence_id: Optional[str] = None
     selected_text: str
     start_offset: Optional[int] = None
     end_offset: Optional[int] = None

@@ -59,7 +59,7 @@ function safeFooter(raw: FooterAnalysisType | null | undefined): FooterAnalysisT
   }
 }
 
-type SectionKey = 'overview' | 'deepread' | 'extended'
+type SectionKey = 'overview' | 'deepread' | 'reading-guide' | 'discussion'
 
 const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
   footerAnalysis,
@@ -83,7 +83,8 @@ const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
   }, [])
 
   const hasDeepRead = fa.thesisAndIntent.thesis || fa.structure.length > 0 || fa.misreadingPoints.length > 0
-  const hasExtended = fa.fullArticleAnalysis || fa.discussionQuestions.length > 0
+  const hasReadingGuide = fa.fullArticleAnalysis
+  const hasDiscussion = fa.discussionQuestions.length > 0
 
   return (
     <View className='daily-footer'>
@@ -95,46 +96,50 @@ const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
 
       {!hasContent && (
         <View className='daily-footer__section'>
-          <Text className='daily-footer__empty-text'>解析内容生成中，请稍后再来阅读</Text>
+          <Text className='daily-footer__empty-text'>深度解析正在生成中，稍后回来阅读吧～</Text>
         </View>
       )}
 
       {hasContent && (
         <>
-          <CollapsibleHeader icon='FileText' title='概览' isOpen={expandedSections.has('overview')} onToggle={() => toggleSection('overview')}>
+          {/* 概览：始终展开 */}
+          <View className='daily-footer__section'>
             {fa.summary && (
-              <View className='daily-footer__section'>
+              <View className='daily-footer__card daily-footer__card--subtle'>
                 <Text className='daily-footer__summary'>{fa.summary}</Text>
               </View>
             )}
             {fa.keyExpressions.length > 0 && (
-              <View className='daily-footer__section'>
-                <View className='daily-footer__expressions'>
-                  {fa.keyExpressions.map((expr, idx) => (
-                    <View key={idx} className='daily-footer__expr-card'>
-                      <Text className='daily-footer__expr-en'>{expr.expression}</Text>
-                      <Text className='daily-footer__expr-zh'>{expr.gloss}</Text>
-                      <Text className='daily-footer__expr-context'>"{expr.contextSentence}"</Text>
-                    </View>
-                  ))}
-                </View>
+              <View className='daily-footer__expressions'>
+                {fa.keyExpressions.map((expr, idx) => (
+                  <View key={idx} className='daily-footer__expr-card'>
+                    <Text className='daily-footer__expr-en'>{expr.expression}</Text>
+                    <Text className='daily-footer__expr-zh'>{expr.gloss}</Text>
+                    <Text className='daily-footer__expr-context'>"{expr.contextSentence}"</Text>
+                  </View>
+                ))}
               </View>
             )}
-          </CollapsibleHeader>
+          </View>
 
+          {/* 精读分析：默认折叠 */}
           {hasDeepRead && (
             <CollapsibleHeader icon='Layers' title='精读分析' isOpen={expandedSections.has('deepread')} onToggle={() => toggleSection('deepread')}>
               {fa.thesisAndIntent.thesis && (
                 <View className='daily-footer__section'>
-                  {fa.thesisAndIntent.thesis && (
-                    <View className='daily-footer__thesis-block'>
-                      <Text className='daily-footer__thesis-label'>主旨</Text>
-                      <Text className='daily-footer__thesis-text'>{fa.thesisAndIntent.thesis}</Text>
+                  <View className='daily-footer__card'>
+                    <View className='daily-footer__card-header'>
+                      <View className='daily-footer__card-dot' />
+                      <Text className='daily-footer__card-label'>主旨</Text>
                     </View>
-                  )}
+                    <Text className='daily-footer__thesis-text'>{fa.thesisAndIntent.thesis}</Text>
+                  </View>
                   {fa.thesisAndIntent.authorIntent && (
-                    <View className='daily-footer__thesis-block daily-footer__thesis-block--intent'>
-                      <Text className='daily-footer__thesis-label'>作者意图</Text>
+                    <View className='daily-footer__card daily-footer__card--warm'>
+                      <View className='daily-footer__card-header'>
+                        <View className='daily-footer__card-dot' />
+                        <Text className='daily-footer__card-label'>作者意图</Text>
+                      </View>
                       <Text className='daily-footer__thesis-text'>{fa.thesisAndIntent.authorIntent}</Text>
                     </View>
                   )}
@@ -144,17 +149,33 @@ const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
               {fa.structure.length > 0 && (
                 <View className='daily-footer__section'>
                   <View className='daily-footer__structure'>
-                    {fa.structure.map((part, idx) => (
-                      <View key={idx} className='daily-footer__structure-item'>
-                        <View className='daily-footer__structure-marker'>
-                          <Text className='daily-footer__structure-label'>{part.label}</Text>
+                    {fa.structure.map((part, idx) => {
+                      const isShortLabel = part.label.length <= 8
+                      return (
+                        <View
+                          key={idx}
+                          className={`daily-footer__structure-item ${isShortLabel ? 'daily-footer__structure-item--short' : 'daily-footer__structure-item--long'}`}
+                        >
+                          {isShortLabel ? (
+                            <>
+                              <View className='daily-footer__structure-marker'>
+                                <Text className='daily-footer__structure-label'>{part.label}</Text>
+                              </View>
+                              <View className='daily-footer__structure-content'>
+                                <Text className='daily-footer__structure-title'>{part.title}</Text>
+                                <Text className='daily-footer__structure-summary'>{part.summary}</Text>
+                              </View>
+                            </>
+                          ) : (
+                            <View className='daily-footer__structure-content daily-footer__structure-content--full'>
+                              <Text className='daily-footer__label-inline'>{part.label}</Text>
+                              <Text className='daily-footer__structure-title'>{part.title}</Text>
+                              <Text className='daily-footer__structure-summary'>{part.summary}</Text>
+                            </View>
+                          )}
                         </View>
-                        <View className='daily-footer__structure-content'>
-                          <Text className='daily-footer__structure-title'>{part.title}</Text>
-                          <Text className='daily-footer__structure-summary'>{part.summary}</Text>
-                        </View>
-                      </View>
-                    ))}
+                      )
+                    })}
                   </View>
                 </View>
               )}
@@ -175,36 +196,38 @@ const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
             </CollapsibleHeader>
           )}
 
-          {hasExtended && (
-            <CollapsibleHeader icon='BookOpen' title='延伸阅读' isOpen={expandedSections.has('extended')} onToggle={() => toggleSection('extended')}>
-              {fa.fullArticleAnalysis && (
-                <View className='daily-footer__section'>
-                  <View
-                    className={`daily-footer__analysis ${analysisExpanded ? 'daily-footer__analysis--expanded' : ''}`}
-                    onClick={toggleAnalysis}
-                  >
-                    <Text className='daily-footer__analysis-text'>
-                      {fa.fullArticleAnalysis}
-                    </Text>
-                  </View>
-                  {!analysisExpanded && fa.fullArticleAnalysis.length > 200 && (
-                    <Text className='daily-footer__expand-btn' onClick={toggleAnalysis}>
-                      展开全文 ↓
-                    </Text>
-                  )}
+          {/* 文章导读：默认折叠 */}
+          {hasReadingGuide && (
+            <CollapsibleHeader icon='BookOpen' title='文章导读' isOpen={expandedSections.has('reading-guide')} onToggle={() => toggleSection('reading-guide')}>
+              <View className='daily-footer__section'>
+                <View
+                  className={`daily-footer__analysis ${analysisExpanded ? 'daily-footer__analysis--expanded' : ''}`}
+                  onClick={toggleAnalysis}
+                >
+                  <Text className='daily-footer__analysis-text'>
+                    {fa.fullArticleAnalysis}
+                  </Text>
                 </View>
-              )}
+                {!analysisExpanded && fa.fullArticleAnalysis.length > 200 && (
+                  <Text className='daily-footer__expand-btn' onClick={toggleAnalysis}>
+                    阅读全文
+                  </Text>
+                )}
+              </View>
+            </CollapsibleHeader>
+          )}
 
-              {fa.discussionQuestions.length > 0 && (
-                <View className='daily-footer__section'>
-                  {fa.discussionQuestions.map((q, idx) => (
-                    <View key={idx} className='daily-footer__question'>
-                      <Text className='daily-footer__question-num'>{idx + 1}.</Text>
-                      <Text className='daily-footer__question-text'>{q}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
+          {/* 思考讨论：默认折叠 */}
+          {hasDiscussion && (
+            <CollapsibleHeader icon='MessageCircle' title='思考讨论' isOpen={expandedSections.has('discussion')} onToggle={() => toggleSection('discussion')}>
+              <View className='daily-footer__section'>
+                {fa.discussionQuestions.map((q, idx) => (
+                  <View key={idx} className='daily-footer__question'>
+                    <Text className='daily-footer__question-num'>{idx + 1}.</Text>
+                    <Text className='daily-footer__question-text'>{q}</Text>
+                  </View>
+                ))}
+              </View>
             </CollapsibleHeader>
           )}
         </>

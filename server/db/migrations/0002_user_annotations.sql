@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS user_annotations (
         CHECK (anchor_type IN ('sentence', 'paragraph', 'text_range')),
     target_key TEXT NOT NULL,
     paragraph_id TEXT,
-    sentence_id TEXT NOT NULL,
+    sentence_id TEXT,
     selected_text TEXT NOT NULL,
     start_offset INTEGER,
     end_offset INTEGER,
