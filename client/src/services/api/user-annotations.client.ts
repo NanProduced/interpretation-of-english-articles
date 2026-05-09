@@ -53,7 +53,7 @@ export async function createUserAnnotation(data: UserAnnotationCreateDto): Promi
 }
 
 export async function listUserAnnotations(recordId?: string): Promise<UserAnnotationDto[]> {
-  const url = recordId ? `/user-annotations?record_id=${recordId}` : '/user-annotations'
+  const url = recordId ? `/user-annotations?analysis_record_id=${encodeURIComponent(recordId)}` : '/user-annotations'
   const res = await request<UserAnnotationListDto>({
     url,
     method: 'GET',

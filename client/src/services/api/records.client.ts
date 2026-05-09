@@ -89,11 +89,18 @@ function dtoToVm(dto: RecordResponseDto): AnalysisRecord {
     }
   }
 
-  let pageState = ((dto.page_state_json as unknown as { pageState?: string })?.pageState as AnalysisRecord['pageState']) || 'normal'
+  const VALID_PAGE_STATES = new Set<string>(['loading', 'normal', 'degraded_light', 'degraded_heavy', 'empty', 'failed', 'timeout', 'network_fail'])
+
+  let pageState: AnalysisRecord['pageState'] = 'normal'
   if (dto.analysis_status === 'failed' || dto.analysis_status === 'cancelled') {
     pageState = 'failed'
   } else if (dto.analysis_status === 'queued' || dto.analysis_status === 'running' || dto.analysis_status === 'finalizing') {
     pageState = 'loading'
+  } else if (dto.page_state_json && typeof dto.page_state_json === 'object') {
+    const raw = (dto.page_state_json as Record<string, unknown>).pageState
+    if (typeof raw === 'string' && VALID_PAGE_STATES.has(raw)) {
+      pageState = raw as AnalysisRecord['pageState']
+    }
   }
 
   return {

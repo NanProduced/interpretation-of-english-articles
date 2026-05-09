@@ -33,6 +33,15 @@ FEEDBACK_TYPES_BY_SCOPE: dict[str, dict[str, list[str]]] = {
             "other",
         ],
     },
+    "sentence": {
+        "negative": [
+            "translation_inaccurate",
+            "sentence_analysis_wrong",
+            "annotation_conflict",
+            "selection_issue",
+            "other",
+        ],
+    },
     "dictionary": {
         "negative": [
             "wrong_definition",
@@ -60,7 +69,7 @@ for _group in FEEDBACK_TYPES_BY_SCOPE.values():
     for _types in _group.values():
         ALL_FEEDBACK_TYPES.update(_types)
 
-FeedbackScope = Literal["analysis_result", "annotation", "dictionary", "app"]
+FeedbackScope = Literal["analysis_result", "annotation", "sentence", "dictionary", "app"]
 Sentiment = Literal["positive", "negative", "neutral"]
 
 

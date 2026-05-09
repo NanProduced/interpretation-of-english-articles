@@ -18,7 +18,7 @@ import {
   ResultPageState,
 } from '../types/view/render-scene.vm'
 import {
-  saveRecord, getRecord, saveRecordIdentity,
+  saveRecord, getRecord, saveRecordIdentity, resolveClientIdFromMap,
 } from '../services/storage'
 import type { AnalysisRecord } from '../types/view/analysis-record.vm'
 import { track } from '../services/analytics'
@@ -467,14 +467,19 @@ export const useArticleStore = create<ArticleState>((set, get) => {
     },
 
     loadRecord: async (recordId: string) => {
-      const record = getRecord(recordId)
+      const mappedClientId = resolveClientIdFromMap(recordId)
+      const localRecordId = mappedClientId || recordId
+      const record = getRecord(localRecordId)
       if (!record) {
         const { isLoggedIn } = useAuthStore.getState()
         if (isLoggedIn) {
           try {
-            const cloudRecord = await fetchCloudRecordByClientId(recordId)
+            const cloudRecord = await fetchCloudRecordByClientId(recordId) || await fetchCloudRecord(recordId)
             if (cloudRecord) {
               saveRecord(cloudRecord)
+              if (cloudRecord.cloudId) {
+                saveRecordIdentity(cloudRecord.recordId, cloudRecord.cloudId)
+              }
               const pageState = cloudRecord.pageState
               const phase = pageState === 'empty' ? 'empty'
                 : pageState === 'failed' || pageState === 'timeout' || pageState === 'network_fail' ? 'error'
@@ -489,7 +494,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
                   ),
                   source_type: cloudRecord.requestPayload.source_type || 'user_input',
                 } : null,
-                recordId,
+                recordId: cloudRecord.recordId,
                 cloudId: cloudRecord.cloudId || null,
                 phase,
                 error: null,
@@ -527,7 +532,7 @@ export const useArticleStore = create<ArticleState>((set, get) => {
           ),
           source_type: record.requestPayload.source_type || 'user_input',
         } : null,
-        recordId,
+        recordId: record.recordId,
         cloudId: record.cloudId || null,
         phase,
         error: null,

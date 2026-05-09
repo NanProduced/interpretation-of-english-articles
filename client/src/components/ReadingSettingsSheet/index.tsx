@@ -5,7 +5,8 @@ import {
   FontSize,
   Spacing,
   TranslationDisplay,
-  PaperTheme
+  PaperTheme,
+  AnnotationIntensity
 } from '../../stores/reading-preferences'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
@@ -17,7 +18,7 @@ interface Props {
 
 const ReadingSettingsSheet = memo(function ReadingSettingsSheet({ visible, onClose }: Props) {
   const { preferences, updatePreferences } = useReadingPreferencesStore()
-  const [activePanel, setActivePanel] = useState<'paper' | 'type' | 'rhythm' | 'translation'>('type')
+  const [activePanel, setActivePanel] = useState<'paper' | 'type' | 'rhythm' | 'translation' | 'annotation'>('type')
 
   if (!visible) return null
 
@@ -38,6 +39,12 @@ const ReadingSettingsSheet = memo(function ReadingSettingsSheet({ visible, onClo
     { value: 'paper', label: '纸张', color: '#F9F5EC', tint: '#B59C77' },
     { value: 'white', label: '纯白', color: '#FFFFFF', tint: '#C9CDD0' },
     { value: 'sage', label: '护眼', color: '#F0F4F0', tint: '#8EA9A0' }
+  ]
+
+  const intensities: { value: AnnotationIntensity; label: string; opacity: number; width: string }[] = [
+    { value: 'quiet', label: '克制', opacity: 0.32, width: '54%' },
+    { value: 'standard', label: '标准', opacity: 0.56, width: '72%' },
+    { value: 'clear', label: '明显', opacity: 0.82, width: '92%' },
   ]
 
   const previewFontSize: Record<FontSize, string> = {
@@ -64,7 +71,10 @@ const ReadingSettingsSheet = memo(function ReadingSettingsSheet({ visible, onClo
     type: { title: '字号', hint: '正文大小实时预览' },
     rhythm: { title: '节奏', hint: '调节正文呼吸感' },
     translation: { title: '译文', hint: '控制中文辅助的存在感' }
-  }[activePanel]
+  }[activePanel === 'annotation' ? 'type' : activePanel]
+  const effectivePanelCopy = activePanel === 'annotation'
+    ? { title: '标注', hint: '调节解析标注的存在感' }
+    : panelCopy
 
   const translationOpacity: Record<TranslationDisplay, number> = {
     hidden: 0,
@@ -84,12 +94,14 @@ const ReadingSettingsSheet = memo(function ReadingSettingsSheet({ visible, onClo
               onClick={() => setActivePanel('paper')}
             >
               <LucideIcon name='bookOpen' size={30} color={activePanel === 'paper' ? '#315E67' : '#201F1C'} strokeWidth={1.8} />
+              <Text className='rs-dock-label'>纸面</Text>
             </View>
             <View
               className={`rs-dock-button ${activePanel === 'type' ? 'rs-dock-button--active' : ''}`}
               onClick={() => setActivePanel('type')}
             >
               <Text className='rs-dock-aa'>A</Text>
+              <Text className='rs-dock-label'>字号</Text>
             </View>
             <View
               className={`rs-dock-button ${activePanel === 'rhythm' ? 'rs-dock-button--active' : ''}`}
@@ -100,19 +112,28 @@ const ReadingSettingsSheet = memo(function ReadingSettingsSheet({ visible, onClo
                 <View className='rs-lines-icon-line' />
                 <View className='rs-lines-icon-line' />
               </View>
+              <Text className='rs-dock-label'>节奏</Text>
             </View>
             <View
               className={`rs-dock-button ${activePanel === 'translation' ? 'rs-dock-button--active' : ''}`}
               onClick={() => setActivePanel('translation')}
             >
               <LucideIcon name='languages' size={31} color={activePanel === 'translation' ? '#315E67' : '#201F1C'} strokeWidth={1.7} />
+              <Text className='rs-dock-label'>译文</Text>
+            </View>
+            <View
+              className={`rs-dock-button ${activePanel === 'annotation' ? 'rs-dock-button--active' : ''}`}
+              onClick={() => setActivePanel('annotation')}
+            >
+              <LucideIcon name='highlighter' size={30} color={activePanel === 'annotation' ? '#315E67' : '#201F1C'} strokeWidth={1.7} />
+              <Text className='rs-dock-label'>标注</Text>
             </View>
           </View>
 
           <View className='rs-panel'>
             <View className='rs-panel-copy'>
-              <Text className='rs-panel-title'>{panelCopy.title}</Text>
-              <Text className='rs-panel-hint'>{panelCopy.hint}</Text>
+              <Text className='rs-panel-title'>{effectivePanelCopy.title}</Text>
+              <Text className='rs-panel-hint'>{effectivePanelCopy.hint}</Text>
             </View>
 
             {activePanel === 'paper' && (
@@ -242,6 +263,33 @@ const ReadingSettingsSheet = memo(function ReadingSettingsSheet({ visible, onClo
                       <View className='rs-meter-line' style={{ opacity: i === 0 ? 0.18 : i === 1 ? 0.48 : 0.92 }} />
                       <View className='rs-meter-line rs-meter-line--short' style={{ opacity: i === 0 ? 0.12 : i === 1 ? 0.36 : 0.72 }} />
                       <Text className='rs-meter-label'>{t === 'hidden' ? '隐藏' : t === 'muted' ? '淡显' : '标准'}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {activePanel === 'annotation' && (
+              <View className='rs-annotation-panel'>
+                <View className='rs-annotation-preview'>
+                  <Text className='rs-annotation-line'>The sentence keeps its reading rhythm.</Text>
+                  <View className='rs-annotation-mark-row'>
+                    <View className='rs-annotation-mark rs-annotation-mark--vocab' style={{ opacity: intensities.find(i => i.value === preferences.annotation_intensity)?.opacity }} />
+                    <View className='rs-annotation-mark rs-annotation-mark--phrase' style={{ opacity: intensities.find(i => i.value === preferences.annotation_intensity)?.opacity }} />
+                    <View className='rs-annotation-underline' style={{ opacity: intensities.find(i => i.value === preferences.annotation_intensity)?.opacity }} />
+                  </View>
+                </View>
+                <View className='rs-intensity-options'>
+                  {intensities.map(item => (
+                    <View
+                      key={item.value}
+                      className={`rs-intensity ${preferences.annotation_intensity === item.value ? 'rs-intensity--active' : ''}`}
+                      onClick={() => updatePreferences({ annotation_intensity: item.value })}
+                    >
+                      <View className='rs-intensity-swatch'>
+                        <View className='rs-intensity-fill' style={{ width: item.width, opacity: item.opacity }} />
+                      </View>
+                      <Text className='rs-intensity-label'>{item.label}</Text>
                     </View>
                   ))}
                 </View>

@@ -1,4 +1,5 @@
 import { Text } from '@tarojs/components'
+import { useEffect, useRef } from 'react'
 import { AnyInlineMarkModel, VisualTone, AcademicVisualTone } from '../../types/view/render-scene.vm'
 import type { WordClickPayload } from '../ParagraphBlock'
 import type { ClickEvent } from '../../types/taro-events'
@@ -28,10 +29,25 @@ interface InlineMarkProps {
 }
 
 export default function InlineMark({ mark, text, isActive, isSaved, savedStatus, isAcademicMode, isInSelection, userHighlightClass, onWordClick, onLongPress }: InlineMarkProps) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPressRef = useRef(false)
   const toneClass = TONE_CLASSES[mark.visualTone]
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  useEffect(() => clearTimer, [])
 
   const handleClick = (e: ClickEvent) => {
     e.stopPropagation()
+    if (didLongPressRef.current) {
+      didLongPressRef.current = false
+      return
+    }
     if (mark.clickable && onWordClick) {
       onWordClick({ word: text, mark, event: e })
     }
@@ -46,10 +62,24 @@ export default function InlineMark({ mark, text, isActive, isSaved, savedStatus,
 
   return (
     <Text
+      selectable={false}
       className={`inline-mark ${mark.renderType} ${toneClass} ${mark.clickable ? 'clickable' : ''} ${isActive ? 'active' : ''} ${savedClass} ${academicClass} ${selectionClass} ${userHighlightClass || ''}`}
       onClick={handleClick}
+      onTouchStart={onLongPress ? (e) => {
+        didLongPressRef.current = false
+        clearTimer()
+        timerRef.current = setTimeout(() => {
+          didLongPressRef.current = true
+          onLongPress(text, e as unknown as CommonEvent)
+        }, 420)
+      } : undefined}
+      onTouchMove={clearTimer}
+      onTouchEnd={clearTimer}
+      onTouchCancel={clearTimer}
       onLongPress={onLongPress ? (e: CommonEvent) => {
         e.stopPropagation()
+        clearTimer()
+        didLongPressRef.current = true
         onLongPress(text, e)
       } : undefined}
     >

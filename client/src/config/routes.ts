@@ -4,6 +4,7 @@ const ROUTES = {
   RESULT: '/pages/result/index',
   HISTORY: '/packageA/history/index',
   VOCAB: '/packageA/vocab/index',
+  EXCERPTS: '/packageA/excerpts/index',
   PROFILE: '/packageA/profile/index',
   CREDIT_DETAIL: '/packageA/credit-detail/index',
   DAILY_READER: '/packageB/daily-reader/index',

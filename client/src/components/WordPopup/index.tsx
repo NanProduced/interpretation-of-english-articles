@@ -164,7 +164,7 @@ function WordLookupSlip({
   const headword = entry?.word || lookupText
 
   return (
-    <View className='word-popup-overlay mini-overlay' onClick={onClose} catchMove>
+    <View className='word-popup-overlay mini-overlay' onClick={onClose}>
       <View
         className={`mini-word-card ${isLLMAnnotated ? 'is-ai' : ''} ${isFlipped ? 'is-flipped' : ''}`}
         style={popupStyle}

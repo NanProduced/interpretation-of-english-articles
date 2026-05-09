@@ -1,6 +1,5 @@
 .sel-toolbar-root {
   position: fixed;
-  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
@@ -9,104 +8,72 @@
 }
 
 .sel-backdrop {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: transparent;
   pointer-events: auto;
 }
 
 .sel-floating-toolbar {
-  position: relative;
+  position: fixed;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(32rpx + env(safe-area-inset-bottom));
   pointer-events: auto;
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   align-items: center;
-  gap: 4rpx;
+  gap: 8rpx;
   background: var(--reader-surface, #FFFFFF);
   border-radius: 20rpx;
-  padding: 10rpx 14rpx;
+  padding: 14rpx 12rpx;
   box-shadow:
     0 12rpx 40rpx rgba(17, 17, 17, 0.10),
     0 4rpx 12rpx rgba(17, 17, 17, 0.06),
     0 0 0 1rpx rgba(17, 17, 17, 0.04);
-  animation: sel-toolbar-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  backdrop-filter: blur(12rpx);
-  -webkit-backdrop-filter: blur(12rpx);
-  margin: 0 auto;
-  margin-top: 50vh;
-
-  &--anchored {
-    margin: 0;
-    animation: sel-toolbar-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  }
+  animation: sel-toolbar-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes sel-toolbar-pop {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(16rpx) scale(0.94);
+    transform: translateY(16rpx);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translateY(0);
   }
-}
-
-.sel-color-strip {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  padding: 0 8rpx;
-}
-
-.sel-color-dot {
-  width: 32rpx;
-  height: 32rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.15s ease;
-  box-shadow: inset 0 0 0 1.5rpx rgba(0, 0, 0, 0.08);
-
-  &:active {
-    transform: scale(0.88);
-  }
-
-  &--active {
-    box-shadow: inset 0 0 0 2rpx rgba(0, 0, 0, 0.15);
-  }
-}
-
-.sel-color-dot-inner {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 1rpx 3rpx rgba(0, 0, 0, 0.15);
-}
-
-.sel-divider {
-  width: 1rpx;
-  height: 32rpx;
-  background: rgba(17, 17, 17, 0.08);
-  margin: 0 4rpx;
-  flex-shrink: 0;
 }
 
 .sel-tool-btn {
   position: relative;
-  width: 64rpx;
-  height: 64rpx;
+  min-width: 0;
+  height: 76rpx;
   border-radius: 14rpx;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4rpx;
   color: var(--reader-ink, #111111);
   transition: all 0.15s ease;
 
   &:active {
     background: rgba(17, 17, 17, 0.06);
-    transform: scale(0.92);
+    transform: scale(0.96);
+  }
+
+  &--active {
+    background: rgba(232, 196, 104, 0.16);
+    color: rgba(112, 82, 31, 0.95);
+
+    .sel-tool-label {
+      color: rgba(112, 82, 31, 0.95);
+      font-weight: 600;
+    }
   }
 
   &--has-menu {
@@ -114,38 +81,50 @@
   }
 }
 
+.sel-tool-label {
+  font-size: 22rpx;
+  line-height: 1;
+  color: var(--reader-muted, #6B7280);
+}
+
 .sel-copy-menu {
-  position: absolute;
-  top: calc(100% + 10rpx);
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
+  left: 54rpx;
+  right: 54rpx;
+  bottom: calc(128rpx + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8rpx;
   background: var(--reader-surface, #FFFFFF);
-  border-radius: 16rpx;
-  padding: 8rpx 0;
+  border-radius: 18rpx;
+  padding: 8rpx;
   box-shadow:
     0 12rpx 40rpx rgba(17, 17, 17, 0.10),
     0 4rpx 12rpx rgba(17, 17, 17, 0.06),
     0 0 0 1rpx rgba(17, 17, 17, 0.04);
   white-space: nowrap;
   z-index: 10;
-  animation: sel-copy-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  min-width: 180rpx;
+  animation: sel-copy-pop 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes sel-copy-pop {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-6rpx) scale(0.96);
+    transform: translateY(8rpx) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
 .sel-copy-menu-item {
-  padding: 18rpx 28rpx;
-  font-size: 26rpx;
+  height: 58rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  font-size: 24rpx;
   color: var(--reader-ink, #111111);
   text-align: center;
 

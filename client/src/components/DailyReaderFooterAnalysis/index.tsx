@@ -72,7 +72,7 @@ const DailyReaderFooterAnalysis = memo(function DailyReaderFooterAnalysis({
   const [analysisExpanded, setAnalysisExpanded] = useState(false)
   const toggleAnalysis = useCallback(() => setAnalysisExpanded((v) => !v), [])
 
-  const [expandedSections, setExpandedSections] = useState<Set<SectionKey>>(new Set(['overview']))
+  const [expandedSections, setExpandedSections] = useState<Set<SectionKey>>(new Set(['deepread']))
   const toggleSection = useCallback((key: SectionKey) => {
     setExpandedSections(prev => {
       const next = new Set(prev)

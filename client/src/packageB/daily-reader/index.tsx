@@ -39,6 +39,8 @@ import './index.scss'
 
 const STICKY_SHOW_THRESHOLD = 600
 const STICKY_HIDE_THRESHOLD = 480
+const SOLID_NAV_SHOW_THRESHOLD = 260
+const SOLID_NAV_HIDE_THRESHOLD = 180
 
 export default function DailyReaderPage() {
   const {
@@ -57,8 +59,10 @@ export default function DailyReaderPage() {
   const [favorited, setFavorited] = useState(false)
   const [animTrigger, setAnimTrigger] = useState(0)
   const [showStickyBar, setShowStickyBar] = useState(false)
+  const [showSolidNav, setShowSolidNav] = useState(false)
   const [showHighlightHint, setShowHighlightHint] = useState(false)
   const scrollThresholdPassed = useRef(false)
+  const solidNavShown = useRef(false)
 
   useEffect(() => {
     if (article) {
@@ -93,6 +97,13 @@ export default function DailyReaderPage() {
       scrollThresholdPassed.current = false
       setShowStickyBar(false)
     }
+    if (res.scrollTop > SOLID_NAV_SHOW_THRESHOLD && !solidNavShown.current) {
+      solidNavShown.current = true
+      setShowSolidNav(true)
+    } else if (res.scrollTop <= SOLID_NAV_HIDE_THRESHOLD && solidNavShown.current) {
+      solidNavShown.current = false
+      setShowSolidNav(false)
+    }
   })
 
   useShareAppMessage(() => {
@@ -104,11 +115,12 @@ export default function DailyReaderPage() {
     }
   })
 
-  const handleHighlightClick = useCallback((highlight: DailyReaderHighlight, tapPosition?: { x: number; y: number }) => {
+  const handleHighlightClick = useCallback((highlight: DailyReaderHighlight, tapPosition?: { x: number; y: number }, sourceContext?: string) => {
     dismissHint()
     const mark = highlightToInlineMark(highlight)
     setActiveMark(mark)
     setActiveWord(highlight.text)
+    setContextSentence(sourceContext)
     if (tapPosition) {
       setTapPosition(tapPosition)
     }
@@ -120,6 +132,7 @@ export default function DailyReaderPage() {
     dismissHint()
     setActiveMark(null)
     setActiveWord(word)
+    setContextSentence(undefined)
     if (tapPosition) {
       setTapPosition(tapPosition)
     }
@@ -135,6 +148,7 @@ export default function DailyReaderPage() {
     setPopupVisible(false)
     setActiveMark(null)
     setActiveWord('')
+    setContextSentence(undefined)
   }, [])
 
   const handleAddVocab = useCallback((word: string, dictResult: DictionaryResult | null) => {
@@ -268,8 +282,8 @@ export default function DailyReaderPage() {
         title={article.source}
         showBack
         showHome
-        background='transparent'
-        color='#FFFFFF'
+        background={showSolidNav ? 'var(--dr-bg)' : 'transparent'}
+        color={showSolidNav ? 'var(--dr-text-heading)' : '#FFFFFF'}
       />
       <DailyReaderProgress />
       <DailyReaderHeader article={article} />

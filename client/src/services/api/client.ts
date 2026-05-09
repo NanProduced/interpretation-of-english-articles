@@ -116,6 +116,10 @@ export async function request<T>(options: RequestOptions): Promise<T> {
       })
     }
 
+    if (statusCode === 204) {
+      return undefined as T
+    }
+
     if (statusCode >= 400) {
       throw new ApiError(
         extractApiErrorMessage(statusCode, responseData),

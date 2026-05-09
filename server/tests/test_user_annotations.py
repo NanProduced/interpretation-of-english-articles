@@ -58,7 +58,7 @@ def _make_row(**overrides):
         "start_offset": None,
         "end_offset": None,
         "text_hash": None,
-        "color": "warm_yellow",
+        "color": "soft_green",
         "note": None,
         "payload_json": {},
         "created_at": now,
@@ -73,8 +73,12 @@ class TestSchemaValidation:
         req = UserAnnotationCreateRequest(selected_text="hello")
         assert req.annotation_type == "highlight"
         assert req.anchor_type == "sentence"
-        assert req.color == "warm_yellow"
+        assert req.color == "soft_green"
         assert req.payload_json == {}
+
+    def test_create_request_accepts_current_colors(self):
+        assert UserAnnotationCreateRequest(selected_text="hello", color="soft_green").color == "soft_green"
+        assert UserAnnotationCreateRequest(selected_text="hello", color="soft_purple").color == "soft_purple"
 
     def test_create_request_rejects_bad_annotation_type(self):
         with pytest.raises(ValidationError):
@@ -176,7 +180,7 @@ class TestCreateAnnotation:
                 "anchor_type": "sentence",
                 "sentence_id": "s1",
                 "selected_text": "Test text",
-                "color": "warm_yellow",
+                "color": "soft_green",
             },
             headers=AUTH_HEADERS,
         )

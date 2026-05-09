@@ -1,4 +1,4 @@
-export type FeedbackScope = 'analysis_result' | 'annotation' | 'dictionary' | 'app'
+export type FeedbackScope = 'analysis_result' | 'annotation' | 'sentence' | 'dictionary' | 'app'
 export type FeedbackSentiment = 'positive' | 'negative' | 'neutral'
 
 export interface FeedbackTypeOption {
@@ -43,6 +43,18 @@ export const FEEDBACK_CONFIG_BY_SCOPE: Record<FeedbackScope, FeedbackScopeConfig
       { value: 'inaccurate', label: '释义不准确' },
       { value: 'wrong_boundary', label: '标注范围有误' },
       { value: 'should_not_annotate', label: '不该标注' },
+      { value: 'other', label: '其他问题' },
+    ],
+  },
+  sentence: {
+    title: '反馈句子',
+    requiresText: false,
+    placeholder: '补充说明（选填）',
+    negativeOptions: [
+      { value: 'translation_inaccurate', label: '翻译不准确' },
+      { value: 'sentence_analysis_wrong', label: '解析有误' },
+      { value: 'annotation_conflict', label: '标注影响阅读' },
+      { value: 'selection_issue', label: '选中异常' },
       { value: 'other', label: '其他问题' },
     ],
   },

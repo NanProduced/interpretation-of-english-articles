@@ -3,6 +3,11 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+USER_ANNOTATION_COLOR_PATTERN = (
+    "^(soft_green|soft_blue|soft_purple|warm_yellow|sage_green)$"
+)
+
+
 class UserAnnotationCreateRequest(BaseModel):
     analysis_record_id: Optional[str] = None
     annotation_type: str = Field(default="highlight", pattern="^(highlight|note)$")
@@ -14,13 +19,13 @@ class UserAnnotationCreateRequest(BaseModel):
     start_offset: Optional[int] = None
     end_offset: Optional[int] = None
     text_hash: Optional[str] = None
-    color: str = Field(default="warm_yellow", pattern="^(warm_yellow|soft_blue|sage_green)$")
+    color: str = Field(default="soft_green", pattern=USER_ANNOTATION_COLOR_PATTERN)
     note: Optional[str] = None
     payload_json: dict = Field(default_factory=dict)
 
 
 class UserAnnotationUpdateRequest(BaseModel):
-    color: Optional[str] = Field(default=None, pattern="^(warm_yellow|soft_blue|sage_green)$")
+    color: Optional[str] = Field(default=None, pattern=USER_ANNOTATION_COLOR_PATTERN)
     note: Optional[str] = None
 
 

@@ -1,5 +1,5 @@
 .daily-footer {
-  padding: 0 56rpx 100rpx;
+  padding: 0 56rpx 160rpx;
   margin-top: 40rpx;
 
   &__divider {
@@ -414,11 +414,11 @@
 
   &__collapsible {
     margin-bottom: 36rpx;
-    border: 1rpx solid rgba(139, 115, 85, 0.1);
-    border-radius: 20rpx;
+    border: 1rpx solid rgba(139, 115, 85, 0.08);
+    border-radius: 16rpx;
     overflow: hidden;
-    background: var(--dr-surface);
-    box-shadow: 0 2rpx 12rpx rgba(139, 115, 85, 0.04);
+    background: rgba(250, 246, 240, 0.56);
+    box-shadow: none;
 
     &:last-child {
       margin-bottom: 0;
@@ -429,7 +429,7 @@
     display: flex;
     align-items: center;
     gap: 14rpx;
-    padding: 28rpx 32rpx;
+    padding: 26rpx 30rpx;
     user-select: none;
     transition: background-color 0.2s ease;
 
@@ -447,7 +447,7 @@
   }
 
   &__collapsible-body {
-    padding: 0 32rpx 32rpx;
+    padding: 0 30rpx 30rpx;
     animation: collapsibleSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }

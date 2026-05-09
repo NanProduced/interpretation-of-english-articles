@@ -56,7 +56,10 @@ async def create_user_annotation(user_id: UUID, req: UserAnnotationCreateRequest
         annotation_type = "note"
 
     async with db_connect.acquire_connection() as conn:
-        record_id = UUID(req.analysis_record_id) if req.analysis_record_id else None
+        try:
+            record_id = UUID(req.analysis_record_id) if req.analysis_record_id else None
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="analysis_record_id must be a UUID") from exc
         row = await conn.fetchrow(
             f"""
             INSERT INTO user_annotations (
@@ -110,6 +113,10 @@ async def list_user_annotations(
 ) -> list[UserAnnotationResponse]:
     async with db_connect.acquire_connection() as conn:
         if record_id:
+            try:
+                parsed_record_id = UUID(record_id)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="analysis_record_id must be a UUID") from exc
             rows = await conn.fetch(
                 f"""
                 SELECT {_ANNOTATION_FIELDS}
@@ -119,7 +126,7 @@ async def list_user_annotations(
                 LIMIT $3 OFFSET $4
                 """,
                 user_id,
-                UUID(record_id),
+                parsed_record_id,
                 limit,
                 offset,
             )
@@ -141,16 +148,23 @@ async def list_user_annotations(
 
 
 async def update_user_annotation(user_id: UUID, annotation_id: UUID, req: UserAnnotationUpdateRequest) -> UserAnnotationResponse:
+    note_supplied = "note" in req.model_fields_set
     async with db_connect.acquire_connection() as conn:
         row = await conn.fetchrow(
             f"""
             UPDATE user_annotations
             SET color = COALESCE($1, color),
-                note = $2
-            WHERE id = $3 AND user_id = $4 AND deleted_at IS NULL
+                note = CASE WHEN $2 THEN $3 ELSE note END,
+                annotation_type = CASE
+                    WHEN $2 AND COALESCE($3, '') = '' THEN 'highlight'
+                    WHEN $2 THEN 'note'
+                    ELSE annotation_type
+                END
+            WHERE id = $4 AND user_id = $5 AND deleted_at IS NULL
             RETURNING {_ANNOTATION_FIELDS}
             """,
             req.color,
+            note_supplied,
             req.note,
             annotation_id,
             user_id,

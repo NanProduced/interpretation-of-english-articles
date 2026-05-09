@@ -14,7 +14,7 @@
   &.mini-overlay {
     align-items: flex-start;
     background: transparent;
-    pointer-events: none;
+    pointer-events: auto;
   }
 }
 
@@ -26,14 +26,14 @@
   box-sizing: border-box;
   width: 400rpx;
   padding: 24rpx 28rpx;
-  background: #FFFFFF;
+  background: var(--dr-bg);
   border: 1rpx solid rgba(0, 0, 0, 0.05);
   border-radius: 24rpx;
   box-shadow: 0rpx 7rpx 10rpx rgba(17, 17, 17, 0.055);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: auto;
 
-  &:active { background: #FBFBF9; }
+  &:active { background: var(--dr-surface); }
 
   .mini-main-content { margin-bottom: 12rpx; }
   .mini-header { display: flex; align-items: baseline; gap: 12rpx; margin-bottom: 4rpx; }
@@ -78,7 +78,7 @@
 
   .mini-arrow {
     position: absolute; left: 50%; margin-left: -10rpx; width: 20rpx; height: 20rpx;
-    background: #FFFFFF; border: 1rpx solid rgba(0, 0, 0, 0.05); transform: rotate(45deg); z-index: -1;
+    background: var(--dr-bg); border: 1rpx solid rgba(0, 0, 0, 0.05); transform: rotate(45deg); z-index: -1;
   }
   &:not(.is-flipped) .mini-arrow { top: -10rpx; border-right: 0; border-bottom: 0; }
   &.is-flipped .mini-arrow { bottom: -10rpx; border-left: 0; border-top: 0; }

@@ -69,8 +69,8 @@ CREATE TABLE user_annotations (
   start_offset INTEGER,
   end_offset INTEGER,
   text_hash TEXT,
-  color TEXT NOT NULL DEFAULT 'warm_yellow'
-    CHECK (color IN ('warm_yellow', 'soft_blue', 'sage_green')),
+  color TEXT NOT NULL DEFAULT 'soft_green'
+    CHECK (color IN ('soft_green', 'soft_blue', 'soft_purple')),
   note TEXT,
   payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   deleted_at TIMESTAMPTZ,
@@ -95,6 +95,9 @@ CREATE INDEX idx_user_annotations_sentence
 - paragraph: `record:{record_id}:paragraph:{paragraph_id}`
 - text_range: `record:{record_id}:range:{sentence_id}:{start_offset}:{end_offset}:{text_hash}`
 
+小程序首版只使用 `sentence` 和 `paragraph` 锚点。`text_range`、`start_offset`、`end_offset`、`text_hash`
+保留为后端兼容和未来增强能力，不作为当前前端交付范围。
+
 ## API
 
 ### Reading Preferences
@@ -116,7 +119,7 @@ CREATE INDEX idx_user_annotations_sentence
 新增路由：
 
 - `POST /user-annotations`
-- `GET /user-annotations?analysis_record_id={id}`
+- `GET /user-annotations?analysis_record_id={id}`，这里的 `{id}` 必须是云端 `analysis_records.id` UUID；本地 `client_record_id` 只放入 `payload_json.client_record_id`
 - `PATCH /user-annotations/{id}`
 - `DELETE /user-annotations/{id}`
 
@@ -131,7 +134,7 @@ Create request：
   "paragraph_id": "p1",
   "sentence_id": "s2",
   "selected_text": "Advocates typically frame themselves...",
-  "color": "warm_yellow",
+  "color": "soft_green",
   "note": "这里是作者引入两种立场的地方",
   "payload_json": {
     "source": "result_page",
@@ -178,4 +181,3 @@ Create request：
 
 - 已登录：写云端，成功后更新本地缓存。
 - 未登录：可以先支持复制；收藏/笔记提示登录或写本地草稿，后续登录再同步。
-

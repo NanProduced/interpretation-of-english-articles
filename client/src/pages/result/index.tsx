@@ -20,8 +20,8 @@ import ReadingSettingsSheet from '../../components/ReadingSettingsSheet'
 import ReadingSelectionToolbar, { SelectionContext } from '../../components/ReadingSelectionToolbar'
 import UserNoteSheet from '../../components/UserNoteSheet'
 import { useReadingPreferencesStore } from '../../stores/reading-preferences'
-import { UserAnnotationDto, listUserAnnotations, createUserAnnotation } from '../../services/api/user-annotations.client'
-import { addFavoriteToCloud } from '../../services/api/favorites.client'
+import { UserAnnotationDto, listUserAnnotations, createUserAnnotation, updateUserAnnotation, deleteUserAnnotation } from '../../services/api/user-annotations.client'
+import { addFavoriteToCloud, removeFavoriteFromCloud, fetchCloudFavoriteItems, FavoriteItemDto } from '../../services/api/favorites.client'
 import FeedbackSheet from '../../components/FeedbackSystem/FeedbackSheet'
 import { useResultState } from './hooks/useResultState'
 import { useResultEffects } from './hooks/useResultEffects'
@@ -66,11 +66,23 @@ export default function Result() {
   const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null)
   const [selectionSentenceId, setSelectionSentenceId] = useState<string | null>(null)
   const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null)
-  const [pendingColor, setPendingColor] = useState('warm_yellow')
   const [userAnnotations, setUserAnnotations] = useState<UserAnnotationDto[]>([])
+  const [favoriteItems, setFavoriteItems] = useState<FavoriteItemDto[]>([])
   const [showNoteSheet, setShowNoteSheet] = useState(false)
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false)
   const { preferences } = useReadingPreferencesStore()
+  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
+
+  const articleTitleForAssets = useMemo(() => {
+    if (!sceneData) return undefined
+    const academic = sceneData.schemaVersion === '3.0.0-academic' ? sceneData as AcademicRenderSceneVm : null
+    const explicitTitle = academic?.title?.trim()
+    if (explicitTitle) return explicitTitle
+    const firstSentence = sceneData.article.sentences[0]?.text?.trim()
+    if (firstSentence) return firstSentence.length > 42 ? `${firstSentence.slice(0, 42)}...` : firstSentence
+    const requestText = requestParams?.text?.trim()
+    return requestText ? (requestText.length > 42 ? `${requestText.slice(0, 42)}...` : requestText) : undefined
+  }, [sceneData, requestParams])
 
   const readerStyles = useMemo(() => {
     const fsRatios = { small: 0.85, standard: 1, large: 1.15, xlarge: 1.3 }
@@ -92,13 +104,21 @@ export default function Result() {
   }, [preferences])
 
   useEffect(() => {
-    const activeRecordId = cloudId || recordId
-    if (activeRecordId && pageState === 'normal') {
-      listUserAnnotations(activeRecordId).then(setUserAnnotations).catch(err => {
-        console.warn('Failed to load user annotations', err)
-      })
+    if (pageState !== 'normal' || !isLoggedIn || !cloudId) {
+      setUserAnnotations([])
+      return
     }
-  }, [cloudId, recordId, pageState])
+    listUserAnnotations(cloudId).then(setUserAnnotations).catch(err => {
+      console.warn('Failed to load user annotations', err)
+    })
+  }, [cloudId, pageState, isLoggedIn])
+
+  useEffect(() => {
+    if (pageState !== 'normal' || !isLoggedIn) return
+    fetchCloudFavoriteItems().then(res => setFavoriteItems(res.items)).catch(err => {
+      console.warn('Failed to load favorites', err)
+    })
+  }, [pageState, isLoggedIn])
 
   const clearSelection = useCallback(() => {
     setSelectionContext(null)
@@ -109,12 +129,44 @@ export default function Result() {
   const handleSelectionContext = useCallback((context: SelectionContext | null) => {
     if (context) {
       setSelectionSentenceId(context.sentenceId)
-      setSelectionRange({ start: context.startOffset, end: context.endOffset })
+      setSelectionRange(null)
       setSelectionContext(context)
     } else {
       clearSelection()
     }
   }, [clearSelection])
+
+  const activeSelectionTargetKey = useMemo(() => {
+    if (!selectionContext) return null
+    const activeRecordId = cloudId || recordId || ''
+    return buildTargetKey(activeRecordId, selectionContext.anchorType, {
+      sentenceId: selectionContext.sentenceId,
+      paragraphId: selectionContext.paragraphId,
+      startOffset: selectionContext.startOffset,
+      endOffset: selectionContext.endOffset,
+    })
+  }, [selectionContext, cloudId, recordId])
+
+  const annotationsByTargetKey = useMemo(() => {
+    const map = new Map<string, UserAnnotationDto>()
+    userAnnotations.forEach(annotation => {
+      map.set(annotation.target_key, annotation)
+    })
+    return map
+  }, [userAnnotations])
+
+  const favoriteTargetKeys = useMemo(() => new Set(
+    favoriteItems
+      .filter(item => item.target_type === 'sentence' || item.target_type === 'paragraph')
+      .map(item => item.target_key)
+  ), [favoriteItems])
+
+  const currentSelectionAnnotation = activeSelectionTargetKey
+    ? annotationsByTargetKey.get(activeSelectionTargetKey)
+    : undefined
+  const isSelectionFavorited = activeSelectionTargetKey
+    ? favoriteTargetKeys.has(activeSelectionTargetKey)
+    : false
 
   const handleCopy = (mode: 'original' | 'translation' | 'bilingual') => {
     if (!selectionContext) return
@@ -138,45 +190,60 @@ export default function Result() {
   }
 
   const handleFavoriteSelection = async () => {
-    if (!selectionContext) return
+    if (!selectionContext || !activeSelectionTargetKey) return
     const authed = await requireAuth()
     if (!authed) return
 
-    const activeRecordId = cloudId || recordId || ''
-    const targetKey = buildTargetKey(activeRecordId, selectionContext.anchorType, {
-      sentenceId: selectionContext.sentenceId,
-      paragraphId: selectionContext.paragraphId,
-      startOffset: selectionContext.startOffset,
-      endOffset: selectionContext.endOffset,
-    })
     try {
+      if (isSelectionFavorited) {
+        await removeFavoriteFromCloud(activeSelectionTargetKey, selectionContext.anchorType)
+        setFavoriteItems(prev => prev.filter(item => item.target_key !== activeSelectionTargetKey))
+        Taro.showToast({ title: '已取消收藏', icon: 'success' })
+        clearSelection()
+        return
+      }
       await addFavoriteToCloud(
         cloudId || null,
-        targetKey,
+        activeSelectionTargetKey,
         selectionContext.anchorType,
         {
           paragraph_id: selectionContext.paragraphId,
           sentence_id: selectionContext.sentenceId,
+          client_record_id: recordId,
           text: selectionContext.selectedText,
           translation: selectionContext.translation,
+          article_title: articleTitleForAssets,
           start_offset: selectionContext.startOffset,
           end_offset: selectionContext.endOffset,
           anchor_type: selectionContext.anchorType,
         }
       )
+      setFavoriteItems(prev => [
+        {
+          id: activeSelectionTargetKey,
+          target_type: selectionContext.anchorType,
+          target_key: activeSelectionTargetKey,
+          analysis_record_id: cloudId || null,
+          payload_json: {
+            paragraph_id: selectionContext.paragraphId,
+            sentence_id: selectionContext.sentenceId,
+            client_record_id: recordId,
+            text: selectionContext.selectedText,
+            translation: selectionContext.translation,
+            article_title: articleTitleForAssets,
+            anchor_type: selectionContext.anchorType,
+          },
+          note: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        ...prev.filter(item => item.target_key !== activeSelectionTargetKey),
+      ])
       Taro.showToast({ title: '已收藏', icon: 'success' })
       clearSelection()
     } catch (err: any) {
       Taro.showToast({ title: err.message || '收藏失败', icon: 'none' })
     }
-  }
-
-  const handleHighlight = async (color: string) => {
-    if (!selectionContext) return
-    const authed = await requireAuth()
-    if (!authed) return
-    setPendingColor(color)
-    setShowNoteSheet(true)
   }
 
   const handleOpenNote = async () => {
@@ -187,36 +254,31 @@ export default function Result() {
   }
 
   const handleNoteSave = async (color: string, note: string) => {
-    if (!selectionContext) return
+    if (!selectionContext || !activeSelectionTargetKey) return
     const authed = await requireAuth()
     if (!authed) return
 
-    const activeRecordId = cloudId || recordId || ''
-    const targetKey = buildTargetKey(activeRecordId, selectionContext.anchorType, {
-      sentenceId: selectionContext.sentenceId,
-      paragraphId: selectionContext.paragraphId,
-      startOffset: selectionContext.startOffset,
-      endOffset: selectionContext.endOffset,
-    })
     try {
       Taro.showLoading({ title: '保存中...' })
-      const res = await createUserAnnotation({
-        analysis_record_id: activeRecordId,
-        annotation_type: note ? 'note' : 'highlight',
-        anchor_type: selectionContext.anchorType,
-        target_key: targetKey,
-        paragraph_id: selectionContext.paragraphId,
-        sentence_id: selectionContext.sentenceId,
-        selected_text: selectionContext.selectedText,
-        start_offset: selectionContext.startOffset,
-        end_offset: selectionContext.endOffset,
-        color,
-        note: note || undefined,
-        payload_json: {
-          source: 'result_page',
-          translation: selectionContext.translation,
-        },
-      })
+      const res = currentSelectionAnnotation
+        ? await updateUserAnnotation(currentSelectionAnnotation.id, { color, note })
+        : await createUserAnnotation({
+          analysis_record_id: cloudId || undefined,
+          annotation_type: note ? 'note' : 'highlight',
+          anchor_type: selectionContext.anchorType,
+          target_key: activeSelectionTargetKey,
+          paragraph_id: selectionContext.paragraphId,
+          sentence_id: selectionContext.sentenceId,
+          selected_text: selectionContext.selectedText,
+          color,
+          note,
+          payload_json: {
+            source: 'result_page',
+            client_record_id: recordId,
+            translation: selectionContext.translation,
+            article_title: articleTitleForAssets,
+          },
+        })
       setUserAnnotations(prev => {
         const filtered = prev.filter(a => a.target_key !== res.target_key)
         return [res, ...filtered]
@@ -232,35 +294,30 @@ export default function Result() {
   }
 
   const handleHighlightOnly = async (color: string) => {
-    if (!selectionContext) return
+    if (!selectionContext || !activeSelectionTargetKey) return
     const authed = await requireAuth()
     if (!authed) return
 
-    const activeRecordId = cloudId || recordId || ''
-    const targetKey = buildTargetKey(activeRecordId, selectionContext.anchorType, {
-      sentenceId: selectionContext.sentenceId,
-      paragraphId: selectionContext.paragraphId,
-      startOffset: selectionContext.startOffset,
-      endOffset: selectionContext.endOffset,
-    })
     try {
       Taro.showLoading({ title: '保存中...' })
-      const res = await createUserAnnotation({
-        analysis_record_id: activeRecordId,
-        annotation_type: 'highlight',
-        anchor_type: selectionContext.anchorType,
-        target_key: targetKey,
-        paragraph_id: selectionContext.paragraphId,
-        sentence_id: selectionContext.sentenceId,
-        selected_text: selectionContext.selectedText,
-        start_offset: selectionContext.startOffset,
-        end_offset: selectionContext.endOffset,
-        color,
-        payload_json: {
-          source: 'result_page',
-          translation: selectionContext.translation,
-        },
-      })
+      const res = currentSelectionAnnotation
+        ? await updateUserAnnotation(currentSelectionAnnotation.id, { color, note: '' })
+        : await createUserAnnotation({
+          analysis_record_id: cloudId || undefined,
+          annotation_type: 'highlight',
+          anchor_type: selectionContext.anchorType,
+          target_key: activeSelectionTargetKey,
+          paragraph_id: selectionContext.paragraphId,
+          sentence_id: selectionContext.sentenceId,
+          selected_text: selectionContext.selectedText,
+          color,
+          payload_json: {
+            source: 'result_page',
+            client_record_id: recordId,
+            translation: selectionContext.translation,
+            article_title: articleTitleForAssets,
+          },
+        })
       setUserAnnotations(prev => {
         const filtered = prev.filter(a => a.target_key !== res.target_key)
         return [res, ...filtered]
@@ -272,6 +329,25 @@ export default function Result() {
     } catch (e: any) {
       Taro.hideLoading()
       Taro.showToast({ title: '保存失败', icon: 'none' })
+    }
+  }
+
+  const handleDeleteAnnotation = async () => {
+    if (!currentSelectionAnnotation) return
+    const authed = await requireAuth()
+    if (!authed) return
+
+    try {
+      Taro.showLoading({ title: '删除中...' })
+      await deleteUserAnnotation(currentSelectionAnnotation.id)
+      setUserAnnotations(prev => prev.filter(item => item.id !== currentSelectionAnnotation.id))
+      Taro.hideLoading()
+      Taro.showToast({ title: '批注已删除', icon: 'success' })
+      setShowNoteSheet(false)
+      clearSelection()
+    } catch {
+      Taro.hideLoading()
+      Taro.showToast({ title: '删除失败', icon: 'none' })
     }
   }
 
@@ -353,6 +429,7 @@ export default function Result() {
         <ParagraphBlock
           key={`${paragraph.paragraphId}-${idx}`}
           order={idx + 1}
+          paragraphId={paragraph.paragraphId}
           sentences={sentences}
           translations={sceneData.translations}
           inlineMarks={sceneData.inlineMarks}
@@ -369,6 +446,7 @@ export default function Result() {
           selectionSentenceId={selectionSentenceId}
           selectionRange={selectionRange}
           userAnnotations={userAnnotations}
+          favoriteTargetKeys={favoriteTargetKeys}
           onWordClick={actions.handleWordClick}
           onSentenceClick={actions.handleSentenceClick}
           onSelectionContext={handleSelectionContext}
@@ -376,7 +454,7 @@ export default function Result() {
         />
       )
     })
-  }, [sceneData, activeMarkId, selectedWord, vocabList, vocabSavedMap, pageMode, recordId, activeSentenceId, handleSelectionContext, userAnnotations])
+  }, [sceneData, activeMarkId, selectedWord, vocabList, vocabSavedMap, pageMode, isAcademicMode, recordId, cloudId, activeSentenceId, selectionSentenceId, selectionRange, handleSelectionContext, userAnnotations, favoriteTargetKeys])
 
   if (!sceneData) {
     if (pageState === 'loading') {
@@ -499,46 +577,49 @@ export default function Result() {
       />
 
       <ReadingSelectionToolbar
-        visible={!!selectionContext && !showNoteSheet}
+        visible={!!selectionContext && !showNoteSheet && !showFeedbackSheet}
         context={selectionContext}
+        isFavorited={isSelectionFavorited}
+        hasAnnotation={!!currentSelectionAnnotation}
+        hasNote={!!currentSelectionAnnotation?.note}
         onClose={clearSelection}
         onCopy={handleCopy}
         onFavorite={handleFavoriteSelection}
         onNote={handleOpenNote}
-        onHighlight={handleHighlight}
         onFeedback={() => { setShowFeedbackSheet(true) }}
-        onDictionary={() => {
-          if (selectionContext?.isShort && selectionContext.selectedText) {
-            actions.handleWordClick({ word: selectionContext.selectedText, mark: null })
-            clearSelection()
-          }
-        }}
       />
 
       <UserNoteSheet
         visible={showNoteSheet}
         selectionText={selectionContext?.selectedText}
-        initialColor={pendingColor}
+        initialColor={currentSelectionAnnotation?.color || 'soft_green'}
+        initialNote={currentSelectionAnnotation?.note || ''}
+        hasExistingAnnotation={!!currentSelectionAnnotation}
         onClose={() => setShowNoteSheet(false)}
         onSave={handleNoteSave}
         onHighlightOnly={handleHighlightOnly}
+        onDelete={currentSelectionAnnotation ? handleDeleteAnnotation : undefined}
       />
 
       {showFeedbackSheet && selectionContext && (
-        <FeedbackSheet
-          scope='annotation'
-          payload={{
-            targetId: selectionContext.sentenceId,
-            analysisRecordId: cloudId || recordId || undefined,
-            annotationType: 'sentence',
-            contextJson: {
-              sentenceId: selectionContext.sentenceId,
-              text: selectionContext.selectedText,
-              translation: selectionContext.translation,
-            },
-          }}
-          onClose={() => { setShowFeedbackSheet(false); clearSelection() }}
-        />
+        <View className='sentence-feedback-overlay' onClick={() => { setShowFeedbackSheet(false); clearSelection() }}>
+          <FeedbackSheet
+            scope='sentence'
+            contextSummary={selectionContext.selectedText}
+            payload={{
+              targetId: activeSelectionTargetKey || selectionContext.sentenceId,
+              analysisRecordId: cloudId || undefined,
+              annotationType: 'sentence_action',
+              contextJson: {
+                sentenceId: selectionContext.sentenceId,
+                paragraphId: selectionContext.paragraphId,
+                text: selectionContext.selectedText,
+                translation: selectionContext.translation,
+              },
+            }}
+            onClose={() => { setShowFeedbackSheet(false); clearSelection() }}
+          />
+        </View>
       )}
     </View>
   )

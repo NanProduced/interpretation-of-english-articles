@@ -85,6 +85,30 @@ class TestSubmitFeedback:
         )
         assert response.status_code == 200
 
+    @_mock_auth()
+    @patch("app.api.routes.feedback.feedback_svc.submit_feedback", new_callable=AsyncMock)
+    def test_submit_sentence_feedback(self, mock_submit, mock_auth):
+        mock_submit.return_value = {
+            **MOCK_FEEDBACK_ROW,
+            "feedback_scope": "sentence",
+            "feedback_type": "selection_issue",
+        }
+
+        response = client.post(
+            "/feedback",
+            json={
+                "feedback_scope": "sentence",
+                "target_id": "record:abc:sentence:s1",
+                "sentiment": "negative",
+                "feedback_type": "selection_issue",
+                "annotation_type": "sentence_action",
+                "context_json": {"sentence_id": "s1"},
+            },
+            headers=AUTH_HEADERS,
+        )
+        assert response.status_code == 200
+        assert response.json()["feedback_scope"] == "sentence"
+
 
 class TestListFeedback:
     @_mock_auth()

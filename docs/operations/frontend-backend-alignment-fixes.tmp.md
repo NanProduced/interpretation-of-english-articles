@@ -75,9 +75,9 @@
 - **文件**: `client/src/pages/result/hooks/useResultActions.ts` → `handleModeSelect()`
 - **修复**: 从 `requestParams.extended` 读取，而非硬编码 false
 
-### P2-5：每日精读缺少"一键进入解读流程" ⏳ 需功能设计
+### P2-5：每日精读缺少"一键进入解读流程" ❌ 已关闭
 
-- **状态**: 需设计从每日精读页面提交到分析管线的交互流程
+- **状态**: 经评审确认关闭。每日精读页面已包含完整解析（高亮词、释义、概要、精读分析、导读、讨论题），无需再进入 Result 页分析流程，否则等于重复分析
 
 ### P2-6：分享卡片为静态图片 ⏳ 需设计
 
@@ -96,18 +96,25 @@
 
 - **原因**: CloudSyncService 有 syncAllFavorites/syncAllVocab，但没有 syncAllRecords
 
-### P3-2：`cumulative_article_count` 可能过时 ⏳ 需后端协调
+### P3-2：`cumulative_article_count` 可能过时 ❌ 已关闭
 
-### P3-3：`page_state_json` 解析方式脆弱 ⏳ 待修复
+- **状态**: 经评审确认关闭。前端 profile 页已优先使用 `recordResult.total`（`GET /records` 真实记录数），`cumulativeArticleCount` 仅作为 fallback，不影响用户体验
+
+### P3-3：`page_state_json` 解析方式脆弱 ✅ 已修复
 
 - **文件**: `client/src/services/api/records.client.ts` → `dtoToVm()`
+- **原因**: 三层 `as` 断言链无运行时校验，且 `analysis_status` 覆盖逻辑导致 `page_state_json` 大多时候无效
+- **修复**: 优先使用 `analysis_status`（后端权威字段），`page_state_json` 仅在 `analysis_status` 为终态时作为补充，并增加 `VALID_PAGE_STATES` 白名单校验
 
 ### P3-4：`record_id` 废弃字段仍作为 fallback ✅ 已修复
 
 - **文件**: `client/src/stores/article.ts`
 - **修复**: 移除所有 `|| res.record_id` / `|| current.task.record_id` fallback，统一使用 `cloud_record_id`
 
-### P3-5：反馈删除返回 204 无 body ⏳ 待修复
+### P3-5：反馈删除返回 204 无 body ✅ 已修复
+
+- **文件**: `client/src/services/api/client.ts` → `request()`
+- **修复**: 在状态码判断中新增 204 显式处理，直接返回 `undefined as T`，避免空 body 反序列化问题
 
 ---
 
@@ -124,4 +131,8 @@
 | 2026-05-05 | P2-2 | article.ts: wait_timeout_seconds 40→60 |
 | 2026-05-05 | P2-4 | useResultActions.ts: extended 从 requestParams 读取 |
 | 2026-05-05 | P2-7 | api.config.ts: 删除 LOADING_TIMEOUT 死代码 |
+| 2026-05-09 | P2-5 | 评审关闭：每日精读已有完整解析，无需再进入分析流程 |
+| 2026-05-09 | P3-5 | client.ts: 新增 204 状态码显式处理，返回 undefined |
+| 2026-05-09 | P3-2 | 评审关闭：profile 已优先使用 recordResult.total，cumulativeArticleCount 仅 fallback |
+| 2026-05-09 | P3-3 | records.client.ts: page_state_json 改为白名单校验，优先使用 analysis_status |
 | 2026-05-05 | P3-4 | article.ts: 移除 record_id deprecated fallback |

@@ -4,30 +4,30 @@
   transition: background-color 0.18s var(--ease-reader-out), border-color 0.18s var(--ease-reader-out), opacity 0.18s var(--ease-reader-out);
 
   &.background {
-    padding: 0 3rpx;
-    margin: 0 -2rpx;
-    border-radius: 4rpx;
+    padding: 0 2rpx;
+    margin: 0 -1rpx;
+    border-radius: 3rpx;
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
 
     &.tone-vocab {
-      background-color: var(--annotation-vocab-bg);
+      background: linear-gradient(to top, rgba(242, 196, 84, 0.34) 42%, transparent 42%);
     }
 
     &.tone-phrase {
-      background-color: var(--annotation-phrase-bg);
+      background: linear-gradient(to top, rgba(151, 126, 224, 0.20) 46%, transparent 46%);
     }
 
     &.tone-vocab:active,
     &.clickable:active.tone-vocab,
     &.active.tone-vocab {
-      background-color: var(--annotation-vocab-bg-active);
+      background: linear-gradient(to top, rgba(242, 196, 84, 0.46) 46%, transparent 46%);
     }
 
     &.tone-phrase:active,
     &.clickable:active.tone-phrase,
     &.active.tone-phrase {
-      background-color: var(--annotation-phrase-bg-active);
+      background: linear-gradient(to top, rgba(151, 126, 224, 0.30) 48%, transparent 48%);
     }
   }
 
@@ -42,8 +42,8 @@
     }
 
     &.tone-grammar {
-      border-bottom: 1.5rpx solid var(--annotation-grammar-line);
-      background: linear-gradient(to top, var(--annotation-grammar-surface) 34%, transparent 34%);
+      border-bottom: 1rpx solid rgba(116, 102, 148, 0.40);
+      background: linear-gradient(to top, rgba(116, 102, 148, 0.035) 30%, transparent 30%);
     }
 
     &.tone-context:active,
@@ -54,7 +54,9 @@
 
     &.tone-grammar:active,
     &.active.tone-grammar {
+      border-bottom-width: 2rpx;
       border-bottom-color: var(--annotation-grammar-line-active);
+      background: linear-gradient(to top, rgba(116, 102, 148, 0.12) 38%, transparent 38%);
     }
   }
 

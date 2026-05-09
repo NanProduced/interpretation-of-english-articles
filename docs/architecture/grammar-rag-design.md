@@ -479,9 +479,148 @@ RAG 必须是增强层，不得成为主链路硬依赖。
 
 ## 20. 最终结论
 
-当前阶段的 grammar RAG，不应理解为“给 grammar_agent 加一个通用知识库”，而应理解为：
+当前阶段的 grammar RAG，不应理解为"给 grammar_agent 加一个通用知识库"，而应理解为：
 
 - 为 `grammar_note` 与 `sentence_analysis` 建立两个结构化示例池；
-- 用 `retrieval_text` 统一承载“原句 + 结构特征 + variant 风格”；
-- 用“轻结构提示 + ANN + rerank + fallback baseline”的方式，动态选择 few-shot；
+- 用 `retrieval_text` 统一承载"原句 + 结构特征 + variant 风格"；
+- 用"轻结构提示 + ANN + rerank + fallback baseline"的方式，动态选择 few-shot；
 - 在保证主链路可回退的前提下，逐步提升 grammar 输出的结构命中率与讲解稳定性。
+
+---
+
+## 21. 实际实现状态
+
+> 本节记录截至当前代码的实际实现情况，与上述设计章节一一对应。
+
+### 21.1 外部依赖与配置（对应 §5.2）
+
+| 组件 | 实际型号 | 配置项 | 默认值 |
+|------|---------|--------|--------|
+| 向量库 | Zilliz Cloud | `ZILLIZ_URI` / `ZILLIZ_TOKEN` | 空（未配置则跳过初始化） |
+| Embedding | 百炼 `text-embedding-v4` | `BAILIAN_API_KEY` / `bailian_embedding_model` / `bailian_embedding_dimension` | 1024 维 |
+| Rerank | 百炼 `qwen3-rerank` | `bailian_rerank_model` | — |
+
+全部配置集中在 `server/app/config/settings.py`，RAG 开关为 `grammar_rag_enabled: bool = False`。
+
+### 21.2 基础设施层（对应 §5.2、§16）
+
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| Zilliz 客户端 | `server/app/infra/zilliz_client.py` | 全局单例，`init/close/search/insert/query/create_collection`，所有方法在 `_client=None` 时返回空结果而非抛异常 |
+| 百炼 Embedding | `server/app/infra/bailian_embedding.py` | `embed_texts`（批量，25 条/批自动分批）/ `embed_single`，`asyncio.to_thread` 包装 |
+| 百炼 Rerank | `server/app/infra/bailian_rerank.py` | `rerank(query, documents, top_n)`，返回 `RerankResult(index, relevance_score, document)` |
+
+Zilliz Schema 实际字段（12 个，对应 §16）：
+
+| 字段 | Milvus 类型 | 说明 |
+|------|------------|------|
+| `example_id` | VARCHAR(128) PK | — |
+| `vector` | FLOAT_VECTOR(1024) | COSINE + AUTOINDEX |
+| `reading_variant` | VARCHAR(64) | — |
+| `output_type` | VARCHAR(32) | — |
+| `grammar_tags` | VARCHAR(512) | JSON 序列化 |
+| `structure_signals` | VARCHAR(512) | JSON 序列化 |
+| `label` | VARCHAR(256) | — |
+| `source_sentence` | VARCHAR(2048) | — |
+| `output_fragment` | VARCHAR(8192) | — |
+| `grammar_granularity` | VARCHAR(64) | — |
+| `quality_score` | FLOAT | — |
+| `approved` | BOOL | — |
+
+### 21.3 检索链路（对应 §5.1、§9-§13）
+
+完整链路实现在 `server/app/services/analysis/prompting/rag/grammar_rag_service.py`：
+
+```
+输入句子 → select_candidate_sentences → build_query_text → embed_single → zilliz_search → rerank → _apply_confidence_filter → _diversity_dedup → 注入预算控制 → ExampleEntry 列表
+```
+
+各环节实际参数：
+
+| 环节 | 设计章节 | 实际参数 | 配置项 |
+|------|---------|---------|--------|
+| 候选句筛选 | §10.3 | `budget=4`，按信号丰富度排序 | 硬编码 |
+| query_text 构造 | §9.1 | `output_type + variant + possible_signals + sentence` | — |
+| Embedding | §8 | `text-embedding-v4`, 1024d | `bailian_embedding_model` / `bailian_embedding_dimension` |
+| ANN TopK | §11.2 | 8 | `grammar_rag_ann_topk` |
+| ANN 过滤 | §11.1 | `approved == true AND output_type == "{type}" AND reading_variant == "{variant}"`，variant miss 时 fallback 到 `"default"` | — |
+| Rerank TopN | §12.3 | 5 | `grammar_rag_rerank_topn` |
+| Rerank 文档格式 | §12.2 | `variant=…\noutput_type=…\ngrammar_tags=…\nsentence=…\nlabel=…` | — |
+| 置信度过滤 | §14 | `min_score=0.3` | `grammar_rag_confidence_threshold` |
+| 多样性去重 | §13.2 | 按 `label` / `source_sentence` / `grammar_tags` 三维去重 | — |
+| 注入预算 | §13.1 | `grammar_note` 最多 2 条，`sentence_analysis` 最多 1 条 | `_INJECTION_BUDGET` 硬编码 |
+
+### 21.4 结构信号提取（对应 §7.3、§10.3）
+
+实现在 `server/app/services/analysis/prompting/rag/grammar_retrieval_hints.py`：
+
+| 信号 | 检测方式 | 对应设计 |
+|------|---------|---------|
+| `long_sentence` | `word_count > 20` | §7.3 |
+| `has_that_clause` | `\bthat\b` 正则 | §7.3 |
+| `has_wh_clause` | `which/who/whose` | §7.3 |
+| `leading_vbn` | 句首 `V-ed` | §7.3 |
+| `leading_ving` | 句首 `V-ing` | §7.3 |
+| `has_inversion` | 句首 `Never/Rarely/Not only/Had…` | §7.3 |
+| `has_comma_insertion` | 逗号≥2 或逗号+which/who 等 | §7.3 |
+| `nested_structure` | 从句数≥2 或逗号≥2+从句≥1 | §7.3 |
+
+`select_candidate_sentences` 按信号丰富度排序，对 `grammar_note` 额外加权 `leading_vbn` 和 `has_inversion_trigger`，对 `sentence_analysis` 额外加权 `long_sentence` 和 `nested_structure`。
+
+### 21.5 策略层接入（对应 §15）
+
+| 文件 | 职责 |
+|------|------|
+| `example_strategy.py` | `get_grammar_example_strategy`（同步，RAG 时 fallback）/ `get_grammar_example_strategy_async`（异步，真正调用 RAG） |
+| `strategy_builder.py` | `build_grammar_bundle_async` 构建含 `rag_debug` 的 `StrategyBundle` |
+
+实际行为：
+
+- `GRAMMAR_RAG_ENABLED=true` 时，`build_grammar_bundle_async` 同时查询 `grammar_note` 和 `sentence_analysis` 两个池，合并结果
+- vocabulary / translation 始终走 baseline，即使 `few_shot_mode=rag` 也回退
+- `selection_mode` 取值：`baseline` / `rag` / `rag_fallback`
+
+### 21.6 回退策略（对应 §14）
+
+`grammar_rag_service.query_grammar_rag` 在以下情况自动 fallback：
+
+| 情况 | `fallback_reason` |
+|------|-------------------|
+| 输入句子为空 | `no_input_sentences` |
+| 任何外部调用异常 | `retrieval_error: {Exception}` |
+| ANN 返回空结果 | `empty_candidates` |
+| 所有候选低于置信度阈值 | `low_confidence` |
+
+fallback 时 `selection_mode="rag_fallback"`，`example_strategy` 加载 baseline 静态示例。
+
+### 21.7 可观测性（对应 §17）
+
+`RAGQueryResult` 携带完整诊断字段，通过 `build_rag_debug_info()` 序列化为 dict，注入 `StrategyBundle.rag_debug`，最终出现在 `prompt_debug` 输出中：
+
+- `selection_mode` / `fallback_reason` / `is_fallback`
+- `example_count` / `selected_example_ids` / `query_count`
+- `ann_topk` / `rerank_topn`
+- `embedding_latency_ms` / `ann_latency_ms` / `rerank_latency_ms`
+
+### 21.8 健康检查
+
+`GET /health` 在 `GRAMMAR_RAG_ENABLED=true` 时返回 `zilliz` 字段（`bool | null`），调用 `is_zilliz_ready()` 检查连接状态。
+
+### 21.9 数据 Ingestion（对应 §19 步骤 3）
+
+`server/scripts/ingest_grammar_seed.py`：
+
+- 从 `server/data/seed/grammar_seed_v1.jsonl` 读取 seed 数据
+- 按 `output_type` 分组写入对应 collection
+- 调用百炼 Embedding 生成向量
+- 支持增量写入（跳过已有 `example_id`）
+- 支持 `--dry-run` 模式预览
+- 支持 `--batch-size` 控制嵌入批次大小
+
+### 21.10 应用启动集成
+
+`server/app/main.py` 在 `lifespan` 中：
+
+- `GRAMMAR_RAG_ENABLED=true` 时调用 `init_zilliz(uri, token)`
+- 初始化后调用 `is_zilliz_ready()` 验证连接
+- 连接失败不阻塞启动，仅 warning 日志，RAG 运行时自动 fallback

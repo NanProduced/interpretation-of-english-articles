@@ -11,6 +11,9 @@
 | 词典数据库 | TECD3 离线解析后导入 PostgreSQL | 磁盘 JSON 文件缓存（已废弃） |
 | 缓存方案 | L1 进程内 + L2 Redis + 前端内存缓存 | 纯 L1 内存缓存（已废弃，无淘汰策略） |
 | 运行时词典 | Tecd3Provider 查询 PostgreSQL | 第三方在线词典 API（已废弃） |
+| Grammar RAG 向量库 | Zilliz Cloud（托管 Milvus） | 自建 Milvus（运维成本高）、Chroma（生产不成熟） |
+| Grammar RAG Embedding | 阿里云百炼 text-embedding-v4 (1024d) | OpenAI embedding（延迟高、需翻墙） |
+| Grammar RAG Rerank | 阿里云百炼 qwen3-rerank | — |
 
 **为什么不保留 SQLite**：
 - 嵌入式文件型，不适合多设备同步
@@ -186,9 +189,101 @@ HTTP 缓存头：`Cache-Control: public, max-age=3600`（词典数据变更频�
 
 缓存监控：`/health` 端点返回 `dict_cache` 统计（L1/L2 命中率、容量）
 
-## 7. 前端状态管理
+## 7. Grammar RAG 架构
 
-### 7.1 页面状态映射
+### 7.1 定位
+
+Grammar RAG 是 `grammar_agent` 的 few-shot 示例增强层，不暴露为前端产品能力。仅覆盖 `grammar_note` 和 `sentence_analysis` 两类输出，不涉及 vocabulary / translation。
+
+### 7.2 核心判断
+
+对 `grammar_agent` 来说，最有价值的示例不是"主题相似"，而是"结构相似 + variant 相似 + 讲解目标相似"。因此本方案做"句法结构导向的 example retrieval"，不做"文章级语义 RAG"。
+
+### 7.3 整体流程
+
+```
+输入句子 → 候选句筛选 → query_text 构造 → 百炼 Embedding → Zilliz ANN → 百炼 Rerank → 置信度过滤 → 多样性去重 → 注入预算控制 → ExampleEntry 列表
+```
+
+### 7.4 外部依赖
+
+| 组件 | 用途 | 配置 |
+|------|------|------|
+| Zilliz Cloud | ANN 向量检索 | `ZILLIZ_URI` / `ZILLIZ_TOKEN` |
+| 百炼 text-embedding-v4 | 文本向量化 (1024d) | `BAILIAN_API_KEY` |
+| 百炼 qwen3-rerank | 候选精排 | `BAILIAN_API_KEY` |
+
+### 7.5 双池设计
+
+| 池 | Collection | 查询粒度 | 注入预算 |
+|----|-----------|----------|---------|
+| grammar_note | `grammar_note_examples` | 句子级 | 最多 2 条 |
+| sentence_analysis | `sentence_analysis_examples` | 长句级 | 最多 1 条 |
+
+### 7.6 开关与降级
+
+- `GRAMMAR_RAG_ENABLED=false`（默认）：RAG 不初始化，grammar 始终使用 baseline few-shot
+- `GRAMMAR_RAG_ENABLED=true`：启动时初始化 Zilliz 连接，运行时 grammar 自动走 RAG
+- 任何环节失败（Embedding / Zilliz / Rerank / 空结果 / 低置信度）均自动 fallback 到 baseline
+- 前端不感知 RAG 开关，`selection_mode` 仅在 `prompt_debug` 中记录
+
+### 7.7 代码结构
+
+```
+server/app/infra/
+  zilliz_client.py          # Zilliz 全局单例，封装 init/close/search/insert/query/create_collection
+  bailian_embedding.py      # 百炼 Embedding，自动分批（25条/批），asyncio.to_thread 包装
+  bailian_rerank.py         # 百炼 Rerank，返回 RerankResult(index, relevance_score, document)
+
+server/app/services/analysis/prompting/rag/
+  grammar_rag_service.py    # 完整检索链路：候选句→query→embed→ANN→rerank→过滤→去重→预算
+  grammar_retrieval_hints.py # 轻量结构信号提取（句长、逗号、that/which、V-ed/V-ing 等）
+
+server/app/services/analysis/prompting/
+  example_strategy.py       # baseline / rag 策略切换，同步+异步版本
+  strategy_builder.py       # StrategyBundle 构建，含 rag_debug 诊断信息
+
+server/scripts/
+  ingest_grammar_seed.py    # seed 数据 ingestion 脚本（JSONL→embedding→Zilliz），支持 --dry-run
+```
+
+### 7.8 Zilliz Schema
+
+两个池共享同一 schema（12 字段）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `example_id` | VARCHAR(128) PK | 样本唯一 ID |
+| `vector` | FLOAT_VECTOR(1024) | 百炼 embedding 向量 |
+| `reading_variant` | VARCHAR(64) | 阅读变体 |
+| `output_type` | VARCHAR(32) | grammar_note / sentence_analysis |
+| `grammar_tags` | VARCHAR(512) | 结构标签 JSON |
+| `structure_signals` | VARCHAR(512) | 轻量信号 JSON |
+| `label` | VARCHAR(256) | 语法点名称 |
+| `source_sentence` | VARCHAR(2048) | 原始英文句子 |
+| `output_fragment` | VARCHAR(8192) | few-shot 注入片段 |
+| `grammar_granularity` | VARCHAR(64) | 讲解风格 |
+| `quality_score` | FLOAT | 质量分 |
+| `approved` | BOOL | 是否可进入线上召回 |
+
+Index: `AUTOINDEX` on `vector` (COSINE)
+
+### 7.9 可观测性
+
+`RAGQueryResult` 携带以下诊断字段，通过 `StrategyBundle.rag_debug` 传入 `prompt_debug`：
+
+- `selection_mode` / `fallback_reason` / `is_fallback`
+- `example_count` / `selected_example_ids` / `query_count`
+- `ann_topk` / `rerank_topn`
+- `embedding_latency_ms` / `ann_latency_ms` / `rerank_latency_ms`
+
+### 7.10 健康检查
+
+`GET /health` 在 `GRAMMAR_RAG_ENABLED=true` 时返回 `zilliz` 字段（bool | null），反映 Zilliz 连接状态。
+
+## 8. 前端状态管理
+
+### 8.1 页面状态映射
 
 | 后端信号 | 页面状态 | 用户表现 |
 |----------|----------|----------|
@@ -200,19 +295,19 @@ HTTP 缓存头：`Cache-Control: public, max-age=3600`（词典数据变更频�
 | 请求超时 | `timeout` | 超时状态页 + 重试 |
 | 网络异常 | `network_fail` | 网络错误页 + 重试 |
 
-### 7.2 Store 状态机
+### 8.2 Store 状态机
 
 ```
 idle → loading → polling → success / empty / error
 ```
 
-### 7.3 类型边界
+### 8.3 类型边界
 
 - `client/src/types/api/` = 后端 DTO (snake_case)
 - `client/src/types/view/` = 前端 VM (camelCase)
 - 转换只在 `services/api/adapters/` 一处
 
-### 7.4 用户资产 ID 契约
+### 8.4 用户资产 ID 契约
 
 前端统一使用以下 ID 语义，禁止混用：
 
@@ -228,7 +323,7 @@ idle → loading → polling → success / empty / error
 - 不允许把云端 UUID 写入任何本应表达 `clientRecordId` 的字段
 - 迁移期间保留兼容字段（如 `record_id`），但新代码必须优先使用明确命名
 
-### 7.5 离线优先同步策略
+### 8.5 离线优先同步策略
 
 当前结论：采用"离线优先 mutation queue"方案。
 
@@ -263,7 +358,7 @@ Sync Queue 数据结构：
 - 写入时机：提交分析任务成功、同步记录成功、云端记录/生词/收藏回流时
 - 用途：生词同步 resolve cloud id、收藏同步 resolve cloud id、历史记录补齐映射
 
-### 7.6 Vocabulary 接口字段语义
+### 8.6 Vocabulary 接口字段语义
 
 生词本接口响应中的来源记录 ID 字段：
 
@@ -279,24 +374,25 @@ Sync Queue 数据结构：
 - 只允许用 `source_client_record_id` 或兼容期的 `client_record_id` 回填 `sourceClientRecordId`
 - 不允许再把 `analysis_record_id` 用作 `sourceClientRecordId`
 
-## 8. 实施原则
+## 9. 实施原则
 
-### 8.1 禁止的做法
+### 9.1 禁止的做法
 
 - 让 history 页点击后重新调用 `/analyze` 代替结果回看
 - 收藏时整份复制 `render_scene` 到另一套结构
 - 用散落的 `Taro.setStorageSync` key 拼接出多套不一致的数据源
 - 把本地 storage 视为正式真源
 
-### 8.2 文档维护规则
+### 9.2 文档维护规则
 
 - 已实现内容在主文档中写"当前结论"
 - 新能力延伸补到主文档，不新增平行文档
 - 开发记录不在架构文档中
 
-## 9. 关联文档
+## 10. 关联文档
 
 - [小程序联调与用户体验设计文档](./mini-program-integration-and-ux-design.md) - 用户主链路与产品设计
 - [每日精读 Specs](../../specs/daily-reader/) - 每日精读独立设计
 - [词典服务架构与查询策略](./dictionary-service-architecture.md) - TECD3 词典接入细则与查询策略
+- [Grammar RAG 设计文档](./grammar-rag-design.md) - Grammar RAG 检索链路设计与实现
 - `server/db/migrations/0001_initial_schema.sql` - 数据库 DDL

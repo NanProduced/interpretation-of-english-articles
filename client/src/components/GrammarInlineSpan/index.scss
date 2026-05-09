@@ -2,13 +2,15 @@
   display: inline;
   position: relative;
   text-decoration: underline;
-  text-decoration-color: var(--annotation-grammar-line);
-  text-decoration-thickness: 2rpx;
+  text-decoration-color: rgba(116, 102, 148, 0.42);
+  text-decoration-thickness: 1rpx;
   text-underline-offset: 6rpx;
+  background: linear-gradient(to top, rgba(116, 102, 148, 0.035) 30%, transparent 30%);
   
   &.active {
-    text-decoration-thickness: 4rpx;
-    background-color: rgba(116, 102, 148, 0.08);
+    text-decoration-color: var(--annotation-grammar-line-active);
+    text-decoration-thickness: 2rpx;
+    background: linear-gradient(to top, rgba(116, 102, 148, 0.12) 38%, transparent 38%);
   }
 
   &.in-selection {

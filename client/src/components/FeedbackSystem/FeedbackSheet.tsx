@@ -1,4 +1,5 @@
 import { View, Text, Textarea } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import { useState, useMemo } from 'react'
 import { submitFeedback } from '../../services/api/feedback.client'
 import { ensureLoggedIn } from '../../services/auth'
@@ -75,8 +76,8 @@ export default function FeedbackSheet({
       // If we had a way to detect upsert from response we'd pass it, assuming false for now
       setSuccessResult({ isUpsert: false })
     } catch (err) {
-      // Show inline error or toast
       console.error('Feedback submit failed', err)
+      Taro.showToast({ title: '反馈提交失败', icon: 'none' })
     } finally {
       setSubmitting(false)
     }

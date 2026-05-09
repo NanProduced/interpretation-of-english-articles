@@ -66,15 +66,17 @@
       }
     }
 
+    .sentence-run {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
     .sentence-block {
       margin-bottom: 36rpx; /* Balanced spacing between sentences */
 
-      &.chunk-merged {
-        margin-bottom: 36rpx;
-
-        .sentence-translation.merged {
-          margin-bottom: 0;
-        }
+      &.sentence-block--plain {
+        margin-bottom: 30rpx;
       }
     }
 
@@ -82,19 +84,35 @@
       margin-bottom: 0;
       position: relative;
 
+      &.is-favorited {
+        padding-right: 34rpx;
+      }
+
       /* sentence-level fallback: whole-sentence highlight when no text_range offset */
       &.user-highlighted {
-        border-radius: 6rpx;
-        transition: background-color 0.18s ease;
+        .sentence-text {
+          border-radius: 3rpx;
+          box-decoration-break: clone;
+          -webkit-box-decoration-break: clone;
+        }
 
-        &.user-highlighted--warm_yellow {
-          background: rgba(232, 196, 104, 0.10);
+        &.user-highlighted--soft_green .sentence-text {
+          background: linear-gradient(to top, rgba(168, 216, 185, 0.30) 38%, transparent 38%);
         }
-        &.user-highlighted--soft_blue {
-          background: rgba(147, 180, 210, 0.10);
+        &.user-highlighted--soft_blue .sentence-text {
+          background: linear-gradient(to top, rgba(169, 203, 232, 0.28) 38%, transparent 38%);
         }
-        &.user-highlighted--sage_green {
-          background: rgba(150, 195, 160, 0.10);
+        &.user-highlighted--soft_purple .sentence-text {
+          background: linear-gradient(to top, rgba(199, 185, 230, 0.26) 38%, transparent 38%);
+        }
+      }
+
+      &.user-selection-active {
+        .sentence-text {
+          border-radius: 4rpx;
+          background: linear-gradient(to top, rgba(91, 136, 156, 0.18) 42%, transparent 42%);
+          box-decoration-break: clone;
+          -webkit-box-decoration-break: clone;
         }
       }
 
@@ -109,6 +127,19 @@
         border-radius: 2rpx;
         background: rgba(17, 17, 17, 0.10);
       }
+
+      .sentence-bookmark-corner {
+        position: absolute;
+        right: 0;
+        top: 7rpx;
+        width: 30rpx;
+        height: 30rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.86;
+        pointer-events: none;
+      }
       
       .user-annotation-wrapper {
         margin-top: 16rpx;
@@ -117,17 +148,17 @@
         border: 1rpx solid rgba(17, 17, 17, 0.06);
         background: rgba(0, 0, 0, 0.02);
         
-        &.theme-warm_yellow {
-          border-color: rgba(232, 196, 104, 0.35);
-          background: rgba(232, 196, 104, 0.06);
+        &.theme-soft_green {
+          border-color: rgba(168, 216, 185, 0.42);
+          background: rgba(168, 216, 185, 0.08);
         }
         &.theme-soft_blue {
-          border-color: rgba(147, 180, 210, 0.35);
-          background: rgba(147, 180, 210, 0.06);
+          border-color: rgba(169, 203, 232, 0.42);
+          background: rgba(169, 203, 232, 0.08);
         }
-        &.theme-sage_green {
-          border-color: rgba(150, 195, 160, 0.35);
-          background: rgba(150, 195, 160, 0.06);
+        &.theme-soft_purple {
+          border-color: rgba(199, 185, 230, 0.42);
+          background: rgba(199, 185, 230, 0.08);
         }
 
         .user-annotation-note {
@@ -226,14 +257,14 @@
     &.user-highlighted {
       border-radius: 4rpx;
 
-      &.user-highlighted--warm_yellow {
-        background: rgba(232, 196, 104, 0.12);
+      &.user-highlighted--soft_green {
+        background: linear-gradient(to top, rgba(168, 216, 185, 0.30) 38%, transparent 38%);
       }
       &.user-highlighted--soft_blue {
-        background: rgba(147, 180, 210, 0.12);
+        background: linear-gradient(to top, rgba(169, 203, 232, 0.28) 38%, transparent 38%);
       }
-      &.user-highlighted--sage_green {
-        background: rgba(150, 195, 160, 0.12);
+      &.user-highlighted--soft_purple {
+        background: linear-gradient(to top, rgba(199, 185, 230, 0.26) 38%, transparent 38%);
       }
     }
 
@@ -249,14 +280,14 @@
       -webkit-box-decoration-break: clone;
       transition: background-color 0.18s ease;
 
-      &--warm_yellow {
-        background: rgba(232, 196, 104, 0.18);
+      &--soft_green {
+        background: rgba(168, 216, 185, 0.26);
       }
       &--soft_blue {
-        background: rgba(147, 180, 210, 0.18);
+        background: rgba(169, 203, 232, 0.24);
       }
-      &--sage_green {
-        background: rgba(150, 195, 160, 0.18);
+      &--soft_purple {
+        background: rgba(199, 185, 230, 0.22);
       }
 
       .user-note-dot {
@@ -271,29 +302,29 @@
       }
     }
 
-    :global(.annotation-quiet) & {
-      .user-highlight-segment {
-        &--warm_yellow { background: rgba(232, 196, 104, 0.10); }
-        &--soft_blue { background: rgba(147, 180, 210, 0.10); }
-        &--sage_green { background: rgba(150, 195, 160, 0.10); }
-      }
-    }
-
-    :global(.annotation-clear) & {
-      .user-highlight-segment {
-        &--warm_yellow { background: rgba(232, 196, 104, 0.26); }
-        &--soft_blue { background: rgba(147, 180, 210, 0.26); }
-        &--sage_green { background: rgba(150, 195, 160, 0.26); }
-      }
-    }
-
     /* =========================================================
-     * User Selection — 用户长按选区高亮 + 双端手柄
+     * User Selection — sentence-level long-press feedback
      * 完全独立于 AI 批注样式
      * ========================================================= */
     &.user-selection-active {
       position: relative;
+      background: linear-gradient(to top, rgba(91, 136, 156, 0.18) 42%, transparent 42%);
+      border-radius: 4rpx;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
     }
+  }
+
+  .sentence-bookmark-mark {
+    display: inline-block;
+    margin-left: 7rpx;
+    color: #47745f;
+    font-family: var(--font-sans);
+    font-size: 0.64em;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: 0.12em;
+    opacity: 0.86;
   }
 
   .in-selection {
@@ -302,9 +333,9 @@
   }
 
   .user-highlight-overlay {
-    &--warm_yellow { background-color: rgba(252, 211, 77, 0.30); border-radius: 4rpx; }
-    &--soft_blue { background-color: rgba(147, 197, 253, 0.30); border-radius: 4rpx; }
-    &--sage_green { background-color: rgba(134, 239, 172, 0.30); border-radius: 4rpx; }
+    &--soft_green { background-color: rgba(168, 216, 185, 0.30); border-radius: 4rpx; }
+    &--soft_blue { background-color: rgba(169, 203, 232, 0.28); border-radius: 4rpx; }
+    &--soft_purple { background-color: rgba(199, 185, 230, 0.26); border-radius: 4rpx; }
   }
 
   .sentence-text {
@@ -401,12 +432,7 @@
       }
       .tone-vocab,
       .tone-phrase {
-        background-color: transparent !important;
-      }
-      .user-highlighted {
-        &--warm_yellow { background: rgba(252, 211, 77, 0.08); }
-        &--soft_blue { background: rgba(147, 197, 253, 0.08); }
-        &--sage_green { background: rgba(134, 239, 172, 0.08); }
+        background: transparent !important;
       }
     }
 
@@ -418,15 +444,10 @@
         border-bottom-width: 3rpx !important;
       }
       .tone-vocab {
-        background-color: var(--annotation-vocab-bg-clear, rgba(46, 91, 178, 0.12)) !important;
+        background: linear-gradient(to top, rgba(242, 196, 84, 0.48) 48%, transparent 48%) !important;
       }
       .tone-phrase {
-        background-color: var(--annotation-phrase-bg-clear, rgba(109, 40, 217, 0.10)) !important;
-      }
-      .user-highlighted {
-        &--warm_yellow { background: rgba(252, 211, 77, 0.22); }
-        &--soft_blue { background: rgba(147, 197, 253, 0.22); }
-        &--sage_green { background: rgba(134, 239, 172, 0.22); }
+        background: linear-gradient(to top, rgba(151, 126, 224, 0.34) 50%, transparent 50%) !important;
       }
     }
   }
@@ -470,18 +491,6 @@
     display: flex;
     align-items: flex-end;
     background: rgba(17, 17, 17, 0.36);
-  }
-
-  .tone-grammar {
-    display: inline;
-    border-bottom: 2rpx solid var(--annotation-grammar-line);
-    background: linear-gradient(to top, var(--annotation-grammar-surface) 36%, transparent 36%);
-    font-weight: var(--weight-medium);
-    white-space: normal;
-
-    &.is-highlighted {
-      background: transparent !important;
-    }
   }
 
   /* =========================================================

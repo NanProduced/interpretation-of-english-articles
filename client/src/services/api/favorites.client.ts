@@ -29,6 +29,17 @@ interface FavoriteListDto {
   total: number
 }
 
+export interface FavoriteItemDto {
+  id: string
+  target_type: string
+  target_key: string
+  analysis_record_id: string | null
+  payload_json: Record<string, unknown>
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
 function dtoToVm(dto: FavoriteResponseDto): FavoriteRecord {
   return {
     recordId: dto.target_key,
@@ -50,6 +61,16 @@ export async function fetchCloudFavorites(): Promise<{ items: FavoriteRecord[]; 
   })
   return {
     items: res.items.map(dtoToVm),
+    total: res.total,
+  }
+}
+
+export async function fetchCloudFavoriteItems(): Promise<{ items: FavoriteItemDto[]; total: number }> {
+  const res = await request<FavoriteListDto>({
+    url: '/favorites',
+  })
+  return {
+    items: res.items.map(item => ({ ...item })),
     total: res.total,
   }
 }

@@ -8,6 +8,7 @@ interface Props {
   selectionText?: string
   initialColor?: string
   initialNote?: string
+  hasExistingAnnotation?: boolean
   onClose: () => void
   onSave: (color: string, note: string) => void
   onHighlightOnly?: (color: string) => void
@@ -15,16 +16,23 @@ interface Props {
 }
 
 const THEMES = [
-  { value: 'warm_yellow', label: '暖黄', color: '#FCD34D', bg: 'rgba(252, 211, 77, 0.12)' },
-  { value: 'soft_blue', label: '浅蓝', color: '#93C5FD', bg: 'rgba(147, 197, 253, 0.12)' },
-  { value: 'sage_green', label: '柔绿', color: '#86EFAC', bg: 'rgba(134, 239, 172, 0.12)' },
+  { value: 'soft_green', label: '淡绿', color: '#A8D8B9', bg: 'rgba(168, 216, 185, 0.16)' },
+  { value: 'soft_blue', label: '淡蓝', color: '#A9CBE8', bg: 'rgba(169, 203, 232, 0.16)' },
+  { value: 'soft_purple', label: '淡紫', color: '#C7B9E6', bg: 'rgba(199, 185, 230, 0.15)' },
 ]
+
+function normalizeInitialColor(color?: string): string {
+  if (color === 'soft_blue') return 'soft_blue'
+  if (color === 'soft_purple') return 'soft_purple'
+  return 'soft_green'
+}
 
 const UserNoteSheet = memo(function UserNoteSheet({
   visible,
   selectionText,
-  initialColor = 'warm_yellow',
+  initialColor = 'soft_green',
   initialNote = '',
+  hasExistingAnnotation = false,
   onClose,
   onSave,
   onHighlightOnly,
@@ -35,7 +43,7 @@ const UserNoteSheet = memo(function UserNoteSheet({
 
   useEffect(() => {
     if (visible) {
-      setColor(initialColor)
+      setColor(normalizeInitialColor(initialColor))
       setNote(initialNote)
     }
   }, [visible, initialColor, initialNote])
@@ -58,14 +66,8 @@ const UserNoteSheet = memo(function UserNoteSheet({
         <View className='un-handle' />
 
         <View className='un-header'>
-          <View className='un-actions un-actions--left'>
-            {onDelete && (
-              <View className='un-icon-btn' onClick={onDelete}>
-                <LucideIcon name='trash-2' size={20} color='var(--color-danger)' />
-              </View>
-            )}
-          </View>
-          <Text className='un-title'>{note.trim() ? '添加笔记' : '高亮标注'}</Text>
+          <View className='un-actions un-actions--left' />
+          <Text className='un-title'>{hasExistingAnnotation ? '编辑批注' : '添加批注'}</Text>
           <View className='un-actions un-actions--right'>
             <View className='un-icon-btn' onClick={onClose}>
               <LucideIcon name='x' size={20} color='var(--text-secondary)' />
@@ -112,13 +114,18 @@ const UserNoteSheet = memo(function UserNoteSheet({
           </View>
 
           <View className='un-actions-row'>
+            {onDelete && (
+              <View className='un-btn un-btn--danger' onClick={onDelete}>
+                <Text className='un-btn-text un-btn-text--danger'>{note.trim() ? '删除批注' : '取消高亮'}</Text>
+              </View>
+            )}
             {onHighlightOnly && (
               <View className='un-btn un-btn--secondary' onClick={handleHighlightOnly}>
-                <Text className='un-btn-text'>仅高亮</Text>
+                <Text className='un-btn-text'>{hasExistingAnnotation && !note.trim() ? '更新高亮' : '仅高亮'}</Text>
               </View>
             )}
             <View className='un-btn un-btn--primary' onClick={handleSave}>
-              <Text className='un-btn-text un-btn-text--primary'>保存笔记</Text>
+              <Text className='un-btn-text un-btn-text--primary'>{hasExistingAnnotation ? '保存修改' : '保存笔记'}</Text>
             </View>
           </View>
         </View>
