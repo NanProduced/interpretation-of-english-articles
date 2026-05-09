@@ -3,7 +3,7 @@
 ## Phase 1: Reading Preferences
 
 - [ ] 定义前端 `ReadingPreferences` 类型和默认值。
-- [ ] 将阅读设置映射为 CSS 变量：字号、行距、段距、译文透明度、背景、标注强度。
+- [ ] 将阅读设置映射为 CSS 变量：字号、行距、译文透明度、背景。
 - [ ] 新增 `ReadingSettingsSheet`。
 - [ ] 在结果页顶部更多菜单或阅读工具入口接入设置 sheet。
 - [ ] 通过 `/auth/profile` 保存用户阅读偏好。

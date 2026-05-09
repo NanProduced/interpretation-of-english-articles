@@ -35,10 +35,8 @@ JSON shape：
   "reading_preferences": {
     "font_size": "standard",
     "line_height": "standard",
-    "paragraph_spacing": "standard",
     "translation_display": "muted",
     "paper_theme": "paper",
-    "annotation_intensity": "standard",
     "updated_at": "2026-05-08T12:00:00Z"
   }
 }
@@ -48,10 +46,8 @@ JSON shape：
 
 - `font_size`: `small | standard | large | xlarge`
 - `line_height`: `compact | standard | loose`
-- `paragraph_spacing`: `compact | standard | loose`
 - `translation_display`: `hidden | muted | standard`
 - `paper_theme`: `paper | white | sage`
-- `annotation_intensity`: `quiet | standard | clear`
 
 ## New Table: user_annotations
 

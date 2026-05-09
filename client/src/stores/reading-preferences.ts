@@ -7,28 +7,41 @@ export type FontSize = 'small' | 'standard' | 'large' | 'xlarge'
 export type Spacing = 'compact' | 'standard' | 'loose'
 export type TranslationDisplay = 'hidden' | 'muted' | 'standard'
 export type PaperTheme = 'paper' | 'white' | 'sage'
-export type AnnotationIntensity = 'quiet' | 'standard' | 'clear'
 
 export interface ReadingPreferences {
   font_size: FontSize
   line_height: Spacing
-  paragraph_spacing: Spacing
   translation_display: TranslationDisplay
   paper_theme: PaperTheme
-  annotation_intensity: AnnotationIntensity
   updated_at?: string
 }
 
 export const DEFAULT_READING_PREFERENCES: ReadingPreferences = {
   font_size: 'standard',
   line_height: 'standard',
-  paragraph_spacing: 'standard',
   translation_display: 'muted',
   paper_theme: 'paper',
-  annotation_intensity: 'standard',
 }
 
 const PREF_STORAGE_KEY = 'reading_preferences_local'
+
+const fontSizes: FontSize[] = ['small', 'standard', 'large', 'xlarge']
+const spacings: Spacing[] = ['compact', 'standard', 'loose']
+const translationDisplays: TranslationDisplay[] = ['hidden', 'muted', 'standard']
+const paperThemes: PaperTheme[] = ['paper', 'white', 'sage']
+
+function normalizeReadingPreferences(input?: Partial<ReadingPreferences> | null): ReadingPreferences {
+  const source = input || {}
+  return {
+    font_size: fontSizes.includes(source.font_size as FontSize) ? source.font_size as FontSize : DEFAULT_READING_PREFERENCES.font_size,
+    line_height: spacings.includes(source.line_height as Spacing) ? source.line_height as Spacing : DEFAULT_READING_PREFERENCES.line_height,
+    translation_display: translationDisplays.includes(source.translation_display as TranslationDisplay)
+      ? source.translation_display as TranslationDisplay
+      : DEFAULT_READING_PREFERENCES.translation_display,
+    paper_theme: paperThemes.includes(source.paper_theme as PaperTheme) ? source.paper_theme as PaperTheme : DEFAULT_READING_PREFERENCES.paper_theme,
+    updated_at: source.updated_at,
+  }
+}
 
 let _cloudSyncTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -42,17 +55,17 @@ interface ReadingPreferencesState {
 
 export const useReadingPreferencesStore = create<ReadingPreferencesState>((set, get) => {
   const saved = Taro.getStorageSync(PREF_STORAGE_KEY)
-  const initialPreferences = saved ? { ...DEFAULT_READING_PREFERENCES, ...JSON.parse(saved) } : DEFAULT_READING_PREFERENCES
+  const initialPreferences = saved ? normalizeReadingPreferences(JSON.parse(saved)) : DEFAULT_READING_PREFERENCES
 
   return {
     preferences: initialPreferences,
 
     updatePreferences: (updates) => {
-      const newPrefs = {
+      const newPrefs = normalizeReadingPreferences({
         ...get().preferences,
         ...updates,
         updated_at: new Date().toISOString(),
-      }
+      })
 
       set({ preferences: newPrefs })
       Taro.setStorageSync(PREF_STORAGE_KEY, JSON.stringify(newPrefs))
@@ -87,7 +100,7 @@ export const useReadingPreferencesStore = create<ReadingPreferencesState>((set, 
         const localTime = localPrefs.updated_at ? new Date(localPrefs.updated_at).getTime() : 0
 
         if (cloudTime >= localTime) {
-          const merged = { ...DEFAULT_READING_PREFERENCES, ...cloudPrefs }
+          const merged = normalizeReadingPreferences(cloudPrefs)
           set({ preferences: merged })
           Taro.setStorageSync(PREF_STORAGE_KEY, JSON.stringify(merged))
         }

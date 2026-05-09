@@ -86,8 +86,11 @@ export default function Result() {
 
   const readerStyles = useMemo(() => {
     const fsRatios = { small: 0.85, standard: 1, large: 1.15, xlarge: 1.3 }
-    const lhRatios = { compact: 1.4, standard: 1.6, loose: 1.8 }
-    const psRatios = { compact: '16rpx', standard: '24rpx', loose: '32rpx' }
+    const lhRatios = { compact: 1.34, standard: 1.6, loose: 1.82 }
+    const sentenceSpacing = { compact: '24rpx', standard: '36rpx', loose: '48rpx' }
+    const plainSentenceSpacing = { compact: '20rpx', standard: '30rpx', loose: '40rpx' }
+    const translationTopSpacing = { compact: '8rpx', standard: '14rpx', loose: '18rpx' }
+    const translationBottomSpacing = { compact: '10rpx', standard: '16rpx', loose: '22rpx' }
     const trOpacity = { hidden: 0, muted: 0.6, standard: 1 }
     
     let bg = '#F9F5EC'
@@ -97,7 +100,10 @@ export default function Result() {
     return {
       '--reader-font-size-ratio': fsRatios[preferences.font_size],
       '--reader-line-height': lhRatios[preferences.line_height],
-      '--reader-para-spacing': psRatios[preferences.paragraph_spacing],
+      '--reader-sentence-spacing': sentenceSpacing[preferences.line_height],
+      '--reader-plain-sentence-spacing': plainSentenceSpacing[preferences.line_height],
+      '--reader-translation-top-spacing': translationTopSpacing[preferences.line_height],
+      '--reader-translation-bottom-spacing': translationBottomSpacing[preferences.line_height],
       '--reader-bg-theme': bg,
       '--reader-translation-opacity': trOpacity[preferences.translation_display],
     } as React.CSSProperties
@@ -484,7 +490,7 @@ export default function Result() {
       <NavBar title='Claread透读' showBack showHome />
       <View className='result-nav-spacer' style={{ height: navBarHeight + 'px' }} />
 
-      <View className={`result-content-root ${isAcademicMode ? 'academic-mode' : ''} translation-${preferences.translation_display} annotation-${preferences.annotation_intensity}`} style={{ ...readerStyles, backgroundColor: 'var(--reader-bg-theme)' }}>
+      <View className={`result-content-root ${isAcademicMode ? 'academic-mode' : ''} translation-${preferences.translation_display}`} style={{ ...readerStyles, backgroundColor: 'var(--reader-bg-theme)' }}>
         <DegradedBanner pageState={pageState} sceneData={sceneData} onRetry={actions.handleRetry} />
 
         {isAcademicMode && sceneData?.warnings?.some(w => w.level === 'info' || w.code === 'NON_ACADEMIC_TEXT_DETECTED' || w.code === 'FRAGMENT_INPUT_DETECTED') && (

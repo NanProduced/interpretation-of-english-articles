@@ -1,5 +1,5 @@
 .paragraph-block {
-  margin-bottom: var(--reader-para-spacing, var(--paragraph-gap));
+  margin-bottom: var(--paragraph-gap);
   padding: 0 var(--reader-padding);
 
   &:first-of-type {
@@ -8,7 +8,7 @@
 
 
   &.immersive {
-    margin-bottom: var(--reader-para-spacing, var(--paragraph-gap-immersive));
+    margin-bottom: var(--paragraph-gap-immersive);
     padding: 0 var(--reader-padding);
 
     .english-paragraph {
@@ -73,10 +73,10 @@
     }
 
     .sentence-block {
-      margin-bottom: 36rpx; /* Balanced spacing between sentences */
+      margin-bottom: var(--reader-sentence-spacing, 36rpx);
 
       &.sentence-block--plain {
-        margin-bottom: 30rpx;
+        margin-bottom: var(--reader-plain-sentence-spacing, 30rpx);
       }
     }
 
@@ -191,8 +191,8 @@
     }
 
     .sentence-translation {
-      margin-top: 14rpx; /* Tighter grouping with source */
-      margin-bottom: 16rpx; /* Reduced spacing before analysis cards */
+      margin-top: var(--reader-translation-top-spacing, 14rpx);
+      margin-bottom: var(--reader-translation-bottom-spacing, 16rpx);
       opacity: var(--reader-translation-opacity, 1);
       transition: opacity 0.2s ease;
 
@@ -402,52 +402,6 @@
           .chunk-inline-marker { color: var(--color-exam); }
         }
 
-        :global(.annotation-quiet) & {
-          border-bottom-width: 1rpx;
-          border-bottom-color: rgba(17, 17, 17, 0.15) !important;
-          .chunk-inline-marker {
-            opacity: 0.4;
-          }
-        }
-
-        :global(.annotation-clear) & {
-          border-bottom-width: 3rpx;
-          background: rgba(17, 17, 17, 0.03);
-          border-radius: 4rpx;
-        }
-      }
-    }
-
-    /* =========================================================
-     * Annotation Intensity — 标注强度全局覆盖
-     * 从 .is-chunk 扩展到所有 AI inline mark 类型
-     * ========================================================= */
-    :global(.annotation-quiet) & {
-      .tone-grammar,
-      .tone-term,
-      .tone-logic,
-      .tone-context {
-        border-bottom-width: 1rpx !important;
-        background: transparent !important;
-      }
-      .tone-vocab,
-      .tone-phrase {
-        background: transparent !important;
-      }
-    }
-
-    :global(.annotation-clear) & {
-      .tone-grammar,
-      .tone-term,
-      .tone-logic,
-      .tone-context {
-        border-bottom-width: 3rpx !important;
-      }
-      .tone-vocab {
-        background: linear-gradient(to top, rgba(242, 196, 84, 0.48) 48%, transparent 48%) !important;
-      }
-      .tone-phrase {
-        background: linear-gradient(to top, rgba(151, 126, 224, 0.34) 50%, transparent 50%) !important;
       }
     }
   }
@@ -519,7 +473,7 @@
       font-size: 32rpx;
       font-weight: 500;  /* 中等字重，不是 bold */
       color: var(--reader-ink);  /* 近乎纯黑 #111111 */
-      line-height: 1.62;  /* 舒适的行高 */
+      line-height: var(--reader-line-height, 1.62);
       letter-spacing: 0;  /* 标准字距 */
       font-family: var(--font-english-serif), serif;  /* 衬线字体增强学术感 */
       
@@ -547,8 +501,8 @@
      * - 明确弱于原文但保持可读
      * ========================================================= */
     .sentence-translation {
-      margin-top: 8rpx;   /* 8×1 */
-      margin-bottom: 12rpx;  /* 8×1.5 → 对齐模数 */
+      margin-top: var(--reader-translation-top-spacing, 8rpx);
+      margin-bottom: var(--reader-translation-bottom-spacing, 12rpx);
 
       .translation-text {
         color: var(--academic-translation-color, rgba(17, 17, 17, 0.52));
