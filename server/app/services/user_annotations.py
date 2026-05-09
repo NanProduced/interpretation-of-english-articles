@@ -55,7 +55,7 @@ async def create_user_annotation(user_id: UUID, req: UserAnnotationCreateRequest
     if req.note:
         annotation_type = "note"
 
-    async with db_connect.get_connection() as conn:
+    async with db_connect.acquire_connection() as conn:
         record_id = UUID(req.analysis_record_id) if req.analysis_record_id else None
         row = await conn.fetchrow(
             f"""
@@ -108,7 +108,7 @@ async def list_user_annotations(
     limit: int = 50,
     offset: int = 0,
 ) -> list[UserAnnotationResponse]:
-    async with db_connect.get_connection() as conn:
+    async with db_connect.acquire_connection() as conn:
         if record_id:
             rows = await conn.fetch(
                 f"""
@@ -141,7 +141,7 @@ async def list_user_annotations(
 
 
 async def update_user_annotation(user_id: UUID, annotation_id: UUID, req: UserAnnotationUpdateRequest) -> UserAnnotationResponse:
-    async with db_connect.get_connection() as conn:
+    async with db_connect.acquire_connection() as conn:
         row = await conn.fetchrow(
             f"""
             UPDATE user_annotations
@@ -162,7 +162,7 @@ async def update_user_annotation(user_id: UUID, annotation_id: UUID, req: UserAn
 
 
 async def delete_user_annotation(user_id: UUID, annotation_id: UUID) -> None:
-    async with db_connect.get_connection() as conn:
+    async with db_connect.acquire_connection() as conn:
         now = datetime.now(timezone.utc)
         result = await conn.execute(
             """

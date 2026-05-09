@@ -49,4 +49,9 @@
     background: transparent;
     transition: background-color 0.3s ease;
   }
+
+  &.in-selection {
+    background-color: rgba(59, 130, 246, 0.18);
+    border-radius: 2rpx;
+  }
 }

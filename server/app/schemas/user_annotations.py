@@ -31,7 +31,7 @@ class UserAnnotationResponse(BaseModel):
     anchor_type: str
     target_key: str
     paragraph_id: Optional[str] = None
-    sentence_id: str
+    sentence_id: Optional[str] = None
     selected_text: str
     start_offset: Optional[int] = None
     end_offset: Optional[int] = None

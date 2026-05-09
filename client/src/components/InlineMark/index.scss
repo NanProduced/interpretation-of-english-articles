@@ -86,6 +86,11 @@
     border-color: transparent transparent rgba(16, 120, 87, 0.62) transparent;
   }
 
+  &.in-selection {
+    background-color: rgba(59, 130, 246, 0.18) !important;
+    border-radius: 4rpx;
+  }
+
   /* =========================================================
    * Academic Mode — 统一灰度标注 + 锚点高亮动画
    *

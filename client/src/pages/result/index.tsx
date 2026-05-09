@@ -5,6 +5,8 @@ import { ROUTES } from '../../config/routes'
 import { PageMode, AnyRenderSceneVm, AcademicRenderSceneVm } from '../../types/view/render-scene.vm'
 import { getSafeDisplayLabel } from '../../config/purpose'
 import { submitFeedback } from '../../services/api/feedback.client'
+import { useAuthStore } from '../../stores/auth'
+import { ensureLoggedIn } from '../../services/auth'
 import NavBar from '../../components/NavBar'
 import ParagraphBlock from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
@@ -32,6 +34,22 @@ import StateViews from './components/StateViews'
 import appShare from '../../assets/images/share/app-share.jpg'
 import './index.scss'
 
+function buildTargetKey(
+  recordId: string,
+  anchorType: 'sentence' | 'paragraph' | 'text_range',
+  opts: { sentenceId?: string; paragraphId?: string; startOffset?: number; endOffset?: number; textHash?: string }
+): string {
+  if (anchorType === 'sentence') return `record:${recordId}:sentence:${opts.sentenceId}`
+  if (anchorType === 'paragraph') return `record:${recordId}:paragraph:${opts.paragraphId}`
+  return `record:${recordId}:range:${opts.sentenceId}:${opts.startOffset}:${opts.endOffset}:${opts.textHash}`
+}
+
+async function requireAuth(): Promise<boolean> {
+  if (useAuthStore.getState().isLoggedIn) return true
+  const result = await ensureLoggedIn()
+  return result.success
+}
+
 export default function Result() {
   const state = useResultState()
   const {
@@ -46,6 +64,9 @@ export default function Result() {
 
   const [showSettingsSheet, setShowSettingsSheet] = useState(false)
   const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null)
+  const [selectionSentenceId, setSelectionSentenceId] = useState<string | null>(null)
+  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null)
+  const [pendingColor, setPendingColor] = useState('warm_yellow')
   const [userAnnotations, setUserAnnotations] = useState<UserAnnotationDto[]>([])
   const [showNoteSheet, setShowNoteSheet] = useState(false)
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false)
@@ -79,84 +100,122 @@ export default function Result() {
     }
   }, [cloudId, recordId, pageState])
 
-  const handleSentenceLongPress = useCallback((sentenceId: string) => {
-    if (!sceneData) return
-    const sentence = sceneData.article.sentences.find(s => s.sentenceId === sentenceId)
-    const translation = sceneData.translations.find(t => t.sentenceId === sentenceId)
-    
-    if (sentence) {
-      setSelectionContext({
-        recordId: cloudId || recordId || undefined,
-        sentenceId: sentence.sentenceId,
-        text: sentence.text,
-        translation: translation?.translationZh,
-        isShort: sentence.text.split(' ').length <= 5
-      })
+  const clearSelection = useCallback(() => {
+    setSelectionContext(null)
+    setSelectionSentenceId(null)
+    setSelectionRange(null)
+  }, [])
+
+  const handleSelectionContext = useCallback((context: SelectionContext | null) => {
+    if (context) {
+      setSelectionSentenceId(context.sentenceId)
+      setSelectionRange({ start: context.startOffset, end: context.endOffset })
+      setSelectionContext(context)
+    } else {
+      clearSelection()
     }
-  }, [sceneData, cloudId, recordId])
+  }, [clearSelection])
 
   const handleCopy = (mode: 'original' | 'translation' | 'bilingual') => {
     if (!selectionContext) return
     let text = ''
     if (mode === 'original') {
-      text = selectionContext.text
+      text = selectionContext.selectedText
     } else if (mode === 'translation') {
-      text = selectionContext.translation || selectionContext.text
+      text = selectionContext.translation || selectionContext.selectedText
     } else {
       text = selectionContext.translation
-        ? `${selectionContext.text}\n${selectionContext.translation}`
-        : selectionContext.text
+        ? `${selectionContext.selectedText}\n${selectionContext.translation}`
+        : selectionContext.selectedText
     }
     Taro.setClipboardData({
       data: text,
       success: () => {
         Taro.showToast({ title: '已复制', icon: 'success' })
-        setSelectionContext(null)
+        clearSelection()
       }
     })
   }
 
   const handleFavoriteSelection = async () => {
     if (!selectionContext) return
-    const activeCloudId = cloudId || undefined
-    const targetKey = `record:${activeCloudId || recordId}:sentence:${selectionContext.sentenceId}`
+    const authed = await requireAuth()
+    if (!authed) return
+
+    const activeRecordId = cloudId || recordId || ''
+    const targetKey = buildTargetKey(activeRecordId, selectionContext.anchorType, {
+      sentenceId: selectionContext.sentenceId,
+      paragraphId: selectionContext.paragraphId,
+      startOffset: selectionContext.startOffset,
+      endOffset: selectionContext.endOffset,
+    })
     try {
       await addFavoriteToCloud(
-        activeCloudId || null,
+        cloudId || null,
         targetKey,
-        'sentence',
+        selectionContext.anchorType,
         {
           paragraph_id: selectionContext.paragraphId,
           sentence_id: selectionContext.sentenceId,
-          text: selectionContext.text,
+          text: selectionContext.selectedText,
           translation: selectionContext.translation,
+          start_offset: selectionContext.startOffset,
+          end_offset: selectionContext.endOffset,
+          anchor_type: selectionContext.anchorType,
         }
       )
       Taro.showToast({ title: '已收藏', icon: 'success' })
-      setSelectionContext(null)
+      clearSelection()
     } catch (err: any) {
       Taro.showToast({ title: err.message || '收藏失败', icon: 'none' })
     }
   }
 
-  const handleHighlight = () => {
+  const handleHighlight = async (color: string) => {
     if (!selectionContext) return
+    const authed = await requireAuth()
+    if (!authed) return
+    setPendingColor(color)
+    setShowNoteSheet(true)
+  }
+
+  const handleOpenNote = async () => {
+    if (!selectionContext) return
+    const authed = await requireAuth()
+    if (!authed) return
     setShowNoteSheet(true)
   }
 
   const handleNoteSave = async (color: string, note: string) => {
     if (!selectionContext) return
+    const authed = await requireAuth()
+    if (!authed) return
+
     const activeRecordId = cloudId || recordId || ''
+    const targetKey = buildTargetKey(activeRecordId, selectionContext.anchorType, {
+      sentenceId: selectionContext.sentenceId,
+      paragraphId: selectionContext.paragraphId,
+      startOffset: selectionContext.startOffset,
+      endOffset: selectionContext.endOffset,
+    })
     try {
       Taro.showLoading({ title: '保存中...' })
       const res = await createUserAnnotation({
         analysis_record_id: activeRecordId,
         annotation_type: note ? 'note' : 'highlight',
-        anchor_type: 'sentence',
+        anchor_type: selectionContext.anchorType,
+        target_key: targetKey,
+        paragraph_id: selectionContext.paragraphId,
         sentence_id: selectionContext.sentenceId,
-        selected_text: selectionContext.text,
+        selected_text: selectionContext.selectedText,
+        start_offset: selectionContext.startOffset,
+        end_offset: selectionContext.endOffset,
         color,
-        note: note || undefined
+        note: note || undefined,
+        payload_json: {
+          source: 'result_page',
+          translation: selectionContext.translation,
+        },
       })
       setUserAnnotations(prev => {
         const filtered = prev.filter(a => a.target_key !== res.target_key)
@@ -164,7 +223,7 @@ export default function Result() {
       })
       Taro.hideLoading()
       Taro.showToast({ title: note ? '笔记已保存' : '高亮已添加', icon: 'success' })
-      setSelectionContext(null)
+      clearSelection()
       setShowNoteSheet(false)
     } catch (e: any) {
       Taro.hideLoading()
@@ -174,16 +233,33 @@ export default function Result() {
 
   const handleHighlightOnly = async (color: string) => {
     if (!selectionContext) return
+    const authed = await requireAuth()
+    if (!authed) return
+
     const activeRecordId = cloudId || recordId || ''
+    const targetKey = buildTargetKey(activeRecordId, selectionContext.anchorType, {
+      sentenceId: selectionContext.sentenceId,
+      paragraphId: selectionContext.paragraphId,
+      startOffset: selectionContext.startOffset,
+      endOffset: selectionContext.endOffset,
+    })
     try {
       Taro.showLoading({ title: '保存中...' })
       const res = await createUserAnnotation({
         analysis_record_id: activeRecordId,
         annotation_type: 'highlight',
-        anchor_type: 'sentence',
+        anchor_type: selectionContext.anchorType,
+        target_key: targetKey,
+        paragraph_id: selectionContext.paragraphId,
         sentence_id: selectionContext.sentenceId,
-        selected_text: selectionContext.text,
-        color
+        selected_text: selectionContext.selectedText,
+        start_offset: selectionContext.startOffset,
+        end_offset: selectionContext.endOffset,
+        color,
+        payload_json: {
+          source: 'result_page',
+          translation: selectionContext.translation,
+        },
       })
       setUserAnnotations(prev => {
         const filtered = prev.filter(a => a.target_key !== res.target_key)
@@ -191,7 +267,7 @@ export default function Result() {
       })
       Taro.hideLoading()
       Taro.showToast({ title: '高亮已添加', icon: 'success' })
-      setSelectionContext(null)
+      clearSelection()
       setShowNoteSheet(false)
     } catch (e: any) {
       Taro.hideLoading()
@@ -290,15 +366,17 @@ export default function Result() {
           recordId={recordId || undefined}
           cloudId={cloudId || undefined}
           activeSentenceId={activeSentenceId}
+          selectionSentenceId={selectionSentenceId}
+          selectionRange={selectionRange}
           userAnnotations={userAnnotations}
           onWordClick={actions.handleWordClick}
           onSentenceClick={actions.handleSentenceClick}
-          onSentenceLongPress={handleSentenceLongPress}
+          onSelectionContext={handleSelectionContext}
           onMarkActiveChange={state.setActiveMarkId}
         />
       )
     })
-  }, [sceneData, activeMarkId, selectedWord, vocabList, vocabSavedMap, pageMode, recordId, activeSentenceId, handleSentenceLongPress, userAnnotations])
+  }, [sceneData, activeMarkId, selectedWord, vocabList, vocabSavedMap, pageMode, recordId, activeSentenceId, handleSelectionContext, userAnnotations])
 
   if (!sceneData) {
     if (pageState === 'loading') {
@@ -342,7 +420,7 @@ export default function Result() {
           </View>
         )}
 
-        <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={actions.handleScroll}>
+        <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={() => { actions.handleScroll(); if (selectionContext) clearSelection() }}>
           <View className='article-container'>
             {articleHeader}
             {academicContentSummary && (
@@ -423,23 +501,24 @@ export default function Result() {
       <ReadingSelectionToolbar
         visible={!!selectionContext && !showNoteSheet}
         context={selectionContext}
-        onClose={() => setSelectionContext(null)}
+        onClose={clearSelection}
         onCopy={handleCopy}
         onFavorite={handleFavoriteSelection}
-        onNote={() => setShowNoteSheet(true)}
+        onNote={handleOpenNote}
         onHighlight={handleHighlight}
         onFeedback={() => { setShowFeedbackSheet(true) }}
         onDictionary={() => {
-          if (selectionContext?.isShort && selectionContext.text) {
-            actions.handleWordClick({ word: selectionContext.text, mark: null })
-            setSelectionContext(null)
+          if (selectionContext?.isShort && selectionContext.selectedText) {
+            actions.handleWordClick({ word: selectionContext.selectedText, mark: null })
+            clearSelection()
           }
         }}
       />
 
       <UserNoteSheet
         visible={showNoteSheet}
-        selectionText={selectionContext?.text}
+        selectionText={selectionContext?.selectedText}
+        initialColor={pendingColor}
         onClose={() => setShowNoteSheet(false)}
         onSave={handleNoteSave}
         onHighlightOnly={handleHighlightOnly}
@@ -454,11 +533,11 @@ export default function Result() {
             annotationType: 'sentence',
             contextJson: {
               sentenceId: selectionContext.sentenceId,
-              text: selectionContext.text,
+              text: selectionContext.selectedText,
               translation: selectionContext.translation,
             },
           }}
-          onClose={() => { setShowFeedbackSheet(false); setSelectionContext(null) }}
+          onClose={() => { setShowFeedbackSheet(false); clearSelection() }}
         />
       )}
     </View>

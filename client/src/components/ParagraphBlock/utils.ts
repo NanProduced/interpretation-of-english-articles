@@ -13,6 +13,8 @@
 export interface TextToken {
   type: 'word' | 'plain'
   text: string
+  start: number
+  end: number
 }
 
 type ScanResult = {
@@ -109,13 +111,13 @@ function scanWordLike(text: string, start: number): ScanResult | null {
  * 将文本拆分为交替的 token 序列，并合并连续 plain token。
  */
 export function tokenizeText(text: string): TextToken[] {
-  const tokens: TextToken[] = []
+  const rawTokens: TextToken[] = []
   let i = 0
 
   while (i < text.length) {
     const wordLike = scanWordLike(text, i)
     if (wordLike) {
-      tokens.push({ type: 'word', text: wordLike.text })
+      rawTokens.push({ type: 'word', text: wordLike.text, start: i, end: wordLike.end })
       i = wordLike.end
       continue
     }
@@ -125,17 +127,18 @@ export function tokenizeText(text: string): TextToken[] {
       plainEnd += 1
     }
 
-    tokens.push({ type: 'plain', text: text.slice(i, plainEnd) })
+    rawTokens.push({ type: 'plain', text: text.slice(i, plainEnd), start: i, end: plainEnd })
     i = plainEnd
   }
 
   const merged: TextToken[] = []
-  for (const token of tokens) {
+  for (const token of rawTokens) {
     const last = merged[merged.length - 1]
     if (last && last.type === token.type) {
       last.text += token.text
+      last.end = token.end
     } else {
-      merged.push(token)
+      merged.push({ ...token })
     }
   }
 
@@ -283,4 +286,30 @@ export function tokenizeSentenceWithAnalysis(text: string, chunks: { text: strin
   }
 
   return atoms
+}
+
+export interface TokenRange {
+  sentenceId: string
+  anchorOffset: number
+  extentOffset: number
+}
+
+export function findTokenOffset(sentenceText: string, tokenText: string, fromIndex?: number): { start: number; end: number } | null {
+  const searchFrom = fromIndex ?? 0
+  const idx = sentenceText.indexOf(tokenText, searchFrom)
+  if (idx === -1) return null
+  return { start: idx, end: idx + tokenText.length }
+}
+
+export function computeSelectionFromOffsets(
+  sentenceText: string,
+  startOffset: number,
+  endOffset: number,
+): { selectedText: string; anchorType: 'sentence' | 'text_range' } {
+  const selectedText = sentenceText.slice(startOffset, endOffset)
+  const isWholeSentence = startOffset === 0 && endOffset >= sentenceText.length
+  return {
+    selectedText,
+    anchorType: isWholeSentence ? 'sentence' : 'text_range',
+  }
 }

@@ -10,9 +10,11 @@ import InlineMark from '../InlineMark'
 import AnalysisCard, { type AnalysisCardProps } from '../AnalysisCard'
 import AcademicNoteGroup from '../AcademicNoteGroup'  // 学术注释聚合组
 import FeedbackSheet from '../FeedbackSystem/FeedbackSheet'
-import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis } from './utils'
+import { tokenizeText, parseSentenceAnalysis, findFuzzyMatch, tokenizeSentenceWithAnalysis, findTokenOffset } from './utils'
+import type { SelectionContext } from '../ReadingSelectionToolbar'
 import { getMappedEntryTitle } from '../../utils/entryTitleMapping'
 import type { ClickEvent } from '../../types/taro-events'
+import type { CommonEvent } from '@tarojs/components/types/common'
 import './index.scss'
 
 const TONE_PRIORITY: Record<VisualTone | AcademicVisualTone, number> = {
@@ -39,18 +41,21 @@ interface ParagraphBlockProps {
   inlineMarks: AnyInlineMarkModel[]
   activeMarkId?: string | null
   activeSentenceId?: string | null
+  activeSelectionId?: string | null
   selectedWord?: string | null
   tailEntries: AnySentenceEntryModel[]
   pageMode: 'immersive' | 'intensive'
-  isAcademicMode?: boolean  // Academic mode flag for styling
+  isAcademicMode?: boolean
   vocabList?: string[]
   vocabSavedMap?: Record<string, string>
   userAnnotations?: UserAnnotationDto[]
   recordId?: string
   cloudId?: string
+  selectionSentenceId?: string | null
+  selectionRange?: { start: number; end: number } | null
   onWordClick?: (payload: WordClickPayload) => void
   onSentenceClick?: (sentenceId: string) => void
-  onSentenceLongPress?: (sentenceId: string) => void
+  onSelectionContext?: (context: SelectionContext | null) => void
   onMarkActiveChange?: (markId: string | null) => void
 }
 
@@ -74,10 +79,22 @@ function renderPlainSegmentAsClickableWords(
   vocabSet?: Set<string>,
   onWordClick?: (payload: WordClickPayload) => void,
   vocabSavedMap?: Record<string, string>,
+  onTokenLongPress?: (tokenText: string, tokenStart: number, tokenEnd: number, event: CommonEvent) => void,
+  selectionRange?: { start: number; end: number } | null,
+  baseOffset?: number,
+  userRanges?: UserHighlightRange[],
 ): React.ReactNode[] {
   if (!plainText) return []
   const tokens = tokenizeText(plainText)
   return tokens.map((token, idx) => {
+    const absStart = (baseOffset ?? 0) + token.start
+    const absEnd = (baseOffset ?? 0) + token.end
+    const isInSelection = selectionRange
+      ? absStart < selectionRange.end && absEnd > selectionRange.start
+      : false
+    const userRange = userRanges?.find(r => absStart < r.end && absEnd > r.start)
+    const userHighlightClass = userRange ? `user-highlight-overlay user-highlight-overlay--${userRange.color}` : ''
+
     if (token.type === 'word') {
       const isSaved = vocabSet?.has(token.text.toLowerCase())
       const savedStatus = vocabSavedMap?.[token.text.toLowerCase()]
@@ -87,12 +104,14 @@ function renderPlainSegmentAsClickableWords(
           word={token.text}
           isSaved={isSaved}
           savedStatus={savedStatus}
-          className={selectedWord === token.text ? 'active' : ''}
+          isInSelection={isInSelection}
+          className={`${selectedWord === token.text ? 'active' : ''} ${userHighlightClass}`}
           onClick={(w, e) => onWordClick?.({ word: w, mark: null, event: e })}
+          onLongPress={onTokenLongPress ? (w, e) => onTokenLongPress(w, absStart, absEnd, e) : undefined}
         />
       )
     }
-    return <Text key={`p-${idx}`}>{token.text}</Text>
+    return <Text key={`p-${idx}`} className={`${isInSelection ? 'in-selection' : ''} ${userHighlightClass}`}>{token.text}</Text>
   })
 }
 
@@ -279,6 +298,49 @@ function adjustMarksForDropCap(marks: AnyInlineMarkModel[], sourceText: string, 
     .filter((mark): mark is AnyInlineMarkModel => Boolean(mark))
 }
 
+interface UserHighlightRange {
+  start: number
+  end: number
+  color: string
+  hasNote: boolean
+  annotationId: string
+}
+
+function buildUserHighlightRanges(
+  text: string,
+  annotations: UserAnnotationDto[] | undefined,
+  sentenceId: string,
+): UserHighlightRange[] {
+  if (!annotations?.length) return []
+  const ranges: UserHighlightRange[] = []
+  annotations.forEach(a => {
+    if (a.sentence_id !== sentenceId) return
+    // text_range with valid offsets
+    if (a.anchor_type === 'text_range' && typeof a.start_offset === 'number' && typeof a.end_offset === 'number') {
+      const start = Math.max(0, a.start_offset)
+      const end = Math.min(text.length, a.end_offset)
+      if (end > start) {
+        ranges.push({ start, end, color: a.color, hasNote: !!a.note, annotationId: a.id })
+      }
+      return
+    }
+    // sentence-level fallback: no offset means whole sentence — handled by caller via CSS
+  })
+  // Sort and merge overlapping ranges of same color to avoid visual clutter
+  ranges.sort((a, b) => a.start - b.start || b.end - a.end)
+  const merged: UserHighlightRange[] = []
+  for (const r of ranges) {
+    const last = merged[merged.length - 1]
+    if (last && r.start <= last.end && r.color === last.color) {
+      last.end = Math.max(last.end, r.end)
+      last.hasNote = last.hasNote || r.hasNote
+    } else {
+      merged.push({ ...r })
+    }
+  }
+  return merged
+}
+
 function renderTextWithMarks(
   text: string,
   marks: AnyInlineMarkModel[],
@@ -290,18 +352,22 @@ function renderTextWithMarks(
   isHighlighted?: boolean,
   vocabSavedMap?: Record<string, string>,
   isDropCap?: boolean,
-  isAcademicMode?: boolean,  // Clarify: 学术模式标识
-  groupActiveIds?: Set<string>,  // 组高亮 ID 集合（展开卡片时同步高亮原文）
+  isAcademicMode?: boolean,
+  groupActiveIds?: Set<string>,
+  onTokenLongPress?: (tokenText: string, tokenStart: number, tokenEnd: number, event: CommonEvent) => void,
+  selectionRange?: { start: number; end: number } | null,
+  userAnnotations?: UserAnnotationDto[],
+  sentenceId?: string,
 ) {
   // 用于追踪单词在整句中的出现次数
   const wordOccurrenceMap: Record<string, number> = {}
   let dropCapHandled = !isDropCap
 
-  const handleDropCap = (textToProcess: string, renderCallback: (rest: string) => React.ReactNode) => {
-    if (dropCapHandled) return renderCallback(textToProcess)
+  const handleDropCap = (textToProcess: string, renderCallback: (rest: string, offsetAdjust: number) => React.ReactNode) => {
+    if (dropCapHandled) return renderCallback(textToProcess, 0)
     
     const match = textToProcess.match(/[a-zA-Z]/)
-    if (!match || match.index === undefined) return renderCallback(textToProcess)
+    if (!match || match.index === undefined) return renderCallback(textToProcess, 0)
     
     dropCapHandled = true
     const index = match.index
@@ -313,7 +379,7 @@ function renderTextWithMarks(
       <Text>
         {prefix}
         <Text className='drop-cap'>{firstLetter}</Text>
-        {renderCallback(rest)}
+        {renderCallback(rest, index + 1)}
       </Text>
     )
   }
@@ -339,24 +405,9 @@ function renderTextWithMarks(
     ? marks.filter(m => ['vocab', 'phrase', 'context', 'term', 'logic'].includes(m.visualTone))
     : marks
 
-  if (visibleMarks.length === 0) {
-    return (
-      <Text className='sentence-text'>
-        {handleDropCap(text, (restText) => (
-          <Text>
-            {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabSet, (p) => {
-              const occ = getNextOccurrence(p.word)
-              onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
-            }, vocabSavedMap)}
-          </Text>
-        ))}
-      </Text>
-    )
-  }
+  const userRanges = buildUserHighlightRanges(text, userAnnotations, sentenceId || '')
 
-  // ... 后续逻辑中也要应用 getNextOccurrence ...
-
-
+  // Build AI mark flat parts
   const flatParts: Array<{ mark: AnyInlineMarkModel; start: number; end: number; text: string; role?: string }> = []
 
   visibleMarks.forEach((m) => {
@@ -392,25 +443,69 @@ function renderTextWithMarks(
     return TONE_PRIORITY[a.mark.visualTone] - TONE_PRIORITY[b.mark.visualTone]
   })
 
+  const dedupedParts: typeof flatParts = []
+  for (const part of flatParts) {
+    const prev = dedupedParts[dedupedParts.length - 1]
+    if (prev && part.start < prev.end) {
+      if (part.end <= prev.end) continue
+      dedupedParts.push({ ...part, start: prev.end, text: text.slice(prev.end, part.end) })
+    } else {
+      dedupedParts.push(part)
+    }
+  }
+
+  type Segment =
+    | { type: 'plain'; start: number; end: number }
+    | { type: 'mark'; start: number; end: number; item: typeof dedupedParts[0] }
+
+  const segments: Segment[] = []
+  let aiIdx = 0
+
+  for (const ai of dedupedParts) {
+    const segStart = segments.length ? segments[segments.length - 1].end : 0
+    if (ai.start > segStart) {
+      segments.push({ type: 'plain', start: segStart, end: ai.start })
+    }
+    segments.push({ type: 'mark', start: ai.start, end: ai.end, item: ai })
+  }
+
+  const tailStart = segments.length ? segments[segments.length - 1].end : 0
+  if (tailStart < text.length) {
+    segments.push({ type: 'plain', start: tailStart, end: text.length })
+  }
+
+  const cleaned: Segment[] = []
+  for (const seg of segments) {
+    if (seg.end <= seg.start) continue
+    const last = cleaned[cleaned.length - 1]
+    if (last && last.type === 'plain' && seg.type === 'plain') {
+      last.end = seg.end
+    } else {
+      cleaned.push({ ...seg })
+    }
+  }
+
   const resultElements: Array<React.ReactNode | string> = []
-  let lastEnd = 0
 
-  for (const item of flatParts) {
-    if (item.start < lastEnd) continue
-
-    if (item.start > lastEnd) {
-      const plainSegment = text.slice(lastEnd, item.start)
+  for (const seg of cleaned) {
+    if (seg.type === 'plain') {
+      const plainSegment = text.slice(seg.start, seg.end)
       resultElements.push(
-        handleDropCap(plainSegment, (restText) => (
-          <Text key={`plain-${lastEnd}`}>
+        handleDropCap(plainSegment, (restText, offsetAdjust) => (
+          <Text key={`plain-${seg.start}`}>
             {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabSet, (p) => {
               const occ = getNextOccurrence(p.word)
               onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
-            }, vocabSavedMap)}
+            }, vocabSavedMap, onTokenLongPress, selectionRange, seg.start + offsetAdjust, userRanges)}
           </Text>
         ))
       )
+      continue
     }
+
+    const item = seg.item
+    const userRange = userRanges.find(r => item.start < r.end && item.end > r.start)
+    const userHighlightClass = userRange ? `user-highlight-overlay user-highlight-overlay--${userRange.color}` : ''
 
     if (!item.mark.clickable) {
       const isActive = !!(
@@ -419,9 +514,12 @@ function renderTextWithMarks(
         || (groupActiveIds && (groupActiveIds.has(item.mark.id) || (item.mark.parentId && groupActiveIds.has(item.mark.parentId))))
       )
       const role = item.role
+      const markInSelection = selectionRange
+        ? item.start < selectionRange.end && item.end > selectionRange.start
+        : false
 
       resultElements.push(
-        handleDropCap(item.text, (restText) => (
+        handleDropCap(item.text, (restText, offsetAdjust) => (
           <GrammarInlineSpan
             key={item.mark.id}
             mark={item.mark}
@@ -432,12 +530,14 @@ function renderTextWithMarks(
             isActive={isActive}
             role={role}
             contextSentence={text}
+            isInSelection={markInSelection}
+            userHighlightClass={userHighlightClass}
             onWordClick={onWordClick}
+            onTokenLongPress={onTokenLongPress ? (w, e) => onTokenLongPress(w, item.start + offsetAdjust, item.end + offsetAdjust, e) : undefined}
             getNextOccurrence={getNextOccurrence}
           />
         ))
       )
-      lastEnd = item.end
       continue
     }
 
@@ -450,12 +550,11 @@ function renderTextWithMarks(
     )
     const isSaved = vocabSet?.has(item.text.toLowerCase())
     const savedStatus = vocabSavedMap?.[item.text.toLowerCase()]
-
-    // 词汇类标记整体点击时，由于它们通常是一个词或短语，我们也尝试计算它的 occurrence
-    // 但标记类（InlineMark）通常本身就带有 anchor 信息，这里传 occurrence 是作为双重保险
     const markOcc = getNextOccurrence(item.text)
+    const markInSelection = selectionRange
+      ? item.start < selectionRange.end && item.end > selectionRange.start
+      : false
 
-    // Clarify: 学术模式的 term/logic 使用 underline，其他使用 background
     const effectiveMark = isAcademicMark
       ? { ...item.mark, renderType: 'underline' as const }
       : isVocabulary
@@ -463,7 +562,7 @@ function renderTextWithMarks(
         : item.mark
 
     resultElements.push(
-      handleDropCap(item.text, (restText) => (
+      handleDropCap(item.text, (restText, offsetAdjust) => (
         <InlineMark
           key={item.mark.id}
           mark={effectiveMark}
@@ -471,25 +570,12 @@ function renderTextWithMarks(
           isActive={isActive}
           isSaved={isSaved}
           savedStatus={savedStatus}
-          isAcademicMode={isAcademicMode}  // Clarify: 传递学术模式标识
+          isAcademicMode={isAcademicMode}
+          isInSelection={markInSelection}
+          userHighlightClass={userHighlightClass}
           onWordClick={(p) => onWordClick?.({ ...p, contextSentence: text, occurrence: markOcc })}
+          onLongPress={onTokenLongPress ? (t, e) => onTokenLongPress(t, item.start + offsetAdjust, item.end + offsetAdjust, e) : undefined}
         />
-      ))
-    )
-
-    lastEnd = item.end
-  }
-
-  if (lastEnd < text.length) {
-    const plainSegment = text.slice(lastEnd)
-    resultElements.push(
-      handleDropCap(plainSegment, (restText) => (
-        <Text key={`plain-${lastEnd}`}>
-          {renderPlainSegmentAsClickableWords(restText, selectedWord, vocabSet, (p) => {
-            const occ = getNextOccurrence(p.word)
-            onWordClick?.({ ...p, contextSentence: text, occurrence: occ })
-          }, vocabSavedMap)}
-        </Text>
       ))
     )
   }
@@ -506,16 +592,18 @@ const ParagraphBlock = memo(function ParagraphBlock({
   selectedWord,
   tailEntries,
   pageMode,
-  isAcademicMode = false,  // Academic mode flag
+  isAcademicMode = false,
   vocabList,
   vocabSavedMap,
   userAnnotations,
   recordId,
   cloudId,
   activeSentenceId,
+  selectionSentenceId,
+  selectionRange,
   onWordClick,
   onSentenceClick,
-  onSentenceLongPress,
+  onSelectionContext,
   onMarkActiveChange,
 }: ParagraphBlockProps) {
   const vocabSet = useMemo(() => new Set(vocabList ?? []), [vocabList])
@@ -527,6 +615,21 @@ const ParagraphBlock = memo(function ParagraphBlock({
     prefillSentiment?: 'positive' | 'negative' | 'neutral'
     contextJson: Record<string, unknown>
   } | null>(null)
+
+  const handleTokenLongPress = useCallback((sentenceId: string, sentenceText: string, tokenText: string, tokenStart: number, tokenEnd: number) => {
+    const translation = translations.find(t => t.sentenceId === sentenceId)?.translationZh
+
+    onSelectionContext?.({
+      recordId: cloudId || recordId || undefined,
+      paragraphId: undefined,
+      sentenceId,
+      selectedText: tokenText,
+      startOffset: tokenStart,
+      endOffset: tokenEnd,
+      translation,
+      anchorType: 'text_range',
+    })
+  }, [translations, cloudId, recordId, onSelectionContext])
   const containerClass = `paragraph-block ${pageMode} ${isAcademicMode ? 'academic-mode' : ''} ${activeAnalysisId ? 'has-active-analysis' : ''}`
 
   // 监听分析卡片激活状态，自动定位锚点
@@ -609,15 +712,26 @@ const ParagraphBlock = memo(function ParagraphBlock({
                 ? adjustMarksForDropCap(rawSentenceMarks, sentence.text, firstDropCap!.letterIndex)
                 : rawSentenceMarks
               const userAnno = annotationBySentenceId.get(sentence.sentenceId)
+              const isWholeSentenceHighlight = userAnno
+                ? userAnno.anchor_type !== 'text_range' || typeof userAnno.start_offset !== 'number' || typeof userAnno.end_offset !== 'number'
+                : false
+
+              const isUserSelected = selectionSentenceId === sentence.sentenceId
+              const currentSelectionRange = isUserSelected ? selectionRange : null
 
               return (
                 <Text
                   key={sentence.sentenceId}
-                  className={`sentence-span ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''} ${userAnno ? `user-highlighted user-highlighted--${userAnno.color}` : ''}`}
-                  onClick={() => onSentenceClick?.(sentence.sentenceId)}
-                  onLongPress={() => onSentenceLongPress?.(sentence.sentenceId)}
+                  className={`sentence-span sentence-${sentence.sentenceId} ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''} ${isWholeSentenceHighlight && userAnno ? `user-highlighted user-highlighted--${userAnno.color}` : ''} ${isUserSelected ? 'user-selection-active' : ''}`}
+                  onClick={() => {
+                    if (selectionSentenceId) {
+                      onSelectionContext?.(null)
+                      return
+                    }
+                    onSentenceClick?.(sentence.sentenceId)
+                  }}
                 >
-                  {renderTextWithMarks(sentenceText, sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
+                  {renderTextWithMarks(sentenceText, sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, true, activeSentenceId === sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds, (t, s, e, ev) => handleTokenLongPress(sentence.sentenceId, sentence.text, t, s, e), currentSelectionRange, userAnnotations, sentence.sentenceId)}
                   {idx < sentences.length - 1 ? <Text className='space-char'> </Text> : ''}
                 </Text>
               )
@@ -754,22 +868,32 @@ const ParagraphBlock = memo(function ParagraphBlock({
       {chunks.map((chunk, cIdx) => {
         if (chunk.hasCards) {
           const item = chunk.items[0]
+          const isUserSelected = selectionSentenceId === item.sentence.sentenceId
+          const currentSelectionRange = isUserSelected ? selectionRange : null
+          const sentenceAnno = annotationBySentenceId.get(item.sentence.sentenceId)
+          // whole-sentence fallback: no valid offset
+          const isWholeSentenceHighlight = sentenceAnno
+            ? sentenceAnno.anchor_type !== 'text_range' || typeof sentenceAnno.start_offset !== 'number' || typeof sentenceAnno.end_offset !== 'number'
+            : false
+          const hasNote = userAnnotations?.some(a => a.sentence_id === item.sentence.sentenceId && !!a.note) ?? false
           return (
             <View key={`chunk-${chunk.id}-${cIdx}`} className='sentence-block'>
               <View
-                className={`sentence-main ${annotationBySentenceId.get(item.sentence.sentenceId) ? `user-highlighted user-highlighted--${annotationBySentenceId.get(item.sentence.sentenceId)!.color}` : ''}`}
-                onLongPress={() => onSentenceLongPress?.(item.sentence.sentenceId)}
+                className={`sentence-main sentence-${item.sentence.sentenceId} ${isWholeSentenceHighlight && sentenceAnno ? `user-highlighted user-highlighted--${sentenceAnno.color}` : ''} ${hasNote ? 'has-user-note' : ''} ${isUserSelected ? 'user-selection-active' : ''}`}
+                onClick={() => {
+                  if (selectionSentenceId) {
+                    onSelectionContext?.(null)
+                  }
+                }}
               >
                 {activeAnalysisId && item.analysisCards.some(c => c.id === activeAnalysisId && c.type === 'sentence') ? (
-                  // 正在进行句式分析：使用 Ruby 标注模式
                   renderTextWithAnalysis(
-                    item.sentence.text, 
+                    item.sentence.text,
                     item.analysisCards.find(c => c.id === activeAnalysisId)?.structuredData?.chunks || []
                   )
                 ) : (
-                  // 普通精读模式：使用马克笔涂抹模式
                   <Text className='english-flow'>
-                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
+                    {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds, (t, s, e, ev) => handleTokenLongPress(item.sentence.sentenceId, item.sentence.text, t, s, e), currentSelectionRange, userAnnotations, item.sentence.sentenceId)}
                   </Text>
                 )}
                 
@@ -790,7 +914,6 @@ const ParagraphBlock = memo(function ParagraphBlock({
                 <View 
                   className='sentence-translation'
                   onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
-                  onLongPress={() => onSentenceLongPress?.(item.sentence.sentenceId)}
                 >                  <Text className={`translation-text segment ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted' : ''}`}>
                     {item.sentenceTranslation}
                   </Text>
@@ -865,16 +988,30 @@ const ParagraphBlock = memo(function ParagraphBlock({
             <View key={`m-chunk-${chunk.id}-${cIdx}`} className='sentence-block chunk-merged'>
               <View className='sentence-main'>
                 <Text className='english-flow'>
-                  {chunk.items.map((item, idx) => (
-                    <Text 
-                      key={`s-${item.sentence.sentenceId}-${idx}`}
-                      className={`sentence-span ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted-source' : ''}`}
-                      onClick={() => onSentenceClick?.(item.sentence.sentenceId)}
-                    >
-                      {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds)}
-                      {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
-                    </Text>
-                  ))}
+                  {chunk.items.map((item, idx) => {
+                    const isUserSelected = selectionSentenceId === item.sentence.sentenceId
+                    const currentSelectionRange = isUserSelected ? selectionRange : null
+                    const mergedAnno = annotationBySentenceId.get(item.sentence.sentenceId)
+                    const isMergedWholeHighlight = mergedAnno
+                      ? mergedAnno.anchor_type !== 'text_range' || typeof mergedAnno.start_offset !== 'number' || typeof mergedAnno.end_offset !== 'number'
+                      : false
+                    return (
+                      <Text
+                        key={`s-${item.sentence.sentenceId}-${idx}`}
+                        className={`sentence-span sentence-${item.sentence.sentenceId} ${activeSentenceId === item.sentence.sentenceId ? 'is-highlighted-source' : ''} ${isMergedWholeHighlight && mergedAnno ? `user-highlighted user-highlighted--${mergedAnno.color}` : ''} ${isUserSelected ? 'user-selection-active' : ''}`}
+                        onClick={() => {
+                          if (selectionSentenceId) {
+                            onSelectionContext?.(null)
+                            return
+                          }
+                          onSentenceClick?.(item.sentence.sentenceId)
+                        }}
+                      >
+                        {renderTextWithMarks(item.sentence.text, item.sentenceMarks, activeMarkId, selectedWord, vocabSet, onWordClick, false, activeSentenceId === item.sentence.sentenceId, vocabSavedMap, false, isAcademicMode, groupActiveMarkIds, (t, s, e, ev) => handleTokenLongPress(item.sentence.sentenceId, item.sentence.text, t, s, e), currentSelectionRange, userAnnotations, item.sentence.sentenceId)}
+                        {idx < chunk.items.length - 1 ? <Text className='space-char'> </Text> : ''}
+                      </Text>
+                    )
+                  })}
                 </Text>
               </View>
 

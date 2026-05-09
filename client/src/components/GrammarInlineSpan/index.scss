@@ -8,7 +8,12 @@
   
   &.active {
     text-decoration-thickness: 4rpx;
-    background-color: rgba(116, 102, 148, 0.08); // faint lift
+    background-color: rgba(116, 102, 148, 0.08);
+  }
+
+  &.in-selection {
+    background-color: rgba(59, 130, 246, 0.18);
+    border-radius: 4rpx;
   }
 
   .grammar-role-label {

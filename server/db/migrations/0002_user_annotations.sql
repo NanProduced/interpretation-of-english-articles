@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS user_annotations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    analysis_record_id UUID REFERENCES analysis_records(id) ON DELETE SET NULL,
+    analysis_record_id UUID REFERENCES analysis_records(id) ON DELETE CASCADE,
     annotation_type TEXT NOT NULL DEFAULT 'highlight'
         CHECK (annotation_type IN ('highlight', 'note')),
     anchor_type TEXT NOT NULL DEFAULT 'sentence'

@@ -1,91 +1,141 @@
-.sel-toolbar-overlay {
+.sel-toolbar-root {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 999;
-  /* invisible overlay just to catch outside clicks */
+  pointer-events: none;
+}
+
+.sel-backdrop {
+  position: absolute;
+  inset: 0;
   background: transparent;
   pointer-events: auto;
 }
 
-.sel-toolbar-container {
-  position: absolute;
-  bottom: calc(180rpx + env(safe-area-inset-bottom));
-  left: 32rpx;
-  right: 32rpx;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.sel-toolbar {
+.sel-floating-toolbar {
+  position: relative;
   pointer-events: auto;
-  background: var(--bg-surface, #FFFFFF);
-  border-radius: 16rpx;
-  padding: 12rpx 20rpx;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 32rpx;
-  box-shadow: 0 8rpx 32rpx rgba(17, 17, 17, 0.12), 0 2rpx 8rpx rgba(17, 17, 17, 0.08);
-  border: 1rpx solid rgba(17, 17, 17, 0.05);
-  animation: sel-toolbar-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 4rpx;
+  background: var(--reader-surface, #FFFFFF);
+  border-radius: 20rpx;
+  padding: 10rpx 14rpx;
+  box-shadow:
+    0 12rpx 40rpx rgba(17, 17, 17, 0.10),
+    0 4rpx 12rpx rgba(17, 17, 17, 0.06),
+    0 0 0 1rpx rgba(17, 17, 17, 0.04);
+  animation: sel-toolbar-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(12rpx);
+  -webkit-backdrop-filter: blur(12rpx);
+  margin: 0 auto;
+  margin-top: 50vh;
+
+  &--anchored {
+    margin: 0;
+    animation: sel-toolbar-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }
 
-@keyframes sel-toolbar-up {
+@keyframes sel-toolbar-pop {
   from {
     opacity: 0;
-    transform: translateY(20rpx) scale(0.96);
+    transform: translateX(-50%) translateY(16rpx) scale(0.94);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 
-.sel-toolbar-item {
+.sel-color-strip {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8rpx;
-  color: var(--text-secondary, #666666);
-  
+  gap: 10rpx;
+  padding: 0 8rpx;
+}
+
+.sel-color-dot {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  box-shadow: inset 0 0 0 1.5rpx rgba(0, 0, 0, 0.08);
+
   &:active {
-    opacity: 0.7;
-    color: var(--text-primary, #111111);
+    transform: scale(0.88);
+  }
+
+  &--active {
+    box-shadow: inset 0 0 0 2rpx rgba(0, 0, 0, 0.15);
   }
 }
 
-.sel-toolbar-text {
-  font-size: 22rpx;
-  font-weight: 500;
+.sel-color-dot-inner {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1rpx 3rpx rgba(0, 0, 0, 0.15);
 }
 
-.sel-toolbar-item--copy {
+.sel-divider {
+  width: 1rpx;
+  height: 32rpx;
+  background: rgba(17, 17, 17, 0.08);
+  margin: 0 4rpx;
+  flex-shrink: 0;
+}
+
+.sel-tool-btn {
   position: relative;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--reader-ink, #111111);
+  transition: all 0.15s ease;
+
+  &:active {
+    background: rgba(17, 17, 17, 0.06);
+    transform: scale(0.92);
+  }
+
+  &--has-menu {
+    position: relative;
+  }
 }
 
 .sel-copy-menu {
   position: absolute;
-  bottom: 100%;
+  top: calc(100% + 10rpx);
   left: 50%;
   transform: translateX(-50%);
-  margin-bottom: 12rpx;
-  background: var(--bg-surface, #FFFFFF);
-  border-radius: 12rpx;
+  background: var(--reader-surface, #FFFFFF);
+  border-radius: 16rpx;
   padding: 8rpx 0;
-  box-shadow: 0 8rpx 32rpx rgba(17, 17, 17, 0.12), 0 2rpx 8rpx rgba(17, 17, 17, 0.08);
-  border: 1rpx solid rgba(17, 17, 17, 0.05);
+  box-shadow:
+    0 12rpx 40rpx rgba(17, 17, 17, 0.10),
+    0 4rpx 12rpx rgba(17, 17, 17, 0.06),
+    0 0 0 1rpx rgba(17, 17, 17, 0.04);
   white-space: nowrap;
   z-index: 10;
-  animation: sel-copy-menu-up 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: sel-copy-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 180rpx;
 }
 
-@keyframes sel-copy-menu-up {
+@keyframes sel-copy-pop {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(8rpx) scale(0.96);
+    transform: translateX(-50%) translateY(-6rpx) scale(0.96);
   }
   to {
     opacity: 1;
@@ -94,11 +144,12 @@
 }
 
 .sel-copy-menu-item {
-  padding: 16rpx 32rpx;
+  padding: 18rpx 28rpx;
   font-size: 26rpx;
-  color: var(--text-primary, #111111);
+  color: var(--reader-ink, #111111);
+  text-align: center;
 
   &:active {
-    background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+    background: rgba(17, 17, 17, 0.04);
   }
 }
