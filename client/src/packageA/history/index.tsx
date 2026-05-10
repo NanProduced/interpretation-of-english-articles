@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import type { StopPropagationEvent } from '../../types/taro-events'
-import { getRecordIds, getRecord, deleteRecord, getVocabulary } from '../../services/storage'
+import { getRecordIds, getRecord, deleteRecord, getVocabulary, updateVocabEntry } from '../../services/storage'
 import { useAuthStore } from '../../stores/auth'
 import { fetchCloudRecords } from '../../services/api/records.client'
 import { fetchCloudFavorites } from '../../services/api/favorites.client'
@@ -142,6 +142,18 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
     if (Taro.vibrateShort) Taro.vibrateShort({ type: 'medium' })
   }
 
+  const cleanupVocabRefs = (recordId: string) => {
+    const allVocab = getVocabulary()
+    for (const v of allVocab) {
+      if (!v.sourceRefs || v.sourceRefs.length === 0) continue
+      const hasRef = v.sourceRefs.some(r => r.clientRecordId === recordId)
+      if (hasRef) {
+        const filtered = v.sourceRefs.filter(r => r.clientRecordId !== recordId)
+        updateVocabEntry(v.id, { sourceRefs: filtered })
+      }
+    }
+  }
+
   const handleBatchDelete = () => {
     if (selectedIds.size === 0) return
     Taro.showModal({
@@ -153,6 +165,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
         if (res.confirm) {
           selectedIds.forEach(id => {
             deleteRecord(id)
+            cleanupVocabRefs(id)
             const record = records.find(r => r.recordId === id)
             if (record?.cloudId) {
               CloudSyncService.syncDeleteRecord(record.cloudId, id)
@@ -203,6 +216,7 @@ export default function HistoryPage({ isSubView = false }: HistoryPageProps) {
       success: (res) => {
         if (res.confirm) {
           deleteRecord(record.recordId)
+          cleanupVocabRefs(record.recordId)
           if (record.cloudId) {
             CloudSyncService.syncDeleteRecord(record.cloudId, record.recordId)
           }

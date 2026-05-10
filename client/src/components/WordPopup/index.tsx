@@ -8,7 +8,7 @@ import { getDictCache, setDictCache, getEntryCache, setEntryCache } from '../../
 import { filterExamTags } from '../../config/purpose'
 import LucideIcon from '../LucideIcon'
 import AnnotationGlyph from '../AnnotationGlyph'
-import DictionaryFeedback from '../DictionaryFeedback'
+import FeedbackSheet from '../FeedbackSystem/FeedbackSheet'
 import { getLookupSaveState, getSaveActionCopy } from './lookupSaveState'
 import type { SourceRef } from '../../types/view/vocabulary.vm'
 import './index.scss'

@@ -8,6 +8,8 @@ interface LedgerEntryDto {
   balance_after: number
   description: string
   article_title: string | null
+  task_id: string | null
+  metadata_json?: Record<string, unknown>
   created_at: string
 }
 
@@ -25,6 +27,8 @@ export interface LedgerEntry {
   balanceAfter: number
   description: string
   articleTitle: string | null
+  taskId: string | null
+  metadataJson?: Record<string, unknown>
   createdAt: string
 }
 
@@ -43,6 +47,8 @@ function dtoToLedgerEntry(dto: LedgerEntryDto): LedgerEntry {
     balanceAfter: dto.balance_after,
     description: dto.description,
     articleTitle: dto.article_title,
+    taskId: dto.task_id,
+    metadataJson: dto.metadata_json,
     createdAt: dto.created_at,
   }
 }

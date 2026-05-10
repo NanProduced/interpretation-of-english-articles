@@ -132,6 +132,7 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
           const result = await fetchCloudVocabulary(page, pageSize)
           allCloudItems = allCloudItems.concat(result.items)
           hasMore = allCloudItems.length < result.total
+          if (result.items.length === 0) break
           page++
         }
         const localItems = getVocabulary()

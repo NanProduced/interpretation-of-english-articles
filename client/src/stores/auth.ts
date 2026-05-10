@@ -101,7 +101,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // 后台验证 token + 补充 userInfo（静默，失败不影响显示状态）
       const { fetchSessionUser } = await import('../services/api/client')
       fetchSessionUser()
-        .then((data) => {
+        .then(async (data) => {
           const userInfo: UserInfo = {
             user_id: data.user_id,
             session_id: data.session_id,
@@ -112,22 +112,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
           Taro.setStorageSync(AUTH_USER_KEY, JSON.stringify(userInfo))
           set({ userInfo })
-          // 同步云端配置到本地
-          import('./config').then(({ useConfigStore }) => {
-            useConfigStore.getState().initializeFromCloud()
-          })
+          const { useConfigStore } = await import('./config')
+          useConfigStore.getState().initializeFromCloud()
         })
         .catch((err: unknown) => {
-          // 401 / auth error → token 无效，清除登录态
-          const isAuthError =
-            (err as { statusCode?: number })?.statusCode === 401 ||
-            (err as { code?: string })?.code === 'HTTP_ERROR'
+          const statusCode = (err as { statusCode?: number })?.statusCode
+          const isAuthError = statusCode === 401
           if (isAuthError) {
             Taro.removeStorageSync(AUTH_TOKEN_KEY)
             Taro.removeStorageSync(AUTH_USER_KEY)
             set({ token: null, userInfo: null, isLoggedIn: false })
           }
-          // 其他错误（网络）静默忽略，保持当前状态
         })
     } catch (e) {
       console.error('auth.ts: restore failed', e)
@@ -152,10 +147,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       Taro.setStorageSync(AUTH_USER_KEY, JSON.stringify(userInfo))
       set({ userInfo })
-      // 同步云端配置到本地
-      import('./config').then(({ useConfigStore }) => {
-        useConfigStore.getState().initializeFromCloud()
-      })
+      const { useConfigStore } = await import('./config')
+      useConfigStore.getState().initializeFromCloud()
     } catch (e) {
       console.error('auth.ts: fetchUserInfo failed', e)
     }

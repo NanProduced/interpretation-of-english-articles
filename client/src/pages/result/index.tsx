@@ -1,14 +1,14 @@
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useShareAppMessage } from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
-import { PageMode, AnyRenderSceneVm, AcademicRenderSceneVm } from '../../types/view/render-scene.vm'
+import { PageMode, AnyRenderSceneVm, AcademicRenderSceneVm, AnySentenceEntryModel } from '../../types/view/render-scene.vm'
 import { getSafeDisplayLabel } from '../../config/purpose'
 import { submitFeedback } from '../../services/api/feedback.client'
 import { useAuthStore } from '../../stores/auth'
 import { ensureLoggedIn } from '../../services/auth'
 import NavBar from '../../components/NavBar'
-import ParagraphBlock from '../../components/ParagraphBlock'
+import ParagraphBlock, { getSentenceAnchorId } from '../../components/ParagraphBlock'
 import WordPopup from '../../components/WordPopup'
 import ContentSummaryCard from '../../components/ContentSummaryCard'
 import LucideIcon from '../../components/LucideIcon'
@@ -44,6 +44,56 @@ function buildTargetKey(
   return `record:${recordId}:range:${opts.sentenceId}:${opts.startOffset}:${opts.endOffset}:${opts.textHash}`
 }
 
+function trimReviewText(text: string | undefined, max = 54): string | undefined {
+  if (!text) return undefined
+  const normalized = text.replace(/[#>*_`-]/g, '').replace(/\s+/g, ' ').trim()
+  if (!normalized) return undefined
+  return normalized.length > max ? `${normalized.slice(0, max)}...` : normalized
+}
+
+function getReviewAssetLabel(entryType: string): string | null {
+  switch (entryType) {
+    case 'grammar_note':
+      return '语法'
+    case 'sentence_analysis':
+      return '句析'
+    case 'term_note':
+      return '术语'
+    case 'logic_note':
+      return '逻辑'
+    case 'interpretation_note':
+      return '解读'
+    case 'content_summary':
+      return '概要'
+    default:
+      return null
+  }
+}
+
+function buildReviewAssets(sceneData: AnyRenderSceneVm | null, sentenceId?: string) {
+  if (!sceneData || !sentenceId) return []
+  const seen = new Set<string>()
+  return ((sceneData.sentenceEntries || []) as AnySentenceEntryModel[])
+    .filter(entry => entry.sentenceId === sentenceId)
+    .map(entry => {
+      const label = getReviewAssetLabel(entry.entryType)
+      if (!label) return null
+      const title = trimReviewText(entry.title || entry.label || label, 30) || label
+      const key = `${entry.entryType}:${title}`
+      if (seen.has(key)) return null
+      seen.add(key)
+      return {
+        id: entry.id,
+        type: entry.entryType,
+        label,
+        title,
+        summary: trimReviewText(entry.content, 260),
+      }
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .slice(0, 4)
+}
+
 async function requireAuth(): Promise<boolean> {
   if (useAuthStore.getState().isLoggedIn) return true
   const result = await ensureLoggedIn()
@@ -55,7 +105,7 @@ export default function Result() {
   const {
     navBarHeight, pageMode, setPageMode,
     vocabList, vocabSavedMap, wordPopup, setWordPopup,
-    activeMarkId, selectedWord, activeSentenceId,
+    activeMarkId, selectedWord, activeSentenceId, setActiveSentenceId,
     animTrigger, favorited, vocabHighlights,
     showModeSheet, setShowModeSheet, tempConfig,
     pageState, sceneData, requestParams, errorCode, errorMsg,
@@ -70,8 +120,18 @@ export default function Result() {
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItemDto[]>([])
   const [showNoteSheet, setShowNoteSheet] = useState(false)
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false)
+  const [scrollIntoViewId, setScrollIntoViewId] = useState('')
+  const [articleScrollTop, setArticleScrollTop] = useState(0)
+  const routeSentenceIdRef = useRef<string | null>(null)
+  const scrolledSentenceIdRef = useRef<string | null>(null)
+  const articleScrollTopRef = useRef(0)
   const { preferences } = useReadingPreferencesStore()
   const isLoggedIn = useAuthStore(state => state.isLoggedIn)
+
+  if (routeSentenceIdRef.current === null) {
+    const params = Taro.getCurrentInstance().router?.params || {}
+    routeSentenceIdRef.current = typeof params.sentenceId === 'string' ? params.sentenceId : ''
+  }
 
   const articleTitleForAssets = useMemo(() => {
     if (!sceneData) return undefined
@@ -125,6 +185,45 @@ export default function Result() {
       console.warn('Failed to load favorites', err)
     })
   }, [pageState, isLoggedIn])
+
+  useEffect(() => {
+    const targetSentenceId = routeSentenceIdRef.current
+    if (!targetSentenceId || pageState !== 'normal' || !sceneData?.article?.sentences?.length) return
+    if (scrolledSentenceIdRef.current === targetSentenceId) return
+    const exists = sceneData.article.sentences.some(sentence => sentence.sentenceId === targetSentenceId)
+    if (!exists) return
+
+    scrolledSentenceIdRef.current = targetSentenceId
+    setActiveSentenceId(targetSentenceId)
+    setScrollIntoViewId('')
+    const timer = setTimeout(() => {
+      const anchorId = getSentenceAnchorId(targetSentenceId)
+      setScrollIntoViewId(anchorId)
+
+      const query = Taro.createSelectorQuery()
+      query.select('.article-scroll').boundingClientRect()
+      query.select(`#${anchorId}`).boundingClientRect()
+      query.selectViewport().scrollOffset()
+      query.exec((res) => {
+        const scrollRect = res?.[0]
+        const targetRect = res?.[1]
+        const viewportOffset = res?.[2]
+        if (!targetRect) return
+
+        if (scrollRect) {
+          const nextTop = Math.max(0, articleScrollTopRef.current + targetRect.top - scrollRect.top - 48)
+          articleScrollTopRef.current = nextTop
+          setArticleScrollTop(prev => (Math.abs(prev - nextTop) < 1 ? nextTop + 0.5 : nextTop))
+        }
+
+        if (viewportOffset) {
+          const pageTop = Math.max(0, viewportOffset.scrollTop + targetRect.top - navBarHeight - 56)
+          Taro.pageScrollTo({ scrollTop: pageTop, duration: 280 })
+        }
+      })
+    }, 260)
+    return () => clearTimeout(timer)
+  }, [pageState, sceneData, setActiveSentenceId, navBarHeight])
 
   const clearSelection = useCallback(() => {
     setSelectionContext(null)
@@ -201,6 +300,7 @@ export default function Result() {
     if (!authed) return
 
     try {
+      const reviewAssets = buildReviewAssets(sceneData, selectionContext.sentenceId)
       if (isSelectionFavorited) {
         await removeFavoriteFromCloud(activeSelectionTargetKey, selectionContext.anchorType)
         setFavoriteItems(prev => prev.filter(item => item.target_key !== activeSelectionTargetKey))
@@ -222,6 +322,7 @@ export default function Result() {
           start_offset: selectionContext.startOffset,
           end_offset: selectionContext.endOffset,
           anchor_type: selectionContext.anchorType,
+          review_assets: reviewAssets,
         }
       )
       setFavoriteItems(prev => [
@@ -238,6 +339,7 @@ export default function Result() {
             translation: selectionContext.translation,
             article_title: articleTitleForAssets,
             anchor_type: selectionContext.anchorType,
+            review_assets: reviewAssets,
           },
           note: null,
           created_at: new Date().toISOString(),
@@ -265,6 +367,7 @@ export default function Result() {
     if (!authed) return
 
     try {
+      const reviewAssets = buildReviewAssets(sceneData, selectionContext.sentenceId)
       Taro.showLoading({ title: '保存中...' })
       const res = currentSelectionAnnotation
         ? await updateUserAnnotation(currentSelectionAnnotation.id, { color, note })
@@ -283,6 +386,7 @@ export default function Result() {
             client_record_id: recordId,
             translation: selectionContext.translation,
             article_title: articleTitleForAssets,
+            review_assets: reviewAssets,
           },
         })
       setUserAnnotations(prev => {
@@ -305,6 +409,7 @@ export default function Result() {
     if (!authed) return
 
     try {
+      const reviewAssets = buildReviewAssets(sceneData, selectionContext.sentenceId)
       Taro.showLoading({ title: '保存中...' })
       const res = currentSelectionAnnotation
         ? await updateUserAnnotation(currentSelectionAnnotation.id, { color, note: '' })
@@ -322,6 +427,7 @@ export default function Result() {
             client_record_id: recordId,
             translation: selectionContext.translation,
             article_title: articleTitleForAssets,
+            review_assets: reviewAssets,
           },
         })
       setUserAnnotations(prev => {
@@ -504,7 +610,20 @@ export default function Result() {
           </View>
         )}
 
-        <ScrollView className='article-scroll' scrollY enhanced showScrollbar={false} onScroll={() => { actions.handleScroll(); if (selectionContext) clearSelection() }}>
+        <ScrollView
+          className='article-scroll'
+          scrollY
+          enhanced
+          showScrollbar={false}
+          scrollIntoView={scrollIntoViewId}
+          scrollTop={articleScrollTop}
+          scrollWithAnimation
+          onScroll={(event) => {
+            articleScrollTopRef.current = Number((event as any)?.detail?.scrollTop || articleScrollTopRef.current || 0)
+            actions.handleScroll()
+            if (selectionContext) clearSelection()
+          }}
+        >
           <View className='article-container'>
             {articleHeader}
             {academicContentSummary && (

@@ -74,7 +74,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
         ])
         
         const latestInfo = useAuthStore.getState().userInfo
-        setArticleCount(recordResult.total || latestInfo?.cumulativeArticleCount || 0)
+        setArticleCount(latestInfo?.cumulativeArticleCount ?? recordResult.total ?? 0)
 
         const localVocab = getVocabulary()
         const cloudTotal = vocabResult.total
@@ -107,12 +107,6 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
   }, [isLoggedIn, loadStats])
 
   useDidShow(loadStats)
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      fetchUserInfo()
-    }
-  }, [isLoggedIn])
 
   const handleLogin = async () => {
     setNavigatingToOnboarding(true)
@@ -244,7 +238,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
               {isLoggedIn ? (
                 <>
                   <View className='identity-tag'>
-                    <Text className='tag-text'>标准学者</Text>
+                    <Text className='tag-text'>{tier.cnTitle}</Text>
                   </View>
                   <View className='nickname-wrapper'>
                     <Input
@@ -376,7 +370,7 @@ export default function ProfilePage({ isSubView = false }: ProfilePageProps) {
         </View>
 
         <View className='version-tag'>
-          <Text>AI Reader v1.0.0</Text>
+          <Text>Claread V1.0.0</Text>
         </View>
         <View className='bottom-spacer' />
       </ScrollView>

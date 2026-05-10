@@ -42,6 +42,7 @@ class LedgerEntryResponse(BaseModel):
     balance_after: int
     description: str
     article_title: str | None
+    task_id: str | None = None
     created_at: datetime
 
 

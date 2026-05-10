@@ -2,13 +2,12 @@ import { View, Text } from '@tarojs/components'
 import { useState, useEffect, useMemo } from 'react'
 import Taro from '@tarojs/taro'
 import { fetchCreditLedger, LedgerEntry } from '../../services/api/credit.client'
+import { fetchUserQuota } from '../../services/api/client'
 import { useAuthStore } from '../../stores/auth'
 import { useLayoutStore } from '../../stores/layout'
 import NavBar from '../../components/NavBar'
 import LucideIcon from '../../components/LucideIcon'
 import './index.scss'
-
-const DAILY_FREE_TOTAL = 1000
 
 const TYPE_CONFIG: Record<string, { label: string; icon: string; iconColor: string }> = {
   analysis_deduct: { label: '分析扣减', icon: 'search', iconColor: '#7A7D86' },
@@ -47,8 +46,11 @@ function formatTime(dateStr: string): string {
 }
 
 function isToday(dateStr: string): boolean {
-  const diff = (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
-  return diff < 1
+  const d = new Date(dateStr)
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
 }
 
 interface GroupedEntries {
@@ -80,10 +82,16 @@ export default function CreditDetailPage() {
   const [cursor, setCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [dailyFreeTotal, setDailyFreeTotal] = useState(1000)
   const { navBarHeight } = useLayoutStore()
 
   useEffect(() => {
-    if (isLoggedIn) loadMore()
+    if (isLoggedIn) {
+      loadMore()
+      fetchUserQuota()
+        .then(res => setDailyFreeTotal(res.daily_free_points))
+        .catch(() => {})
+    }
   }, [isLoggedIn])
 
   const loadMore = async () => {
@@ -108,26 +116,23 @@ export default function CreditDetailPage() {
       .reduce((s, e) => s + Math.abs(e.points), 0)
 
     const totalBalance = entries.length > 0 ? entries[0].balanceAfter : null
-    const dailyRemaining = Math.max(0, DAILY_FREE_TOTAL - todayDailyUsed)
+    const dailyRemaining = Math.max(0, dailyFreeTotal - todayDailyUsed)
     let bonusBalance = 0
     if (totalBalance !== null) bonusBalance = Math.max(0, totalBalance - dailyRemaining)
 
     return { todayDailyUsed, dailyRemaining, bonusBalance, totalBalance }
   }, [entries])
 
-  const progressPercent = DAILY_FREE_TOTAL > 0 ? (summary.todayDailyUsed / DAILY_FREE_TOTAL) * 100 : 0
+  const progressPercent = dailyFreeTotal > 0 ? (summary.todayDailyUsed / dailyFreeTotal) * 100 : 0
 
   const handleBonusCTA = () => {
     Taro.showToast({ title: '邀请功能开发中', icon: 'none' })
   }
 
   const handleEntryClick = (entry: LedgerEntry) => {
-    try {
-      const meta = typeof entry.metadata_json === 'string' ? JSON.parse(entry.metadata_json) : (entry.metadata_json || {})
-      if (meta.articleId) {
-        Taro.navigateTo({ url: `/packageB/article/index?id=${meta.articleId}` })
-      }
-    } catch { }
+    if (entry.taskId) {
+      Taro.navigateTo({ url: `/packageA/history/index?highlightTask=${entry.taskId}` })
+    }
   }
 
   const groups = groupByDate(entries)
@@ -155,7 +160,7 @@ export default function CreditDetailPage() {
         <Text className='credit-detail__summary-label'>今日剩余</Text>
         <View className='credit-detail__summary-main'>
           <Text className='credit-detail__summary-number'>{summary.dailyRemaining}</Text>
-          <Text className='credit-detail__summary-total'> / {DAILY_FREE_TOTAL}</Text>
+          <Text className='credit-detail__summary-total'> / {dailyFreeTotal}</Text>
         </View>
         <View className='credit-detail__progress-track'>
           <View

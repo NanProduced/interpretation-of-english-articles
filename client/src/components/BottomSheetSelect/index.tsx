@@ -2,7 +2,7 @@ import { View, Text } from '@tarojs/components'
 import { ReactNode } from 'react'
 import { ReadingGoal } from '../../config/purpose'
 import LucideIcon from '../LucideIcon'
-import ConfigEditor from '../ConfigEditor'
+import ConfigEditor, { ConfigEditorMode } from '../ConfigEditor'
 import './index.scss'
 
 interface BottomSheetSelectProps {
@@ -10,7 +10,7 @@ interface BottomSheetSelectProps {
   title?: string
   currentGoal?: ReadingGoal
   currentLevel?: string | null
-  mode?: 'detailed' | 'compact'
+  mode?: ConfigEditorMode
   onClose: () => void
   onSelect?: (goal: ReadingGoal, level: string | null) => void
   children?: ReactNode

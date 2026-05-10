@@ -408,6 +408,58 @@ share-timeline-notes.png
 - 视觉关键词：纸张、阅读、笔记、标注、光圈、安静解析
 - 禁止：3D 卡通、霓虹发光、大面积渐变、复杂人物插画、过度拟物
 
+## 上线前分包配置待办
+
+> 以下问题在本地调试阶段不影响功能，但上线前必须处理。
+> 分析日期：2026-05-10
+
+### 当前构建产物体积
+
+| 包 | 体积 | 上限 | 状态 |
+|---|---|---|---|
+| 主包（含 assets） | 2389.6 KB | 2048 KB | ❌ 超限 |
+| 主包（CDN 上线后预估） | ~1752 KB | 2048 KB | ✅ 安全，余量 ~296KB |
+| PackageA | 417.9 KB | 2048 KB | ✅ |
+| PackageB | 169.4 KB | 2048 KB | ✅ |
+| PackageC | 104.2 KB | 2048 KB | ✅ |
+| 总计 | 4092.5 KB | 20480 KB | ✅ |
+
+### 待办清单
+
+#### P0：添加 `preloadRule` 分包预下载配置
+
+- **文件**: `client/src/app.config.ts`
+- **问题**: 当前未配置 `preloadRule`，用户从主包跳转分包页面时需等待分包下载，微信开发者工具会报异步分包 warning
+- **方案**: 在 `app.config.ts` 中添加预下载规则，首页预下载 packageA + packageB，结果页预下载 packageA
+- **参考**: [微信官方文档 - 分包预下载](https://developers.weixin.qq.com/miniprogram/dev/framework/subpackages/preload.html)
+- **限制**: 同一分包的页面共享 2MB 预下载额度
+
+#### P1：`packOptions.ignore` 排除 `.map` 文件
+
+- **文件**: `client/project.config.json`
+- **问题**: `packOptions.ignore` 为空，构建产物中 5 个 `.map` 文件（共 ~313KB）在开发预览时被计入包体积，导致体积报告偏大
+- **方案**: 添加 `{ "type": "file", "value": ".map" }` 到 `packOptions.ignore`
+- **注意**: `uploadWithSourceMap: true` 保证线上调试仍可用 source map，此处仅排除本地预览打包
+
+#### P1：开启 `lazyloadPlaceholderEnable`
+
+- **文件**: `client/project.config.json`
+- **问题**: 当前为 `false`，跨分包组件加载时无占位，可能出现白屏闪烁
+- **方案**: 设为 `true`，配合 `preloadRule` 实现平滑加载
+- **参考**: [微信官方文档 - 占位组件](https://developers.weixin.qq.com/miniprogram/dev/framework/custom-component/placeholder.html)
+
+#### P2：生产构建关闭 source map
+
+- **文件**: `client/config/index.ts`
+- **问题**: 当前构建产物始终包含 `.map` 文件，生产环境不需要
+- **方案**: `mini.enableSourceMap` 按环境变量控制，`build:weapp` 时关闭
+
+#### P2：关注主包余量
+
+- **现状**: CDN 上线后主包约 1752KB，距 2MB 上限仅余 ~296KB
+- **风险**: `common.js`（395KB）和 `pages/result/index.js`（334KB）是最大贡献者，后续功能迭代可能再次逼近上限
+- **预案**: 若主包再次超限，考虑将 `pages/result/` 拆为独立分包，或用 Taro `mini.addChunkPages` 精细拆分公共依赖
+
 ## 推荐下一步
 
 开始生成 **Batch 2：阅读与笔记语言**。这批将用于定义 Claread 批注系统，包括高亮笔触、铅笔下划线、语法括号、边注 marker、收藏角标和笔记卡片层。

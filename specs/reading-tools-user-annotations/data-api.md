@@ -18,8 +18,9 @@
 因此：
 
 - 阅读设置保存到用户配置 JSON。
-- 句子/段落收藏复用 `favorite_records`。
+- 句子收藏复用 `favorite_records`；段落收藏字段保留但不作为首版前端交付。
 - 用户自行批注新建表。
+- “我的摘录”前端按 `target_key` 合并同一句子的收藏、用户批注和解析要点，形成句子级复习资产。
 
 ## Reading Settings Shape
 
@@ -88,10 +89,10 @@ CREATE INDEX idx_user_annotations_sentence
 `target_key` 生成规则：
 
 - sentence: `record:{record_id}:sentence:{sentence_id}`
-- paragraph: `record:{record_id}:paragraph:{paragraph_id}`
+- paragraph: `record:{record_id}:paragraph:{paragraph_id}`（后端兼容字段，首版前端不生成）
 - text_range: `record:{record_id}:range:{sentence_id}:{start_offset}:{end_offset}:{text_hash}`
 
-小程序首版只使用 `sentence` 和 `paragraph` 锚点。`text_range`、`start_offset`、`end_offset`、`text_hash`
+小程序首版只使用 `sentence` 锚点。`paragraph`、`text_range`、`start_offset`、`end_offset`、`text_hash`
 保留为后端兼容和未来增强能力，不作为当前前端交付范围。
 
 ## API
@@ -172,8 +173,26 @@ Create request：
 - `selectionToolbarVisible`
 - `userAnnotationsBySentenceId`
 - `favoriteTargetKeys`
+- `excerptGroupsByRecord`
+- `excerptFilter`
 
 离线/未登录：
 
 - 已登录：写云端，成功后更新本地缓存。
 - 未登录：可以先支持复制；收藏/笔记提示登录或写本地草稿，后续登录再同步。
+
+## Excerpts View Model
+
+“我的摘录”不新增后端聚合接口，首版在前端基于现有数据合成 VM：
+
+- 收藏：来自 `favorite_records` 中 `target_type='sentence'` 的记录。
+- 高亮/笔记：来自 `user_annotations`，按 `target_key` 合并到同一句。
+- 解析要点：来自分析记录内已存在的 sentence-level 语法/句析数据；只在前端展示，不写回收藏或批注表。
+
+合并规则：
+
+- 主键：`target_key`。
+- 文章归组：优先使用 `analysis_record_id`；缺失时使用 payload 中的 client record 标识作为降级。
+- 句子排序：使用 `sentence_id` 中可解析出的序号，无法解析时使用 payload 中的顺序字段，最后才按创建时间兜底。
+- 同一句同时有收藏、高亮、笔记时只生成一条 sentence item，状态标签并列展示。
+- 过滤 `解析` 时，只展示存在语法或句析复习要点的句子；过滤 `全部` 时仍展示完整复习要点。

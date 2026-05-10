@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { ROUTES } from '../../config/routes'
 import { useConfigStore, UserPurpose } from '../../stores/config'
 import { useLayoutStore } from '../../stores/layout'
+import { setNavigatingToOnboarding } from '../../utils/navigationState'
 import NavBar from '../../components/NavBar'
 import ConfigEditor from '../../components/ConfigEditor'
 import './index.scss'
@@ -29,6 +30,7 @@ export default function Onboarding() {
     setPurpose(selectedPurpose)
     setLevel(selectedLevel)
     Taro.setStorageSync('user_configured', true)
+    setNavigatingToOnboarding(false)
     
     Taro.showToast({ title: '配置已更新', icon: 'success', duration: 1000 })
     setTimeout(() => {
@@ -38,6 +40,7 @@ export default function Onboarding() {
 
   const skip = () => {
     Taro.setStorageSync('user_configured', true)
+    setNavigatingToOnboarding(false)
     Taro.reLaunch({ url: ROUTES.HOME })
   }
 

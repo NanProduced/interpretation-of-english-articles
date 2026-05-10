@@ -150,6 +150,10 @@ function renderTextWithAnalysis(
 
 const normalizeId = (id: string | null | undefined) => id ? id.replace(/^[^_]+_/, '') : null;
 
+export function getSentenceAnchorId(sentenceId: string): string {
+  return `sentence-anchor-${sentenceId}`
+}
+
 function normalizeForMatch(value: string | null | undefined): string {
   return (value || '')
     .toLowerCase()
@@ -747,6 +751,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
 
               return (
                 <Text
+                  id={getSentenceAnchorId(sentence.sentenceId)}
                   key={sentence.sentenceId}
                   className={`sentence-span sentence-${sentence.sentenceId} ${activeSentenceId === sentence.sentenceId ? 'is-highlighted-source' : ''} ${isWholeSentenceHighlight && userAnno ? `user-highlighted user-highlighted--${normalizeUserHighlightColor(userAnno.color)}` : ''} ${isFavorited ? 'is-favorited' : ''} ${isSentenceSelected ? 'user-selection-active' : ''}`}
                   onClick={() => {
@@ -906,7 +911,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
           const hasNote = userAnnotations?.some(a => a.sentence_id === item.sentence.sentenceId && !!a.note) ?? false
           const isFavorited = isSentenceFavorited(item.sentence.sentenceId)
           return (
-            <View key={`chunk-${chunk.id}-${cIdx}`} className='sentence-block'>
+            <View key={`chunk-${chunk.id}-${cIdx}`} id={getSentenceAnchorId(item.sentence.sentenceId)} className='sentence-block'>
               <View
                 className={`sentence-main sentence-${item.sentence.sentenceId} ${isWholeSentenceHighlight && sentenceAnno ? `user-highlighted user-highlighted--${normalizeUserHighlightColor(sentenceAnno.color)}` : ''} ${hasNote ? 'has-user-note' : ''} ${isFavorited ? 'is-favorited' : ''} ${isSentenceSelected ? 'user-selection-active' : ''}`}
                 onClick={() => {
@@ -1025,7 +1030,7 @@ const ParagraphBlock = memo(function ParagraphBlock({
                 const isFavorited = isSentenceFavorited(item.sentence.sentenceId)
 
                 return (
-                  <View key={`plain-${item.sentence.sentenceId}`} className='sentence-block sentence-block--plain'>
+                  <View key={`plain-${item.sentence.sentenceId}`} id={getSentenceAnchorId(item.sentence.sentenceId)} className='sentence-block sentence-block--plain'>
                     <View
                       className={`sentence-main sentence-${item.sentence.sentenceId} ${isWholeSentenceHighlight && sentenceAnno ? `user-highlighted user-highlighted--${normalizeUserHighlightColor(sentenceAnno.color)}` : ''} ${hasNote ? 'has-user-note' : ''} ${isFavorited ? 'is-favorited' : ''} ${isSentenceSelected ? 'user-selection-active' : ''}`}
                       onClick={() => {

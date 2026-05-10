@@ -4,6 +4,7 @@ export const mockDictionaryLoading = null
 
 export const mockDictionaryEntry: DictionaryResult = {
   resultType: 'entry',
+  query: 'resilience',
   entry: {
     id: 1,
     word: 'resilience',
@@ -19,57 +20,56 @@ export const mockDictionaryEntry: DictionaryResult = {
     ],
     phrases: [],
     examples: [],
-    tags: ['CET6', 'IELTS', 'TOEFL']
+    tags: ['CET6', 'IELTS', 'TOEFL'],
+    entryKind: 'entry'
   }
 }
 
 export const mockDisambiguationResult: DictionaryResult = {
   resultType: 'disambiguation',
+  query: 'project',
   candidates: [
-    { entryId: 1, label: 'project (名词)', partOfSpeech: 'n.', preview: '项目，工程' },
-    { entryId: 2, label: 'project (动词)', partOfSpeech: 'v.', preview: '规划；投射' }
+    { entryId: 1, label: 'project (名词)', partOfSpeech: 'n.', preview: '项目，工程', entryKind: 'entry' },
+    { entryId: 2, label: 'project (动词)', partOfSpeech: 'v.', preview: '规划；投射', entryKind: 'entry' }
   ]
 }
 
 export const mockMarkVocab: AnyInlineMarkModel = {
   id: 'm1',
-  type: 'inline_mark',
   lookupText: 'resilience',
   lookupKind: 'word',
   annotationType: 'vocab_highlight',
   renderType: 'background',
   visualTone: 'vocab',
   clickable: true,
-  anchor: { kind: 'text', text: 'resilience', occurrence: 1 }
+  anchor: { kind: 'text', sentenceId: 's1', anchorText: 'resilience', occurrence: 1 }
 }
 
 export const mockMarkPhrase: AnyInlineMarkModel = {
   id: 'm2',
-  type: 'inline_mark',
   lookupText: 'give up',
   lookupKind: 'phrase',
   annotationType: 'phrase_gloss',
   renderType: 'background',
   visualTone: 'phrase',
   clickable: true,
-  anchor: { kind: 'text', text: 'give up', occurrence: 1 },
+  anchor: { kind: 'text', sentenceId: 's2', anchorText: 'give up', occurrence: 1 },
   glossary: {
     zh: '放弃，投降',
     phraseType: 'phrasal_verb',
-    en: 'cease making an effort'
+    gloss: 'cease making an effort'
   }
 }
 
 export const mockMarkContext: AnyInlineMarkModel = {
   id: 'm3',
-  type: 'inline_mark',
   lookupText: 'address',
   lookupKind: 'word',
   annotationType: 'context_gloss',
   renderType: 'underline',
   visualTone: 'context',
   clickable: true,
-  anchor: { kind: 'text', text: 'address', occurrence: 1 },
+  anchor: { kind: 'text', sentenceId: 's3', anchorText: 'address', occurrence: 1 },
   glossary: {
     zh: '设法解决，处理',
     gloss: '设法解决',

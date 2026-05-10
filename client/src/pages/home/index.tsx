@@ -34,7 +34,10 @@ function HomeView({ placeholders }: { placeholders: string[] }) {
 
   // 获取匿名用户剩余试用次数
   const fetchGuestTrials = useCallback(() => {
-    if (isLoggedIn) return
+    if (isLoggedIn) {
+      setGuestTrials(null)
+      return
+    }
     const anonymousId = Taro.getStorageSync('anonymous_id') as string | undefined
     if (!anonymousId) return
 

@@ -71,6 +71,7 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       }
       if (Object.keys(updates).length > 0) {
         set(updates)
+        Taro.setStorageSync('user_configured', true)
       }
     }
   }
