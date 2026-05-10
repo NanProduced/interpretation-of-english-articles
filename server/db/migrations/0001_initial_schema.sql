@@ -212,7 +212,7 @@ CREATE TABLE anonymous_quotas (
 );
 
 -- ============================================================
--- 用户资产（收藏 / 生词本）
+-- 用户资产（收藏 / 生词本 / 批注）
 -- ============================================================
 
 CREATE TABLE favorite_records (
@@ -265,6 +265,40 @@ CREATE INDEX idx_vocabulary_book_user_created_at ON vocabulary_book(user_id, cre
 CREATE INDEX idx_vocabulary_book_user_mastery_status ON vocabulary_book(user_id, mastery_status);
 CREATE INDEX idx_vocabulary_book_dict_entry_id ON vocabulary_book(dict_entry_id) WHERE dict_entry_id IS NOT NULL;
 
+CREATE TABLE user_annotations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    analysis_record_id UUID REFERENCES analysis_records(id) ON DELETE CASCADE,
+    annotation_type TEXT NOT NULL DEFAULT 'highlight'
+        CHECK (annotation_type IN ('highlight', 'note')),
+    anchor_type TEXT NOT NULL DEFAULT 'sentence'
+        CHECK (anchor_type IN ('sentence', 'paragraph', 'text_range')),
+    target_key TEXT NOT NULL,
+    paragraph_id TEXT,
+    sentence_id TEXT,
+    selected_text TEXT NOT NULL,
+    start_offset INTEGER,
+    end_offset INTEGER,
+    text_hash TEXT,
+    color TEXT NOT NULL DEFAULT 'soft_green'
+        CHECK (color IN ('soft_green', 'soft_blue', 'soft_purple', 'warm_yellow', 'sage_green')),
+    note TEXT,
+    payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    deleted_at TIMESTAMPTZ,
+    deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_user_annotations_target UNIQUE (user_id, target_key)
+);
+
+CREATE INDEX idx_user_annotations_record_created
+    ON user_annotations(user_id, analysis_record_id, created_at DESC)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_user_annotations_sentence
+    ON user_annotations(user_id, analysis_record_id, sentence_id)
+    WHERE sentence_id IS NOT NULL AND deleted_at IS NULL;
+
 -- ============================================================
 -- 反馈系统
 -- ============================================================
@@ -273,7 +307,7 @@ CREATE TABLE feedback (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   feedback_scope TEXT NOT NULL CHECK (feedback_scope IN (
-    'analysis_result', 'annotation', 'dictionary', 'app'
+    'analysis_result', 'annotation', 'sentence', 'dictionary', 'app'
   )),
   target_id TEXT NOT NULL,
   analysis_record_id UUID REFERENCES analysis_records(id) ON DELETE CASCADE,
@@ -594,8 +628,27 @@ COMMENT ON COLUMN vocabulary_book.payload_json IS '生词附加元数据 JSON，
 COMMENT ON COLUMN vocabulary_book.created_at IS '记录创建时间。';
 COMMENT ON COLUMN vocabulary_book.updated_at IS '记录最后更新时间。';
 
-COMMENT ON TABLE feedback IS '用户反馈表，统一存储结果页整体反馈、批注级反馈、词典反馈和应用功能反馈。';
-COMMENT ON COLUMN feedback.feedback_scope IS '反馈作用域：analysis_result（结果页整体）、annotation（批注级）、dictionary（词典）、app（应用功能）。';
+COMMENT ON TABLE user_annotations IS '用户批注表，保存高亮标注与笔记。';
+COMMENT ON COLUMN user_annotations.id IS '批注主键，使用 UUID。';
+COMMENT ON COLUMN user_annotations.user_id IS '所属用户 ID。';
+COMMENT ON COLUMN user_annotations.analysis_record_id IS '关联的分析记录 ID。';
+COMMENT ON COLUMN user_annotations.annotation_type IS '批注类型：highlight（高亮标注）或 note（笔记）。';
+COMMENT ON COLUMN user_annotations.anchor_type IS '锚点类型：sentence（句子）、paragraph（段落）、text_range（文本范围）。';
+COMMENT ON COLUMN user_annotations.target_key IS '批注目标的逻辑键，用于唯一定位批注对象。';
+COMMENT ON COLUMN user_annotations.paragraph_id IS '段落 ID。';
+COMMENT ON COLUMN user_annotations.sentence_id IS '句子 ID。';
+COMMENT ON COLUMN user_annotations.selected_text IS '用户选中的文本内容。';
+COMMENT ON COLUMN user_annotations.start_offset IS '选区起始偏移量。';
+COMMENT ON COLUMN user_annotations.end_offset IS '选区结束偏移量。';
+COMMENT ON COLUMN user_annotations.text_hash IS '选中文本的哈希值。';
+COMMENT ON COLUMN user_annotations.color IS '标注颜色，支持 soft_green、soft_blue、soft_purple、warm_yellow、sage_green。';
+COMMENT ON COLUMN user_annotations.note IS '用户笔记内容。';
+COMMENT ON COLUMN user_annotations.payload_json IS '批注附加元数据 JSON。';
+COMMENT ON COLUMN user_annotations.created_at IS '记录创建时间。';
+COMMENT ON COLUMN user_annotations.updated_at IS '记录最后更新时间。';
+
+COMMENT ON TABLE feedback IS '用户反馈表，统一存储结果页整体反馈、批注级反馈、句子级反馈、词典反馈和应用功能反馈。';
+COMMENT ON COLUMN feedback.feedback_scope IS '反馈作用域：analysis_result（结果页整体）、annotation（批注级）、sentence（句子级）、dictionary（词典）、app（应用功能）。';
 COMMENT ON COLUMN feedback.target_id IS '反馈目标标识：analysis_result 为 record_id，annotation 为 mark.id/sentence_entry.id，dictionary 为 dict_entry_id 或 word，app 为功能区域标识。';
 COMMENT ON COLUMN feedback.sentiment IS '情感倾向：positive（正面）、negative（负面）、neutral（中性）。dictionary 作用域仅允许 negative。';
 COMMENT ON COLUMN feedback.feedback_type IS '结构化反馈分类，含义随 feedback_scope 变化。';
@@ -698,10 +751,6 @@ CREATE TRIGGER trg_analysis_tasks_set_updated_at
 BEFORE UPDATE ON analysis_tasks
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-CREATE TRIGGER trg_favorite_records_set_updated_at
-BEFORE UPDATE ON favorite_records
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
 CREATE TRIGGER trg_user_credit_accounts_set_updated_at
 BEFORE UPDATE ON user_credit_accounts
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -710,8 +759,16 @@ CREATE TRIGGER trg_anonymous_quotas_set_updated_at
 BEFORE UPDATE ON anonymous_quotas
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+CREATE TRIGGER trg_favorite_records_set_updated_at
+BEFORE UPDATE ON favorite_records
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 CREATE TRIGGER trg_vocabulary_book_set_updated_at
 BEFORE UPDATE ON vocabulary_book
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_user_annotations_set_updated_at
+BEFORE UPDATE ON user_annotations
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TRIGGER trg_dict_entries_set_updated_at

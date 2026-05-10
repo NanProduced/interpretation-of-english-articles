@@ -5,14 +5,14 @@
 ```
 db/
 ├── migrations/
-│   └── 0001_initial_schema.sql   # 全量初始 schema（19 张表）
+│   └── 0001_initial_schema.sql   # 全量初始 schema（20 张表）
 ├── reset_dev_keep_dict.sql       # 日常重置：仅清空业务表数据
 └── reset_full_keep_dict.sql      # 完整重置：DROP 业务表后配合 0001 重建
 ```
 
 ## 表清单
 
-### 业务表（16 张，重置时清空或删除）
+### 业务表（17 张，重置时清空或删除）
 
 | 域 | 表 | 说明 |
 |---|---|---|
@@ -29,6 +29,7 @@ db/
 | 积分 | `anonymous_quotas` | 匿名试用额度 |
 | 资产 | `favorite_records` | 收藏记录 |
 | 资产 | `vocabulary_book` | 生词本 |
+| 资产 | `user_annotations` | 用户批注（高亮与笔记） |
 | 反馈 | `feedback` | 用户反馈 |
 | 精读 | `daily_readers` | 每日精读文章 |
 | 精读 | `pipeline_runs` | Pipeline 执行记录 |
@@ -53,7 +54,7 @@ db/
 psql "$DATABASE_URL" -f db/reset_dev_keep_dict.sql
 ```
 
-效果：TRUNCATE 16 张业务表，dict 三表数据不动。
+效果：TRUNCATE 17 张业务表，dict 三表数据不动。
 
 ### 场景 B：表结构变更 — 重建业务表，保留词典
 
@@ -64,7 +65,7 @@ psql "$DATABASE_URL" -f db/reset_full_keep_dict.sql
 psql "$DATABASE_URL" -f db/migrations/0001_initial_schema.sql
 ```
 
-效果：第一步 DROP 16 张业务表，第二步重建全部 19 张表。dict 三表使用 `IF NOT EXISTS`，已存在时安全跳过。
+效果：第一步 DROP 17 张业务表，第二步重建全部 20 张表。dict 三表使用 `IF NOT EXISTS`，已存在时安全跳过。
 
 ### 场景 C：全新空库初始化
 
@@ -90,13 +91,16 @@ python scripts/backfill_phrases.py
 | 历史 Migration | 内容 | 合并方式 |
 |---|---|---|
 | 原 0001 | 15 张表 + 函数 + 触发器 + COMMENT | 基础 |
-| 原 0002 | `feedback` 表 + `entry_type` 扩展 | 直接合入 |
-| 原 0003 | `daily_readers` 表 | 直接合入 |
-| 原 0004 | `daily_readers.original_text` 列 | 合入建表语句 |
-| 原 0005 | 修复双重序列化 JSONB | 不纳入（一次性数据修复） |
-| 原 0006 | `pipeline_runs` 表 | 直接合入 |
+| 原 0002 | `user_annotations` 表 + 索引 + 触发器 | 直接合入 |
+| 原 0003 | `user_annotations` / `feedback` 约束修正 | 直接合入 |
+| 原 0004 | `feedback` 表 + `entry_type` 扩展 | 直接合入 |
+| 原 0005 | `daily_readers` 表 | 直接合入 |
+| 原 0006 | `daily_readers.original_text` 列 | 合入建表语句 |
+| 原 0007 | 修复双重序列化 JSONB | 不纳入（一次性数据修复） |
+| 原 0008 | `pipeline_runs` 表 | 直接合入 |
 
 合并时的调整：
+- `user_annotations` 建表直接包含 0003 的约束修正（`annotation_type` CHECK、`color` CHECK、`anchor_type` CHECK）
 - `daily_readers` 建表时直接包含 `original_text` 列
 - `user_credit_ledger.entry_type` CHECK 直接包含 `feedback_reward`
 - `pipeline_runs` 去掉 `IF NOT EXISTS`

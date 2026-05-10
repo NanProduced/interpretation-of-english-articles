@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components'
-import { memo, useState, useCallback } from 'react'
+import { memo, useState, useCallback, useEffect } from 'react'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
 
@@ -43,8 +43,15 @@ const ReadingSelectionToolbar = memo(function ReadingSelectionToolbar({
 }: Props) {
   const [showCopyMenu, setShowCopyMenu] = useState(false)
 
+  useEffect(() => {
+    if (!visible) {
+      setShowCopyMenu(false)
+    }
+  }, [visible])
+
   const handleAction = useCallback((action: () => void) => (e: any) => {
     e.stopPropagation()
+    setShowCopyMenu(false)
     action()
   }, [])
 
@@ -64,8 +71,23 @@ const ReadingSelectionToolbar = memo(function ReadingSelectionToolbar({
   return (
     <View className='sel-toolbar-root'>
       <View className='sel-backdrop' onClick={onClose} />
+      {showCopyMenu && (
+        <View className='sel-copy-menu' onClick={e => e.stopPropagation()}>
+          <View className='sel-copy-menu-item' onClick={handleCopyMode('original')}>
+            <Text>复制原文</Text>
+          </View>
+          {context.translation && (
+            <View className='sel-copy-menu-item' onClick={handleCopyMode('translation')}>
+              <Text>复制译文</Text>
+            </View>
+          )}
+          <View className='sel-copy-menu-item' onClick={handleCopyMode('bilingual')}>
+            <Text>复制双语</Text>
+          </View>
+        </View>
+      )}
       <View className='sel-floating-toolbar' onClick={e => e.stopPropagation()}>
-        <View className='sel-tool-btn' onClick={handleAction(onNote)}>
+        <View className={`sel-tool-btn ${hasAnnotation || hasNote ? 'sel-tool-btn--noted' : ''}`} onClick={handleAction(onNote)}>
           <LucideIcon name='pen-line' size={20} color='currentColor' />
           <Text className='sel-tool-label'>{hasNote ? '编辑' : hasAnnotation ? '批注' : '笔记'}</Text>
         </View>
@@ -73,26 +95,11 @@ const ReadingSelectionToolbar = memo(function ReadingSelectionToolbar({
         <View className='sel-tool-btn sel-tool-btn--has-menu' onClick={handleCopyClick}>
           <LucideIcon name='copy' size={20} color='currentColor' />
           <Text className='sel-tool-label'>复制</Text>
-          {showCopyMenu && (
-            <View className='sel-copy-menu' onClick={e => e.stopPropagation()}>
-              <View className='sel-copy-menu-item' onClick={handleCopyMode('original')}>
-                <Text>复制原文</Text>
-              </View>
-              {context.translation && (
-                <View className='sel-copy-menu-item' onClick={handleCopyMode('translation')}>
-                  <Text>复制译文</Text>
-                </View>
-              )}
-              <View className='sel-copy-menu-item' onClick={handleCopyMode('bilingual')}>
-                <Text>复制双语</Text>
-              </View>
-            </View>
-          )}
         </View>
 
         <View className={`sel-tool-btn ${isFavorited ? 'sel-tool-btn--active' : ''}`} onClick={handleAction(onFavorite)}>
           <LucideIcon name='bookmark' size={20} color='currentColor' />
-          <Text className='sel-tool-label'>{isFavorited ? '已收藏' : '收藏'}</Text>
+          <Text className='sel-tool-label'>收藏</Text>
         </View>
 
         <View className='sel-tool-btn' onClick={handleAction(onFeedback)}>

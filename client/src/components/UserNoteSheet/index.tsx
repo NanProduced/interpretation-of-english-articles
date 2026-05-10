@@ -65,16 +65,6 @@ const UserNoteSheet = memo(function UserNoteSheet({
       <View className='un-sheet' onClick={e => e.stopPropagation()}>
         <View className='un-handle' />
 
-        <View className='un-header'>
-          <View className='un-actions un-actions--left' />
-          <Text className='un-title'>{hasExistingAnnotation ? '编辑批注' : '添加批注'}</Text>
-          <View className='un-actions un-actions--right'>
-            <View className='un-icon-btn' onClick={onClose}>
-              <LucideIcon name='x' size={20} color='var(--text-secondary)' />
-            </View>
-          </View>
-        </View>
-
         <View className='un-body'>
           {selectionText && (
             <View className='un-selection-preview' style={{ backgroundColor: activeTheme.bg }}>
@@ -84,6 +74,35 @@ const UserNoteSheet = memo(function UserNoteSheet({
             </View>
           )}
 
+          <View className='un-annotation-bar'>
+            <View className='un-color-strip'>
+              {THEMES.map(t => (
+                <View
+                  key={t.value}
+                  className={`un-color-dot ${color === t.value ? 'un-color-dot--active' : ''}`}
+                  style={{ backgroundColor: t.color }}
+                  onClick={() => setColor(t.value)}
+                >
+                  {color === t.value && <LucideIcon name='check' size={13} color='rgba(36, 33, 28, 0.62)' />}
+                </View>
+              ))}
+            </View>
+
+            {onHighlightOnly && (
+              <View className='un-bar-action' onClick={handleHighlightOnly}>
+                <LucideIcon name='highlighter' size={17} color='currentColor' />
+                <Text className='un-bar-action-text'>{hasExistingAnnotation && !note.trim() ? '更新高亮' : '仅高亮'}</Text>
+              </View>
+            )}
+
+            {onDelete && (
+              <View className='un-bar-action un-bar-action--danger' onClick={onDelete}>
+                <LucideIcon name='trash2' size={17} color='currentColor' />
+                <Text className='un-bar-action-text'>{note.trim() ? '删除' : '取消'}</Text>
+              </View>
+            )}
+          </View>
+
           <Textarea
             className='un-textarea'
             placeholder='写下你的想法...'
@@ -91,39 +110,9 @@ const UserNoteSheet = memo(function UserNoteSheet({
             value={note}
             onInput={e => setNote(e.detail.value)}
             maxlength={500}
-            focus
-            autoHeight
           />
 
-          <View className='un-theme-picker'>
-            <Text className='un-theme-label'>高亮颜色</Text>
-            <View className='un-theme-options'>
-              {THEMES.map(t => (
-                <View
-                  key={t.value}
-                  className={`un-theme-option ${color === t.value ? 'un-theme-option--active' : ''}`}
-                  onClick={() => setColor(t.value)}
-                >
-                  <View className='un-theme-circle' style={{ backgroundColor: t.color }}>
-                    {color === t.value && <LucideIcon name='check' size={14} color='rgba(0,0,0,0.6)' />}
-                  </View>
-                  <Text className='un-theme-name'>{t.label}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
           <View className='un-actions-row'>
-            {onDelete && (
-              <View className='un-btn un-btn--danger' onClick={onDelete}>
-                <Text className='un-btn-text un-btn-text--danger'>{note.trim() ? '删除批注' : '取消高亮'}</Text>
-              </View>
-            )}
-            {onHighlightOnly && (
-              <View className='un-btn un-btn--secondary' onClick={handleHighlightOnly}>
-                <Text className='un-btn-text'>{hasExistingAnnotation && !note.trim() ? '更新高亮' : '仅高亮'}</Text>
-              </View>
-            )}
             <View className='un-btn un-btn--primary' onClick={handleSave}>
               <Text className='un-btn-text un-btn-text--primary'>{hasExistingAnnotation ? '保存修改' : '保存笔记'}</Text>
             </View>

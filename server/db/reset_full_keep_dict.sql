@@ -5,7 +5,7 @@
 -- 适用场景：表结构变更后需要重建所有表，但不想重新导入词典
 -- 使用方式：
 --   1. 执行本脚本（DROP 业务表）
---   2. 执行 0001_initial_schema.sql（重建所有表）
+--   2. 执行 initial.sql（重建所有表）
 --      dict_* 三表使用 IF NOT EXISTS，已存在时安全跳过
 --
 -- 词典三表数据量约 205 万行 / 1.25 GB，重新导入需 20+ 分钟，
@@ -15,6 +15,7 @@
 BEGIN;
 
 DROP TABLE IF EXISTS
+  user_annotations,
   analysis_audit_logs,
   analysis_task_events,
   analysis_tasks,
