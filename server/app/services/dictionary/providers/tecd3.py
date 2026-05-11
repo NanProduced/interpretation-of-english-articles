@@ -31,6 +31,8 @@ from app.services.dictionary.schemas import (
     validate_lookup_result,
 )
 
+PROPER_NOUN_POS = {"pn", "propn", "proper_noun", "proper noun", "专名", "专有名词"}
+
 
 class Tecd3Provider:
     source = "tecd3"
@@ -270,6 +272,8 @@ class Tecd3Provider:
         ).model_dump()
 
     def _build_disambiguation_result(self, query: str, candidates: list[CandidateRow]) -> dict[str, Any]:
+        ambiguity_kind = self._classify_ambiguity(query, candidates)
+        selection_required = ambiguity_kind != "same_headword_senses"
         payload = [
             DictionaryCandidate(
                 entry_id=item.entry_id,
@@ -277,6 +281,9 @@ class Tecd3Provider:
                 part_of_speech=item.target_pos,
                 preview=item.preview_text,
                 entry_kind=item.entry_kind,  # type: ignore[arg-type]
+                match_kind=item.match_kind,
+                lookup_type=item.lookup_type,  # type: ignore[arg-type]
+                candidate_kind=self._classify_candidate_kind(query, item),  # type: ignore[arg-type]
             )
             for item in candidates
         ]
@@ -284,8 +291,53 @@ class Tecd3Provider:
             query=query,
             provider=self.source,
             cached=False,
+            ambiguity_kind=ambiguity_kind,  # type: ignore[arg-type]
+            selection_required=selection_required,
             candidates=payload,
         ).model_dump()
+
+    def _classify_ambiguity(self, query: str, candidates: list[CandidateRow]) -> str:
+        if not candidates:
+            return "competing_entries"
+
+        kinds = {self._classify_candidate_kind(query, item) for item in candidates}
+        if "phrase" in kinds or "fragment" in kinds:
+            return "phrase_vs_word"
+        if "proper_noun" in kinds and any(kind in kinds for kind in ("word", "variant")):
+            return "proper_vs_common"
+        if "variant" in kinds:
+            return "lemma_competing"
+
+        labels = {
+            self._normalize_candidate_label(item.lookup_label or item.target_label)
+            for item in candidates
+        }
+        if len(labels) == 1:
+            return "same_headword_senses"
+        return "competing_entries"
+
+    def _classify_candidate_kind(self, query: str, candidate: CandidateRow) -> str:
+        if candidate.lookup_type == "phrase" or candidate.match_kind in ("phrase", "phrase_template"):
+            return "phrase"
+        if candidate.entry_kind == "fragment":
+            return "fragment"
+        if self._is_proper_candidate(query, candidate):
+            return "proper_noun"
+        normalized_query = query.strip().lower()
+        if normalized_query and candidate.normalized_form.strip().lower() != normalized_query:
+            return "variant"
+        return "word"
+
+    def _is_proper_candidate(self, query: str, candidate: CandidateRow) -> bool:
+        pos = (candidate.target_pos or "").strip().lower()
+        if pos in PROPER_NOUN_POS:
+            return True
+        label = (candidate.lookup_label or candidate.target_label).strip()
+        normalized_query = query.strip()
+        return normalized_query == normalized_query.lower() and label != label.lower()
+
+    def _normalize_candidate_label(self, label: str) -> str:
+        return label.strip().lower()
 
     def _parse_meanings(self, entry: EntryRow) -> list[DictionaryMeaning]:
         return [

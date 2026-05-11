@@ -39,6 +39,9 @@ export interface DictCandidateDto {
   part_of_speech: string | null
   preview: string | null
   entry_kind: 'entry' | 'fragment'
+  match_kind?: string
+  lookup_type?: 'word' | 'phrase'
+  candidate_kind?: 'word' | 'phrase' | 'proper_noun' | 'variant' | 'fragment'
 }
 
 interface DictResponseBaseDto {
@@ -55,6 +58,8 @@ export interface DictEntryResultDto extends DictResponseBaseDto {
 
 export interface DictDisambiguationResultDto extends DictResponseBaseDto {
   result_type: 'disambiguation'
+  ambiguity_kind?: 'same_headword_senses' | 'phrase_vs_word' | 'proper_vs_common' | 'lemma_competing' | 'competing_entries'
+  selection_required?: boolean
   candidates: DictCandidateDto[]
 }
 

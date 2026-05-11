@@ -57,7 +57,12 @@ function mapDisambiguationResult(dto: DictDisambiguationResultDto): DictionaryDi
       partOfSpeech: item.part_of_speech ?? undefined,
       preview: item.preview ?? undefined,
       entryKind: item.entry_kind,
+      matchKind: item.match_kind,
+      lookupType: item.lookup_type,
+      candidateKind: item.candidate_kind,
     })),
+    ambiguityKind: dto.ambiguity_kind,
+    selectionRequired: dto.selection_required,
   }
 }
 

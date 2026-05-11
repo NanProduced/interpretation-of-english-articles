@@ -1,8 +1,8 @@
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { AnyInlineMarkModel, type VisualTone, type AcademicVisualTone, type InlineGlossary, type AcademicInlineGlossary, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
-import { fetchDict, fetchDictEntry } from '../../services/api/client'
+import { AnyInlineMarkModel, type VisualTone, type AcademicVisualTone, type InlineGlossary, type AcademicInlineGlossary, type DictionaryEntryPayload, type DictionaryDisambiguationResult, type DictionaryResult } from '../../types/view/render-scene.vm'
+import { ApiError, fetchDict, fetchDictEntry } from '../../services/api/client'
 import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
 import { getDictCache, setDictCache, getEntryCache, setEntryCache } from '../../services/dictCache'
 import { filterExamTags } from '../../config/purpose'
@@ -36,7 +36,8 @@ interface WordPopupProps {
 
 type HeightTier = 'compact' | 'standard' | 'rich' | 'expanded'
 type DictTab = 'meanings' | 'phrases' | 'examples'
-type SheetMode = 'answer' | 'dictionary' | 'entry_picker' | 'not_found'
+type SheetMode = 'answer' | 'dictionary' | 'entry_picker' | 'not_found' | 'lookup_error'
+type DictionaryLookupErrorKind = 'network' | 'server' | 'unknown'
 
 interface DefinitionLine {
   text: string
@@ -47,6 +48,13 @@ interface DefinitionLine {
 interface ExamplePair {
   example: string
   exampleTranslation?: string
+}
+
+interface DictionaryLookupError {
+  kind: DictionaryLookupErrorKind
+  title: string
+  message: string
+  miniMessage: string
 }
 
 interface MeaningGroup {
@@ -113,7 +121,51 @@ const MINI_LABEL_MAP: Record<string, string> = {
   logic: '逻辑',
 }
 
+function isBlockingDisambiguation(result: DictionaryResult | null | undefined): result is DictionaryDisambiguationResult {
+  return result?.resultType === 'disambiguation' && result.selectionRequired !== false
+}
+
+function isSoftDisambiguation(result: DictionaryResult | null | undefined): result is DictionaryDisambiguationResult {
+  return result?.resultType === 'disambiguation' && result.selectionRequired === false
+}
+
+function getDisambiguationMiniMeaning(result: DictionaryResult | null | undefined): string | undefined {
+  if (!isSoftDisambiguation(result)) return undefined
+  const first = result.candidates[0]
+  if (!first) return undefined
+  if (first.preview) return cleanMeaningText(first.preview)
+  return first.label ? `可先查看 ${first.label}` : undefined
+}
+
 const PROPER_NOUN_POS = new Set(['pn', 'propn', 'proper_noun', 'proper noun', '专名', '专有名词'])
+
+function classifyLookupError(error: unknown): DictionaryLookupError {
+  if (error instanceof ApiError) {
+    if (error.statusCode === 0 || error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') {
+      return {
+        kind: 'network',
+        title: '网络连接异常',
+        message: '暂时无法连接词典服务，请检查网络后再试。',
+        miniMessage: '网络异常，稍后重试',
+      }
+    }
+    if (error.statusCode >= 500) {
+      return {
+        kind: 'server',
+        title: '词典服务暂不可用',
+        message: '服务端查询失败，请稍后重试；这不是词库未收录。',
+        miniMessage: '词典服务暂不可用',
+      }
+    }
+  }
+
+  return {
+    kind: 'unknown',
+    title: '查询失败',
+    message: '暂时无法完成词典查询，请稍后重试。',
+    miniMessage: '查询失败，稍后重试',
+  }
+}
 
 function cleanMeaningText(text: string): string {
   return text
@@ -287,7 +339,7 @@ function WordLookupSlip({
   const headword = entry?.word || lookupText
 
   return (
-    <View className='word-popup-overlay mini-overlay' onClick={onClose}>
+    <View className='word-popup-overlay mini-overlay' onClick={onClose} onTouchMove={onClose}>
       <View
         className={`mini-word-card ${isLLMAnnotated ? 'is-ai' : ''} ${isFlipped ? 'is-flipped' : ''}`}
         style={popupStyle}
@@ -328,7 +380,7 @@ function WordLookupSlip({
                   className={`mini-def ${isLLMAnnotated ? 'is-ai-def' : ''}`} 
                   numberOfLines={2}
                 >
-                  {miniMeaning || (isDisambiguationResult ? '多个义项，点击查看' : '暂未找到稳定释义，查看上下文')}
+                  {miniMeaning || (isDisambiguationResult ? '找到多个词条，点开选择' : '暂未找到稳定释义，查看上下文')}
                 </Text>
               </View>
             )}
@@ -360,6 +412,8 @@ function WordLookupSlip({
 function DictionaryNoteSheet({
   lookupText,
   dictResult,
+  softDisambiguation,
+  lookupError,
   loading,
   glossary,
   mark,
@@ -379,6 +433,8 @@ function DictionaryNoteSheet({
 }: {
   lookupText: string
   dictResult: DictionaryResult | null
+  softDisambiguation: DictionaryDisambiguationResult | null
+  lookupError: DictionaryLookupError | null
   loading: boolean
   glossary: InlineGlossary | AcademicInlineGlossary | undefined
   mark: AnyInlineMarkModel | null
@@ -397,7 +453,7 @@ function DictionaryNoteSheet({
   renderContextExcerpt: () => React.ReactNode
 }) {
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
-  const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
+  const isDisambiguationResult = isBlockingDisambiguation(dictResult)
   const isEntryResult = dictResult?.resultType === 'entry'
   const isNotFoundResult = dictResult?.resultType === 'not_found'
   const hasGlossary = !!glossary
@@ -410,20 +466,24 @@ function DictionaryNoteSheet({
   const isDictionaryMode = sheetMode === 'dictionary'
   const isEntryPickerMode = sheetMode === 'entry_picker'
   const isNotFoundMode = sheetMode === 'not_found'
+  const isLookupErrorMode = sheetMode === 'lookup_error'
   const canExpandSheet = sheetMode === 'answer' && isEntryResult
 
   const heightTier: HeightTier = useMemo(() => {
     if (isDictionaryMode) return 'expanded'
     if (isEntryPickerMode) return 'standard'
     if (loading) return 'compact'
+    if (isLookupErrorMode) return 'compact'
     if (isNotFoundMode) return 'compact'
     if (!entry) return 'compact'
     if (hasGlossary || contextSentence) return 'standard'
     return 'compact'
-  }, [entry, loading, contextSentence, hasGlossary, isDictionaryMode, isEntryPickerMode, isNotFoundMode])
+  }, [entry, loading, contextSentence, hasGlossary, isDictionaryMode, isEntryPickerMode, isNotFoundMode, isLookupErrorMode])
 
   useEffect(() => {
-    if (dictResult?.resultType === 'disambiguation') {
+    if (lookupError && !hasGlossary) {
+      setSheetMode('lookup_error')
+    } else if (isBlockingDisambiguation(dictResult)) {
       setSheetMode('entry_picker')
     } else if (dictResult?.resultType === 'not_found') {
       setSheetMode('not_found')
@@ -432,9 +492,9 @@ function DictionaryNoteSheet({
     }
     setDragY(0)
     lastDeltaYRef.current = 0
-  }, [lookupText, dictResult?.resultType])
+  }, [lookupText, dictResult?.resultType, lookupError, hasGlossary])
 
-  const showSaveAction = !!(isEntryResult && entry && entry.id > 0 && !isEntryPickerMode && !isNotFoundMode)
+  const showSaveAction = !!(isEntryResult && entry && entry.id > 0 && !isEntryPickerMode && !isNotFoundMode && !isLookupErrorMode)
   const sheetMetrics = useMemo(() => {
     const windowInfo = Taro.getWindowInfo()
     const windowHeight = windowInfo.windowHeight || 667
@@ -493,9 +553,17 @@ function DictionaryNoteSheet({
     lastDeltaYRef.current = 0
   }
 
-  const primaryAnswer = getPrimaryAnswer(entry, glossary, professionalLabel)
+  const softCandidate = isSoftDisambiguation(dictResult) ? dictResult.candidates[0] : undefined
+  const primaryAnswer: PrimaryAnswer = softCandidate && !entry
+    ? {
+      label: '常用释义',
+      text: cleanMeaningText(softCandidate.preview || softCandidate.label),
+      confidence: 'dictionary',
+    }
+    : getPrimaryAnswer(entry, glossary, professionalLabel)
   const answerGroups = buildMeaningGroups(entry, false)
   const detailGroups = buildMeaningGroups(entry, true)
+  const showContextAnswer = primaryAnswer.confidence === 'context' || primaryAnswer.confidence === 'phrase'
   const hasDictionaryTabs = isEntryResult && entry && ((entry.phrases?.length || 0) > 0 || (entry.examples?.length || 0) > 0)
   const shouldShowExpandDictionary = isEntryResult && entry && sheetMode === 'answer' && (
     entry.meanings.length > 1 ||
@@ -514,6 +582,7 @@ function DictionaryNoteSheet({
       return 0
     })
     : []
+  const alternativeCandidates = softDisambiguation?.candidates.filter((candidate) => candidate.entryId !== entry?.id) ?? []
 
   const renderDictionaryTabs = () => {
     if (!isEntryResult || !entry || !hasDictionaryTabs) return null
@@ -639,7 +708,16 @@ function DictionaryNoteSheet({
                   </View>
                 )}
                 {sortedCandidates.map((candidate) => {
-                  const isProper = isLikelyProperCandidate(candidate, lookupText)
+                  const isProper = candidate.candidateKind === 'proper_noun' || isLikelyProperCandidate(candidate, lookupText)
+                  const kindCopy = candidate.candidateKind === 'phrase'
+                    ? '短语'
+                    : candidate.candidateKind === 'variant'
+                      ? '变形'
+                      : candidate.candidateKind === 'fragment'
+                        ? '片段词条'
+                        : isProper
+                          ? '专名词条'
+                          : '普通词'
                   return (
                     <View
                       key={candidate.entryId}
@@ -653,7 +731,7 @@ function DictionaryNoteSheet({
                         <View className='candidate-title-row'>
                           <Text className='candidate-label'>{candidate.label}</Text>
                           {candidate.partOfSpeech && <Text className='candidate-pos'>{candidate.partOfSpeech}</Text>}
-                          <Text className='candidate-kind'>{isProper ? '专名词条' : '普通词'}</Text>
+                          <Text className='candidate-kind'>{kindCopy}</Text>
                         </View>
                         {candidate.preview && <View className='candidate-preview'>{candidate.preview}</View>}
                       </View>
@@ -662,6 +740,15 @@ function DictionaryNoteSheet({
                   )
                 })}
               </View>
+            </View>
+          ) : isLookupErrorMode && lookupError ? (
+            <View className={`not-found-panel lookup-error-panel is-${lookupError.kind}`}>
+              <View className='answer-kicker'>
+                <Text>词典查询</Text>
+              </View>
+              <Text className='not-found-title'>{lookupError.title}</Text>
+              <Text className='not-found-copy'>{lookupError.message}</Text>
+              {contextSentence && renderContextExcerpt()}
             </View>
           ) : isNotFoundMode ? (
             <View className='not-found-panel'>
@@ -674,11 +761,13 @@ function DictionaryNoteSheet({
             </View>
           ) : isDictionaryMode ? (
             <>
-              <View className='context-hint-row' onClick={collapseDictionary}>
-                <Text className='context-hint-label'>{primaryAnswer.label}</Text>
-                <Text className='context-hint-text' numberOfLines={1}>{primaryAnswer.text}</Text>
-                <LucideIcon name='chevronDown' size={14} color='var(--reader-muted)' />
-              </View>
+              {showContextAnswer && (
+                <View className='context-hint-row' onClick={collapseDictionary}>
+                  <Text className='context-hint-label'>{primaryAnswer.label}</Text>
+                  <Text className='context-hint-text' numberOfLines={1}>{primaryAnswer.text}</Text>
+                  <LucideIcon name='chevronDown' size={14} color='var(--reader-muted)' />
+                </View>
+              )}
               <View className='dict-section is-detail'>
                 <View className='detail-tabs-row'>
                   {renderDictionaryTabs()}
@@ -718,15 +807,17 @@ function DictionaryNoteSheet({
             </>
           ) : (
             <>
-              <View className='answer-panel'>
-                <View className='answer-kicker'>
-                  <AnnotationGlyph type={mark?.visualTone as any || 'context'} size='sm' state='active' />
-                  <Text>{primaryAnswer.label}</Text>
+              {showContextAnswer && (
+                <View className='answer-panel'>
+                  <View className='answer-kicker'>
+                    <AnnotationGlyph type={mark?.visualTone as any || 'context'} size='sm' state='active' />
+                    <Text>{primaryAnswer.label}</Text>
+                  </View>
+                  <Text className='answer-text'>{primaryAnswer.text}</Text>
+                  {primaryAnswer.detail && <Text className='answer-detail'>{primaryAnswer.detail}</Text>}
+                  {contextSentence && renderContextExcerpt()}
                 </View>
-                <Text className='answer-text'>{primaryAnswer.text}</Text>
-                {primaryAnswer.detail && <Text className='answer-detail'>{primaryAnswer.detail}</Text>}
-                {contextSentence && renderContextExcerpt()}
-              </View>
+              )}
 
               <View className='dict-section is-compact'>
                 <View className='section-title-row'>
@@ -749,10 +840,28 @@ function DictionaryNoteSheet({
                         <LucideIcon name='chevronUp' size={16} color='var(--reader-muted)' />
                       </View>
                     )}
+                    {alternativeCandidates.length > 0 && (
+                      <View className='alternate-senses'>
+                        <Text className='alternate-senses-title'>其他义项</Text>
+                        {alternativeCandidates.slice(0, 3).map((candidate) => (
+                          <View
+                            key={candidate.entryId}
+                            className='alternate-sense-row'
+                            onClick={() => onSelectEntry?.(candidate.entryId)}
+                          >
+                            <View className='alternate-sense-main'>
+                              <Text className='alternate-sense-label'>{candidate.label}</Text>
+                              {candidate.partOfSpeech && <Text className='alternate-sense-pos'>{candidate.partOfSpeech}</Text>}
+                            </View>
+                            {candidate.preview && <Text className='alternate-sense-preview' numberOfLines={1}>{candidate.preview}</Text>}
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </View>
-                ) : !loading && (
+                ) : !loading && !softCandidate && (
                   <View className='popup-empty-state'>
-                    <Text className='empty-text'>{isNotFoundResult ? '本地词库暂未收录' : '未找到词条释义'}</Text>
+                    <Text className='empty-text'>{lookupError ? lookupError.message : (isNotFoundResult ? '本地词库暂未收录' : '未找到词条释义')}</Text>
                   </View>
                 )}
               </View>
@@ -781,6 +890,8 @@ export default function WordPopup({
   cloudId, isSaved = false, savedMasteryStatus, savedSourceRefs, currentSentenceId, onClose, onExpand, onAddVocab,
 }: WordPopupProps) {
   const [dictResult, setDictResult] = useState<DictionaryResult | null>(null)
+  const [softDisambiguation, setSoftDisambiguation] = useState<DictionaryDisambiguationResult | null>(null)
+  const [lookupError, setLookupError] = useState<DictionaryLookupError | null>(null)
   const [loading, setLoading] = useState(false)
   const [screenWidth, setScreenWidth] = useState(375)
   const [screenHeight, setScreenHeight] = useState(667)
@@ -804,7 +915,7 @@ export default function WordPopup({
 
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
   const notFoundMessage = dictResult?.resultType === 'not_found' ? '本地词库暂未收录' : undefined
-  const miniMeaning = glossary?.zh || (isLearningGlossary(glossary) ? glossary.gloss : undefined) || notFoundMessage || getEntrySummary(entry)
+  const miniMeaning = glossary?.zh || (isLearningGlossary(glossary) ? glossary.gloss : undefined) || notFoundMessage || lookupError?.miniMessage || getEntrySummary(entry) || getDisambiguationMiniMeaning(dictResult)
   const isLLMAnnotated = !!glossary
 
   const renderContextExcerpt = () => {
@@ -829,6 +940,8 @@ export default function WordPopup({
   useEffect(() => {
     if (!visible) {
       setDictResult(null)
+      setSoftDisambiguation(null)
+      setLookupError(null)
       return
     }
     if (!lookupText) return
@@ -851,26 +964,39 @@ export default function WordPopup({
     }
   }, [dictResult, activeTab, entry])
 
+  useEffect(() => {
+    if (!visible || mode !== 'full' || !isSoftDisambiguation(dictResult) || loading) return
+    const firstCandidate = dictResult.candidates[0]
+    if (!firstCandidate) return
+    void fetchEntryDetail(firstCandidate.entryId)
+  }, [visible, mode, dictResult, loading])
+
   const fetchDictionary = async (text: string, version: number) => {
     const type = text.trim().includes(' ') ? 'phrase' : 'word'
     const cached = getDictCache(text, type, contextSentence, occurrence)
     if (cached) {
       setDictResult(cached)
+      setSoftDisambiguation(null)
+      setLookupError(null)
       setLoading(false)
       return
     }
     setLoading(true)
     setDictResult(null)
+    setLookupError(null)
     try {
       const dto = await fetchDict(text, type, contextSentence, occurrence)
       if (version !== fetchVersionRef.current) return
       const vm = dictResponseDtoToVm(dto)
       setDictResult(vm)
+      setSoftDisambiguation(isSoftDisambiguation(vm) ? vm : null)
+      setLookupError(null)
       setDictCache(text, type, vm, contextSentence, occurrence)
     } catch (err) {
       if (version !== fetchVersionRef.current) return
-      console.error('[dict] fetch error', err)
       setDictResult(null)
+      setSoftDisambiguation(null)
+      setLookupError(classifyLookupError(err))
     } finally {
       if (version === fetchVersionRef.current) {
         setLoading(false)
@@ -882,18 +1008,21 @@ export default function WordPopup({
     const cached = getEntryCache(entryId)
     if (cached) {
       setDictResult(cached)
+      setLookupError(null)
       if (expand) onExpand?.()
       return
     }
     setLoading(true)
+    setLookupError(null)
     try {
       const dto = await fetchDictEntry(entryId)
       const vm = dictResponseDtoToVm(dto)
       setDictResult(vm)
+      setLookupError(null)
       setEntryCache(entryId, vm)
       if (expand) onExpand?.()
-    } catch {
-      Taro.showToast({ title: '词条详情获取失败', icon: 'none' })
+    } catch (err) {
+      setLookupError(classifyLookupError(err))
     } finally {
       setLoading(false)
     }
@@ -901,7 +1030,7 @@ export default function WordPopup({
 
   if (!visible) return null
 
-  const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
+  const isDisambiguationResult = isBlockingDisambiguation(dictResult)
 
   if (mode === 'mini') {
     return (
@@ -933,6 +1062,8 @@ export default function WordPopup({
       <DictionaryNoteSheet
         lookupText={lookupText}
         dictResult={dictResult}
+        softDisambiguation={softDisambiguation}
+        lookupError={lookupError}
         loading={loading}
         glossary={glossary}
         mark={mark}

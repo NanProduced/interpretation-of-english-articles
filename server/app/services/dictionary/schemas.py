@@ -60,6 +60,12 @@ class DictionaryCandidate(BaseModel):
     part_of_speech: str | None = Field(default=None, description="候选词性")
     preview: str | None = Field(default=None, description="候选预览")
     entry_kind: Literal["entry", "fragment"] = Field(description="候选词条类型")
+    match_kind: str = Field(default="headword", description="命中类型，如 headword / phrase / redirect / nlp")
+    lookup_type: Literal["word", "phrase"] = Field(default="word", description="查询目标类型")
+    candidate_kind: Literal["word", "phrase", "proper_noun", "variant", "fragment"] = Field(
+        default="word",
+        description="用于前端展示和消歧策略的候选类型",
+    )
 
 
 class DictionaryResultBase(BaseModel):
@@ -76,6 +82,14 @@ class DictionaryEntryResult(DictionaryResultBase):
 
 class DictionaryDisambiguationResult(DictionaryResultBase):
     result_type: Literal["disambiguation"] = "disambiguation"
+    ambiguity_kind: Literal[
+        "same_headword_senses",
+        "phrase_vs_word",
+        "proper_vs_common",
+        "lemma_competing",
+        "competing_entries",
+    ] = Field(default="competing_entries", description="多候选歧义类型")
+    selection_required: bool = Field(default=True, description="是否必须让用户先选择候选")
     candidates: list[DictionaryCandidate] = Field(default_factory=list, description="候选词条列表")
 
 

@@ -81,9 +81,13 @@ export function useResultActions(deps: ActionDeps) {
   }
 
   const handleScroll = () => {
-    if (wordPopup.visible && wordPopup.mode === 'mini') {
-      handleClosePopup()
-    }
+    setWordPopup((prev) => {
+      if (!prev.visible || prev.mode !== 'mini') return prev
+      setActiveMarkId(null)
+      setSelectedWord(null)
+      setActiveSentenceId(null)
+      return { ...prev, visible: false }
+    })
   }
 
   const handleToggleFavorite = async () => {

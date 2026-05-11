@@ -256,6 +256,9 @@ export interface DictionaryCandidate {
   partOfSpeech?: string
   preview?: string
   entryKind: 'entry' | 'fragment'
+  matchKind?: string
+  lookupType?: 'word' | 'phrase'
+  candidateKind?: 'word' | 'phrase' | 'proper_noun' | 'variant' | 'fragment'
 }
 
 interface DictionaryResultBase {
@@ -272,6 +275,8 @@ export interface DictionaryEntryResult extends DictionaryResultBase {
 
 export interface DictionaryDisambiguationResult extends DictionaryResultBase {
   resultType: 'disambiguation'
+  ambiguityKind?: 'same_headword_senses' | 'phrase_vs_word' | 'proper_vs_common' | 'lemma_competing' | 'competing_entries'
+  selectionRequired?: boolean
   candidates: DictionaryCandidate[]
 }
 

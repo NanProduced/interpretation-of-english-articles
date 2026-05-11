@@ -506,3 +506,45 @@ class TestPhaseSortPriority:
 
             assert result["result_type"] == "entry"
             assert result["entry"]["word"] == "north"
+
+    @pytest.mark.asyncio
+    async def test_same_headword_disambiguation_does_not_require_selection(self, provider: Tecd3Provider) -> None:
+        """同词头多词性属于低风险多义，前端可先展示首候选释义。"""
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup:
+            mock_lookup.return_value = [
+                _word_candidate(800, "most", rank=1, normalized_form="most", target_pos="adj."),
+                _word_candidate(801, "most", rank=2, normalized_form="most", target_pos="adv."),
+            ]
+
+            result = await provider.fetch(
+                DictionaryLookupRequest(query="most", query_type="word")
+            )
+
+            assert result["result_type"] == "disambiguation"
+            assert result["ambiguity_kind"] == "same_headword_senses"
+            assert result["selection_required"] is False
+            assert [c["candidate_kind"] for c in result["candidates"]] == ["word", "word"]
+
+    @pytest.mark.asyncio
+    async def test_phrase_vs_word_disambiguation_requires_selection(self, provider: Tecd3Provider) -> None:
+        """短语与单词竞争时仍应显式选择，避免误保存错误词条。"""
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup:
+            mock_lookup.return_value = [
+                _phrase_candidate(810, "take off"),
+                _word_candidate(811, "off", rank=2, normalized_form="off", target_pos="adv."),
+            ]
+
+            result = await provider.fetch(
+                DictionaryLookupRequest(query="off", query_type="word")
+            )
+
+            assert result["result_type"] == "disambiguation"
+            assert result["ambiguity_kind"] == "phrase_vs_word"
+            assert result["selection_required"] is True
+            assert "phrase" in {c["candidate_kind"] for c in result["candidates"]}

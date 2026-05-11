@@ -425,11 +425,31 @@ MDX 转 PostgreSQL 的释义不能原样倾倒到 UI。前端至少需要一层 
 
 ## P2 — 中优先级
 
-### P2-1：disambiguation mini 状态还可以更明确 ⏳ 待优化
+### P2-1：低风险多义不应阻塞阅读流 ✅ 已修复，待真机样例复核
 
-- **文件**: `client/src/components/WordPopup/index.tsx`
-- **现状**: mini 文案为“多个义项，点击查看”
-- **评审结论**: mini 保持轻量；full sheet 中优化候选列表 UI，突出词性、预览和可选择性
+- **文件**:
+  - `server/app/services/dictionary/schemas.py`
+  - `server/app/services/dictionary/providers/tecd3.py`
+  - `client/src/components/WordPopup/index.tsx`
+  - `client/src/types/api/dict-response.dto.ts`
+  - `client/src/types/view/render-scene.vm.ts`
+  - `client/src/services/api/adapters/dict.adapter.ts`
+- **现状**: `game`、`million`、`most` 这类简单词常因同词头多 POS / 多义项返回 `disambiguation`，mini 只显示“多个义项，点击查看”，用户必须二次操作才能看到基础释义。
+- **问题**: 这把低风险多义误当成阻塞式消歧，破坏点词查询的阅读流。用户点普通词时首先需要可用答案，而不是先做词典候选选择。
+- **评审结论**:
+  - 同词头多义 / 多词性属于低风险多义，mini 应直接展示首候选预览或常用释义；full sheet 自动进入普通答案流。
+  - 短语 vs 单词、lemma 竞争、普通词 vs 专名等才需要 `entry_picker` 阻塞选择。
+  - 后端应下发机器可读的 `ambiguity_kind` / `selection_required` / `candidate_kind`，前端不再仅靠 label 大小写猜测候选类型。
+- **已实现方向**:
+  - 后端 `DictionaryDisambiguationResult` 增加 `ambiguity_kind` 与 `selection_required`。
+  - 后端候选增加 `match_kind` / `lookup_type` / `candidate_kind`。
+  - 前端 mini 对 `selection_required=false` 的 disambiguation 直接展示首候选 `preview`。
+  - full sheet 对非阻塞 disambiguation 自动加载首候选 entry，并保留“其他义项”轻入口。
+- **待验证样例**:
+  - `game`：mini 直接给出常用释义，不显示“多个义项，点击查看”。
+  - `million`：mini 直接给出“百万 / 一百万”类释义。
+  - `most`：mini 直接给出首义，full sheet 可查看 adj./adv. 其他义项。
+  - `off` in `take off`：仍允许短语优先或进入明确候选选择，不误当普通低风险多义。
 
 ### P2-2：词典数据质量需要建立抽样回归集 ⏳ 待补充
 
@@ -457,13 +477,20 @@ MDX 转 PostgreSQL 的释义不能原样倾倒到 UI。前端至少需要一层 
 - **短期处理**: `WordPopup` 展示层仅按导入拼接符 `\uFF1B` 保守拆分，最多展示 2 条；中英数量不一致时不强行配对。
 - **长期建议**: 将 `DictionaryMeaningDefinition` 扩展为 `examples: [{ example, example_translation }]`，导入时保留 `<li class="eg">` 级别结构；API 兼容旧 `example` 字段，完成历史数据重导或回填后再切换前端使用结构化数组。
 
-### P2-3：`dict_redirects` 运行时使用路径需复查 ⏳ 待确认
+### P2-3：`dict_redirects` 运行时使用路径需复查 ✅ 已确认
 
 - **文件**:
   - `server/app/services/dictionary/db_pg.py`
   - `server/app/services/dictionary/providers/tecd3.py`
+  - `server/scripts/import_tecd3.py`
+  - `server/scripts/backfill_fragment_redirects.py`
+  - `docs/architecture/dictionary-service-architecture.md`
 - **现状**: 运行时主要查 `dict_lookup_targets`；`dict_redirects` 是否仅作为导入/补齐辅助需进一步确认
-- **建议**: 明确 `dict_redirects` 的运行时职责。若不直接查询，应在架构文档中说明 redirect 已物化到 lookup targets
+- **确认结论**:
+  - `/dict` 运行时只查 `dict_lookup_targets` join `dict_entries`，不直接读取 `dict_redirects`。
+  - TECD3 导入和 fragment redirect 补齐阶段会把 redirect 同步写入 `dict_lookup_targets`，`match_kind = redirect`。
+  - `dict_redirects` 当前职责是离线导入审计 / 重建辅助表，不是 runtime 查询表。
+- **处理**: 已更新架构文档，明确 redirect 已物化到 lookup targets；运行时代码无需调整。
 
 ### P2-4：结果页回原文定位需要真机/开发者工具验证 ⏳ 待验证
 
@@ -501,13 +528,13 @@ MDX 转 PostgreSQL 的释义不能原样倾倒到 UI。前端至少需要一层 
 - **修复**: 新增 distinct source article 统计，`N 篇` 仅按不同 `cloudRecordId/clientRecordId` 计算；“还有 N 个语境”继续按 source refs 计算
 - **验证**: `client/node_modules/.bin/tsc.cmd -p client/tsconfig.json --noEmit` 通过
 
-### P3-3：词典 not found / network fail 的 mini 与 sheet 状态可更细 ⏳ 部分修复
+### P3-3：词典 not found / network fail 的 mini 与 sheet 状态可更细 ✅ 已修复
 
 - **文件**: `client/src/components/WordPopup/index.tsx`
 - **现状**: 异常后 `dictResult=null`，文案偏笼统
 - **建议**: 区分 404、网络失败、服务不可用；mini 给轻提示，full sheet 提供反馈入口
 - **已修复**: `/dict` 查询未命中改为正常 200 响应，返回 `result_type=not_found` 与 `reason=not_in_dictionary` 机器可读状态；前端 adapter/VM 已支持 `not_found`，并在本地映射空态提示文案。
-- **仍待优化**: 网络失败、词典服务不可用等非业务 miss 状态仍需单独 UI
+- **已补充**: 前端新增本地 `lookup_error` 状态，区分网络/超时、服务端 5xx、未知失败；mini 与 full sheet 不再把非业务失败误显示为“词库未收录”。
 
 ---
 
@@ -564,3 +591,5 @@ MDX 转 PostgreSQL 的释义不能原样倾倒到 UI。前端至少需要一层 
 | 2026-05-11 | P1-3 UI polish | 按评审优先级优化 `WordPopup`：详情态取消固定 88vh，释义 tab 不再混入长例句，清理旧 `stage-detail/context/disambiguation` 样式层，反馈与关闭按钮改为轻量圆形触控 |
 | 2026-05-11 | P1-3 correction | 修正过度降级：详情释义页恢复每组最多 2 条搭配例句，同时将 dictionary sheet 上限收敛到约 68% 视口，避免例句态接近全屏 |
 | 2026-05-11 | P1-3/P2-2a | 前端释义内例句增加保守拆分，仅按导入拼接符 `\uFF1B` 分行展示；后端导入侧结构化 `definition.examples[]` 修复纳入后续数据质量任务 |
+| 2026-05-11 | P3-3 | 前端补充 `lookup_error` 状态，网络/超时、服务端失败与 `not_found` 分离；mini 与 full sheet 使用不同提示，避免把服务失败误判为词库未收录 |
+| 2026-05-11 | P2-1 | 后端为 disambiguation 增加 `ambiguity_kind` / `selection_required` / `candidate_kind`；前端对低风险同词头多义直接展示首候选释义并自动进入普通答案流，真消歧仍使用候选选择 |
