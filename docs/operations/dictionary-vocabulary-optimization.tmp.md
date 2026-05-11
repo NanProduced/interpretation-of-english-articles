@@ -593,3 +593,4 @@ MDX 转 PostgreSQL 的释义不能原样倾倒到 UI。前端至少需要一层 
 | 2026-05-11 | P1-3/P2-2a | 前端释义内例句增加保守拆分，仅按导入拼接符 `\uFF1B` 分行展示；后端导入侧结构化 `definition.examples[]` 修复纳入后续数据质量任务 |
 | 2026-05-11 | P3-3 | 前端补充 `lookup_error` 状态，网络/超时、服务端失败与 `not_found` 分离；mini 与 full sheet 使用不同提示，避免把服务失败误判为词库未收录 |
 | 2026-05-11 | P2-1 | 后端为 disambiguation 增加 `ambiguity_kind` / `selection_required` / `candidate_kind`；前端对低风险同词头多义直接展示首候选释义并自动进入普通答案流，真消歧仍使用候选选择 |
+| 2026-05-11 | P2-3 | 确认 `dict_redirects` 不在 runtime 直接查询；redirect 已在导入/补齐阶段物化到 `dict_lookup_targets(match_kind=redirect)`，并更新架构文档说明 |

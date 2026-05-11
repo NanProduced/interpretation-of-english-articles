@@ -28,6 +28,7 @@ const KEYS = {
   VOCAB_IDS: 'vocab_ids',
   VOCAB_ENTRY: (id: string) => `vocab_entry_${id}`,
   VOCAB_LEMMA_INDEX: 'vocab_lemma_index',
+  VOCAB_INSPECT_ENTRY: 'vocab_inspect_entry',
   USER_PREF: 'user_preferences',
   RECORD_IDENTITY_MAP: 'record_identity_map',
   SYNC_QUEUE: 'sync_queue',
@@ -200,6 +201,24 @@ export function isFavorited(recordId: string): boolean {
 // ============ Vocabulary (sharded) ============
 
 const SOURCE_REFS_MAX = 20
+const FIRST_REVIEW_DELAY_MS = 24 * 60 * 60 * 1000
+
+function _initialReviewPatch(entry: VocabEntry): Partial<VocabEntry> {
+  if (entry.mastered || entry.masteryStatus === 'mastered') {
+    return {
+      masteryStatus: 'mastered',
+      reviewStage: entry.reviewStage ?? 0,
+      nextReviewAt: entry.nextReviewAt,
+      reviewCount: entry.reviewCount ?? 0,
+    }
+  }
+  return {
+    masteryStatus: entry.masteryStatus || 'new',
+    reviewStage: entry.reviewStage ?? 0,
+    nextReviewAt: entry.nextReviewAt || new Date(Date.now() + FIRST_REVIEW_DELAY_MS).toISOString(),
+    reviewCount: entry.reviewCount ?? 0,
+  }
+}
 
 function _getVocabIds(): string[] {
   try {
@@ -304,6 +323,7 @@ export function saveVocabEntry(entry: VocabEntry): SaveVocabResult {
 
     const newEntry: VocabEntry = {
       ...entry,
+      ..._initialReviewPatch(entry),
       sourceRefs: entry.sourceRefs || [],
       collectedForms: entry.collectedForms || (entry.word ? [entry.word] : []),
     }
@@ -421,6 +441,23 @@ export function getVocabEntryByLemma(lemma: string): VocabEntry | null {
   const entry = _getVocabEntry(id)
   if (!entry || entry.tombstone) return null
   return entry
+}
+
+export function saveVocabInspectEntry(entry: VocabEntry): void {
+  try {
+    Taro.setStorageSync(KEYS.VOCAB_INSPECT_ENTRY, entry)
+  } catch (e) {
+    console.error('[storage] saveVocabInspectEntry failed', e)
+  }
+}
+
+export function getVocabInspectEntry(): VocabEntry | null {
+  try {
+    return Taro.getStorageSync<VocabEntry>(KEYS.VOCAB_INSPECT_ENTRY) || null
+  } catch (e) {
+    console.error('[storage] getVocabInspectEntry failed', e)
+    return null
+  }
 }
 
 export function getVocabEntryByLookupForm(form: string): VocabEntry | null {

@@ -49,6 +49,15 @@ interface VocabularyUpsertDto {
   updated_at: string
 }
 
+interface ReviewResultDto {
+  vocab_id: string
+  lemma: string
+  stage: number
+  next_review_at: string | null
+  mastery_status: string
+  review_count: number
+}
+
 function parseSourceRefs(payload: Record<string, unknown> | undefined): SourceRef[] {
   if (!payload?.source_refs || !Array.isArray(payload.source_refs)) return []
   return payload.source_refs.map((ref: { client_record_id?: string; cloud_record_id?: string; source_sentence?: string; source_context?: string; source_sentence_id?: string; source_anchor_text?: string; source_occurrence?: number; collected_at?: string }) => ({
@@ -92,6 +101,8 @@ function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
     ? (payload as Record<string, unknown>).detail_examples as Array<{ example: string; exampleTranslation?: string }>
     : undefined
 
+  const review = (payload as Record<string, any>).review as { stage?: number; next_review_at?: string; last_result?: string; last_reviewed_at?: string } | undefined
+
   return {
     id: dto.id,
     word: dto.display_word,
@@ -101,6 +112,11 @@ function dtoToVm(dto: VocabularyResponseDto): VocabEntry {
     meaning: dto.short_meaning,
     addedAt: new Date(dto.created_at).getTime(),
     mastered: dto.mastery_status === 'mastered',
+    masteryStatus: dto.mastery_status,
+    reviewStage: review?.stage,
+    nextReviewAt: review?.next_review_at,
+    reviewCount: dto.review_count,
+    lastReviewedAt: dto.last_reviewed_at || review?.last_reviewed_at || undefined,
     dictEntryId: dto.dict_entry_id ?? undefined,
     detailMeanings,
     detailPhrases,
@@ -243,4 +259,35 @@ export async function fetchVocabHighlights(
     occurrence: m.occurrence,
     masteryStatus: m.mastery_status,
   }))
+}
+
+export async function fetchDueVocabulary(limit = 20): Promise<{ items: VocabEntry[]; total: number }> {
+  const res = await request<VocabularyListDto>({ url: `/vocabulary/review/due?limit=${limit}` })
+  return {
+    items: res.items.map(dtoToVm),
+    total: res.total,
+  }
+}
+
+export async function submitVocabReview(vocabId: string, result: 'known' | 'unfamiliar'): Promise<{
+  vocabId: string
+  lemma: string
+  stage: number
+  nextReviewAt?: string
+  masteryStatus: string
+  reviewCount: number
+}> {
+  const res = await request<ReviewResultDto>({
+    url: `/vocabulary/${vocabId}/review`,
+    method: 'POST',
+    data: { result },
+  })
+  return {
+    vocabId: res.vocab_id,
+    lemma: res.lemma,
+    stage: res.stage,
+    nextReviewAt: res.next_review_at || undefined,
+    masteryStatus: res.mastery_status,
+    reviewCount: res.review_count,
+  }
 }

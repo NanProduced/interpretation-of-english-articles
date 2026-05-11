@@ -8,7 +8,7 @@ Upsert merges source_refs and collected_forms on conflict instead of overwriting
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -16,6 +16,11 @@ from app.database import connection as db_connection
 from app.schemas.user_assets.vocabulary import VocabularyPayload
 
 SOURCE_REFS_MAX = 20
+
+# Spaced repetition intervals in days, indexed by stage.
+# stage 0 → 1 day, stage 1 → 3 days, ..., stage 4 → 30 days.
+# stage >= 5 means mastered; no more reviews scheduled.
+REVIEW_INTERVALS: list[int] = [1, 3, 7, 14, 30]
 
 
 def _merge_payload_on_conflict(
@@ -74,6 +79,36 @@ def _merge_payload_on_conflict(
         merged["audio_url"] = incoming.audio_url
 
     return merged
+
+
+def _compute_next_review_at(stage: int) -> str | None:
+    """
+    根据 stage 计算下次复习时间。
+
+    stage >= len(REVIEW_INTERVALS) 时返回 None（已掌握）。
+    """
+    if stage >= len(REVIEW_INTERVALS):
+        return None
+    next_dt = datetime.now(UTC) + timedelta(days=REVIEW_INTERVALS[stage])
+    return next_dt.isoformat()
+
+
+def _ensure_review_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """
+    确保 payload_json 包含 review 子结构。
+
+    新词初始化时调用：stage=0，next_review_at=明天。
+    如果已有 review 字段则不覆盖。
+    """
+    if "review" in payload and payload["review"]:
+        return payload
+    payload["review"] = {
+        "stage": 0,
+        "next_review_at": _compute_next_review_at(0),
+        "last_result": None,
+        "last_reviewed_at": None,
+    }
+    return payload
 
 
 async def upsert_vocabulary(
@@ -137,6 +172,9 @@ async def upsert_vocabulary(
                 )
             else:
                 merged_payload = payload_json
+
+            # Ensure review scheduling data is present for both new and legacy entries.
+            merged_payload = _ensure_review_payload(merged_payload)
 
             row = await conn.fetchrow(
                 """
@@ -464,3 +502,135 @@ async def find_vocab_highlights(
         return []
 
     return _match_tokens_against_vocab(sentences, lemma_map)
+
+
+async def get_due_vocabulary(
+    user_id: UUID,
+    limit: int = 20,
+) -> list[dict]:
+    """
+    获取待复习的生词列表（next_review_at <= now）。
+
+    在数据库层用 JSONB 提取 payload_json.review.next_review_at 进行比较。
+    """
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    now_iso = datetime.now(UTC).isoformat()
+
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT v.id, v.user_id, v.lemma, v.display_word, v.phonetic, v.part_of_speech,
+                   v.short_meaning, v.meanings_json, v.tags, v.exchange, v.source_provider,
+                   v.dict_entry_id, v.source_sentence, v.source_context,
+                   v.mastery_status, v.review_count, v.last_reviewed_at,
+                   v.payload_json, v.created_at, v.updated_at
+            FROM vocabulary_book v
+            WHERE v.user_id = $1
+              AND v.mastery_status != 'mastered'
+              AND (
+                v.payload_json IS NULL
+                OR (v.payload_json::jsonb -> 'review') IS NULL
+                OR (v.payload_json::jsonb -> 'review' ->> 'next_review_at') IS NULL
+                OR (v.payload_json::jsonb -> 'review' ->> 'next_review_at') <= $2
+              )
+            ORDER BY COALESCE(
+              v.payload_json::jsonb -> 'review' ->> 'next_review_at',
+              v.created_at::text
+            ) ASC
+            LIMIT $3
+            """,
+            user_id,
+            now_iso,
+            limit,
+        )
+
+    return [dict(row) for row in rows]
+
+
+async def submit_review(
+    user_id: UUID,
+    vocab_id: UUID,
+    result: str,
+) -> dict | None:
+    """
+    提交复习结果并更新调度数据。
+
+    result:
+        - "known":  stage + 1，间隔递进，stage >= 5 时 mastery_status = mastered
+        - "unfamiliar": stage 重置为 0，next_review_at = 明天
+
+    Returns:
+        更新后的完整 row dict，或者 None（不存在）。
+    """
+    pool = db_connection.DB_POOL
+    if pool is None:
+        raise RuntimeError("Database pool not initialized")
+
+    now = datetime.now(UTC)
+    now_iso = now.isoformat()
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                """
+                SELECT id, lemma, mastery_status, review_count, payload_json
+                FROM vocabulary_book
+                WHERE id = $1 AND user_id = $2
+                FOR UPDATE
+                """,
+                vocab_id,
+                user_id,
+            )
+            if row is None:
+                return None
+
+            payload_raw = row["payload_json"]
+            payload = json.loads(payload_raw) if payload_raw else {}
+            review = payload.get("review", {})
+            current_stage = review.get("stage", 0)
+            review_count = (row["review_count"] or 0) + 1
+
+            if result == "known":
+                new_stage = current_stage + 1
+                if new_stage >= len(REVIEW_INTERVALS):
+                    mastery_status = "mastered"
+                    next_review_at = None
+                else:
+                    mastery_status = row["mastery_status"]
+                    if mastery_status == "new":
+                        mastery_status = "learning"
+                    next_review_at = _compute_next_review_at(new_stage)
+            else:  # unfamiliar
+                new_stage = 0
+                mastery_status = "learning"
+                next_review_at = _compute_next_review_at(0)
+
+            payload["review"] = {
+                "stage": new_stage,
+                "next_review_at": next_review_at,
+                "last_result": result,
+                "last_reviewed_at": now_iso,
+            }
+
+            await conn.execute(
+                """
+                UPDATE vocabulary_book
+                SET payload_json   = $1,
+                    mastery_status = $2,
+                    review_count   = $3,
+                    last_reviewed_at = $4,
+                    updated_at     = $4
+                WHERE id = $5 AND user_id = $6
+                """,
+                json.dumps(payload),
+                mastery_status,
+                review_count,
+                now,
+                vocab_id,
+                user_id,
+            )
+
+    return await get_vocabulary_by_id(user_id, vocab_id)

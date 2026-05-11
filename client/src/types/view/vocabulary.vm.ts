@@ -49,6 +49,17 @@ export interface VocabEntry {
   /** 是否已掌握 */
   mastered: boolean
 
+  /** 掌握状态 */
+  masteryStatus?: string
+  /** 复习阶段 */
+  reviewStage?: number
+  /** 下次复习时间 */
+  nextReviewAt?: string
+  /** 复习次数 */
+  reviewCount?: number
+  /** 上次复习时间 */
+  lastReviewedAt?: string
+
   /** 词典词条稳定引用 ID（用于按需加载完整词条） */
   dictEntryId?: number
   /** 音标 */

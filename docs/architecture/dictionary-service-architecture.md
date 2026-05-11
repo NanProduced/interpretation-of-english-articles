@@ -70,7 +70,9 @@ dict_entries / dict_lookup_targets / dict_redirects
 |---|---|
 | `dict_entries` | 词条详情真源（词头、音标、义项、例句、短语、原始 HTML） |
 | `dict_lookup_targets` | 可查形式 → 词条的检索索引 |
-| `dict_redirects` | MDX 跳转、归一化别名等重定向关系 |
+| `dict_redirects` | MDX 跳转、归一化别名等重定向关系，作为离线导入审计与重建辅助表 |
+
+运行时 `/dict` 查询不直接读取 `dict_redirects`。TECD3 导入和 fragment redirect 补齐阶段会把 redirect 关系物化到 `dict_lookup_targets`，并使用 `match_kind = redirect` 标识命中来源。因此 runtime 查询路径只需要读取 `dict_lookup_targets` join `dict_entries`。
 
 ### 3.2 `dict_lookup_targets` 字段
 

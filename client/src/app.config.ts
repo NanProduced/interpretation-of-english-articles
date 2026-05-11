@@ -10,6 +10,7 @@ export default {
       pages: [
         'history/index',
         'vocab/index',
+        'vocab-review/index',
         'excerpts/index',
         'profile/index',
         'credit-detail/index',

@@ -7,7 +7,8 @@ Defines request/response Pydantic models for /vocabulary endpoints.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from enum import Enum
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -30,12 +31,31 @@ class SourceRef(BaseModel):
     collected_at: str | None = Field(default=None)
 
 
+class ReviewPayload(BaseModel):
+    """复习调度数据，嵌入 payload_json.review。"""
+
+    stage: int = Field(default=0, ge=0, description="当前复习阶段 (0-5)")
+    next_review_at: str | None = Field(
+        default=None,
+        description="下次复习时间 ISO-8601 字符串",
+    )
+    last_result: str | None = Field(
+        default=None,
+        description="上次复习结果: known / unfamiliar",
+    )
+    last_reviewed_at: str | None = Field(
+        default=None,
+        description="上次复习时间 ISO-8601 字符串",
+    )
+
+
 class VocabularyPayload(BaseModel):
     """payload_json 的结构化模型，便于类型安全地读写扩展元数据。"""
 
     source_refs: list[SourceRef] = Field(default_factory=list)
     collected_forms: list[str] = Field(default_factory=list)
     audio_url: str | None = Field(default=None, max_length=512)
+    review: ReviewPayload | None = Field(default=None)
 
     model_config = ConfigDict(extra="allow")
 
@@ -125,6 +145,35 @@ class VocabularyDeleteResponse(BaseModel):
     """DELETE /vocabulary/{vocab_id} — result."""
 
     deleted: bool
+
+
+# ---------------------------------------------------------------------------
+# Review Models
+# ---------------------------------------------------------------------------
+
+
+class ReviewResultEnum(str, Enum):
+    """复习动作枚举。"""
+
+    known = "known"
+    unfamiliar = "unfamiliar"
+
+
+class ReviewSubmitRequest(BaseModel):
+    """POST /vocabulary/{vocab_id}/review — 提交复习结果。"""
+
+    result: ReviewResultEnum
+
+
+class ReviewResultResponse(BaseModel):
+    """POST /vocabulary/{vocab_id}/review — 返回更新后的复习状态。"""
+
+    vocab_id: UUID
+    lemma: str
+    stage: int
+    next_review_at: str | None
+    mastery_status: str
+    review_count: int
 
 
 # ---------------------------------------------------------------------------

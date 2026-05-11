@@ -20,6 +20,15 @@ interface VocabDetailViewProps {
 
 type DictTab = 'meanings' | 'phrases' | 'examples'
 
+function getNotebookStatus(entry: VocabEntry): string {
+  if (entry.mastered || entry.masteryStatus === 'mastered') return '已掌握'
+  if (!entry.nextReviewAt) return '待复习'
+  const next = new Date(entry.nextReviewAt).getTime()
+  if (next <= Date.now()) return '今日复习'
+  const diffDays = Math.ceil((next - Date.now()) / (24 * 60 * 60 * 1000))
+  return `${diffDays}天后复习`
+}
+
 export default function VocabDetailView({
   visible,
   entry,
@@ -139,7 +148,6 @@ export default function VocabDetailView({
   if (!visible || !entry) return null
 
   const sourceRefs = entry.sourceRefs || []
-  const collectedForms = entry.collectedForms || []
   const displayMeanings: DictionaryMeaning[] =
     dictEntry?.meanings ||
     entry.detailMeanings ||
@@ -151,6 +159,7 @@ export default function VocabDetailView({
 
   const hasPhrases = displayPhrases.length > 0
   const hasExamples = displayExamples.length > 0
+  const previewMeanings = displayMeanings.slice(0, 2)
 
   return (
     <View className='vocab-detail-overlay' onClick={onClose}>
@@ -159,10 +168,14 @@ export default function VocabDetailView({
 
         <ScrollView className='detail-scroll-content' scrollY enhanced showScrollbar={false}>
 
-          {/* Hero */}
           <View className='detail-hero'>
             <View className='word-title-row'>
-              <Text className='hero-word'>{entry.word}</Text>
+              <View className='hero-word-block'>
+                <Text className='hero-word'>{entry.word}</Text>
+                <Text className={`review-pill ${entry.mastered || entry.masteryStatus === 'mastered' ? 'mastered' : ''}`}>
+                  {getNotebookStatus(entry)}
+                </Text>
+              </View>
               <View className='hero-actions'>
                 {audioUrl && (
                   <View className='action-btn audio-btn' onClick={playAudio}>
@@ -184,32 +197,12 @@ export default function VocabDetailView({
               </View>
             )}
 
-            {collectedForms.length > 0 && (
-              <View className='hero-collected-forms'>
-                <Text className='forms-label'>收藏形态:</Text>
-                {collectedForms.map(f => (
-                  <Text key={f} className='form-tag'>{f}</Text>
-                ))}
-              </View>
-            )}
-
-            {((entry.tags && entry.tags.length > 0) || (entry.exchange && entry.exchange.length > 0)) && (
-              <View className='hero-tags'>
-                {entry.tags?.map(t => (
-                  <Text key={t} className='tag outline-tag'>{t}</Text>
-                ))}
-                {entry.exchange?.map(e => (
-                  <Text key={e} className='tag gray-tag'>{e}</Text>
-                ))}
-              </View>
-            )}
           </View>
 
-          {/* Context Section */}
           {sourceRefs.length > 0 && (
             <View className='context-section'>
               <View className='section-header'>
-                <Text className='section-label'>语境来源</Text>
+                <Text className='section-label'>收藏语境</Text>
                 {sourceRefs.length > 1 && (
                   <Text className='context-counter'>{contextIndex + 1}/{sourceRefs.length}</Text>
                 )}
@@ -270,7 +263,7 @@ export default function VocabDetailView({
           {/* Fallback: single sentence (old data without sourceRefs) */}
           {!sourceRefs.length && entry.sentence && (
             <View className='memory-hook-section'>
-              <Text className='section-label'>来源原文</Text>
+              <Text className='section-label'>收藏语境</Text>
               <View className='memory-box'>
                 <Text className='memory-sentence'>"{entry.sentence}"</Text>
               </View>
@@ -279,7 +272,7 @@ export default function VocabDetailView({
 
           {/* Dictionary Section */}
           <View className='dictionary-section'>
-            <Text className='section-label'>词典释义</Text>
+            <Text className='section-label'>简明释义</Text>
 
             {(hasPhrases || hasExamples) && (
               <View className='dict-tabs'>
@@ -314,13 +307,13 @@ export default function VocabDetailView({
               </View>
             ) : dictTab === 'meanings' ? (
               <View className='meanings-list'>
-                {displayMeanings.length > 0 ? displayMeanings.map((m, idx) => (
+                {previewMeanings.length > 0 ? previewMeanings.map((m, idx) => (
                   <View key={idx} className='meaning-group'>
                     <View className='pos-badge'>
                       <Text className='pos-text'>{m.partOfSpeech}</Text>
                     </View>
                     <View className='definitions'>
-                      {m.definitions.map((def, dIdx) => (
+                      {m.definitions.slice(0, 3).map((def, dIdx) => (
                         <View key={dIdx} className='def-item'>
                           <Text className='def-text'>
                             {m.definitions.length > 1 ? `${dIdx + 1}. ` : ''}{def.meaning}
@@ -330,6 +323,9 @@ export default function VocabDetailView({
                           )}
                         </View>
                       ))}
+                      {m.definitions.length > 3 && (
+                        <Text className='more-defs'>还有 {m.definitions.length - 3} 条释义</Text>
+                      )}
                     </View>
                   </View>
                 )) : (
@@ -377,7 +373,7 @@ export default function VocabDetailView({
             className={`footer-btn mastery-btn ${entry.mastered ? 'is-mastered' : ''}`}
             onClick={() => onToggleMastery?.(entry)}
           >
-            <LucideIcon name='checkCircle2' size={20} color={entry.mastered ? 'var(--color-success)' : 'var(--text-main)'} />
+            <LucideIcon name='check-circle' size={20} color={entry.mastered ? 'var(--color-success)' : 'var(--text-main)'} />
             <Text>{entry.mastered ? '已掌握' : '标为已掌握'}</Text>
           </View>
 

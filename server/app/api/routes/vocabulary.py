@@ -9,6 +9,8 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.user_assets.vocabulary import (
+    ReviewResultResponse,
+    ReviewSubmitRequest,
     VocabHighlightsRequest,
     VocabHighlightsResponse,
     VocabMatchItem,
@@ -146,6 +148,63 @@ async def get_vocab_highlights(
         )
     except Exception as e:
         logger.error("get_vocab_highlights failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+@router.get("/review/due", response_model=VocabularyListResponse, summary="待复习生词")
+async def get_due_vocabulary(
+    current_user: AuthUserDep,
+    limit: int = Query(default=20, ge=1, le=100),
+) -> VocabularyListResponse:
+    """获取当前用户待复习的生词列表（next_review_at <= now）。"""
+    try:
+        items = await vocab_svc.get_due_vocabulary(
+            user_id=UUID(current_user.user_id),
+            limit=limit,
+        )
+        return VocabularyListResponse(
+            items=[_vocab_row_to_response(row) for row in items],
+            total=len(items),
+            page=1,
+            limit=limit,
+        )
+    except Exception as e:
+        logger.error("get_due_vocabulary failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+@router.post("/{vocab_id}/review", response_model=ReviewResultResponse, summary="提交复习结果")
+async def submit_vocab_review(
+    current_user: AuthUserDep,
+    vocab_id: UUID,
+    body: ReviewSubmitRequest,
+) -> ReviewResultResponse:
+    """提交单词复习结果（known / unfamiliar），更新调度数据。"""
+    try:
+        updated = await vocab_svc.submit_review(
+            user_id=UUID(current_user.user_id),
+            vocab_id=vocab_id,
+            result=body.result.value,
+        )
+        if updated is None:
+            raise HTTPException(status_code=404, detail="Vocabulary entry not found")
+
+        payload_raw = updated.get("payload_json")
+        payload = json.loads(payload_raw) if isinstance(payload_raw, str) else (payload_raw or {})
+        review = payload.get("review", {})
+
+        return ReviewResultResponse(
+            vocab_id=updated["id"],
+            lemma=updated["lemma"],
+            stage=review.get("stage", 0),
+            next_review_at=review.get("next_review_at"),
+            mastery_status=updated["mastery_status"],
+            review_count=updated.get("review_count", 0),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("submit_vocab_review failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 

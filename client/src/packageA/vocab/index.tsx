@@ -2,7 +2,7 @@
  * 生词本页面
  *
  * 展示用户收藏的单词列表，支持搜索、筛选和云端同步。
- * 点击单词弹出详情视图。
+ * 点击单词进入生词笔记视图。
  */
 
 import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
@@ -11,14 +11,13 @@ import { ROUTES } from '../../config/routes'
 import type { InputEvent, StopPropagationEvent } from '../../types/taro-events'
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAuthStore } from '../../stores/auth'
-import { getVocabulary, removeVocabEntry, updateVocabEntry } from '../../services/storage'
+import { getVocabulary, removeVocabEntry, saveVocabInspectEntry } from '../../services/storage'
 import { CloudSyncService } from '../../services/cloudSync.service'
 import { fetchCloudVocabulary } from '../../services/api/vocabulary.client'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import { track } from '../../services/analytics'
 import NavBar from '../../components/NavBar'
 import TabBar from '../../components/TabBar'
-import VocabDetailView from '../../components/VocabDetailView'
 import LucideIcon from '../../components/LucideIcon'
 import { useLayoutStore } from '../../stores/layout'
 import emptyVocabImg from '../../assets/illustrations/empty-vocab.jpg'
@@ -29,13 +28,11 @@ interface VocabPageProps {
 }
 
 type SortMode = 'time' | 'alpha'
-type FilterStatus = 'all' | 'new' | 'learning' | 'mastered'
+type FilterStatus = 'all' | 'due'
 
 const FILTER_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'all', label: '全部' },
-  { value: 'new', label: '新词' },
-  { value: 'learning', label: '学习中' },
-  { value: 'mastered', label: '已掌握' },
+  { value: 'due', label: '待复习' },
 ]
 
 import { formatDate } from '../../utils/formatDate'
@@ -77,7 +74,12 @@ function mergeVocabCloudWithLocal(cloudItems: VocabEntry[], localItems: VocabEnt
     const mergedCollectedForms = (local.collectedForms?.length || 0) >= (cloud.collectedForms?.length || 0) ? local.collectedForms : cloud.collectedForms
     result.push({
       ...cloud,
-      mastered: local.mastered !== cloud.mastered ? local.mastered : cloud.mastered,
+      mastered: cloud.mastered,
+      masteryStatus: cloud.masteryStatus,
+      reviewStage: cloud.reviewStage,
+      nextReviewAt: cloud.nextReviewAt,
+      reviewCount: cloud.reviewCount,
+      lastReviewedAt: cloud.lastReviewedAt,
       sourceRefs: mergedSourceRefs,
       collectedForms: mergedCollectedForms,
       sentence: local.sentence || cloud.sentence,
@@ -96,12 +98,20 @@ function mergeVocabCloudWithLocal(cloudItems: VocabEntry[], localItems: VocabEnt
   return result
 }
 
-function getMasteryStatus(entry: VocabEntry): string {
-  if (entry.mastered) return 'mastered'
-  const age = Date.now() - entry.addedAt
-  const oneDay = 24 * 60 * 60 * 1000
-  if (age < 7 * oneDay) return 'new'
-  return 'learning'
+function isDue(entry: VocabEntry): boolean {
+  if (entry.mastered || entry.masteryStatus === 'mastered') return false
+  if (!entry.nextReviewAt) return true
+  return new Date(entry.nextReviewAt).getTime() <= Date.now()
+}
+
+function getReviewStatusText(entry: VocabEntry): string {
+  if (entry.mastered || entry.masteryStatus === 'mastered') return '已掌握'
+  if (!entry.nextReviewAt) return '待复习'
+  const next = new Date(entry.nextReviewAt).getTime()
+  const now = Date.now()
+  if (next <= now) return '今天'
+  const diffDays = Math.ceil((next - now) / (24 * 60 * 60 * 1000))
+  return `${diffDays}天后`
 }
 
 function getSourceArticleCount(entry: VocabEntry): number {
@@ -117,7 +127,6 @@ function getSourceArticleCount(entry: VocabEntry): number {
 export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const [vocabList, setVocabList] = useState<VocabEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [popupEntry, setPopupEntry] = useState<VocabEntry | null>(null)
   const { navBarHeight } = useLayoutStore()
   const loadVocabRef = useRef<() => Promise<void>>()
 
@@ -125,8 +134,9 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [sortMode, setSortMode] = useState<SortMode>('time')
-  const [showFilterPanel, setShowFilterPanel] = useState(false)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const dueCount = useMemo(() => vocabList.filter(isDue).length, [vocabList])
 
   const loadVocab = useCallback(async () => {
     setLoading(true)
@@ -202,8 +212,8 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
       })
     }
 
-    if (filterStatus !== 'all') {
-      list = list.filter((v) => getMasteryStatus(v) === filterStatus)
+    if (filterStatus === 'due') {
+      list = list.filter((v) => isDue(v))
     }
 
     if (sortMode === 'alpha') {
@@ -219,7 +229,6 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     let url = `${ROUTES.RESULT}?recordId=${recordId}&mode=replay`
     if (sentenceId) url += `&sentenceId=${sentenceId}`
     Taro.navigateTo({ url })
-    if (popupEntry) setPopupEntry(null)
   }
 
   const handleDelete = (entry: VocabEntry, e: StopPropagationEvent) => {
@@ -240,24 +249,15 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
     })
   }
 
-  const handleToggleMastery = (entry: VocabEntry) => {
-    const newMastered = !entry.mastered
-    const newStatus = newMastered ? 'mastered' : 'learning'
-
-    updateVocabEntry(entry.id, { mastered: newMastered })
-
-    setVocabList(prev => prev.map(v => v.id === entry.id ? { ...v, mastered: newMastered } : v))
-    if (popupEntry && popupEntry.id === entry.id) {
-      setPopupEntry({ ...popupEntry, mastered: newMastered })
-    }
-
-    CloudSyncService.syncVocabMastery(entry.id, newStatus, entry.lemma || entry.word)
-
-    Taro.showToast({ title: newMastered ? '已标记掌握' : '已取消掌握', icon: 'success' })
-  }
-
   const goToInput = () => {
     Taro.navigateTo({ url: ROUTES.INPUT })
+  }
+
+  const openVocabInspect = (entry: VocabEntry) => {
+    saveVocabInspectEntry(entry)
+    Taro.navigateTo({
+      url: `${ROUTES.VOCAB_REVIEW}?mode=inspect&vocabId=${encodeURIComponent(entry.id)}`,
+    })
   }
 
   const handleSearchInput = (e: InputEvent) => {
@@ -292,46 +292,38 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
             </View>
           )}
         </View>
-        <View
-          className={`filter-btn ${showFilterPanel ? 'active' : ''}`}
-          onClick={() => setShowFilterPanel(!showFilterPanel)}
-        >
-          <LucideIcon name='slidersHorizontal' size={18} color={showFilterPanel ? 'var(--color-ink)' : 'var(--text-sub)'} />
+      </View>
+
+      <View className='vocab-control-strip'>
+        <View className='status-segment'>
+          {FILTER_OPTIONS.map(opt => (
+            <View
+              key={opt.value}
+              className={`status-option ${filterStatus === opt.value ? 'active' : ''}`}
+              onClick={() => setFilterStatus(opt.value)}
+            >
+              <Text>{opt.label}</Text>
+              {opt.value === 'due' && dueCount > 0 && <Text className='option-count'>{dueCount}</Text>}
+            </View>
+          ))}
+        </View>
+        <View className='sort-pill' onClick={() => setSortMode(sortMode === 'time' ? 'alpha' : 'time')}>
+          <Text>{sortMode === 'time' ? '最近收藏' : '按字母'}</Text>
+          <LucideIcon name='chevronDown' size={14} color='var(--text-muted)' />
         </View>
       </View>
 
-      {showFilterPanel && (
-        <View className='filter-panel'>
-          <View className='filter-row'>
-            <Text className='filter-label'>状态</Text>
-            <View className='filter-chips'>
-              {FILTER_OPTIONS.map(opt => (
-                <View
-                  key={opt.value}
-                  className={`filter-chip ${filterStatus === opt.value ? 'active' : ''}`}
-                  onClick={() => setFilterStatus(opt.value)}
-                >
-                  <Text>{opt.label}</Text>
-                </View>
-              ))}
+      {dueCount > 0 && !debouncedQuery && filterStatus === 'all' && (
+        <View className='due-review-banner'>
+          <View className='banner-copy'>
+            <View className='banner-title-row'>
+              <LucideIcon name='calendar' size={16} color='var(--text-main)' />
+              <Text className='banner-title'>今日待复习</Text>
             </View>
+            <Text className='banner-desc'>{dueCount} 个词，预计 {Math.max(1, Math.ceil(dueCount * 0.5))} 分钟</Text>
           </View>
-          <View className='filter-row'>
-            <Text className='filter-label'>排序</Text>
-            <View className='filter-chips'>
-              <View
-                className={`filter-chip ${sortMode === 'time' ? 'active' : ''}`}
-                onClick={() => setSortMode('time')}
-              >
-                <Text>按时间</Text>
-              </View>
-              <View
-                className={`filter-chip ${sortMode === 'alpha' ? 'active' : ''}`}
-                onClick={() => setSortMode('alpha')}
-              >
-                <Text>按字母</Text>
-              </View>
-            </View>
+          <View className='start-btn' onClick={() => Taro.navigateTo({ url: ROUTES.VOCAB_REVIEW })}>
+            <Text>开始复习</Text>
           </View>
         </View>
       )}
@@ -354,8 +346,8 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
         ) : filteredList.length === 0 ? (
           <View className='empty-state'>
             <Image className='empty-illustration' src={emptyVocabImg} mode='aspectFit' />
-            <Text className='empty-text'>{debouncedQuery ? '未找到匹配的生词' : '暂无生词'}</Text>
-            {!debouncedQuery && (
+            <Text className='empty-text'>{debouncedQuery ? '未找到匹配的生词' : (filterStatus === 'due' ? '今日无需复习' : '暂无生词')}</Text>
+            {!debouncedQuery && filterStatus === 'all' && (
               <View className='empty-action' onClick={goToInput}>
                 <Text className='empty-sub'>去读一篇文章，记下不认识的词吧 →</Text>
               </View>
@@ -372,10 +364,10 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
                 key={entry.id}
                 className='vocab-card'
                 style={{
-                  animation: `slideInUp 0.6s var(--ease-spring) both`,
-                  animationDelay: `${index * 0.05}s`
+                  animation: `vocabFadeIn 180ms ease-out both`,
+                  animationDelay: `${Math.min(index, 6) * 0.02}s`
                 }}
-                onClick={() => setPopupEntry(entry)}
+                onClick={() => openVocabInspect(entry)}
               >
                 <View className='card-header'>
                   <View className='word-group'>
@@ -388,14 +380,11 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
                     {sourceArticleCount > 1 && (
                       <Text className='source-count-badge'>{sourceArticleCount} 篇</Text>
                     )}
-                    {entry.mastered && (
-                      <Text className='mastered-tag'>已掌握</Text>
-                    )}
-                    <View
-                      className='delete-btn'
-                      onClick={(e) => handleDelete(entry, e)}
-                    >
-                      <LucideIcon name='trash2' size={18} color='var(--text-muted)' />
+                    <Text className={`review-status-tag ${entry.mastered || entry.masteryStatus === 'mastered' ? 'mastered' : 'pending'}`}>
+                      {getReviewStatusText(entry)}
+                    </Text>
+                    <View className='delete-btn' onClick={(e) => handleDelete(entry, e)}>
+                      <LucideIcon name='trash2' size={16} color='var(--text-muted)' />
                     </View>
                   </View>
                 </View>
@@ -432,14 +421,6 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
       </ScrollView>
 
       {!isSubView && <TabBar current='profile' />}
-
-      <VocabDetailView
-        visible={!!popupEntry}
-        entry={popupEntry}
-        onClose={() => setPopupEntry(null)}
-        onGoToResult={goToResult}
-        onToggleMastery={handleToggleMastery}
-      />
     </View>
   )
 }
