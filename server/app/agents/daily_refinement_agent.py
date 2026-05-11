@@ -19,6 +19,14 @@ from app.services.analysis.prompting.daily_prompt_strategy import (
 )
 from app.services.analysis.prompting.prompt_loader import load_agent_instructions
 
+# Refinement receives original text, review issues, and current drafts together.
+# These caps keep the prompt bounded while preserving enough local context for
+# targeted fixes identified by the review agent.
+MAX_REFINEMENT_ORIGINAL_TEXT_CHARS = 4000
+MAX_REFINEMENT_HIGHLIGHTS_CHARS = 8000
+MAX_REFINEMENT_PARAGRAPH_NOTES_CHARS = 9000
+MAX_REFINEMENT_TAKEAWAYS_CHARS = 3000
+
 
 @dataclass
 class DailyRefinementAgentDeps:
@@ -35,15 +43,15 @@ def build_daily_refinement_prompt(deps: DailyRefinementAgentDeps) -> str:
 
     sections = build_daily_prompt_sections(deps.prompt_strategy)
     all_sections = list(sections) + [
-        PromptSection("original_text", (deps.original_text[:4000],)),
+        PromptSection("original_text", (deps.original_text[:MAX_REFINEMENT_ORIGINAL_TEXT_CHARS],)),
         PromptSection("review_issues", (deps.review_issues,)),
     ]
     if deps.current_highlights:
-        all_sections.append(PromptSection("current_highlights", (deps.current_highlights[:12000],)))
+        all_sections.append(PromptSection("current_highlights", (deps.current_highlights[:MAX_REFINEMENT_HIGHLIGHTS_CHARS],)))
     if deps.current_paragraph_notes:
-        all_sections.append(PromptSection("current_paragraph_notes", (deps.current_paragraph_notes[:3000],)))
+        all_sections.append(PromptSection("current_paragraph_notes", (deps.current_paragraph_notes[:MAX_REFINEMENT_PARAGRAPH_NOTES_CHARS],)))
     if deps.current_takeaways:
-        all_sections.append(PromptSection("current_takeaways", (deps.current_takeaways[:3000],)))
+        all_sections.append(PromptSection("current_takeaways", (deps.current_takeaways[:MAX_REFINEMENT_TAKEAWAYS_CHARS],)))
     return render_prompt_sections(all_sections)
 
 

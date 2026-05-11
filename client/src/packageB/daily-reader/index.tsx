@@ -17,6 +17,7 @@ import { CloudSyncService } from '../../services/cloudSync.service'
 import { track } from '../../services/analytics'
 import type { VocabEntry } from '../../types/view/vocabulary.vm'
 import type { FavoriteRecord } from '../../types/view/favorites.vm'
+import { getDailyReaderSourceDisplay } from '../../utils/daily-reader-source'
 import LucideIcon from '../../components/LucideIcon'
 import share01 from '../../assets/images/share/daily-reader-01.jpg'
 import share02 from '../../assets/images/share/daily-reader-02.jpg'
@@ -37,8 +38,6 @@ function pickShareImage(id: string): string {
 }
 import './index.scss'
 
-const STICKY_SHOW_THRESHOLD = 600
-const STICKY_HIDE_THRESHOLD = 480
 const SOLID_NAV_SHOW_THRESHOLD = 260
 const SOLID_NAV_HIDE_THRESHOLD = 180
 
@@ -57,11 +56,8 @@ export default function DailyReaderPage() {
   const [contextSentence, setContextSentence] = useState<string | undefined>()
   const [tapPosition, setTapPosition] = useState({ x: 0, y: 0 })
   const [favorited, setFavorited] = useState(false)
-  const [animTrigger, setAnimTrigger] = useState(0)
-  const [showStickyBar, setShowStickyBar] = useState(false)
   const [showSolidNav, setShowSolidNav] = useState(false)
   const [showHighlightHint, setShowHighlightHint] = useState(false)
-  const scrollThresholdPassed = useRef(false)
   const solidNavShown = useRef(false)
 
   useEffect(() => {
@@ -90,13 +86,6 @@ export default function DailyReaderPage() {
 
   usePageScroll((res) => {
     Taro.eventCenter.trigger('dailyReaderPageScroll', res)
-    if (res.scrollTop > STICKY_SHOW_THRESHOLD && !scrollThresholdPassed.current) {
-      scrollThresholdPassed.current = true
-      setShowStickyBar(true)
-    } else if (res.scrollTop <= STICKY_HIDE_THRESHOLD && scrollThresholdPassed.current) {
-      scrollThresholdPassed.current = false
-      setShowStickyBar(false)
-    }
     if (res.scrollTop > SOLID_NAV_SHOW_THRESHOLD && !solidNavShown.current) {
       solidNavShown.current = true
       setShowSolidNav(true)
@@ -213,7 +202,6 @@ export default function DailyReaderPage() {
   const handleFavorite = useCallback(() => {
     if (!article) return
     const isAdding = !favorited
-    setAnimTrigger(prev => prev + 1)
 
     if (isAdding) {
       saveFavorite({ recordId: article.id, cloudId: undefined, createdAt: Date.now() } as FavoriteRecord)
@@ -276,10 +264,12 @@ export default function DailyReaderPage() {
     )
   }
 
+  const sourceDisplay = getDailyReaderSourceDisplay(article.source)
+
   return (
     <View className='daily-page'>
       <NavBar
-        title={article.source}
+        title={sourceDisplay.shortName}
         showBack
         showHome
         background={showSolidNav ? 'var(--dr-bg)' : 'transparent'}
@@ -300,21 +290,20 @@ export default function DailyReaderPage() {
         sourceUrl={article.sourceUrl}
         source={article.source}
       />
-      <View className={`daily-page__sticky-bar ${showStickyBar ? 'daily-page__sticky-bar--visible' : ''}`}>
+      <View className='daily-page__end-actions'>
         <View
-          className={`daily-page__sticky-action ${favorited ? 'daily-page__sticky-action--favorited' : ''}`}
+          className={`daily-page__action-btn daily-page__action-btn--primary ${favorited ? 'daily-page__action-btn--favorited' : ''}`}
           onClick={handleFavorite}
         >
           <LucideIcon name='star' size={20} color={favorited ? 'var(--color-warning)' : 'var(--dr-text-sub)'} />
-          <Text className='daily-page__sticky-label'>{favorited ? '已收藏' : '收藏'}</Text>
+          <Text className='daily-page__action-btn-text'>{favorited ? '已收藏' : '收藏本文'}</Text>
         </View>
-        <View className='daily-page__sticky-divider' />
         <View
-          className='daily-page__sticky-action'
+          className='daily-page__action-btn daily-page__action-btn--secondary'
           onClick={() => Taro.navigateTo({ url: ROUTES.DAILY_READER_ARCHIVE })}
         >
           <LucideIcon name='clock' size={20} color='var(--dr-text-sub)' />
-          <Text className='daily-page__sticky-label'>往期</Text>
+          <Text className='daily-page__action-btn-text'>往期文章</Text>
         </View>
       </View>
       {showHighlightHint && (

@@ -19,6 +19,8 @@ content: |
 
   特别关注：
   - 如果 coverage_report 显示后半篇覆盖率低于前半篇 20% 以上，highlight_coverage 应 fail
+  - 如果 coverage_report.uncovered_required_paragraph_ids 非空，highlight_coverage 必须 fail，severity=major
+  - 如果 paragraph_notes_report.missing_paragraph_ids 非空，paragraph_notes_completeness 必须 fail，severity=major
   - 如果任何段落缺少 translation，paragraph_notes_completeness 应 fail
   - 如果 writing_moves 少于 1 个，takeaways_quantity 必须 fail，severity=major
   - 如果 discussion_questions 少于 2 个，takeaways_quantity 必须 fail，severity=major

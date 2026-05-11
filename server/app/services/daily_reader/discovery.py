@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import re
+from html import unescape
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -220,6 +221,7 @@ def _strip_html(html: str) -> str:
     text = re.sub(r"<br\s*/?>", "\n", html, flags=re.IGNORECASE)
     text = re.sub(r"</(p|h[1-6]|li|div|blockquote|section|article)>", "\n", text, flags=re.IGNORECASE)
     text = re.sub(r"<[^>]+>", "", text)
+    text = unescape(text)
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = text.strip()

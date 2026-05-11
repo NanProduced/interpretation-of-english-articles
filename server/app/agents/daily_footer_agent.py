@@ -20,6 +20,11 @@ from app.services.analysis.prompting.daily_prompt_strategy import (
 )
 from app.services.analysis.prompting.prompt_loader import load_agent_instructions
 
+# Keep the paragraph-notes prompt comfortably below small/fast model windows.
+# Full article text is only used for global context; exact paragraph text is
+# supplied separately via paragraphs_info.
+MAX_FOOTER_FULL_TEXT_CHARS = 8000
+
 
 @dataclass
 class DailyFooterAgentDeps:
@@ -38,7 +43,7 @@ def build_daily_footer_prompt(deps: DailyFooterAgentDeps) -> str:
         PromptSection("article_info", (
             f"Title: {deps.title}",
         )),
-        PromptSection("full_text", (deps.full_text[:6000],)),
+        PromptSection("full_text", (deps.full_text[:MAX_FOOTER_FULL_TEXT_CHARS],)),
     ]
     if deps.paragraphs_info:
         all_sections.append(PromptSection("paragraphs_info", (deps.paragraphs_info,)))

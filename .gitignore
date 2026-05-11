@@ -21,6 +21,7 @@ server/.cache/
 server/__pycache__/
 server/**/*.pyc
 server/logs/
+server/static/covers/
 
 # Environment files
 .env

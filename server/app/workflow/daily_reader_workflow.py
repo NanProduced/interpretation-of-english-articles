@@ -23,6 +23,7 @@ import json
 import logging
 import math
 import re
+from html import unescape
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -72,6 +73,7 @@ WORKFLOW_VERSION = "2.0.0"
 HIGHLIGHT_BATCH_SIZE = 3
 MAX_PARAGRAPH_CHARS = 900
 MAX_PARAGRAPH_SENTENCES = 8
+MIN_REQUIRED_HIGHLIGHT_CHARS = 80
 
 
 class DailyReaderState(TypedDict, total=False):
@@ -90,6 +92,8 @@ class DailyReaderState(TypedDict, total=False):
     normalized_paragraphs: list[dict]
     vocab_draft: dict | None
     highlights_json: list[dict]
+    highlight_retry_exhausted: bool
+    highlight_retry_missing_paragraph_ids: list[str]
     paragraph_notes_json: dict
     takeaways_json: dict
     review_result: dict | None
@@ -299,7 +303,7 @@ async def highlight_by_paragraph_batches_node(state: DailyReaderState) -> dict:
             usage = result.get("usage_metadata")
 
             if draft:
-                batch_highlights = _extract_highlights_from_vocab_draft(draft, batch_idx)
+                batch_highlights = _extract_highlights_from_vocab_draft(draft)
                 all_highlights.extend(batch_highlights)
                 for para in getattr(draft, "paragraphs", []):
                     all_para_drafts.append(para.model_dump() if hasattr(para, "model_dump") else para)
@@ -315,12 +319,56 @@ async def highlight_by_paragraph_batches_node(state: DailyReaderState) -> dict:
         except Exception as e:
             logger.error("highlight batch %d/%d failed: %s", batch_idx + 1, len(batches), e, exc_info=True)
 
+    missing_required = _paragraphs_requiring_highlight(paragraphs, all_highlights)
+    if missing_required:
+        try:
+            deps = DailyVocabAgentDeps(
+                paragraphs=missing_required,
+                batch_index=len(batches),
+                total_batches=len(batches) + 1,
+            )
+            prompt = build_daily_vocab_prompt(deps)
+            metadata = _build_daily_llm_metadata(
+                state,
+                node_name="highlight_required_retry",
+                route=MODEL_ROUTE_DAILY_ANNOTATION,
+                extra={
+                    "paragraph_count": len(missing_required),
+                    "missing_paragraph_ids": [p.get("paragraph_id") for p in missing_required],
+                },
+            )
+            result = await _run_daily_highlight_llm_span(
+                deps=deps,
+                prompt=prompt,
+                metadata=metadata,
+                langsmith_extra={"metadata": metadata},
+            )
+            retry_draft = result.get("output")
+            retry_usage = result.get("usage_metadata")
+            if retry_draft:
+                retry_highlights = _extract_highlights_from_vocab_draft(retry_draft)
+                all_highlights.extend(retry_highlights)
+                logger.info(
+                    "highlight required retry: %d paragraphs, %d highlights",
+                    len(missing_required), len(retry_highlights),
+                )
+            if retry_usage:
+                for k in total_usage:
+                    total_usage[k] += int(retry_usage.get(k, 0) or 0)
+        except Exception as e:
+            logger.error("highlight required retry failed: %s", e, exc_info=True)
+
+    missing_after_retry = _paragraphs_requiring_highlight(paragraphs, all_highlights)
     coverage = _check_highlight_coverage(paragraphs, all_highlights)
     logger.info("highlight coverage: %s", coverage)
 
     updates: dict[str, Any] = {
         "vocab_draft": {"paragraphs": all_para_drafts},
         "highlights_json": all_highlights,
+        "highlight_retry_exhausted": bool(missing_after_retry),
+        "highlight_retry_missing_paragraph_ids": [
+            p.get("paragraph_id", "") for p in missing_after_retry
+        ],
     }
     if total_usage["total_tokens"] > 0:
         updates["vocab_usage"] = total_usage
@@ -344,7 +392,7 @@ async def paragraph_guides_and_translations_node(state: DailyReaderState) -> dic
         paragraphs_info = _build_paragraphs_info(paragraphs)
 
         deps = DailyFooterAgentDeps(
-            full_text=_reconstruct_full_text(paragraphs),
+            full_text=_reconstruct_numbered_full_text(paragraphs),
             title=title,
             highlights_summary=highlights_summary,
             paragraphs_info=paragraphs_info,
@@ -437,6 +485,9 @@ async def quality_review_node(state: DailyReaderState) -> dict:
 
     try:
         coverage_report = _check_highlight_coverage(paragraphs, highlights)
+        coverage_report["retry_exhausted"] = bool(state.get("highlight_retry_exhausted", False))
+        coverage_report["retry_missing_paragraph_ids"] = state.get("highlight_retry_missing_paragraph_ids", [])
+        paragraph_notes_report = _check_paragraph_notes_coverage(paragraphs, paragraph_notes)
 
         deps = DailyReviewAgentDeps(
             original_text=original_text,
@@ -444,6 +495,7 @@ async def quality_review_node(state: DailyReaderState) -> dict:
             paragraph_notes_json=json.dumps(paragraph_notes, ensure_ascii=False),
             takeaways_json=json.dumps(takeaways, ensure_ascii=False),
             coverage_report=json.dumps(coverage_report, ensure_ascii=False),
+            paragraph_notes_report=json.dumps(paragraph_notes_report, ensure_ascii=False),
         )
         prompt = build_daily_review_prompt(deps)
         metadata = _build_daily_llm_metadata(
@@ -454,6 +506,7 @@ async def quality_review_node(state: DailyReaderState) -> dict:
                 "paragraph_count": len(paragraphs),
                 "highlight_count": len(highlights),
                 "coverage_ratio": coverage_report.get("coverage_ratio"),
+                "missing_note_ids": paragraph_notes_report.get("missing_paragraph_ids"),
             },
         )
 
@@ -687,6 +740,7 @@ def _split_long_paragraph(text: str) -> list[str]:
 
 def _clean_paragraph(text: str) -> str:
     text = re.sub(r"<[^>]+>", "", text)
+    text = unescape(text).replace("\u00A0", " ")
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
@@ -700,7 +754,7 @@ def _make_batches(paragraphs: list[dict], batch_size: int) -> list[list[dict]]:
     ]
 
 
-def _extract_highlights_from_vocab_draft(draft: Any, batch_idx: int = 0) -> list[dict]:
+def _extract_highlights_from_vocab_draft(draft: Any) -> list[dict]:
     if draft is None:
         return []
     highlights = []
@@ -745,6 +799,8 @@ def _check_highlight_coverage(
 
     uncovered = [pid for pid in para_ids if pid not in covered_pids]
 
+    para_map = {p.get("paragraph_id", ""): p.get("text", "") for p in paragraphs}
+
     return {
         "total_paragraphs": len(para_ids),
         "covered_paragraphs": len(covered_pids),
@@ -752,6 +808,49 @@ def _check_highlight_coverage(
         "first_half_coverage": first_covered / len(first_half) if first_half else 0.0,
         "second_half_coverage": second_covered / len(second_half) if second_half else 0.0,
         "uncovered_paragraph_ids": uncovered,
+        "uncovered_required_paragraph_ids": [
+            pid for pid in uncovered
+            if len(para_map.get(pid, "")) >= MIN_REQUIRED_HIGHLIGHT_CHARS
+        ],
+    }
+
+
+def _paragraphs_requiring_highlight(
+    paragraphs: list[dict],
+    highlights: list[dict],
+) -> list[dict]:
+    highlighted_ids = {
+        h.get("paragraph_id", "")
+        for h in highlights
+        if isinstance(h, dict)
+    }
+    return [
+        p for p in paragraphs
+        if p.get("paragraph_id", "") not in highlighted_ids
+        and len(p.get("text", "")) >= MIN_REQUIRED_HIGHLIGHT_CHARS
+    ]
+
+
+def _check_paragraph_notes_coverage(
+    paragraphs: list[dict],
+    paragraph_notes: dict,
+) -> dict[str, Any]:
+    para_ids = [p.get("paragraph_id", "") for p in paragraphs]
+    notes = paragraph_notes.get("notes", []) if isinstance(paragraph_notes, dict) else []
+    note_ids = {
+        n.get("paragraph_id", "")
+        for n in notes
+        if isinstance(n, dict)
+        and n.get("focus_question")
+        and n.get("micro_summary")
+        and n.get("translation")
+    }
+    missing = [pid for pid in para_ids if pid not in note_ids]
+    return {
+        "total_paragraphs": len(para_ids),
+        "noted_paragraphs": len(para_ids) - len(missing),
+        "coverage_ratio": (len(para_ids) - len(missing)) / len(para_ids) if para_ids else 0.0,
+        "missing_paragraph_ids": missing,
     }
 
 

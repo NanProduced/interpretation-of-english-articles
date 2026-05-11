@@ -28,6 +28,7 @@ class DailyReviewAgentDeps:
     paragraph_notes_json: str
     takeaways_json: str
     coverage_report: str = ""
+    paragraph_notes_report: str = ""
     prompt_strategy: DailyPromptStrategy = field(default_factory=build_quality_review_strategy)
 
 
@@ -43,6 +44,8 @@ def build_daily_review_prompt(deps: DailyReviewAgentDeps) -> str:
     ]
     if deps.coverage_report:
         all_sections.append(PromptSection("coverage_report", (deps.coverage_report,)))
+    if deps.paragraph_notes_report:
+        all_sections.append(PromptSection("paragraph_notes_report", (deps.paragraph_notes_report,)))
     return render_prompt_sections(all_sections)
 
 

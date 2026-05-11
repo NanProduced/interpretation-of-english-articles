@@ -19,12 +19,6 @@ const TYPE_CLASS: Record<string, string> = {
   context_gloss: 'daily-hl--context',
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  vocab_highlight: '词汇标注',
-  phrase_gloss: '短语标注',
-  context_gloss: '语境标注',
-}
-
 const DailyReaderHighlightWord = memo(function DailyReaderHighlightWord({
   highlight,
   displayText,
@@ -34,7 +28,6 @@ const DailyReaderHighlightWord = memo(function DailyReaderHighlightWord({
   onWordClick,
 }: Props) {
   const typeClass = TYPE_CLASS[highlight.type] || 'daily-hl--vocab'
-  const typeLabel = TYPE_LABEL[highlight.type] || '标注'
 
   const handleClick = (e: ITouchEvent) => {
     e.stopPropagation()
@@ -54,7 +47,6 @@ const DailyReaderHighlightWord = memo(function DailyReaderHighlightWord({
       onClick={handleClick}
     >
       {displayText || highlight.text}
-      <Text className='daily-hl__icon' aria-label={typeLabel} />
     </Text>
   )
 })

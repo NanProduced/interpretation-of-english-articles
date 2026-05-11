@@ -1,6 +1,7 @@
 import { View, Text, Image } from '@tarojs/components'
 import { memo } from 'react'
 import type { DailyReaderArticle, DailyReaderPreReadingGuide } from '../../types/view/daily-reader.vm'
+import { getDailyReaderSourceDisplay } from '../../utils/daily-reader-source'
 import defaultCover from '../../assets/covers/daily-reader-default.jpg'
 import LucideIcon from '../LucideIcon'
 import './index.scss'
@@ -19,6 +20,7 @@ const DIFFICULTY_LABELS: Record<string, string> = {
 const DailyReaderHeader = memo(function DailyReaderHeader({ article }: Props) {
   const hasCover = !!article.coverImageUrl
   const coverSrc = article.coverImageUrl || defaultCover
+  const sourceDisplay = getDailyReaderSourceDisplay(article.source)
 
   const guide: DailyReaderPreReadingGuide | undefined = article.preReadingGuide
 
@@ -39,7 +41,13 @@ const DailyReaderHeader = memo(function DailyReaderHeader({ article }: Props) {
       </View>
       <View className='daily-header__content'>
         <View className='daily-header__meta'>
-          <Text className='daily-header__source'>{article.source}</Text>
+          <Text className='daily-header__source'>{sourceDisplay.primary}</Text>
+          {sourceDisplay.localized && (
+            <>
+              <Text className='daily-header__dot'>·</Text>
+              <Text className='daily-header__source-local'>{sourceDisplay.localized}</Text>
+            </>
+          )}
           <Text className='daily-header__dot'>·</Text>
           <Text className='daily-header__date'>{article.publishDate}</Text>
         </View>
@@ -66,7 +74,7 @@ const DailyReaderHeader = memo(function DailyReaderHeader({ article }: Props) {
           <View className='daily-header__guide'>
             <View className='daily-header__guide-title-wrap'>
               <LucideIcon name='BookOpen' size={16} color='var(--dr-text-sub)' />
-              <Text className='daily-header__guide-label'>读前导读</Text>
+              <Text className='daily-header__guide-label'>读前提示</Text>
             </View>
             {guide.overview && (
               <Text className='daily-header__guide-overview'>{guide.overview}</Text>

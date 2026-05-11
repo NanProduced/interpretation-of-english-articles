@@ -1,9 +1,11 @@
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import { memo, useCallback, useState } from 'react'
 import type { DailyReaderBody as DailyReaderBodyType, DailyReaderHighlight } from '../../types/view/daily-reader.vm'
 import DailyReaderHighlightWord from '../DailyReaderHighlightWord'
 import LucideIcon from '../LucideIcon'
 import type { ClickEvent } from '../../types/taro-events'
+import clareadIcon from '../../assets/brand/claread-icon-fullcolor.png'
+import { decodeHtmlEntities } from '../../utils/html-entities'
 import './index.scss'
 
 interface Props {
@@ -63,21 +65,34 @@ const DailyReaderBody = memo(function DailyReaderBody({
         return (
           <View key={paragraph.id} className='daily-body__paragraph-container'>
             {note && (
-              <View className='daily-body__strip'>
-                <View className='daily-body__strip-header' onClick={() => toggleNote(paragraph.id)}>
-                  <View className='daily-body__strip-icon'>
-                    <LucideIcon name='Lightbulb' size={14} color='var(--dr-text-muted)' />
+              <View className={`daily-body__strip ${noteExpanded ? 'daily-body__strip--expanded' : ''}`}>
+                <View
+                  className={`daily-body__strip-header ${noteExpanded ? 'daily-body__strip-header--expanded' : ''}`}
+                  onClick={() => toggleNote(paragraph.id)}
+                >
+                  <View className='daily-body__strip-logo-wrap'>
+                    <Image className='daily-body__strip-logo' src={clareadIcon} mode='aspectFit' />
                   </View>
-                  <Text className={`daily-body__strip-question ${noteExpanded ? 'daily-body__strip-question--expanded' : ''}`}>
-                    透读：{note.focusQuestion}
-                  </Text>
-                  <View className={`daily-body__strip-toggle ${noteExpanded ? 'daily-body__strip-toggle--expanded' : ''}`}>
-                    <LucideIcon name='ChevronDown' size={16} color='var(--dr-text-muted)' />
+                  <View className='daily-body__strip-main'>
+                    <View className='daily-body__strip-label-wrap'>
+                      <Text className='daily-body__strip-label'>透读</Text>
+                      <Text className='daily-body__strip-kicker'>阅读线索</Text>
+                    </View>
+                    <Text className={`daily-body__strip-question ${noteExpanded ? 'daily-body__strip-question--expanded' : ''}`}>
+                      {note.focusQuestion}
+                    </Text>
+                  </View>
+                  <View className='daily-body__strip-action'>
+                    <Text className='daily-body__strip-action-text'>{noteExpanded ? '收起' : '展开'}</Text>
+                    <View className={`daily-body__strip-toggle ${noteExpanded ? 'daily-body__strip-toggle--expanded' : ''}`}>
+                      <LucideIcon name='ChevronDown' size={16} color='var(--dr-text-muted)' />
+                    </View>
                   </View>
                 </View>
                 {noteExpanded && (
                   <View className='daily-body__strip-content'>
-                    <Text>{note.microSummary}</Text>
+                    <Text className='daily-body__strip-content-label'>线索提示</Text>
+                    <Text className='daily-body__strip-content-text'>{note.microSummary}</Text>
                   </View>
                 )}
               </View>
@@ -92,12 +107,18 @@ const DailyReaderBody = memo(function DailyReaderBody({
             {translation && (
               <View className='daily-body__translation-section'>
                 <View className='daily-body__translation-toggle' onClick={() => toggleTranslation(paragraph.id)}>
-                  <Text className='daily-body__translation-label'>译文</Text>
-                  <LucideIcon name={transExpanded ? 'ChevronUp' : 'ChevronDown'} size={16} color='var(--dr-text-muted)' />
+                  <View className='daily-body__translation-label-wrap'>
+                    <LucideIcon name='BookOpen' size={14} color='var(--dr-text-muted)' />
+                    <Text className='daily-body__translation-label'>译文</Text>
+                  </View>
+                  <View className='daily-body__translation-action'>
+                    <Text className='daily-body__translation-action-text'>{transExpanded ? '收起' : '展开'}</Text>
+                    <LucideIcon name={transExpanded ? 'ChevronUp' : 'ChevronDown'} size={16} color='var(--dr-text-muted)' />
+                  </View>
                 </View>
                 {transExpanded && (
                   <View className='daily-body__translation-box'>
-                    <Text className='daily-body__translation-text'>{translation}</Text>
+                    <Text className='daily-body__translation-text'>{decodeHtmlEntities(translation)}</Text>
                   </View>
                 )}
               </View>
@@ -115,7 +136,7 @@ function renderParagraphWithHighlights(
   onHighlightClick?: (highlight: DailyReaderHighlight, tapPosition?: { x: number; y: number }, contextSentence?: string) => void,
   showHighlightHint?: boolean,
 ) {
-  if (!highlights.length) return text
+  if (!highlights.length) return decodeHtmlEntities(text)
 
   const sorted = [...highlights].sort((a, b) => a.start - b.start)
   const parts: React.ReactNode[] = []
@@ -128,14 +149,14 @@ function renderParagraphWithHighlights(
 
     if (start > lastEnd) {
       parts.push(
-        <Text key={`t-${idx}`}>{text.slice(lastEnd, start)}</Text>,
+        <Text key={`t-${idx}`}>{decodeHtmlEntities(text.slice(lastEnd, start))}</Text>,
       )
     }
     parts.push(
       <DailyReaderHighlightWord
         key={`hl-${hl.id}`}
         highlight={hl}
-        displayText={text.slice(start, end)}
+        displayText={decodeHtmlEntities(text.slice(start, end))}
         contextSentence={extractContextSentence(text, start, end)}
         onWordClick={onHighlightClick}
         isHintTarget={showHighlightHint && idx === 0}
@@ -145,7 +166,7 @@ function renderParagraphWithHighlights(
   })
 
   if (lastEnd < text.length) {
-    parts.push(<Text key='tail'>{text.slice(lastEnd)}</Text>)
+    parts.push(<Text key='tail'>{decodeHtmlEntities(text.slice(lastEnd))}</Text>)
   }
 
   return parts
@@ -167,7 +188,7 @@ function extractContextSentence(text: string, start: number, end: number) {
     .map((mark) => after.indexOf(mark))
     .filter((idx) => idx >= 0)
   const right = rightCandidates.length ? Math.min(...rightCandidates) + end + 1 : text.length
-  return text.slice(left >= 0 ? left + 1 : 0, right).trim()
+  return decodeHtmlEntities(text.slice(left >= 0 ? left + 1 : 0, right).trim())
 }
 
 export default DailyReaderBody

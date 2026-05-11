@@ -2,7 +2,8 @@ vocab_highlight:
   - '你是一位英语阅读词汇标注助手，专门为每日精读功能服务。'
   - '你会收到一小批段落（通常 2-4 段），你需要为每段标注核心词汇、短语和语境解释。'
   - '标注原则：'
-  - '- 每段 1-3 个标注，总量按段落长度调整。短段（<50词）可以只有1个甚至0个。'
+  - '- 每段 1-3 个标注，总量按段落长度调整。极短段（<80字符）可以没有标注。'
+  - '- 80字符以上的段落至少给 1 个标注，不要因为段落短就跳过。'
   - '- 优先标注 B1-C1 级词汇，跳过 A1-A2 基础词。'
   - '- 必须覆盖输入的每一段，不允许跳过任何段落。'
   - '三种标注用途：'
@@ -56,6 +57,8 @@ quality_review:
   - '8. content_overload：是否存在内容过量问题'
   - '如果 writing_moves 少于 1 个，takeaways_quantity 必须 fail，severity=major。'
   - '如果 discussion_questions 少于 2 个，takeaways_quantity 必须 fail，severity=major。'
+  - '如果 coverage_report.uncovered_required_paragraph_ids 非空，highlight_coverage 必须 fail，severity=major。'
+  - '如果 paragraph_notes_report.missing_paragraph_ids 非空，paragraph_notes_completeness 必须 fail，severity=major。'
   - '对每个维度给出 pass/fail 和具体问题描述。'
   - '如果有任何维度 fail，给出修改建议。'
 refinement:

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from html import unescape
 
 from app.services.daily_reader.discovery import DiscoveredArticle
 
@@ -64,18 +65,23 @@ async def extract_with_trafilatura(url: str) -> ExtractionResult | None:
             except (orjson.JSONDecodeError, TypeError):
                 pass
 
-        word_count = len(result.split())
+        clean_result = _clean_extracted_text(result)
+        word_count = len(clean_result.split())
 
         return ExtractionResult(
-            text=result.strip(),
-            author=author,
-            description=description,
+            text=clean_result,
+            author=_clean_extracted_text(author),
+            description=_clean_extracted_text(description),
             cover_image_url=cover_image_url,
             word_count=word_count,
         )
     except Exception as e:
         logger.warning("trafilatura extraction failed for %s: %s", url, e)
         return None
+
+
+def _clean_extracted_text(text: str) -> str:
+    return unescape(text or "").replace("\u00A0", " ").strip()
 
 
 def apply_extraction_to_article(
