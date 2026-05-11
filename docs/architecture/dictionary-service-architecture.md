@@ -259,6 +259,13 @@ dict:{上述 cache_key}
 
 **处理**：导入阶段保留同一例句块中的多个 example
 
+### 6.2a 释义内多例句被拼接成单字符串
+
+- 当前 `import_tecd3.py` 会把同一释义节点下多条 `<li class="eg">` 用 `；` 拼接到 `definition.example` / `definition.example_translation`
+- 这会让前端释义页把多条例句渲染成一个块状段落，影响阅读边注式展示
+- 短期前端仅按导入拼接符 `\uFF1B` 做保守拆分展示
+- 长期应将 `DictionaryMeaningDefinition` 升级为 `examples: [{ example, example_translation }]`，导入侧保留 `<li class="eg">` 级别结构，API 在迁移期兼容旧 `example` 字段
+
 ### 6.3 fragment 与弱结构词条
 
 - TECD3 中存在大量 `fragment`、无稳定词性块的词条

@@ -44,6 +44,11 @@ interface DefinitionLine {
   exampleTranslation?: string
 }
 
+interface ExamplePair {
+  example: string
+  exampleTranslation?: string
+}
+
 interface MeaningGroup {
   partOfSpeech: string
   definitions: DefinitionLine[]
@@ -126,6 +131,33 @@ function splitDefinitionText(text: string, maxParts = 3): string[] {
     .map((part) => part.trim())
     .filter(Boolean)
   return (parts.length ? parts : [cleaned]).slice(0, maxParts)
+}
+
+function splitJoinedText(text: string | undefined): string[] {
+  if (!text) return []
+  return text
+    .split('\uFF1B')
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function splitExamplePairs(
+  example: string | undefined,
+  exampleTranslation: string | undefined,
+  limit = 2
+): ExamplePair[] {
+  const exampleParts = splitJoinedText(example)
+  if (exampleParts.length <= 1) {
+    return example ? [{ example, exampleTranslation }] : []
+  }
+
+  const translationParts = splitJoinedText(exampleTranslation)
+  const canPairTranslation = translationParts.length === exampleParts.length
+
+  return exampleParts.slice(0, limit).map((part, idx) => ({
+    example: part,
+    exampleTranslation: canPairTranslation ? translationParts[idx] : undefined,
+  }))
 }
 
 function buildMeaningGroups(entry: DictionaryEntryPayload | null | undefined, expanded: boolean): MeaningGroup[] {
@@ -410,7 +442,7 @@ function DictionaryNoteSheet({
       compact: 0.48,
       standard: 0.6,
       rich: 0.66,
-      expanded: 0.88,
+      expanded: 0.68,
     }
     const maxHeight = Math.round(windowHeight * tierRatios[heightTier])
     const headerReserve = isDictionaryMode ? 126 : 150
@@ -496,26 +528,40 @@ function DictionaryNoteSheet({
 
   const renderMeaningGroups = (groups: MeaningGroup[], includeExamples: boolean) => (
     <View className='meanings-list'>
-      {groups.map((meaning, idx) => (
-        <View key={`${meaning.partOfSpeech}-${idx}`} className='meaning-item'>
-          <View className='pos-column'>
-            {meaning.partOfSpeech && <Text className='pos-tag'>{meaning.partOfSpeech}</Text>}
+      {groups.map((meaning, idx) => {
+        const examples = includeExamples
+          ? meaning.definitions
+            .flatMap((def) => splitExamplePairs(def.example, def.exampleTranslation, 2))
+            .slice(0, 2)
+          : []
+
+        return (
+          <View key={`${meaning.partOfSpeech}-${idx}`} className='meaning-item'>
+            <View className='pos-column'>
+              {meaning.partOfSpeech && <Text className='pos-tag'>{meaning.partOfSpeech}</Text>}
+            </View>
+            <View className='definitions'>
+              {meaning.definitions.map((def, defIdx) => (
+                <View key={`${def.text.slice(0, 20)}-${defIdx}`} className='def-row'>
+                  <Text className='def-text'>{def.text}</Text>
+                </View>
+              ))}
+              {examples.length > 0 && (
+                <View className='meaning-example-list'>
+                  {examples.map((example, exampleIdx) => (
+                    <View key={`${example.example?.slice(0, 18)}-${exampleIdx}`} className='meaning-example-item'>
+                      <Text className='def-example-en' numberOfLines={2}>{example.example}</Text>
+                      {example.exampleTranslation && (
+                        <Text className='def-example-zh' numberOfLines={2}>{example.exampleTranslation}</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
           </View>
-          <View className='definitions'>
-            {meaning.definitions.map((def, defIdx) => (
-              <View key={`${def.text.slice(0, 20)}-${defIdx}`} className='def-row'>
-                <Text className='def-text'>{def.text}</Text>
-                {includeExamples && def.example && (
-                  <View className='def-example-block'>
-                    <Text className='def-example-en'>{def.example}</Text>
-                    {def.exampleTranslation && <Text className='def-example-zh'>{def.exampleTranslation}</Text>}
-                  </View>
-                )}
-              </View>
-            ))}
-          </View>
-        </View>
-      ))}
+        )
+      })}
     </View>
   )
 
@@ -563,7 +609,6 @@ function DictionaryNoteSheet({
             <View className='header-right-actions'>
               <View className='popup-feedback-btn' onClick={() => setShowDictFeedback(true)}>
                 <LucideIcon name='messageSquare' size={18} color='var(--reader-muted)' />
-                <Text>反馈</Text>
               </View>
               <View className='popup-close-btn' onClick={onClose}>
                 <LucideIcon name='x' size={22} color='var(--reader-muted)' />

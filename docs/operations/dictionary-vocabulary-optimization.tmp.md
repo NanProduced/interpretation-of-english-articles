@@ -444,6 +444,18 @@ MDX 转 PostgreSQL 的释义不能原样倾倒到 UI。前端至少需要一层 
   - 多义词：`lead`、`object`、`content`
   - 专名/缩略词：`U.S.`、`AAR`
   - fragment-only 与 weak entry
+  - 例句结构：`record` 等同一释义下多条 `<li class="eg">` 应保留为结构化数组，避免导入时拼成 `definition.example` 单字符串
+
+#### P2-2a：释义内多例句结构化修复 ⏳ 后续处理
+
+- **文件**:
+  - `server/scripts/import_tecd3.py`
+  - `server/app/services/dictionary/schemas.py`
+  - `client/src/types/api/dict-response.dto.ts`
+  - `client/src/services/api/adapters/dict.adapter.ts`
+- **现状**: `_parse_meaning_groups()` 会把同一释义节点下多条例句用 `；` 合并进 `definition.example` / `definition.example_translation`，前端只能做保守拆分展示。
+- **短期处理**: `WordPopup` 展示层仅按导入拼接符 `\uFF1B` 保守拆分，最多展示 2 条；中英数量不一致时不强行配对。
+- **长期建议**: 将 `DictionaryMeaningDefinition` 扩展为 `examples: [{ example, example_translation }]`，导入时保留 `<li class="eg">` 级别结构；API 兼容旧 `example` 字段，完成历史数据重导或回填后再切换前端使用结构化数组。
 
 ### P2-3：`dict_redirects` 运行时使用路径需复查 ⏳ 待确认
 
@@ -528,6 +540,7 @@ MDX 转 PostgreSQL 的释义不能原样倾倒到 UI。前端至少需要一层 
 
 - [ ] 建立词典查询黄金样例集
 - [ ] 补 phrase template / fragment redirect / POS / examples 抽样回归
+- [ ] 将释义内多例句从 `definition.example` 拼接字符串升级为结构化 `definition.examples[]`
 - [ ] 明确 `dict_redirects` 运行时职责并更新架构文档
 - [ ] 跑完整后端词典与生词本相关测试
 
@@ -548,3 +561,6 @@ MDX 转 PostgreSQL 的释义不能原样倾倒到 UI。前端至少需要一层 
 | 2026-05-10 | P3-3 | `/dict` 查询未命中改为 200 `not_found` 正常结果，并使用 `reason=not_in_dictionary` 结构化原因避免异常流刷屏 |
 | 2026-05-10 | P1-3 | 复刻两级底部词典 sheet：默认态语境答案优先，详情态扩高展示释义/短语/例句，并优化 disambiguation 与 footer 状态 |
 | 2026-05-10 | P1-3 | 按“阅读边注”二次重构 `WordPopup`：新增 `answer/dictionary/entry_picker/not_found` 状态模型，整理 MDX 释义展示，弱化 footer 与反馈，补小写普通词过滤同拼写大写专名候选 |
+| 2026-05-11 | P1-3 UI polish | 按评审优先级优化 `WordPopup`：详情态取消固定 88vh，释义 tab 不再混入长例句，清理旧 `stage-detail/context/disambiguation` 样式层，反馈与关闭按钮改为轻量圆形触控 |
+| 2026-05-11 | P1-3 correction | 修正过度降级：详情释义页恢复每组最多 2 条搭配例句，同时将 dictionary sheet 上限收敛到约 68% 视口，避免例句态接近全屏 |
+| 2026-05-11 | P1-3/P2-2a | 前端释义内例句增加保守拆分，仅按导入拼接符 `\uFF1B` 分行展示；后端导入侧结构化 `definition.examples[]` 修复纳入后续数据质量任务 |
