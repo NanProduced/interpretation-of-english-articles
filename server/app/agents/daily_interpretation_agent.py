@@ -1,4 +1,9 @@
-"""Full interpretation agent for Daily Reader workflow."""
+"""Close reading takeaways agent for Daily Reader workflow.
+
+Redesigned: generates CloseReadingTakeaways (article_takeaway,
+key_expressions, sentence_notes, writing_moves, discussion_questions)
+instead of the old DailyInterpretationDraft (full_article_analysis string).
+"""
 
 from __future__ import annotations
 
@@ -7,11 +12,11 @@ from functools import lru_cache
 
 from pydantic_ai import Agent
 
-from app.schemas.internal.daily_drafts import DailyInterpretationDraft
+from app.schemas.internal.daily_drafts import CloseReadingTakeaways
 from app.services.analysis.prompting.daily_prompt_strategy import (
     DailyPromptStrategy,
     build_daily_prompt_sections,
-    build_full_interpretation_strategy,
+    build_close_reading_takeaways_strategy,
 )
 from app.services.analysis.prompting.prompt_loader import load_agent_instructions
 
@@ -20,8 +25,9 @@ from app.services.analysis.prompting.prompt_loader import load_agent_instruction
 class DailyInterpretationAgentDeps:
     full_text: str
     title: str
-    footer_summary: str = ""
-    prompt_strategy: DailyPromptStrategy = field(default_factory=build_full_interpretation_strategy)
+    highlights_summary: str = ""
+    notes_summary: str = ""
+    prompt_strategy: DailyPromptStrategy = field(default_factory=build_close_reading_takeaways_strategy)
 
 
 def build_daily_interpretation_prompt(deps: DailyInterpretationAgentDeps) -> str:
@@ -32,19 +38,21 @@ def build_daily_interpretation_prompt(deps: DailyInterpretationAgentDeps) -> str
         PromptSection("article_info", (f"Title: {deps.title}",)),
         PromptSection("full_text", (deps.full_text[:6000],)),
     ]
-    if deps.footer_summary:
-        all_sections.append(PromptSection("footer_context", (deps.footer_summary,)))
+    if deps.highlights_summary:
+        all_sections.append(PromptSection("highlights_context", (deps.highlights_summary,)))
+    if deps.notes_summary:
+        all_sections.append(PromptSection("paragraph_notes_context", (deps.notes_summary[:1500],)))
     return render_prompt_sections(all_sections)
 
 
 @lru_cache(maxsize=1)
-def get_daily_interpretation_agent() -> Agent[DailyInterpretationAgentDeps, DailyInterpretationDraft]:
-    return Agent[DailyInterpretationAgentDeps, DailyInterpretationDraft](
+def get_daily_interpretation_agent() -> Agent[DailyInterpretationAgentDeps, CloseReadingTakeaways]:
+    return Agent[DailyInterpretationAgentDeps, CloseReadingTakeaways](
         model=None,
-        output_type=DailyInterpretationDraft,
+        output_type=CloseReadingTakeaways,
         deps_type=DailyInterpretationAgentDeps,
         instructions=load_agent_instructions("daily_interpretation"),
-        name="daily_interpretation_agent",
+        name="daily_takeaways_agent",
         retries=2,
         output_retries=3,
         instrument=False,

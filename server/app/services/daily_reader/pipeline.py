@@ -280,17 +280,11 @@ async def _run_workflow_and_store(
             await tracker.add_error("workflow_abort", f"Aborted: {article.title[:40]}: {abort_reason}")
         return None
 
-    full_interp = final_state.get("full_interpretation", "")
-    footer = final_state.get("footer_analysis_json", {})
-    logger.info("Workflow final state: full_interpretation length=%d, footer keys=%s, has_full_article_analysis=%s",
-                len(full_interp) if full_interp else 0,
-                list(footer.keys()) if isinstance(footer, dict) else type(footer),
-                "full_article_analysis" in footer if isinstance(footer, dict) else False)
-
-    if full_interp and isinstance(footer, dict) and "full_article_analysis" not in footer:
-        footer = {**footer, "full_article_analysis": full_interp}
-        final_state["footer_analysis_json"] = footer
-        logger.info("Pipeline patched full_article_analysis into footer_analysis_json (length=%d)", len(full_interp))
+    paragraph_notes = final_state.get("paragraph_notes_json", {})
+    takeaways = final_state.get("takeaways_json", {})
+    logger.info("Workflow final state: paragraph_notes keys=%s, takeaways keys=%s",
+                list(paragraph_notes.keys()) if isinstance(paragraph_notes, dict) else type(paragraph_notes),
+                list(takeaways.keys()) if isinstance(takeaways, dict) else type(takeaways))
 
     if tracker:
         await tracker.update_stage("cover_download")
@@ -376,13 +370,14 @@ async def run_workflow_only(article_id: str) -> dict | None:
         await conn.execute(
             """
             UPDATE daily_readers
-            SET body_json = $1, highlights_json = $2, footer_analysis_json = $3,
-                updated_at = NOW()
-            WHERE id = $4
+            SET body_json = $1, highlights_json = $2, paragraph_notes_json = $3,
+                takeaways_json = $4, updated_at = NOW()
+            WHERE id = $5
             """,
             final_state.get("body_json", {"paragraphs": []}),
             final_state.get("highlights_json", []),
-            final_state.get("footer_analysis_json", {}),
+            final_state.get("paragraph_notes_json", {}),
+            final_state.get("takeaways_json", {}),
             article_id,
         )
 
@@ -391,7 +386,8 @@ async def run_workflow_only(article_id: str) -> dict | None:
         "status": "retry_completed",
         "body_updated": True,
         "highlights_updated": True,
-        "footer_analysis_updated": True,
+        "paragraph_notes_updated": True,
+        "takeaways_updated": True,
     }
 
 
@@ -414,7 +410,9 @@ async def _assemble_payload(
         "cover_theme": "editorial_warm",
         "body_json": state.get("body_json", {"paragraphs": []}),
         "highlights_json": state.get("highlights_json", []),
-        "footer_analysis_json": state.get("footer_analysis_json", {}),
+        "footer_analysis_json": {},
+        "paragraph_notes_json": state.get("paragraph_notes_json", {}),
+        "takeaways_json": state.get("takeaways_json", {}),
         "status": "draft",
         "score": score.score,
         "content_sec_check": {"source_verified": True, "source": article.source},
@@ -488,11 +486,11 @@ async def _store_daily_reader(payload: dict) -> None:
             INSERT INTO daily_readers (
                 id, title, subtitle, source, source_url, publish_date,
                 difficulty, read_time_minutes, tags, cover_image_url, cover_theme,
-                body_json, highlights_json, footer_analysis_json,
+                body_json, highlights_json, footer_analysis_json, paragraph_notes_json, takeaways_json,
                 status, score, content_sec_check, original_text_hash, original_text,
                 pipeline_source, pipeline_meta
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-                      $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                      $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
             """,
             payload["id"],
             payload["title"],
@@ -508,6 +506,8 @@ async def _store_daily_reader(payload: dict) -> None:
             payload["body_json"],
             payload["highlights_json"],
             payload["footer_analysis_json"],
+            payload["paragraph_notes_json"],
+            payload["takeaways_json"],
             payload["status"],
             payload["score"],
             payload["content_sec_check"],

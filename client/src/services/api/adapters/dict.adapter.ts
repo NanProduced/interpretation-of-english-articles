@@ -6,6 +6,7 @@ import type {
 import type {
   DictionaryDisambiguationResult,
   DictionaryEntryResult,
+  DictionaryNotFoundResult,
   DictionaryResult,
 } from '@/types/view/render-scene.vm'
 
@@ -60,12 +61,25 @@ function mapDisambiguationResult(dto: DictDisambiguationResultDto): DictionaryDi
   }
 }
 
+function mapNotFoundResult(dto: DictResponseDto): DictionaryNotFoundResult {
+  return {
+    resultType: 'not_found',
+    query: dto.query,
+    provider: dto.provider,
+    cached: dto.cached,
+    reason: dto.result_type === 'not_found' ? dto.reason : 'not_in_dictionary',
+  }
+}
+
 export function dictResponseDtoToVm(dto: DictResponseDto): DictionaryResult {
   if (dto.result_type === 'entry') {
     return mapEntryResult(dto)
   }
   if (dto.result_type === 'disambiguation') {
     return mapDisambiguationResult(dto)
+  }
+  if (dto.result_type === 'not_found') {
+    return mapNotFoundResult(dto)
   }
   throw new Error(`Unknown dict result_type: ${(dto as Record<string, unknown>).result_type}`)
 }

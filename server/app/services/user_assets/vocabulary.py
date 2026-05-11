@@ -308,15 +308,17 @@ async def update_vocabulary(
     if len(updates) == 1:
         return await get_vocabulary_by_id(user_id, vocab_id)
 
-    set_clause = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(updates))
+    set_clause = ", ".join(f"{k} = ${i + 1}" for i, k in enumerate(updates))
     values = list(updates.values()) + [vocab_id, user_id]
+    vocab_id_param = len(updates) + 1
+    user_id_param = len(updates) + 2
 
     async with pool.acquire() as conn:
         await conn.execute(
             f"""
             UPDATE vocabulary_book
             SET {set_clause}
-            WHERE id = ${len(values)} AND user_id = ${len(values) + 1}
+            WHERE id = ${vocab_id_param} AND user_id = ${user_id_param}
             """,
             *values,
         )

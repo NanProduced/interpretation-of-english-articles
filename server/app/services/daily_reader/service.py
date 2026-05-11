@@ -197,7 +197,8 @@ def _row_to_article_response(row: object) -> DailyReaderArticleResponse:
         cover_theme=row["cover_theme"],
         body=_decode_jsonb(row["body_json"], {}),
         highlights=_decode_jsonb(row["highlights_json"], []),
-        footer_analysis=_decode_jsonb(row["footer_analysis_json"], {}),
+        paragraph_notes=_decode_jsonb(row["paragraph_notes_json"], {}),
+        takeaways=_decode_jsonb(row["takeaways_json"], {}),
     )
 
 

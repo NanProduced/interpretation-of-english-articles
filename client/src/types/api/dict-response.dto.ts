@@ -42,7 +42,7 @@ export interface DictCandidateDto {
 }
 
 interface DictResponseBaseDto {
-  result_type: 'entry' | 'disambiguation'
+  result_type: 'entry' | 'disambiguation' | 'not_found'
   query: string
   provider: string
   cached: boolean
@@ -58,4 +58,9 @@ export interface DictDisambiguationResultDto extends DictResponseBaseDto {
   candidates: DictCandidateDto[]
 }
 
-export type DictResponseDto = DictEntryResultDto | DictDisambiguationResultDto
+export interface DictNotFoundResultDto extends DictResponseBaseDto {
+  result_type: 'not_found'
+  reason: 'not_in_dictionary'
+}
+
+export type DictResponseDto = DictEntryResultDto | DictDisambiguationResultDto | DictNotFoundResultDto

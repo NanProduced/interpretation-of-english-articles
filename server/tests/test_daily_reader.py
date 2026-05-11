@@ -30,7 +30,8 @@ MOCK_ARTICLE_ROW = {
     "cover_theme": "editorial_warm",
     "body_json": {"paragraphs": [{"text": "Hello world"}]},
     "highlights_json": [{"text": "key point"}],
-    "footer_analysis_json": {"summary": "test summary"},
+    "paragraph_notes_json": {"article_summary": "test summary", "notes": []},
+    "takeaways_json": {"article_takeaway": "test takeaway"},
 }
 
 MOCK_LIST_ROW = {

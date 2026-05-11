@@ -12,7 +12,9 @@ export interface DailyReaderArticleDto {
   cover_theme: string
   body: DailyReaderBodyDto
   highlights: DailyReaderHighlightDto[]
-  footer_analysis: DailyReaderFooterAnalysisDto
+  paragraph_notes?: DailyReaderParagraphNotesDto | null
+  takeaways?: DailyReaderTakeawaysDto | null
+  footer_analysis?: DailyReaderFooterAnalysisDto | null
 }
 
 export interface DailyReaderBodyDto {
@@ -23,6 +25,7 @@ export interface DailyReaderParagraphDto {
   id: string
   text: string
   highlights: DailyReaderHighlightDto[]
+  reading_note?: DailyReaderParagraphNoteDto | null
 }
 
 export interface DailyReaderHighlightDto {
@@ -51,6 +54,51 @@ export interface DailyReaderFooterAnalysisDto {
   misreading_points: DailyReaderMisreadingPointDto[]
   full_article_analysis: string
   discussion_questions: string[]
+}
+
+export interface DailyReaderParagraphNotesDto {
+  article_summary?: string
+  reading_focus?: string[] | string
+  notes?: DailyReaderParagraphNoteDto[]
+}
+
+export interface DailyReaderParagraphNoteDto {
+  paragraph_id: string
+  focus_question?: string
+  micro_summary?: string
+  translation?: string
+}
+
+export interface DailyReaderTakeawaysDto {
+  article_takeaway?: string
+  key_expressions?: DailyReaderTakeawayExpressionDto[]
+  sentence_notes?: DailyReaderSentenceNoteDto[]
+  writing_moves?: DailyReaderWritingMoveDto[]
+  discussion_questions?: string[]
+}
+
+export interface DailyReaderTakeawayExpressionDto {
+  expression: string
+  paragraph_id?: string
+  gloss: string
+  context_sentence: string
+  usage_note?: string
+}
+
+export interface DailyReaderSentenceNoteDto {
+  sentence: string
+  paragraph_id?: string
+  translation: string
+  breakdown: string
+  takeaway: string
+}
+
+export interface DailyReaderWritingMoveDto {
+  anchor: string
+  paragraph_id?: string
+  move_type: string
+  explanation: string
+  reusable_pattern?: string | null
 }
 
 export interface DailyReaderStructurePartDto {

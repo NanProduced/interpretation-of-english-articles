@@ -104,6 +104,16 @@ function getMasteryStatus(entry: VocabEntry): string {
   return 'learning'
 }
 
+function getSourceArticleCount(entry: VocabEntry): number {
+  const refs = entry.sourceRefs || []
+  const sourceIds = new Set(
+    refs
+      .map(ref => ref.cloudRecordId || ref.clientRecordId)
+      .filter(Boolean)
+  )
+  return sourceIds.size
+}
+
 export default function VocabPage({ isSubView = false }: VocabPageProps) {
   const [vocabList, setVocabList] = useState<VocabEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -353,7 +363,8 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
           </View>
         ) : (
           filteredList.map((entry, index) => {
-            const sourceCount = entry.sourceRefs?.length || 0
+            const contextCount = entry.sourceRefs?.length || 0
+            const sourceArticleCount = getSourceArticleCount(entry)
             const primaryRef = entry.sourceRefs?.[0]
 
             return (
@@ -374,8 +385,8 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
                     )}
                   </View>
                   <View className='card-header-right'>
-                    {sourceCount > 1 && (
-                      <Text className='source-count-badge'>{sourceCount} 篇</Text>
+                    {sourceArticleCount > 1 && (
+                      <Text className='source-count-badge'>{sourceArticleCount} 篇</Text>
                     )}
                     {entry.mastered && (
                       <Text className='mastered-tag'>已掌握</Text>
@@ -398,8 +409,8 @@ export default function VocabPage({ isSubView = false }: VocabPageProps) {
                   {(primaryRef?.sourceSentence || entry.sentence) && (
                     <View className='context-box'>
                       <Text className='context-text'>"{primaryRef?.sourceSentence || entry.sentence}"</Text>
-                      {sourceCount > 1 && (
-                        <Text className='more-context'>还有 {sourceCount - 1} 个语境</Text>
+                      {contextCount > 1 && (
+                        <Text className='more-context'>还有 {contextCount - 1} 个语境</Text>
                       )}
                     </View>
                   )}

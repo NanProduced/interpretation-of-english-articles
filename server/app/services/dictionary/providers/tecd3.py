@@ -188,6 +188,8 @@ class Tecd3Provider:
         if has_meaningful:
             candidates = [c for c in candidates if c.has_meanings]
 
+        candidates = self._drop_capitalized_proper_noise(request.query, candidates)
+
         if len(candidates) == 1:
             entry = await fetch_entry(candidates[0].entry_id, source=self.source)
             if entry is None:
@@ -201,6 +203,30 @@ class Tecd3Provider:
 
     async def _lemma_fallback(self, query: str) -> list[CandidateRow]:
         pass
+
+    def _drop_capitalized_proper_noise(self, query: str, candidates: list[CandidateRow]) -> list[CandidateRow]:
+        """Keep ordinary lowercase entries ahead of same-spelling proper names.
+
+        TECD3 contains many capitalized name entries. For a lowercase in-sentence lookup
+        such as "north", those should not force a disambiguation result when an ordinary
+        lowercase headword is also available.
+        """
+        normalized_query = query.strip()
+        if not normalized_query or normalized_query != normalized_query.lower() or " " in normalized_query:
+            return candidates
+
+        exact_lowercase = [
+            c for c in candidates
+            if (c.lookup_label or c.target_label).strip() == normalized_query
+        ]
+        if not exact_lowercase:
+            return candidates
+
+        return [
+            c for c in candidates
+            if (c.lookup_label or c.target_label).strip() == normalized_query
+            or (c.lookup_label or c.target_label).strip().lower() != normalized_query
+        ]
 
 
     async def fetch_entry(self, entry_id: int) -> dict[str, Any]:

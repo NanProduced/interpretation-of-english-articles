@@ -1,36 +1,39 @@
 .daily-hl {
   display: inline;
-  border-radius: 6rpx;
-  padding: 2rpx 6rpx;
+  border-radius: 4rpx;
+  padding: 0rpx 4rpx;
   margin: 0 2rpx;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
   position: relative;
 
   &--vocab {
     background-color: var(--dr-tone-vocab-bg);
-    border-bottom: 1.10rpx solid var(--dr-tone-vocab-border);
+    border-bottom: 1.5rpx dotted var(--dr-tone-vocab-border);
   }
 
   &--phrase {
     background-color: var(--dr-tone-phrase-bg);
-    border-bottom: 1.10rpx solid var(--dr-tone-phrase-border);
+    border-bottom: 1.5rpx dotted var(--dr-tone-phrase-border);
   }
 
   &--context {
     background-color: var(--dr-tone-context-bg);
-    border-bottom: 1.10rpx solid var(--dr-tone-context-border);
+    border-bottom: 1.5rpx dotted var(--dr-tone-context-border);
   }
 
   &--active {
     &.daily-hl--vocab {
       background-color: var(--dr-tone-vocab-bg-active);
+      border-bottom-style: solid;
     }
     &.daily-hl--phrase {
       background-color: var(--dr-tone-phrase-bg-active);
+      border-bottom-style: solid;
     }
     &.daily-hl--context {
       background-color: var(--dr-tone-context-bg-active);
+      border-bottom-style: solid;
     }
   }
 
@@ -51,32 +54,33 @@
 
   &__icon {
     display: inline-block;
-    width: 18rpx;
-    height: 18rpx;
-    margin-left: 5rpx;
-    vertical-align: super;
+    width: 20rpx;
+    height: 20rpx;
+    margin-left: 6rpx;
+    vertical-align: baseline;
     background-repeat: no-repeat;
     background-size: 100% 100%;
     background-position: center;
-    opacity: 0.6;
+    opacity: 0.5;
     transition: opacity 0.2s ease;
+    transform: translateY(2rpx);
   }
 
   &:active &__icon,
   &--active &__icon {
-    opacity: 0.9;
+    opacity: 0.8;
   }
 
   &--vocab &__icon {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238b7355' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23C0A080' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z'/%3E%3C/svg%3E");
   }
 
   &--phrase &__icon {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2355738b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 8 6 6'/%3E%3Cpath d='m4 14 6-6 2-3'/%3E%3Cpath d='M2 5h12'/%3E%3Cpath d='M7 2h1'/%3E%3Cpath d='m22 22-5-10-5 10'/%3E%3Cpath d='M14 18h6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2380A0C0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 8 6 6'/%3E%3Cpath d='m4 14 6-6 2-3'/%3E%3Cpath d='M2 5h12'/%3E%3Cpath d='M7 2h1'/%3E%3Cpath d='m22 22-5-10-5 10'/%3E%3Cpath d='M14 18h6'/%3E%3C/svg%3E");
   }
 
   &--context &__icon {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238b5573' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3Cpath d='M13 8H7'/%3E%3Cpath d='M17 12H7'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23C080A0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3Cpath d='M13 8H7'/%3E%3Cpath d='M17 12H7'/%3E%3C/svg%3E");
   }
 }
 

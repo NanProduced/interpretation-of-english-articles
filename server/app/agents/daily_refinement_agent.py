@@ -1,4 +1,8 @@
-"""Refinement agent for Daily Reader workflow."""
+"""Refinement agent for Daily Reader workflow.
+
+Redesigned: refines highlights, paragraph_notes, and takeaways
+instead of the old highlights, footer, and interpretation string.
+"""
 
 from __future__ import annotations
 
@@ -21,8 +25,8 @@ class DailyRefinementAgentDeps:
     original_text: str
     review_issues: str
     current_highlights: str = ""
-    current_footer: str = ""
-    current_interpretation: str = ""
+    current_paragraph_notes: str = ""
+    current_takeaways: str = ""
     prompt_strategy: DailyPromptStrategy = field(default_factory=build_refinement_strategy)
 
 
@@ -35,11 +39,11 @@ def build_daily_refinement_prompt(deps: DailyRefinementAgentDeps) -> str:
         PromptSection("review_issues", (deps.review_issues,)),
     ]
     if deps.current_highlights:
-        all_sections.append(PromptSection("current_highlights", (deps.current_highlights[:3000],)))
-    if deps.current_footer:
-        all_sections.append(PromptSection("current_footer", (deps.current_footer[:3000],)))
-    if deps.current_interpretation:
-        all_sections.append(PromptSection("current_interpretation", (deps.current_interpretation[:3000],)))
+        all_sections.append(PromptSection("current_highlights", (deps.current_highlights[:12000],)))
+    if deps.current_paragraph_notes:
+        all_sections.append(PromptSection("current_paragraph_notes", (deps.current_paragraph_notes[:3000],)))
+    if deps.current_takeaways:
+        all_sections.append(PromptSection("current_takeaways", (deps.current_takeaways[:3000],)))
     return render_prompt_sections(all_sections)
 
 

@@ -16,8 +16,6 @@ class DictionaryLookupRequest(BaseModel):
     query_type: Literal["word", "phrase"]
     context_sentence: str | None = None
     occurrence: int | None = None
-    reading_goal: str | None = None
-    reading_variant: str | None = None
 
 
 class DictionaryMeaning(BaseModel):
@@ -81,8 +79,16 @@ class DictionaryDisambiguationResult(DictionaryResultBase):
     candidates: list[DictionaryCandidate] = Field(default_factory=list, description="候选词条列表")
 
 
+class DictionaryNotFoundResult(DictionaryResultBase):
+    result_type: Literal["not_found"] = "not_found"
+    reason: Literal["not_in_dictionary"] = Field(
+        default="not_in_dictionary",
+        description="未命中原因代码",
+    )
+
+
 DictionaryLookupResult = Annotated[
-    DictionaryEntryResult | DictionaryDisambiguationResult,
+    DictionaryEntryResult | DictionaryDisambiguationResult | DictionaryNotFoundResult,
     Field(discriminator="result_type"),
 ]
 

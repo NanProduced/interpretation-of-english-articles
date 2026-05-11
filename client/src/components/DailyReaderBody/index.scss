@@ -1,20 +1,115 @@
 .daily-body {
-  padding: 0 56rpx;
+  padding: 0 48rpx;
 
-  &__paragraph {
-    margin-bottom: 48rpx;
+  &__paragraph-container {
+    margin-bottom: 72rpx;
 
     &:last-child {
       margin-bottom: 0;
     }
   }
+  
+  &__strip {
+    margin-bottom: 24rpx;
+    padding: 0;
+  }
+  
+  &__strip-header {
+    display: flex;
+    align-items: flex-start;
+    padding: 12rpx 0;
+    transition: opacity 0.2s ease;
+    
+    &:active {
+      opacity: 0.7;
+    }
+  }
+  
+  &__strip-icon {
+    margin-right: 12rpx;
+    margin-top: 4rpx;
+    display: flex;
+    align-items: center;
+  }
+  
+  &__strip-question {
+    flex: 1;
+    font-size: 26rpx;
+    color: var(--dr-text-muted);
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  &__strip-question--expanded {
+    white-space: normal;
+    color: var(--dr-text-sub);
+  }
+  
+  &__strip-toggle {
+    margin-left: 12rpx;
+    margin-top: 4rpx;
+    display: flex;
+    align-items: center;
+    transition: transform 0.3s ease;
+    
+    &--expanded {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__strip-content {
+    padding: 12rpx 0 24rpx 44rpx;
+    font-size: 26rpx;
+    color: var(--dr-text-sub);
+    line-height: 1.6;
+  }
+
+  &__paragraph {
+    position: relative;
+    margin-bottom: 24rpx;
+  }
 
   &__text {
-    font-family: 'Georgia', 'Noto Serif SC', serif;
-    font-size: 34rpx;
-    line-height: 1.8;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 38rpx;
+    line-height: 1.9;
     color: var(--dr-text-reading);
-    letter-spacing: 0.4rpx;
-    word-spacing: 0.10rpx;
+    letter-spacing: 0.5rpx;
+    word-spacing: 1rpx;
+  }
+
+  &__translation-section {
+    margin-top: 24rpx;
+    padding: 16rpx 32rpx;
+    background: var(--dr-surface-raised, rgba(0, 0, 0, 0.02));
+    border-radius: 12rpx;
+  }
+
+  &__translation-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8rpx 0;
+  }
+
+  &__translation-label {
+    font-size: 26rpx;
+    color: var(--dr-text-sub);
+    letter-spacing: 1rpx;
+  }
+
+  &__translation-box {
+    margin-top: 16rpx;
+    padding-top: 16rpx;
+    border-top: 1px dashed var(--dr-border-subtle);
+  }
+
+  &__translation-text {
+    font-size: 30rpx;
+    color: var(--dr-text-sub);
+    line-height: 1.7;
   }
 }
+

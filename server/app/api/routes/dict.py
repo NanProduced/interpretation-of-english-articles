@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.services.dictionary import get_service
-from app.services.dictionary.schemas import DictionaryLookupResult, DictionaryEntryResult
+from app.services.dictionary.schemas import DictionaryLookupResult, DictionaryEntryResult, DictionaryNotFoundResult
 from app.services.dictionary.errors import WordNotFoundError, ServiceUnavailableError
 
 logger = getLogger("app.api")
@@ -27,8 +27,6 @@ async def lookup_word(
     type: Literal["word", "phrase"] = Query(default="word", description="查询类型"),
     context_sentence: str | None = Query(default=None, description="点击词所在的句子"),
     occurrence: int | None = Query(default=None, description="在句子中的第几次出现"),
-    reading_goal: str | None = Query(default=None, description="阅读目标"),
-    reading_variant: str | None = Query(default=None, description="阅读变体"),
 ) -> JSONResponse:
     """查询单词或短语的词典释义，支持语境感知。"""
     word = q.strip()
@@ -38,8 +36,6 @@ async def lookup_word(
         query_type=type,
         context_sentence=context_sentence,
         occurrence=occurrence,
-        reading_goal=reading_goal,
-        reading_variant=reading_variant,
     )
     try:
         result = await _service.lookup(request)
@@ -47,7 +43,14 @@ async def lookup_word(
         response.headers["Cache-Control"] = _DICT_CACHE_CONTROL
         return response
     except WordNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Word not found: {word}") from None
+        result = DictionaryNotFoundResult(
+            query=word,
+            provider="tecd3",
+            cached=False,
+        ).model_dump()
+        response = JSONResponse(content=result)
+        response.headers["Cache-Control"] = _DICT_CACHE_CONTROL
+        return response
     except ServiceUnavailableError:
         raise HTTPException(status_code=503, detail="Dictionary service temporarily unavailable") from None
     except Exception as exc:

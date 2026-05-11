@@ -10,9 +10,15 @@ export interface DailyReaderArticle {
   tags: string[]
   coverImageUrl: string | null
   coverTheme: string
+  preReadingGuide?: DailyReaderPreReadingGuide
   body: DailyReaderBody
   highlights: DailyReaderHighlight[]
   footerAnalysis: DailyReaderFooterAnalysis
+}
+
+export interface DailyReaderPreReadingGuide {
+  overview: string
+  questions: string[]
 }
 
 export interface DailyReaderBody {
@@ -23,6 +29,11 @@ export interface DailyReaderParagraph {
   id: string
   text: string
   highlights: DailyReaderHighlight[]
+  readingNote?: {
+    focusQuestion: string
+    microSummary: string
+  }
+  translation?: string
 }
 
 export interface DailyReaderHighlight {
@@ -51,6 +62,26 @@ export interface DailyReaderFooterAnalysis {
   misreadingPoints: DailyReaderMisreadingPoint[]
   fullArticleAnalysis: string
   discussionQuestions: string[]
+  // New schema fields
+  articleTakeaway?: string
+  sentenceNotes?: DailyReaderSentenceNote[]
+  writingMoves?: DailyReaderWritingMove[]
+}
+
+export interface DailyReaderSentenceNote {
+  sentence: string
+  paragraphId?: string
+  translation: string
+  breakdown: string
+  takeaway: string
+}
+
+export interface DailyReaderWritingMove {
+  anchor: string
+  paragraphId?: string
+  moveType: string
+  explanation: string
+  reusablePattern?: string | null
 }
 
 export interface DailyReaderStructurePart {
@@ -63,6 +94,8 @@ export interface DailyReaderKeyExpression {
   expression: string
   gloss: string
   contextSentence: string
+  paragraphId?: string
+  usageNote?: string
 }
 
 export interface DailyReaderMisreadingPoint {

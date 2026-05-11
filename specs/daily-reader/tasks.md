@@ -1,3 +1,5 @@
+> LEGACY NOTICE：本文档是每日精读第一版任务拆分，仅作历史参考。当前重构请以 [redesign-tracker.tmp.md](redesign-tracker.tmp.md) 和 [assets/daily-reader-design-reference.png](assets/daily-reader-design-reference.png) 为准。若本文档与重构 tracker 冲突，以 tracker 为准，避免按旧规范实现造成漂移。
+
 # Implementation Plan
 
 > **更新：2026-04-27** — Phase 1-3 大部分任务已完成，标记为 `[x]`。剩余未完成项保留 `[ ]`。

@@ -1,13 +1,11 @@
 """Daily Reader prompt strategy.
 
-Key differences from main-line strategy:
-- Restrained annotation density (3-5 per paragraph)
-- No grammar annotations
-- No sentence-by-sentence translation
-- Footer analysis (summary, structure, key expressions, misreading points, discussion questions)
-- Full article interpretation (lecture-style, not sentence-by-sentence)
-- Quality review (mandatory, 6 dimensions)
-- Refinement (conditional, one round only)
+Redesigned per redesign-tracker.tmp.md:
+- vocab_highlight: per-batch generation with coverage emphasis
+- paragraph_notes: replaces footer_analysis (summary/thesis/structure → focus_question/micro_summary/translation)
+- close_reading_takeaways: replaces full_interpretation (500-1000 word essay → structured language points)
+- quality_review: 8 dimensions including coverage and content overload
+- refinement: targets new schema fields
 """
 
 from __future__ import annotations
@@ -53,24 +51,24 @@ def build_vocab_highlight_strategy() -> DailyPromptStrategy:
 def build_phrase_gloss_strategy() -> DailyPromptStrategy:
     return DailyPromptStrategy(
         profile_id="daily_reader",
-        node_type="phrase_context_gloss",
+        node_type="phrase_gloss",
         policy_lines=tuple(load_policy_lines("daily", "phrase_gloss")),
     )
 
 
-def build_footer_analysis_strategy() -> DailyPromptStrategy:
+def build_paragraph_notes_strategy() -> DailyPromptStrategy:
     return DailyPromptStrategy(
         profile_id="daily_reader",
-        node_type="footer_analysis",
-        policy_lines=tuple(load_policy_lines("daily", "footer_analysis")),
+        node_type="paragraph_notes",
+        policy_lines=tuple(load_policy_lines("daily", "paragraph_notes")),
     )
 
 
-def build_full_interpretation_strategy() -> DailyPromptStrategy:
+def build_close_reading_takeaways_strategy() -> DailyPromptStrategy:
     return DailyPromptStrategy(
         profile_id="daily_reader",
-        node_type="full_interpretation",
-        policy_lines=tuple(load_policy_lines("daily", "full_interpretation")),
+        node_type="close_reading_takeaways",
+        policy_lines=tuple(load_policy_lines("daily", "close_reading_takeaways")),
     )
 
 

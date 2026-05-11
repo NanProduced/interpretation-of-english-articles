@@ -58,13 +58,20 @@ class _EntryRow:
         self.exam_tags = []
 
 
-def _word_candidate(entry_id: int, label: str, match_kind: str = "headword", rank: int = 1) -> _CandidateRow:
+def _word_candidate(
+    entry_id: int,
+    label: str,
+    match_kind: str = "headword",
+    rank: int = 1,
+    normalized_form: str | None = None,
+    target_pos: str | None = "n.",
+) -> _CandidateRow:
     return _CandidateRow(
         entry_id=entry_id,
-        normalized_form=label,
+        normalized_form=normalized_form or label,
         lookup_label=label,
         target_label=label,
-        target_pos="n.",
+        target_pos=target_pos,
         preview_text=f"preview:{label}",
         rank=rank,
         match_kind=match_kind,
@@ -210,6 +217,102 @@ class TestContextPhraseSniff:
             else:
                 # 如果只返回一个结果（single entry），确保是 take place
                 assert result["entry"]["word"] == "take place"
+
+    @pytest.mark.asyncio
+    async def test_up_with_context_finds_look_up(self, provider: Tecd3Provider) -> None:
+        """'up' + context 'I look up the word...' 应嗅探到 bare phrase 'look up'。"""
+        context = "I look up the word in a dictionary."
+
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup:
+            async def fake_lookup(forms, source="tecd3"):
+                results = []
+                for f in forms:
+                    if f == "look up":
+                        results.append(_phrase_candidate(210, "look up"))
+                    elif f == "up":
+                        results.append(_word_candidate(211, "up"))
+                return results
+
+            mock_lookup.side_effect = fake_lookup
+
+            result = await provider.fetch(
+                DictionaryLookupRequest(
+                    query="up",
+                    query_type="word",
+                    context_sentence=context,
+                    occurrence=1,
+                )
+            )
+            assert result["result_type"] == "disambiguation"
+            labels = [c["label"] for c in result["candidates"]]
+            assert labels.index("look up") < labels.index("up")
+
+    @pytest.mark.asyncio
+    async def test_out_with_context_finds_find_out(self, provider: Tecd3Provider) -> None:
+        """'out' + context 'She found out...' 应嗅探到 bare phrase 'find out'。"""
+        context = "She found out the truth yesterday."
+
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup:
+            async def fake_lookup(forms, source="tecd3"):
+                results = []
+                for f in forms:
+                    if f == "find out":
+                        results.append(_phrase_candidate(220, "find out"))
+                    elif f == "out":
+                        results.append(_word_candidate(221, "out"))
+                return results
+
+            mock_lookup.side_effect = fake_lookup
+
+            result = await provider.fetch(
+                DictionaryLookupRequest(
+                    query="out",
+                    query_type="word",
+                    context_sentence=context,
+                    occurrence=1,
+                )
+            )
+            assert result["result_type"] == "disambiguation"
+            labels = [c["label"] for c in result["candidates"]]
+            assert labels.index("find out") < labels.index("out")
+
+    @pytest.mark.asyncio
+    async def test_forward_with_context_finds_look_forward_to(self, provider: Tecd3Provider) -> None:
+        """'forward' + context 'look forward to...' 应嗅探到 'look forward to'。"""
+        context = "I look forward to hearing from you."
+
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup:
+            async def fake_lookup(forms, source="tecd3"):
+                results = []
+                for f in forms:
+                    if f == "look forward to":
+                        results.append(_phrase_candidate(230, "look forward to"))
+                    elif f == "forward":
+                        results.append(_word_candidate(231, "forward"))
+                return results
+
+            mock_lookup.side_effect = fake_lookup
+
+            result = await provider.fetch(
+                DictionaryLookupRequest(
+                    query="forward",
+                    query_type="word",
+                    context_sentence=context,
+                    occurrence=1,
+                )
+            )
+            assert result["result_type"] == "disambiguation"
+            labels = [c["label"] for c in result["candidates"]]
+            assert labels.index("look forward to") < labels.index("forward")
 
 
 class TestTemplatePhrase:
@@ -380,3 +483,26 @@ class TestPhaseSortPriority:
             assert result["entry"]["base_word"] == "small"
             # 验证 lookup 被调了两次：第一次 exact 失败，第二次 lemma 命中
             assert mock_lookup.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_lowercase_word_drops_same_spelling_capitalized_name(self, provider: Tecd3Provider) -> None:
+        """小写普通词命中时，同拼写大写专名不应强制进入消歧。"""
+        with patch(
+            "app.services.dictionary.providers.tecd3.lookup_candidates_batch",
+            new_callable=AsyncMock,
+        ) as mock_lookup, patch(
+            "app.services.dictionary.providers.tecd3.fetch_entry",
+            new_callable=AsyncMock,
+        ) as mock_fetch:
+            mock_lookup.return_value = [
+                _word_candidate(700, "North", rank=1, normalized_form="north", target_pos=None),
+                _word_candidate(701, "north", rank=5, normalized_form="north", target_pos="n."),
+            ]
+            mock_fetch.return_value = _EntryRow(701, "north")
+
+            result = await provider.fetch(
+                DictionaryLookupRequest(query="north", query_type="word")
+            )
+
+            assert result["result_type"] == "entry"
+            assert result["entry"]["word"] == "north"

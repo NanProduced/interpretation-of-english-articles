@@ -23,7 +23,8 @@ class DailyReaderArticleResponse(BaseModel):
     cover_theme: str = "editorial_warm"
     body: dict = Field(default_factory=dict)
     highlights: list[dict] = Field(default_factory=list)
-    footer_analysis: dict = Field(default_factory=dict)
+    paragraph_notes: dict = Field(default_factory=dict)
+    takeaways: dict = Field(default_factory=dict)
 
 
 class DailyReaderTodayResponse(BaseModel):

@@ -259,7 +259,7 @@ export interface DictionaryCandidate {
 }
 
 interface DictionaryResultBase {
-  resultType: 'entry' | 'disambiguation'
+  resultType: 'entry' | 'disambiguation' | 'not_found'
   query: string
   provider?: string
   cached?: boolean
@@ -275,4 +275,9 @@ export interface DictionaryDisambiguationResult extends DictionaryResultBase {
   candidates: DictionaryCandidate[]
 }
 
-export type DictionaryResult = DictionaryEntryResult | DictionaryDisambiguationResult
+export interface DictionaryNotFoundResult extends DictionaryResultBase {
+  resultType: 'not_found'
+  reason: 'not_in_dictionary'
+}
+
+export type DictionaryResult = DictionaryEntryResult | DictionaryDisambiguationResult | DictionaryNotFoundResult

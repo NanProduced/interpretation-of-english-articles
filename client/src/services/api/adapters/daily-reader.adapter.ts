@@ -3,6 +3,9 @@ import type {
   DailyReaderTodayResponseDto,
   DailyReaderListItemDto,
   DailyReaderListResponseDto,
+  DailyReaderParagraphNoteDto,
+  DailyReaderParagraphNotesDto,
+  DailyReaderTakeawaysDto,
 } from '../../../types/api/daily-reader.dto'
 import type {
   DailyReaderArticle,
@@ -17,6 +20,9 @@ function stripHtml(value: string | null): string | null {
 }
 
 export function dtoToDailyReaderArticle(dto: DailyReaderArticleDto): DailyReaderArticle {
+  const paragraphNotes = dto.paragraph_notes ?? null
+  const noteMap = buildParagraphNoteMap(paragraphNotes)
+
   return {
     id: dto.id,
     title: dto.title,
@@ -29,17 +35,28 @@ export function dtoToDailyReaderArticle(dto: DailyReaderArticleDto): DailyReader
     tags: Array.isArray(dto.tags) ? dto.tags : [],
     coverImageUrl: dto.cover_image_url,
     coverTheme: dto.cover_theme,
+    preReadingGuide: dtoToPreReadingGuide(paragraphNotes),
     body: {
       paragraphs: Array.isArray(dto.body?.paragraphs)
-        ? dto.body.paragraphs.map((p) => ({
-            id: p.id,
-            text: p.text,
-            highlights: Array.isArray(p.highlights) ? p.highlights.map(dtoToHighlight) : [],
-          }))
+        ? dto.body.paragraphs.map((p) => {
+            const note = p.reading_note ?? noteMap[p.id]
+            return {
+              id: p.id,
+              text: p.text,
+              highlights: Array.isArray(p.highlights) ? p.highlights.map(dtoToHighlight) : [],
+              readingNote: note
+                ? {
+                    focusQuestion: note.focus_question ?? '',
+                    microSummary: note.micro_summary ?? '',
+                  }
+                : undefined,
+              translation: note?.translation || undefined,
+            }
+          })
         : [],
     },
     highlights: Array.isArray(dto.highlights) ? dto.highlights.map(dtoToHighlight) : [],
-    footerAnalysis: dtoToFooterAnalysis(dto.footer_analysis),
+    footerAnalysis: dtoToFooterAnalysis(dto.footer_analysis, dto.takeaways),
   }
 }
 
@@ -77,7 +94,41 @@ function dtoToHighlight(dto: DailyReaderArticleDto['highlights'][0]): DailyReade
   }
 }
 
-function dtoToFooterAnalysis(dto: DailyReaderArticleDto['footer_analysis']): DailyReaderFooterAnalysis {
+function buildParagraphNoteMap(dto: DailyReaderParagraphNotesDto | null): Record<string, DailyReaderParagraphNoteDto> {
+  if (!dto || !Array.isArray(dto.notes)) return {}
+  return dto.notes.reduce<Record<string, DailyReaderParagraphNoteDto>>((acc, note) => {
+    if (note?.paragraph_id) acc[note.paragraph_id] = note
+    return acc
+  }, {})
+}
+
+function dtoToPreReadingGuide(dto: DailyReaderParagraphNotesDto | null): DailyReaderArticle['preReadingGuide'] {
+  if (!dto) return undefined
+
+  const overview = dto.article_summary?.trim() ?? ''
+  const questions = normalizeReadingFocus(dto.reading_focus)
+  if (!overview && questions.length === 0) return undefined
+
+  return {
+    overview,
+    questions,
+  }
+}
+
+function normalizeReadingFocus(value: string[] | string | undefined): string[] {
+  if (Array.isArray(value)) return value.map((item) => item.trim()).filter(Boolean).slice(0, 2)
+  if (!value) return []
+  return value
+    .split(/\n|[；;]|(?:\d+[.、]\s*)/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+}
+
+function dtoToFooterAnalysis(
+  dto: DailyReaderArticleDto['footer_analysis'],
+  takeaways?: DailyReaderTakeawaysDto | null,
+): DailyReaderFooterAnalysis {
   const thesisAndIntent = dto?.thesis_and_intent
   return {
     summary: dto?.summary ?? '',
@@ -90,7 +141,13 @@ function dtoToFooterAnalysis(dto: DailyReaderArticleDto['footer_analysis']): Dai
       title: s.title,
       summary: s.summary,
     })) : [],
-    keyExpressions: Array.isArray(dto?.key_expressions) ? dto.key_expressions.map((e) => ({
+    keyExpressions: Array.isArray(takeaways?.key_expressions) ? takeaways.key_expressions.map((e) => ({
+      expression: e.expression,
+      gloss: e.gloss,
+      contextSentence: e.context_sentence,
+      paragraphId: e.paragraph_id,
+      usageNote: e.usage_note,
+    })) : Array.isArray(dto?.key_expressions) ? dto.key_expressions.map((e) => ({
       expression: e.expression,
       gloss: e.gloss,
       contextSentence: e.context_sentence,
@@ -100,6 +157,23 @@ function dtoToFooterAnalysis(dto: DailyReaderArticleDto['footer_analysis']): Dai
       clarification: m.clarification,
     })) : [],
     fullArticleAnalysis: dto?.full_article_analysis ?? '',
-    discussionQuestions: Array.isArray(dto?.discussion_questions) ? dto.discussion_questions : [],
+    discussionQuestions: Array.isArray(takeaways?.discussion_questions)
+      ? takeaways.discussion_questions
+      : Array.isArray(dto?.discussion_questions) ? dto.discussion_questions : [],
+    articleTakeaway: takeaways?.article_takeaway ?? undefined,
+    sentenceNotes: Array.isArray(takeaways?.sentence_notes) ? takeaways.sentence_notes.map((note) => ({
+      sentence: note.sentence,
+      paragraphId: note.paragraph_id,
+      translation: note.translation,
+      breakdown: note.breakdown,
+      takeaway: note.takeaway,
+    })) : undefined,
+    writingMoves: Array.isArray(takeaways?.writing_moves) ? takeaways.writing_moves.map((move) => ({
+      anchor: move.anchor,
+      paragraphId: move.paragraph_id,
+      moveType: move.move_type,
+      explanation: move.explanation,
+      reusablePattern: move.reusable_pattern,
+    })) : undefined,
   }
 }

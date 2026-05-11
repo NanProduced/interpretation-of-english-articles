@@ -1,4 +1,9 @@
-"""Quality review agent for Daily Reader workflow."""
+"""Quality review agent for Daily Reader workflow.
+
+Redesigned: reviews highlights coverage, paragraph notes completeness,
+takeaways quantity control, and content overload — instead of the old
+6-dimension review focused on footer_analysis and full_interpretation.
+"""
 
 from __future__ import annotations
 
@@ -20,8 +25,9 @@ from app.services.analysis.prompting.prompt_loader import load_agent_instruction
 class DailyReviewAgentDeps:
     original_text: str
     highlights_json: str
-    footer_analysis_json: str
-    full_interpretation: str
+    paragraph_notes_json: str
+    takeaways_json: str
+    coverage_report: str = ""
     prompt_strategy: DailyPromptStrategy = field(default_factory=build_quality_review_strategy)
 
 
@@ -32,9 +38,11 @@ def build_daily_review_prompt(deps: DailyReviewAgentDeps) -> str:
     all_sections = list(sections) + [
         PromptSection("original_text", (deps.original_text[:4000],)),
         PromptSection("highlights", (deps.highlights_json[:3000],)),
-        PromptSection("footer_analysis", (deps.footer_analysis_json[:3000],)),
-        PromptSection("full_interpretation", (deps.full_interpretation[:3000],)),
+        PromptSection("paragraph_notes", (deps.paragraph_notes_json[:3000],)),
+        PromptSection("takeaways", (deps.takeaways_json[:3000],)),
     ]
+    if deps.coverage_report:
+        all_sections.append(PromptSection("coverage_report", (deps.coverage_report,)))
     return render_prompt_sections(all_sections)
 
 

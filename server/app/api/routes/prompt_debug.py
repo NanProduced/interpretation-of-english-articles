@@ -15,8 +15,8 @@ from app.services.analysis.prompting.daily_prompt_strategy import (
     build_daily_prompt_sections,
     build_vocab_highlight_strategy,
     build_phrase_gloss_strategy,
-    build_footer_analysis_strategy,
-    build_full_interpretation_strategy,
+    build_paragraph_notes_strategy,
+    build_close_reading_takeaways_strategy,
     build_quality_review_strategy,
     build_refinement_strategy,
 )
@@ -159,8 +159,8 @@ def _build_daily_preview(
 ) -> PromptPreviewResponse:
     strategy_builders = {
         "daily_vocab": build_vocab_highlight_strategy,
-        "daily_footer": build_footer_analysis_strategy,
-        "daily_interpretation": build_full_interpretation_strategy,
+        "daily_footer": build_paragraph_notes_strategy,
+        "daily_interpretation": build_close_reading_takeaways_strategy,
         "daily_review": build_quality_review_strategy,
         "daily_refinement": build_refinement_strategy,
     }

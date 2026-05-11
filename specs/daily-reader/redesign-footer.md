@@ -1,3 +1,5 @@
+> LEGACY NOTICE：本文档是早期“文末区域”重构草案，方向偏 footer，未覆盖当前整体重构方案。当前实现请以 [redesign-tracker.tmp.md](redesign-tracker.tmp.md) 和 [assets/daily-reader-design-reference.png](assets/daily-reader-design-reference.png) 为准。若本文档与重构 tracker 冲突，以 tracker 为准，避免按旧规范实现造成漂移。
+
 # 每日精读解析区重构方案：Tab 分层 + 导读卡
 
 > **状态**：待评审

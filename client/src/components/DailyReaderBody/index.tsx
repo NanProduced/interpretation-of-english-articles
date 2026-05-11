@@ -1,9 +1,9 @@
 import { View, Text } from '@tarojs/components'
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useState } from 'react'
 import type { DailyReaderBody as DailyReaderBodyType, DailyReaderHighlight } from '../../types/view/daily-reader.vm'
 import DailyReaderHighlightWord from '../DailyReaderHighlightWord'
+import LucideIcon from '../LucideIcon'
 import type { ClickEvent } from '../../types/taro-events'
-import type { ITouchEvent } from '@tarojs/components/types/common'
 import './index.scss'
 
 interface Props {
@@ -21,6 +21,9 @@ const DailyReaderBody = memo(function DailyReaderBody({
   onWordClick,
   showHighlightHint,
 }: Props) {
+  const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({})
+  const [expandedTranslations, setExpandedTranslations] = useState<Record<string, boolean>>({})
+
   const handleTextClick = useCallback(
     (e: ClickEvent) => {
       const target = e.target as HTMLElement
@@ -36,6 +39,14 @@ const DailyReaderBody = memo(function DailyReaderBody({
     [onWordClick],
   )
 
+  const toggleNote = useCallback((id: string) => {
+    setExpandedNotes(prev => ({ ...prev, [id]: !prev[id] }))
+  }, [])
+
+  const toggleTranslation = useCallback((id: string) => {
+    setExpandedTranslations(prev => ({ ...prev, [id]: !prev[id] }))
+  }, [])
+
   return (
     <View className='daily-body'>
       {body.paragraphs.map((paragraph) => {
@@ -43,11 +54,54 @@ const DailyReaderBody = memo(function DailyReaderBody({
           (h) => h.paragraphId === paragraph.id,
         )
 
+        const note = paragraph.readingNote
+        const translation = paragraph.translation
+
+        const noteExpanded = expandedNotes[paragraph.id]
+        const transExpanded = expandedTranslations[paragraph.id]
+
         return (
-          <View key={paragraph.id} className='daily-body__paragraph'>
-            <Text className='daily-body__text' onClick={handleTextClick}>
-              {renderParagraphWithHighlights(paragraph.text, paraHighlights, onHighlightClick, showHighlightHint)}
-            </Text>
+          <View key={paragraph.id} className='daily-body__paragraph-container'>
+            {note && (
+              <View className='daily-body__strip'>
+                <View className='daily-body__strip-header' onClick={() => toggleNote(paragraph.id)}>
+                  <View className='daily-body__strip-icon'>
+                    <LucideIcon name='Lightbulb' size={14} color='var(--dr-text-muted)' />
+                  </View>
+                  <Text className={`daily-body__strip-question ${noteExpanded ? 'daily-body__strip-question--expanded' : ''}`}>
+                    透读：{note.focusQuestion}
+                  </Text>
+                  <View className={`daily-body__strip-toggle ${noteExpanded ? 'daily-body__strip-toggle--expanded' : ''}`}>
+                    <LucideIcon name='ChevronDown' size={16} color='var(--dr-text-muted)' />
+                  </View>
+                </View>
+                {noteExpanded && (
+                  <View className='daily-body__strip-content'>
+                    <Text>{note.microSummary}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <View className='daily-body__paragraph'>
+              <Text className='daily-body__text' onClick={handleTextClick}>
+                {renderParagraphWithHighlights(paragraph.text, paraHighlights, onHighlightClick, showHighlightHint)}
+              </Text>
+            </View>
+
+            {translation && (
+              <View className='daily-body__translation-section'>
+                <View className='daily-body__translation-toggle' onClick={() => toggleTranslation(paragraph.id)}>
+                  <Text className='daily-body__translation-label'>译文</Text>
+                  <LucideIcon name={transExpanded ? 'ChevronUp' : 'ChevronDown'} size={16} color='var(--dr-text-muted)' />
+                </View>
+                {transExpanded && (
+                  <View className='daily-body__translation-box'>
+                    <Text className='daily-body__translation-text'>{translation}</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         )
       })}

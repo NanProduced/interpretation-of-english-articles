@@ -1,385 +1,234 @@
 .daily-footer {
-  padding: 0 56rpx 168rpx;
-  margin-top: 44rpx;
+  padding: 0 48rpx 64rpx;
 
   &__divider {
     display: flex;
     align-items: center;
-    gap: 28rpx;
-    margin: 76rpx 0 50rpx;
+    justify-content: center;
+    gap: 24rpx;
+    margin: 80rpx 0 64rpx;
   }
 
-  &__divider-line {
+  &__divider-ornament {
+    height: 1px;
     flex: 1;
-    height: 1rpx;
-    background: linear-gradient(90deg, transparent 0%, rgba(139, 115, 85, 0.18) 50%, transparent 100%);
+    background: var(--dr-border-subtle);
   }
 
   &__divider-label {
-    font-size: 25rpx;
-    font-weight: 700;
-    color: var(--dr-accent);
-    letter-spacing: 5rpx;
-  }
-
-  &__empty {
-    padding: 60rpx 0 40rpx;
-  }
-
-  &__empty-text {
-    display: block;
-    font-size: 28rpx;
-    color: var(--dr-text-muted);
-    line-height: 1.7;
-    text-align: center;
-    letter-spacing: 0.4rpx;
-  }
-
-  &__editorial {
-    display: flex;
-    flex-direction: column;
-    gap: 72rpx;
-  }
-
-  &__lead {
-    padding: 40rpx 0 44rpx;
-    border-top: 1rpx solid rgba(139, 115, 85, 0.14);
-    border-bottom: 1rpx solid rgba(139, 115, 85, 0.14);
-  }
-
-  &__kicker {
-    display: block;
-    margin-bottom: 22rpx;
-    font-family: Georgia, serif;
-    font-size: 24rpx;
-    font-style: italic;
-    color: var(--dr-accent);
-    letter-spacing: 0.6rpx;
-  }
-
-  &__lead-summary {
-    display: block;
     font-size: 34rpx;
-    font-weight: 600;
-    line-height: 1.62;
-    color: var(--dr-text-heading);
-    letter-spacing: 0.2rpx;
-  }
-
-  &__lead-notes {
-    display: flex;
-    flex-direction: column;
-    gap: 24rpx;
-    margin-top: 36rpx;
-  }
-
-  &__lead-note {
-    padding: 28rpx 30rpx;
-    border-radius: 14rpx;
-    background: rgba(250, 246, 240, 0.62);
-    border: 1rpx solid rgba(139, 115, 85, 0.08);
-  }
-
-  &__lead-note-label {
-    display: block;
-    margin-bottom: 12rpx;
-    font-size: 23rpx;
-    font-weight: 700;
-    color: var(--dr-accent);
-    letter-spacing: 1.8rpx;
-  }
-
-  &__lead-note-text {
-    display: block;
-    font-size: 28rpx;
-    line-height: 1.68;
-    color: var(--dr-text-body);
-    letter-spacing: 0.2rpx;
-  }
-
-  &__block {
-    display: flex;
-    flex-direction: column;
-    gap: 28rpx;
-  }
-
-  &__block-heading {
-    display: flex;
-    flex-direction: column;
-    gap: 10rpx;
-  }
-
-  &__block-title {
-    display: block;
-    font-size: 34rpx;
+    font-family: 'Georgia', 'Times New Roman', serif;
     font-weight: 700;
     color: var(--dr-text-heading);
-    letter-spacing: 0.6rpx;
+    letter-spacing: 2rpx;
   }
 
-  &__block-subtitle {
-    display: block;
-    font-size: 24rpx;
-    line-height: 1.45;
-    color: var(--dr-text-muted);
-    letter-spacing: 0.3rpx;
-  }
-
-  &__structure {
+  &__content {
     display: flex;
     flex-direction: column;
-    gap: 30rpx;
+    gap: 64rpx;
   }
 
-  &__structure-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 22rpx;
-  }
-
-  &__structure-index {
-    flex-shrink: 0;
-    width: 46rpx;
-    height: 46rpx;
-    border-radius: 50%;
-    background: rgba(139, 115, 85, 0.10);
-    border: 1rpx solid rgba(139, 115, 85, 0.14);
+  &__section-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    margin-top: 4rpx;
+    gap: 16rpx;
+    margin-bottom: 24rpx;
   }
 
-  &__structure-index-text {
-    font-family: Georgia, serif;
-    font-size: 24rpx;
+  &__section-title {
+    font-size: 28rpx;
     font-weight: 700;
-    color: var(--dr-accent);
-    line-height: 1;
-  }
-
-  &__structure-copy {
-    flex: 1;
-    min-width: 0;
-    padding-bottom: 30rpx;
-    border-bottom: 1rpx solid rgba(139, 115, 85, 0.08);
-  }
-
-  &__structure-item:last-child &__structure-copy {
-    padding-bottom: 0;
-    border-bottom: none;
-  }
-
-  &__structure-label {
-    display: block;
-    margin-bottom: 8rpx;
-    font-family: Georgia, serif;
-    font-size: 23rpx;
-    font-weight: 600;
-    color: var(--dr-accent);
-    letter-spacing: 0.4rpx;
-  }
-
-  &__structure-title {
-    display: block;
-    margin-bottom: 10rpx;
-    font-size: 30rpx;
-    font-weight: 700;
-    line-height: 1.42;
     color: var(--dr-text-heading);
-    letter-spacing: 0.2rpx;
+    letter-spacing: 1rpx;
   }
 
-  &__structure-summary {
-    display: block;
-    font-size: 27rpx;
-    line-height: 1.68;
-    color: var(--dr-text-sub);
-    letter-spacing: 0.25rpx;
-  }
-
-  &__block--lecture {
-    padding: 38rpx 34rpx 42rpx;
-    margin: 0 -14rpx;
-    border-radius: 16rpx;
-    background: rgba(250, 246, 240, 0.58);
-    border: 1rpx solid rgba(139, 115, 85, 0.08);
-  }
-
-  &__lecture {
-    display: flex;
-    flex-direction: column;
-    gap: 30rpx;
-  }
-
-  &__lecture-paragraph {
+  &__takeaway {
     display: block;
     font-size: 30rpx;
-    line-height: 1.82;
-    color: var(--dr-text-body);
-    letter-spacing: 0.35rpx;
+    line-height: 1.8;
+    color: var(--dr-text-reading);
   }
 
   &__expressions {
     display: flex;
     flex-direction: column;
-    gap: 24rpx;
+    gap: 40rpx;
   }
 
-  &__expression {
-    padding: 0 0 26rpx;
-    border-bottom: 1rpx solid rgba(139, 115, 85, 0.08);
-
-    &:last-child {
-      padding-bottom: 0;
-      border-bottom: none;
-    }
-  }
-
-  &__expression-en {
-    display: block;
-    margin-bottom: 8rpx;
-    font-family: Georgia, serif;
-    font-size: 34rpx;
-    font-weight: 700;
-    line-height: 1.35;
-    color: var(--dr-text-heading);
-    letter-spacing: 0.2rpx;
-  }
-
-  &__expression-zh {
-    display: block;
-    margin-bottom: 12rpx;
-    font-size: 28rpx;
-    line-height: 1.48;
-    color: var(--dr-text-sub);
-    letter-spacing: 0.2rpx;
-  }
-
-  &__expression-context {
-    display: block;
-    font-family: Georgia, serif;
-    font-size: 26rpx;
-    font-style: italic;
-    line-height: 1.58;
-    color: var(--dr-text-muted);
-    letter-spacing: 0.15rpx;
-  }
-
-  &__misreadings {
+  &__expr-item {
     display: flex;
     flex-direction: column;
-    gap: 22rpx;
+    gap: 8rpx;
   }
 
-  &__misreading {
-    padding: 28rpx 30rpx;
-    border-radius: 14rpx;
-    background: rgba(212, 165, 116, 0.055);
-    border: 1rpx solid rgba(212, 165, 116, 0.16);
+  &__expr-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
   }
 
-  &__misreading-label {
-    display: block;
-    margin-bottom: 8rpx;
-    font-size: 22rpx;
+  &__expr-en {
+    font-size: 30rpx;
     font-weight: 700;
-    color: var(--dr-text-warning);
-    letter-spacing: 1.6rpx;
-
-    &--answer {
-      margin-top: 20rpx;
-    }
+    color: var(--dr-text-heading);
   }
 
-  &__misreading-point,
-  &__misreading-clarify {
-    display: block;
-    font-size: 27rpx;
-    line-height: 1.65;
-    color: var(--dr-text-body);
-    letter-spacing: 0.2rpx;
-  }
-
-  &__misreading-clarify {
+  &__expr-zh {
+    font-size: 28rpx;
     color: var(--dr-text-sub);
   }
 
-  &__block--questions {
-    padding-top: 8rpx;
+  &__expr-context {
+    display: block;
+    font-size: 26rpx;
+    color: var(--dr-text-muted);
+    font-style: italic;
+    line-height: 1.5;
+  }
+
+  &__expr-usage {
+    display: block;
+    font-size: 25rpx;
+    color: var(--dr-text-sub);
+    line-height: 1.55;
+  }
+
+  &__sentences {
+    display: flex;
+    flex-direction: column;
+    gap: 40rpx;
+  }
+
+  &__sentence-item {
+    border-left: 4rpx solid var(--dr-border-accent);
+    padding-left: 24rpx;
+  }
+
+  &__sn-en {
+    display: block;
+    font-size: 30rpx;
+    font-style: italic;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-weight: 600;
+    color: var(--dr-text-reading);
+    line-height: 1.6;
+    margin-bottom: 12rpx;
+  }
+
+  &__sn-zh {
+    display: block;
+    font-size: 28rpx;
+    color: var(--dr-text-sub);
+  }
+
+  &__sn-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8rpx;
+    margin-top: 16rpx;
+    font-size: 26rpx;
+    line-height: 1.5;
+  }
+
+  &__sn-label {
+    font-weight: 600;
+    color: var(--dr-text-sub);
+    white-space: nowrap;
+  }
+
+  &__sn-text {
+    color: var(--dr-text-muted);
+  }
+
+  &__moves {
+    display: flex;
+    flex-direction: column;
+    gap: 32rpx;
+  }
+
+  &__move-item {
+    display: flex;
+    flex-direction: column;
+    gap: 12rpx;
+  }
+
+  &__move-anchor {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: var(--dr-text-heading);
+  }
+
+  &__move-desc {
+    font-size: 28rpx;
+    line-height: 1.6;
+    color: var(--dr-text-sub);
+  }
+
+  &__move-pattern {
+    font-size: 25rpx;
+    line-height: 1.55;
+    color: var(--dr-text-muted);
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-style: italic;
   }
 
   &__questions {
     display: flex;
     flex-direction: column;
-    gap: 18rpx;
+    gap: 24rpx;
   }
 
   &__question {
     display: flex;
     align-items: flex-start;
     gap: 16rpx;
-    padding: 22rpx 0;
-    border-bottom: 1rpx solid rgba(139, 115, 85, 0.08);
-
-    &:last-child {
-      border-bottom: none;
-    }
   }
 
-  &__question-num {
-    flex-shrink: 0;
-    min-width: 36rpx;
-    font-family: Georgia, serif;
+  &__question-bullet {
     font-size: 28rpx;
     font-weight: 700;
-    color: var(--dr-accent);
-    line-height: 1.45;
+    color: var(--dr-text-heading);
+    min-width: 32rpx;
   }
 
   &__question-text {
-    flex: 1;
-    min-width: 0;
-    font-family: Georgia, serif;
     font-size: 28rpx;
-    font-style: italic;
     line-height: 1.6;
-    color: var(--dr-text-body);
-    letter-spacing: 0.2rpx;
+    color: var(--dr-text-reading);
   }
 
   &__source {
-    margin-top: 76rpx;
-    padding-top: 32rpx;
-    border-top: 1rpx solid rgba(139, 115, 85, 0.12);
+    margin-top: 80rpx;
     display: flex;
     align-items: center;
-    gap: 12rpx;
-    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16rpx;
+    padding: 32rpx;
+    background: transparent;
+    border: 1px solid var(--dr-border-light);
+    border-radius: 40rpx;
+    cursor: pointer;
+    transition: background 0.2s ease;
+
+    &:active {
+      background: var(--dr-surface-raised, rgba(0,0,0,0.02));
+    }
   }
 
   &__source-label {
     font-size: 24rpx;
     color: var(--dr-text-muted);
-    letter-spacing: 0.4rpx;
   }
 
   &__source-name {
-    font-size: 25rpx;
+    font-size: 24rpx;
     font-weight: 600;
     color: var(--dr-text-sub);
-    letter-spacing: 0.2rpx;
   }
 
   &__source-link {
-    margin-left: 4rpx;
-    font-size: 25rpx;
-    font-weight: 600;
+    font-size: 24rpx;
     color: var(--dr-accent);
-    letter-spacing: 0.3rpx;
-
-    &:active {
-      opacity: 0.72;
-    }
   }
 }

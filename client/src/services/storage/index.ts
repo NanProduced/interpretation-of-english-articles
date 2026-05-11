@@ -423,6 +423,21 @@ export function getVocabEntryByLemma(lemma: string): VocabEntry | null {
   return entry
 }
 
+export function getVocabEntryByLookupForm(form: string): VocabEntry | null {
+  const normalized = form.trim().toLowerCase()
+  if (!normalized) return null
+
+  const byLemma = getVocabEntryByLemma(normalized)
+  if (byLemma) return byLemma
+
+  return getVocabulary().find((entry) => {
+    if (entry.tombstone) return false
+    if (entry.word.toLowerCase() === normalized) return true
+    if (entry.lemma.toLowerCase() === normalized) return true
+    return entry.collectedForms?.some((item) => item.toLowerCase() === normalized) ?? false
+  }) || null
+}
+
 // ============ User Preferences ============
 
 export interface UserPreferences {

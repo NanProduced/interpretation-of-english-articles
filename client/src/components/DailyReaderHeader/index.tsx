@@ -1,7 +1,8 @@
 import { View, Text, Image } from '@tarojs/components'
 import { memo } from 'react'
-import type { DailyReaderArticle } from '../../types/view/daily-reader.vm'
+import type { DailyReaderArticle, DailyReaderPreReadingGuide } from '../../types/view/daily-reader.vm'
 import defaultCover from '../../assets/covers/daily-reader-default.jpg'
+import LucideIcon from '../LucideIcon'
 import './index.scss'
 
 interface Props {
@@ -19,6 +20,8 @@ const DailyReaderHeader = memo(function DailyReaderHeader({ article }: Props) {
   const hasCover = !!article.coverImageUrl
   const coverSrc = article.coverImageUrl || defaultCover
 
+  const guide: DailyReaderPreReadingGuide | undefined = article.preReadingGuide
+
   return (
     <View className='daily-header'>
       <View className='daily-header__cover'>
@@ -29,6 +32,10 @@ const DailyReaderHeader = memo(function DailyReaderHeader({ article }: Props) {
           lazyLoad
         />
         <View className='daily-header__cover-overlay' />
+        <View className='daily-header__cover-tag'>
+          <LucideIcon name='Calendar' size={14} color='#FFFFFF' />
+          <Text className='daily-header__cover-tag-text'>每日精读 · {article.publishDate}</Text>
+        </View>
       </View>
       <View className='daily-header__content'>
         <View className='daily-header__meta'>
@@ -55,6 +62,27 @@ const DailyReaderHeader = memo(function DailyReaderHeader({ article }: Props) {
             </View>
           ))}
         </View>
+        {guide && (
+          <View className='daily-header__guide'>
+            <View className='daily-header__guide-title-wrap'>
+              <LucideIcon name='BookOpen' size={16} color='var(--dr-text-sub)' />
+              <Text className='daily-header__guide-label'>读前导读</Text>
+            </View>
+            {guide.overview && (
+              <Text className='daily-header__guide-overview'>{guide.overview}</Text>
+            )}
+            {guide.questions.length > 0 && (
+              <View className='daily-header__guide-questions'>
+                {guide.questions.map((q, idx) => (
+                  <View key={idx} className='daily-header__guide-qitem'>
+                    <Text className='daily-header__guide-qnum'>{idx + 1}</Text>
+                    <Text className='daily-header__guide-qtext'>{q}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
       </View>
     </View>
   )

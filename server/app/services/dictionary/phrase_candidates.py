@@ -76,6 +76,11 @@ def generate_candidates(query: str, context_sentence: str, occurrence: int | Non
             if template_form != lemma_form and template_form != literal and template_form != query.lower():
                 forms.append(template_form)
 
+        def add_form_once(form: str):
+            normalized = " ".join(form.lower().split())
+            if normalized and normalized != query.lower() and normalized not in forms:
+                forms.append(normalized)
+
         # 1. target 的完整子树
         subtree = list(target.subtree)
         if len(subtree) > 1:
@@ -128,6 +133,17 @@ def generate_candidates(query: str, context_sentence: str, occurrence: int | Non
         verb_head = find_logical_verb_head(target)
             
         if verb_head:
+            # Bare phrasal fallback: many TECD3 phrase targets are stored as
+            # "verb particle" (e.g. "look up", "find out") rather than the
+            # longer contextual span ("look up sth in sth").
+            if target.dep_ in {"prt", "prep"}:
+                add_form_once(f"{verb_head.lemma_.lower()} {target.lemma_.lower()}")
+            elif target.dep_ == "advmod":
+                add_form_once(f"{verb_head.lemma_.lower()} {target.lemma_.lower()}")
+                for child in verb_head.children:
+                    if child.dep_ == "prep" and child.i > target.i:
+                        add_form_once(f"{verb_head.lemma_.lower()} {target.lemma_.lower()} {child.lemma_.lower()}")
+
             # Full relaxed phrase
             valid_deps = {"prt", "prep", "dobj", "dative", "advmod", "acomp", "attr"}
             phrase_tokens = [verb_head]

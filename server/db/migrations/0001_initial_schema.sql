@@ -249,7 +249,7 @@ CREATE TABLE vocabulary_book (
   tags TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   exchange TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   source_provider TEXT NOT NULL DEFAULT 'tecd3',
-  dict_entry_id BIGINT REFERENCES dict_entries(id) ON DELETE SET NULL,
+  dict_entry_id BIGINT,
   source_sentence TEXT,
   source_context TEXT,
   mastery_status TEXT NOT NULL DEFAULT 'new' CHECK (mastery_status IN ('new', 'learning', 'review', 'mastered', 'archived')),
@@ -469,6 +469,10 @@ CREATE TABLE IF NOT EXISTS dict_redirects (
 
 CREATE INDEX idx_dict_redirects_key ON dict_redirects(source, redirect_key);
 CREATE INDEX idx_dict_redirects_target ON dict_redirects(source, target_entry_key);
+
+ALTER TABLE vocabulary_book
+  ADD CONSTRAINT fk_vocabulary_book_dict_entry
+  FOREIGN KEY (dict_entry_id) REFERENCES dict_entries(id) ON DELETE SET NULL;
 
 -- ============================================================
 -- COMMENT

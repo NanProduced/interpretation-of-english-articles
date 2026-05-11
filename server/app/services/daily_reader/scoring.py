@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass, field
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 from langsmith import traceable
@@ -53,13 +54,28 @@ async def score_article(article: DiscoveredArticle) -> ArticleScore | None:
         profile_name = model_config.profile_name if model_config else "unknown"
         provider = model_config.provider if model_config else "unknown"
 
-        return await _score_article_llm_span(
+        metadata = {
+            "workflow_name": "daily_reader",
+            "workflow_version": "2.0.0",
+            "node": "scoring",
+            "article_title": article.title[:80],
+            "article_source": article.source,
+            "article_word_count": article.word_count,
+            "model_profile": profile_name,
+            "model_provider": provider,
+            "model_name": model_name,
+            "ls_provider": provider,
+            "ls_model_name": model_name,
+        }
+        trace_result = await _score_article_llm_span(
             article=article,
             model=model,
             model_name=model_name,
             profile_name=profile_name,
             provider=provider,
+            langsmith_extra={"metadata": metadata},
         )
+        return trace_result.get("output")
     except Exception as e:
         logger.warning("LLM scoring failed, falling back to heuristic: %s", e)
         return heuristic_score(article)
@@ -73,7 +89,7 @@ async def _score_article_llm_span(
     model_name: str,
     profile_name: str,
     provider: str,
-) -> ArticleScore:
+) -> dict[str, Any]:
     from pydantic_ai import Agent
     from app.llm.agent_runner import extract_run_usage
 
@@ -89,6 +105,7 @@ async def _score_article_llm_span(
     prompt = _build_scoring_prompt(article)
     result = await scoring_agent.run(prompt)
     output = result.output
+    usage = extract_run_usage(result)
 
     overall = (
         output.language_richness
@@ -97,15 +114,18 @@ async def _score_article_llm_span(
         + output.cultural_value
     ) / 4.0
 
-    return ArticleScore(
-        score=round(overall, 1),
-        difficulty=output.difficulty,
-        tags=output.tags,
-        language_richness=output.language_richness,
-        topic_interest=output.topic_interest,
-        structure_clarity=output.structure_clarity,
-        cultural_value=output.cultural_value,
-    )
+    return {
+        "output": ArticleScore(
+            score=round(overall, 1),
+            difficulty=output.difficulty,
+            tags=output.tags,
+            language_richness=output.language_richness,
+            topic_interest=output.topic_interest,
+            structure_clarity=output.structure_clarity,
+            cultural_value=output.cultural_value,
+        ),
+        "usage_metadata": usage,
+    }
 
 
 def deduplicate(

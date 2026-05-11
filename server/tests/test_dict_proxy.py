@@ -150,7 +150,12 @@ class TestDictProxy:
         client = create_client()
         response = client.get("/dict?q=unknown&type=word")
 
-        assert response.status_code == 404
+        assert response.status_code == 200
+        data = response.json()
+        assert data["result_type"] == "not_found"
+        assert data["query"] == "unknown"
+        assert data["reason"] == "not_in_dictionary"
+        assert "message" not in data
 
     def test_dict_entry_not_found(self) -> None:
         client = create_client()

@@ -1,6 +1,6 @@
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { AnyInlineMarkModel, type VisualTone, type AcademicVisualTone, type InlineGlossary, type AcademicInlineGlossary, type DictionaryEntryPayload, type DictionaryResult } from '../../types/view/render-scene.vm'
 import { fetchDict, fetchDictEntry } from '../../services/api/client'
 import { dictResponseDtoToVm } from '../../services/api/adapters/dict.adapter'
@@ -34,12 +34,27 @@ interface WordPopupProps {
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
 }
 
-interface AudioVariant {
-  label: string
-  url: string
+type HeightTier = 'compact' | 'standard' | 'rich' | 'expanded'
+type DictTab = 'meanings' | 'phrases' | 'examples'
+type SheetMode = 'answer' | 'dictionary' | 'entry_picker' | 'not_found'
+
+interface DefinitionLine {
+  text: string
+  example?: string
+  exampleTranslation?: string
 }
 
-type HeightTier = 'compact' | 'standard' | 'rich' | 'expanded'
+interface MeaningGroup {
+  partOfSpeech: string
+  definitions: DefinitionLine[]
+}
+
+interface PrimaryAnswer {
+  label: '本文含义' | '短语含义' | '常用释义' | '未收录'
+  text: string
+  detail?: string
+  confidence: 'context' | 'phrase' | 'dictionary' | 'missing'
+}
 
 function getEntrySummary(entry: DictionaryEntryPayload | null | undefined): string {
   if (!entry?.meanings?.length) {
@@ -93,6 +108,88 @@ const MINI_LABEL_MAP: Record<string, string> = {
   logic: '逻辑',
 }
 
+const PROPER_NOUN_POS = new Set(['pn', 'propn', 'proper_noun', 'proper noun', '专名', '专有名词'])
+
+function cleanMeaningText(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    .replace(/;+/g, '；')
+    .replace(/；\s*/g, '；')
+    .trim()
+}
+
+function splitDefinitionText(text: string, maxParts = 3): string[] {
+  const cleaned = cleanMeaningText(text)
+  if (!cleaned) return []
+  const parts = cleaned
+    .split(/[；;]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+  return (parts.length ? parts : [cleaned]).slice(0, maxParts)
+}
+
+function buildMeaningGroups(entry: DictionaryEntryPayload | null | undefined, expanded: boolean): MeaningGroup[] {
+  if (!entry?.meanings?.length) return []
+  const maxPosGroups = expanded ? entry.meanings.length : 1
+  const maxDefsPerGroup = expanded ? 8 : 3
+
+  return entry.meanings.slice(0, maxPosGroups).map((meaning) => ({
+    partOfSpeech: meaning.partOfSpeech || '',
+    definitions: meaning.definitions
+      .flatMap((def) => splitDefinitionText(def.meaning, expanded ? 6 : 3).map((part, idx) => ({
+        text: part,
+        example: idx === 0 ? def.example : undefined,
+        exampleTranslation: idx === 0 ? def.exampleTranslation : undefined,
+      })))
+      .slice(0, maxDefsPerGroup),
+  })).filter((group) => group.definitions.length > 0)
+}
+
+function getPrimaryAnswer(
+  entry: DictionaryEntryPayload | null,
+  glossary: InlineGlossary | AcademicInlineGlossary | undefined,
+  professionalLabel: string
+): PrimaryAnswer {
+  const glossaryText = glossary?.zh || (isLearningGlossary(glossary) ? glossary.gloss : '')
+  const glossaryReason = isLearningGlossary(glossary) ? glossary.reason : undefined
+
+  if (glossaryText) {
+    return {
+      label: professionalLabel.includes('短语') || professionalLabel.includes('搭配') ? '短语含义' : '本文含义',
+      text: cleanMeaningText(glossaryText),
+      detail: glossaryReason ? cleanMeaningText(glossaryReason) : undefined,
+      confidence: professionalLabel.includes('短语') || professionalLabel.includes('搭配') ? 'phrase' : 'context',
+    }
+  }
+
+  const firstDef = entry?.meanings?.[0]?.definitions?.[0]?.meaning
+  if (firstDef) {
+    return {
+      label: '常用释义',
+      text: splitDefinitionText(firstDef, 2).join('；'),
+      confidence: 'dictionary',
+    }
+  }
+
+  return {
+    label: '未收录',
+    text: '本地词库暂未收录',
+    confidence: 'missing',
+  }
+}
+
+function getExpandCopy(entry: DictionaryEntryPayload | null): string {
+  if (!entry) return '查看更多释义'
+  if ((entry.phrases?.length || 0) > 0 || (entry.examples?.length || 0) > 0) return '查看短语和例句'
+  return '查看更多释义'
+}
+
+function isLikelyProperCandidate(candidate: { label: string; partOfSpeech?: string }, query: string): boolean {
+  const pos = candidate.partOfSpeech?.toLowerCase().trim()
+  if (pos && PROPER_NOUN_POS.has(pos)) return true
+  return query === query.toLowerCase() && candidate.label !== candidate.label.toLowerCase()
+}
+
 function WordLookupSlip({
   lookupText,
   dictResult,
@@ -108,9 +205,6 @@ function WordLookupSlip({
   y,
   screenWidth,
   screenHeight,
-  audioVariants,
-  audioPlayingUrl,
-  onPlayAudio,
   onClose,
   onExpand,
   onAddVocab,
@@ -129,9 +223,6 @@ function WordLookupSlip({
   y: number
   screenWidth: number
   screenHeight: number
-  audioVariants: AudioVariant[]
-  audioPlayingUrl: string | null
-  onPlayAudio: (url: string) => void
   onClose: () => void
   onExpand?: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
@@ -177,26 +268,11 @@ function WordLookupSlip({
             <Text className='mini-word'>{headword}</Text>
           </View>
           
-          {(entry?.phonetic || audioVariants.length > 0 || (isLLMAnnotated && mark)) && (
+          {(entry?.phonetic || (isLLMAnnotated && mark)) && (
             <View className='mini-sub-info'>
-              {(entry?.phonetic || audioVariants.length > 0) && (
+              {entry?.phonetic && (
                 <View className='mini-phonetic-row'>
-                  {entry?.phonetic && (
-                    <Text className='mini-phonetic'>/{entry.phonetic}/</Text>
-                  )}
-                  {audioVariants.map((v) => (
-                    <View
-                      key={v.url}
-                      className={`mini-audio-btn ${audioPlayingUrl === v.url ? 'is-playing' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onPlayAudio(v.url)
-                      }}
-                    >
-                      <LucideIcon name={audioPlayingUrl === v.url ? 'volume-1' : 'volume-2'} size={14} color='var(--reader-muted)' />
-                      {v.label && <Text className='mini-audio-label'>{v.label}</Text>}
-                    </View>
-                  ))}
+                  <Text className='mini-phonetic'>/{entry.phonetic}/</Text>
                 </View>
               )}
               {isLLMAnnotated && mark && (
@@ -262,9 +338,6 @@ function DictionaryNoteSheet({
   activeTab,
   isSavedState,
   saveBtnCopy,
-  audioVariants,
-  audioPlayingUrl,
-  onPlayAudio,
   setActiveTab,
   onClose,
   onAddVocab,
@@ -281,13 +354,10 @@ function DictionaryNoteSheet({
   contextSentence?: string
   readingGoal?: string
   readingVariant?: string
-  activeTab: string
+  activeTab: DictTab
   isSavedState: boolean
   saveBtnCopy: string
-  audioVariants: AudioVariant[]
-  audioPlayingUrl: string | null
-  onPlayAudio: (url: string) => void
-  setActiveTab: (tab: 'meanings' | 'phrases' | 'examples') => void
+  setActiveTab: (tab: DictTab) => void
   onClose: () => void
   onAddVocab?: (word: string, dictResult: DictionaryResult | null) => void
   onSelectEntry?: (entryId: number) => void
@@ -295,50 +365,70 @@ function DictionaryNoteSheet({
   renderContextExcerpt: () => React.ReactNode
 }) {
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
-  const detailMeanings = entry?.meanings || []
   const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
   const isEntryResult = dictResult?.resultType === 'entry'
+  const isNotFoundResult = dictResult?.resultType === 'not_found'
+  const hasGlossary = !!glossary
 
-  // Gesture state for swipe-to-close
   const [dragY, setDragY] = useState(0)
+  const [sheetMode, setSheetMode] = useState<SheetMode>('answer')
   const startYRef = useRef(0)
+  const lastDeltaYRef = useRef(0)
   const isDraggingRef = useRef(false)
+  const isDictionaryMode = sheetMode === 'dictionary'
+  const isEntryPickerMode = sheetMode === 'entry_picker'
+  const isNotFoundMode = sheetMode === 'not_found'
+  const canExpandSheet = sheetMode === 'answer' && isEntryResult
 
-  // Tier only caps the sheet. Short entries should keep their natural height.
   const heightTier: HeightTier = useMemo(() => {
+    if (isDictionaryMode) return 'expanded'
+    if (isEntryPickerMode) return 'standard'
     if (loading) return 'compact'
-    if (isDisambiguationResult) return 'compact'
+    if (isNotFoundMode) return 'compact'
     if (!entry) return 'compact'
-    
-    let score = 0
-    if (contextSentence) score += 2
-    if (glossary) score += 3
-    if (entry.meanings?.length) score += entry.meanings.length * 2
-    if (entry.phrases?.length) score += 2
-    if (entry.examples?.length) score += 2
-    
-    if (score <= 4) return 'compact'
-    if (score <= 10) return 'standard'
-    return 'rich'
-  }, [entry, loading, isDisambiguationResult, contextSentence, glossary])
+    if (hasGlossary || contextSentence) return 'standard'
+    return 'compact'
+  }, [entry, loading, contextSentence, hasGlossary, isDictionaryMode, isEntryPickerMode, isNotFoundMode])
 
-  const showFooter = isEntryResult && entry && entry.id > 0
+  useEffect(() => {
+    if (dictResult?.resultType === 'disambiguation') {
+      setSheetMode('entry_picker')
+    } else if (dictResult?.resultType === 'not_found') {
+      setSheetMode('not_found')
+    } else {
+      setSheetMode('answer')
+    }
+    setDragY(0)
+    lastDeltaYRef.current = 0
+  }, [lookupText, dictResult?.resultType])
+
+  const showSaveAction = !!(isEntryResult && entry && entry.id > 0 && !isEntryPickerMode && !isNotFoundMode)
   const sheetMetrics = useMemo(() => {
     const windowInfo = Taro.getWindowInfo()
     const windowHeight = windowInfo.windowHeight || 667
     const tierRatios: Record<HeightTier, number> = {
-      compact: 0.58,
-      standard: 0.68,
-      rich: 0.78,
-      expanded: 0.84,
+      compact: 0.48,
+      standard: 0.6,
+      rich: 0.66,
+      expanded: 0.88,
     }
     const maxHeight = Math.round(windowHeight * tierRatios[heightTier])
-    const headerReserve = 156
-    const footerReserve = showFooter ? 118 : 86
+    const headerReserve = isDictionaryMode ? 126 : 150
+    const footerReserve = showSaveAction ? 92 : 34
     const scrollMaxHeight = Math.max(220, maxHeight - headerReserve - footerReserve)
 
     return { maxHeight, scrollMaxHeight }
-  }, [heightTier, showFooter])
+  }, [heightTier, showSaveAction, isDictionaryMode])
+
+  const expandDictionary = (tab: DictTab = 'meanings') => {
+    setActiveTab(tab)
+    setSheetMode('dictionary')
+  }
+
+  const collapseDictionary = () => {
+    setActiveTab('meanings')
+    setSheetMode('answer')
+  }
 
   const handleTouchStart = (e: any) => {
     startYRef.current = e.touches[0].clientY
@@ -349,8 +439,11 @@ function DictionaryNoteSheet({
     if (!isDraggingRef.current) return
     const currentY = e.touches[0].clientY
     const deltaY = currentY - startYRef.current
+    lastDeltaYRef.current = deltaY
     if (deltaY > 0) {
       setDragY(deltaY)
+    } else {
+      setDragY(0)
     }
   }
 
@@ -359,15 +452,77 @@ function DictionaryNoteSheet({
     isDraggingRef.current = false
     if (dragY > 80) {
       onClose()
+    } else if (lastDeltaYRef.current < -60 && canExpandSheet) {
+      setSheetMode('dictionary')
+      setDragY(0)
     } else {
       setDragY(0)
     }
+    lastDeltaYRef.current = 0
   }
+
+  const primaryAnswer = getPrimaryAnswer(entry, glossary, professionalLabel)
+  const answerGroups = buildMeaningGroups(entry, false)
+  const detailGroups = buildMeaningGroups(entry, true)
+  const hasDictionaryTabs = isEntryResult && entry && ((entry.phrases?.length || 0) > 0 || (entry.examples?.length || 0) > 0)
+  const shouldShowExpandDictionary = isEntryResult && entry && sheetMode === 'answer' && (
+    entry.meanings.length > 1 ||
+    entry.meanings.some((meaning) => meaning.definitions.length > 1) ||
+    (entry.phrases?.length || 0) > 0 ||
+    (entry.examples?.length || 0) > 0
+  )
+  const sortedCandidates = isDisambiguationResult
+    ? [...dictResult.candidates].sort((a, b) => {
+      const aProper = isLikelyProperCandidate(a, lookupText)
+      const bProper = isLikelyProperCandidate(b, lookupText)
+      if (aProper !== bProper) return aProper ? 1 : -1
+      const aExact = a.label.toLowerCase() === lookupText.toLowerCase()
+      const bExact = b.label.toLowerCase() === lookupText.toLowerCase()
+      if (aExact !== bExact) return aExact ? -1 : 1
+      return 0
+    })
+    : []
+
+  const renderDictionaryTabs = () => {
+    if (!isEntryResult || !entry || !hasDictionaryTabs) return null
+    return (
+      <View className='dict-tabs'>
+        <View className={`dict-tab ${activeTab === 'meanings' ? 'active' : ''}`} onClick={() => setActiveTab('meanings')}>释义</View>
+        {entry.phrases?.length > 0 && <View className={`dict-tab ${activeTab === 'phrases' ? 'active' : ''}`} onClick={() => setActiveTab('phrases')}>短语</View>}
+        {entry.examples?.length > 0 && <View className={`dict-tab ${activeTab === 'examples' ? 'active' : ''}`} onClick={() => setActiveTab('examples')}>例句</View>}
+      </View>
+    )
+  }
+
+  const renderMeaningGroups = (groups: MeaningGroup[], includeExamples: boolean) => (
+    <View className='meanings-list'>
+      {groups.map((meaning, idx) => (
+        <View key={`${meaning.partOfSpeech}-${idx}`} className='meaning-item'>
+          <View className='pos-column'>
+            {meaning.partOfSpeech && <Text className='pos-tag'>{meaning.partOfSpeech}</Text>}
+          </View>
+          <View className='definitions'>
+            {meaning.definitions.map((def, defIdx) => (
+              <View key={`${def.text.slice(0, 20)}-${defIdx}`} className='def-row'>
+                <Text className='def-text'>{def.text}</Text>
+                {includeExamples && def.example && (
+                  <View className='def-example-block'>
+                    <Text className='def-example-en'>{def.example}</Text>
+                    {def.exampleTranslation && <Text className='def-example-zh'>{def.exampleTranslation}</Text>}
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+    </View>
+  )
 
   return (
     <View className='word-popup-overlay full-overlay' onClick={onClose} catchMove>
       <View 
-        className={`word-popup-container tier-${heightTier}`}
+        className={`word-popup-container tier-${heightTier} mode-${sheetMode} confidence-${primaryAnswer.confidence} ${hasGlossary ? 'has-glossary' : 'plain-dict'}`}
         onClick={(e) => e.stopPropagation()}
         style={{ 
           maxHeight: `${sheetMetrics.maxHeight}px`,
@@ -393,20 +548,6 @@ function DictionaryNoteSheet({
                     <Text className='word-phonetic'>/{entry.phonetic}/</Text>
                   </View>
                 )}
-                {audioVariants.length > 0 && (
-                  <View className='audio-variants-row'>
-                    {audioVariants.map((v) => (
-                      <View
-                        key={v.url}
-                        className={`audio-variant-btn ${audioPlayingUrl === v.url ? 'is-playing' : ''}`}
-                        onClick={() => onPlayAudio(v.url)}
-                      >
-                        <LucideIcon name={audioPlayingUrl === v.url ? 'volume-1' : 'volume-2'} size={16} color='var(--reader-muted)' />
-                        {v.label && <Text className='audio-variant-label'>{v.label}</Text>}
-                      </View>
-                    ))}
-                  </View>
-                )}
                 {readingGoal === 'exam' && entry?.tags && entry.tags.length > 0 && (() => {
                   const filtered = filterExamTags(entry.tags, readingVariant)
                   return filtered.length > 0 ? (
@@ -420,8 +561,12 @@ function DictionaryNoteSheet({
               </View>
             </View>
             <View className='header-right-actions'>
+              <View className='popup-feedback-btn' onClick={() => setShowDictFeedback(true)}>
+                <LucideIcon name='messageSquare' size={18} color='var(--reader-muted)' />
+                <Text>反馈</Text>
+              </View>
               <View className='popup-close-btn' onClick={onClose}>
-                <LucideIcon name='x' size={24} color='var(--reader-ink)' />
+                <LucideIcon name='x' size={22} color='var(--reader-muted)' />
               </View>
             </View>
           </View>
@@ -434,152 +579,149 @@ function DictionaryNoteSheet({
           showScrollbar={false}
           style={{ maxHeight: `${sheetMetrics.scrollMaxHeight}px` }}
         >
-          
-          {contextSentence && (
-            <View className='context-section'>
-              <View className='section-title'>
-                <LucideIcon name='bookOpen' size={24} color='var(--reader-muted)' />
-                <Text>来源语境</Text>
-              </View>
-              {renderContextExcerpt()}
-            </View>
-          )}
-
-          {glossary && (
-            <View className='glossary-section'>
-              <View className='section-title'>
+          {isEntryPickerMode && isDisambiguationResult ? (
+            <View className='entry-picker-panel'>
+              <View className='answer-kicker'>
                 <AnnotationGlyph type={mark?.visualTone as any || 'context'} size='sm' state='active' />
-                <Text>语境解析 · {professionalLabel}</Text>
+                <Text>找到多个词条</Text>
               </View>
-              <View className='glossary-content'>
-                <View className='glossary-main-zh'>
-                  <Text className='zh-text'>{glossary.zh || (isLearningGlossary(glossary) ? glossary.gloss : '')}</Text>
-                </View>
-                {isLearningGlossary(glossary) && glossary.reason && (
-                  <View className='glossary-reason-box'>
-                    <Text className='reason-text'>{glossary.reason}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-
-          <View className='dict-section'>
-            <View className='section-title-row'>
-              <View className='section-title'>
-                <Text>通用释义</Text>
-              </View>
-              {isEntryResult && entry && (entry.phrases?.length > 0 || entry.examples?.length > 0) && (
-                <View className='dict-tabs'>
-                  <View className={`dict-tab ${activeTab === 'meanings' ? 'active' : ''}`} onClick={() => setActiveTab('meanings')}>释义</View>
-                  {entry.phrases?.length > 0 && <View className={`dict-tab ${activeTab === 'phrases' ? 'active' : ''}`} onClick={() => setActiveTab('phrases')}>短语</View>}
-                  {entry.examples?.length > 0 && <View className={`dict-tab ${activeTab === 'examples' ? 'active' : ''}`} onClick={() => setActiveTab('examples')}>例句</View>}
-                </View>
-              )}
-            </View>
-
-            {loading && !isDisambiguationResult ? (
-              <View className='popup-loading-state'>
-                <View className='sheet-skeleton-line' style={{ width: '60%', marginBottom: '16rpx' }} />
-                <View className='sheet-skeleton-line' style={{ width: '100%', marginBottom: '16rpx' }} />
-                <View className='sheet-skeleton-line' style={{ width: '80%' }} />
-              </View>
-            ) : isDisambiguationResult ? (
-              <View className='disambiguation-list'>
+              <Text className='picker-copy'>选一个继续查看。</Text>
+              {contextSentence && renderContextExcerpt()}
+              <View className='candidate-list'>
                 {loading && (
                   <View className='disambiguation-loading-overlay'>
-                    <View className='loading-spinner' />
+                    <View className='sheet-skeleton-line' style={{ width: '72%' }} />
                   </View>
                 )}
-                {dictResult.candidates.map((candidate) => (
-                  <View
-                    key={candidate.entryId}
-                    className={`candidate-item ${loading ? 'is-loading' : ''}`}
-                    onClick={() => {
-                      if (loading) return
-                      onSelectEntry?.(candidate.entryId)
-                    }}
-                  >
-                    <View className='candidate-main'>
-                      <View className='candidate-title-row'>
-                        <Text className='candidate-label'>{candidate.label}</Text>
-                        {candidate.partOfSpeech && <Text className='candidate-pos'>{candidate.partOfSpeech}</Text>}
+                {sortedCandidates.map((candidate) => {
+                  const isProper = isLikelyProperCandidate(candidate, lookupText)
+                  return (
+                    <View
+                      key={candidate.entryId}
+                      className={`candidate-item ${loading ? 'is-loading' : ''} ${isProper ? 'is-proper' : 'is-ordinary'}`}
+                      onClick={() => {
+                        if (loading) return
+                        onSelectEntry?.(candidate.entryId)
+                      }}
+                    >
+                      <View className='candidate-main'>
+                        <View className='candidate-title-row'>
+                          <Text className='candidate-label'>{candidate.label}</Text>
+                          {candidate.partOfSpeech && <Text className='candidate-pos'>{candidate.partOfSpeech}</Text>}
+                          <Text className='candidate-kind'>{isProper ? '专名词条' : '普通词'}</Text>
+                        </View>
+                        {candidate.preview && <View className='candidate-preview'>{candidate.preview}</View>}
                       </View>
-                      {candidate.preview && <View className='candidate-preview'>{candidate.preview}</View>}
+                      <LucideIcon name='chevron-right' size={16} color='var(--reader-muted)' />
                     </View>
-                    <LucideIcon name='chevron-right' size={16} color='var(--reader-muted)' />
-                  </View>
-                ))}
+                  )
+                })}
               </View>
-            ) : isEntryResult && entry ? (
-              <View className='dict-content-area'>
-                {activeTab === 'meanings' && (
-                  <View className='meanings-list'>
-                    {detailMeanings.map((meaning, idx) => (
-                      <View key={`${meaning.partOfSpeech}-${idx}`} className='meaning-item'>
-                        <View className='pos-column'>
-                          {meaning.partOfSpeech && <Text className='pos-tag'>{meaning.partOfSpeech}</Text>}
-                        </View>
-                        <View className='definitions'>
-                          {meaning.definitions.map((def, defIdx) => (
-                            <View key={`${def.meaning?.slice(0, 20)}-${defIdx}`} className='def-row'>
-                              <Text className='def-text'>{def.meaning}</Text>
-                              {def.example && (
-                                <View className='def-example-block'>
-                                  <Text className='def-example-en'>{def.example}</Text>
-                                  {def.exampleTranslation && <Text className='def-example-zh'>{def.exampleTranslation}</Text>}
-                                </View>
-                              )}
-                            </View>
-                          ))}
-                        </View>
+            </View>
+          ) : isNotFoundMode ? (
+            <View className='not-found-panel'>
+              <View className='answer-kicker'>
+                <Text>{primaryAnswer.label}</Text>
+              </View>
+              <Text className='not-found-title'>本地词库暂未收录</Text>
+              <Text className='not-found-copy'>你仍可继续阅读；如果这里应该有释义，可以提交反馈。</Text>
+              {contextSentence && renderContextExcerpt()}
+            </View>
+          ) : isDictionaryMode ? (
+            <>
+              <View className='context-hint-row' onClick={collapseDictionary}>
+                <Text className='context-hint-label'>{primaryAnswer.label}</Text>
+                <Text className='context-hint-text' numberOfLines={1}>{primaryAnswer.text}</Text>
+                <LucideIcon name='chevronDown' size={14} color='var(--reader-muted)' />
+              </View>
+              <View className='dict-section is-detail'>
+                <View className='detail-tabs-row'>
+                  {renderDictionaryTabs()}
+                </View>
+                {loading ? (
+                  <View className='popup-loading-state'>
+                    <View className='sheet-skeleton-line' style={{ width: '60%', marginBottom: '16rpx' }} />
+                    <View className='sheet-skeleton-line' style={{ width: '100%', marginBottom: '16rpx' }} />
+                    <View className='sheet-skeleton-line' style={{ width: '80%' }} />
+                  </View>
+                ) : isEntryResult && entry ? (
+                  <View className='dict-content-area'>
+                    {activeTab === 'meanings' && renderMeaningGroups(detailGroups, true)}
+                    {activeTab === 'phrases' && (
+                      <View className='phrases-list'>
+                        {entry.phrases.map((p) => (
+                          <View key={p.phrase} className='phrase-item'>
+                            <View className='phrase-text'>{p.phrase}</View>
+                            {p.meaning && <View className='phrase-meaning'>{p.meaning}</View>}
+                          </View>
+                        ))}
                       </View>
-                    ))}
+                    )}
+                    {activeTab === 'examples' && (
+                      <View className='examples-list'>
+                        {entry.examples.map((ex, idx) => (
+                          <View key={`${ex.example?.slice(0, 20)}-${idx}`} className='example-item'>
+                            <View className='example-en'>{ex.example}</View>
+                            {ex.exampleTranslation && <View className='example-zh'>{ex.exampleTranslation}</View>}
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : null}
+              </View>
+            </>
+          ) : (
+            <>
+              <View className='answer-panel'>
+                <View className='answer-kicker'>
+                  <AnnotationGlyph type={mark?.visualTone as any || 'context'} size='sm' state='active' />
+                  <Text>{primaryAnswer.label}</Text>
+                </View>
+                <Text className='answer-text'>{primaryAnswer.text}</Text>
+                {primaryAnswer.detail && <Text className='answer-detail'>{primaryAnswer.detail}</Text>}
+                {contextSentence && renderContextExcerpt()}
+              </View>
+
+              <View className='dict-section is-compact'>
+                <View className='section-title-row'>
+                  <View className='section-title'>
+                    <Text>词典补充</Text>
+                  </View>
+                </View>
+                {loading ? (
+                  <View className='popup-loading-state'>
+                    <View className='sheet-skeleton-line' style={{ width: '60%', marginBottom: '16rpx' }} />
+                    <View className='sheet-skeleton-line' style={{ width: '100%', marginBottom: '16rpx' }} />
+                    <View className='sheet-skeleton-line' style={{ width: '80%' }} />
+                  </View>
+                ) : isEntryResult && entry ? (
+                  <View className='dict-content-area'>
+                    {renderMeaningGroups(answerGroups, false)}
+                    {shouldShowExpandDictionary && (
+                      <View className='dict-expand-row' onClick={() => expandDictionary('meanings')}>
+                        <Text>{getExpandCopy(entry)}</Text>
+                        <LucideIcon name='chevronUp' size={16} color='var(--reader-muted)' />
+                      </View>
+                    )}
+                  </View>
+                ) : !loading && (
+                  <View className='popup-empty-state'>
+                    <Text className='empty-text'>{isNotFoundResult ? '本地词库暂未收录' : '未找到词条释义'}</Text>
                   </View>
                 )}
-                {activeTab === 'phrases' && (
-                  <View className='phrases-list'>
-                    {entry.phrases.map((p, idx) => (
-                      <View key={p.phrase} className='phrase-item'>
-                        <View className='phrase-text'>{p.phrase}</View>
-                        {p.meaning && <View className='phrase-meaning'>{p.meaning}</View>}
-                      </View>
-                    ))}
-                  </View>
-                )}
-                {activeTab === 'examples' && (
-                  <View className='examples-list'>
-                    {entry.examples.map((ex, idx) => (
-                      <View key={`${ex.example?.slice(0, 20)}-${idx}`} className='example-item'>
-                        <View className='example-en'>{ex.example}</View>
-                        {ex.exampleTranslation && <View className='example-zh'>{ex.exampleTranslation}</View>}
-                      </View>
-                    ))}
-                  </View>
-                )}
               </View>
-            ) : !loading && (
-              <View className='popup-empty-state'>
-                <Text className='empty-text'>
-                  {entry?.entryKind === 'fragment' ? '派生词，查看主词条' : '未找到词条释义'}
-                </Text>
-              </View>
-            )}
-          </View>
+            </>
+          )}
         </ScrollView>
 
-        <View className={`popup-footer-actions safe-area-bottom ${showFooter ? 'has-footer' : 'no-footer'}`}>
-          <View className='footer-action-btn secondary' onClick={() => setShowDictFeedback(true)}>
-            <LucideIcon name='messageSquare' size={32} strokeWidth={2.2} color='var(--reader-muted)' />
-            <Text>反馈</Text>
-          </View>
-          {showFooter && (
-
+        <View className={`popup-footer-actions safe-area-bottom ${showSaveAction ? 'has-footer' : 'no-footer'}`}>
+          {showSaveAction && (
             <View 
-              className={`footer-action-btn ${isSavedState ? 'saved' : 'primary'}`} 
+              className={`footer-action-btn save-action ${isSavedState ? 'saved' : 'primary'}`} 
               onClick={() => onAddVocab?.(entry!.word, dictResult)}
             >
-              <AnnotationGlyph type='saved_vocab' size={36} state={isSavedState ? 'active' : 'default'} className={isSavedState ? '' : 'white-glyph'} />
+              <AnnotationGlyph type='saved_vocab' size={30} state={isSavedState ? 'active' : 'default'} />
               <Text>{saveBtnCopy}</Text>
             </View>
           )}
@@ -600,9 +742,6 @@ export default function WordPopup({
   const [activeTab, setActiveTab] = useState<'meanings' | 'phrases' | 'examples'>('meanings')
   const [showDictFeedback, setShowDictFeedback] = useState(false)
   const fetchVersionRef = useRef(0)
-  const [audioVariants, setAudioVariants] = useState<AudioVariant[]>([])
-  const [audioPlayingUrl, setAudioPlayingUrl] = useState<string | null>(null)
-  const innerAudioRef = useRef<ReturnType<typeof Taro.createInnerAudioContext> | null>(null)
 
   const lookupText = mark?.lookupText || word
   const glossary = mark?.glossary
@@ -619,7 +758,8 @@ export default function WordPopup({
     : (mark ? MINI_LABEL_MAP[mark.visualTone] : 'AI')
 
   const entry = dictResult?.resultType === 'entry' ? dictResult.entry : null
-  const miniMeaning = glossary?.zh || (isLearningGlossary(glossary) ? glossary.gloss : undefined) || getEntrySummary(entry)
+  const notFoundMessage = dictResult?.resultType === 'not_found' ? '本地词库暂未收录' : undefined
+  const miniMeaning = glossary?.zh || (isLearningGlossary(glossary) ? glossary.gloss : undefined) || notFoundMessage || getEntrySummary(entry)
   const isLLMAnnotated = !!glossary
 
   const renderContextExcerpt = () => {
@@ -644,12 +784,6 @@ export default function WordPopup({
   useEffect(() => {
     if (!visible) {
       setDictResult(null)
-      setAudioVariants([])
-      setAudioPlayingUrl(null)
-      if (innerAudioRef.current) {
-        innerAudioRef.current.destroy()
-        innerAudioRef.current = null
-      }
       return
     }
     if (!lookupText) return
@@ -664,56 +798,13 @@ export default function WordPopup({
     setScreenHeight(windowInfo.windowHeight || 667)
   }, [])
 
-  const loadAudio = useCallback(async (wordToFetch: string) => {
-    if (!wordToFetch || wordToFetch.trim().includes(' ')) return
-    const audioVersion = fetchVersionRef.current
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
-      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(wordToFetch)}`, {
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
-      if (audioVersion !== fetchVersionRef.current) return
-      if (!res.ok) return
-      const data = await res.json()
-      if (audioVersion !== fetchVersionRef.current) return
-      const phonetics = Array.isArray(data) ? data[0]?.phonetics : []
-      if (!Array.isArray(phonetics)) return
-      const variants: AudioVariant[] = []
-      const seen = new Set<string>()
-      for (const p of phonetics) {
-        if (!p.audio || p.audio.trim() === '') continue
-        let url = p.audio as string
-        if (url.startsWith('//')) url = 'https:' + url
-        if (seen.has(url)) continue
-        seen.add(url)
-        let label = 'US'
-        if (url.includes('-uk.')) label = 'UK'
-        else if (url.includes('-us.')) label = 'US'
-        else if (url.includes('-au.')) label = 'AU'
-        else label = ''
-        variants.push({ label, url })
-      }
-      if (audioVersion !== fetchVersionRef.current) return
-      if (variants.length > 0) {
-        setAudioVariants(variants)
-      }
-    } catch {
-      // silent fail
-    }
-  }, [])
-
   useEffect(() => {
     const isEntryResult = dictResult?.resultType === 'entry'
     if (isEntryResult && entry) {
       if (activeTab === 'phrases' && !entry.phrases?.length) setActiveTab('meanings')
       if (activeTab === 'examples' && !entry.examples?.length) setActiveTab('meanings')
     }
-    if (isEntryResult && entry && audioVariants.length === 0) {
-      loadAudio(entry.word)
-    }
-  }, [dictResult, activeTab, entry, audioVariants.length, loadAudio])
+  }, [dictResult, activeTab, entry])
 
   const fetchDictionary = async (text: string, version: number) => {
     const type = text.trim().includes(' ') ? 'phrase' : 'word'
@@ -763,29 +854,6 @@ export default function WordPopup({
     }
   }
 
-  const playAudio = (url: string) => {
-    if (audioPlayingUrl) return
-    setAudioPlayingUrl(url)
-    if (innerAudioRef.current) {
-      innerAudioRef.current.destroy()
-      innerAudioRef.current = null
-    }
-    const innerAudio = Taro.createInnerAudioContext()
-    innerAudioRef.current = innerAudio
-    innerAudio.src = url
-    innerAudio.onEnded(() => {
-      setAudioPlayingUrl(null)
-      innerAudio.destroy()
-      innerAudioRef.current = null
-    })
-    innerAudio.onError(() => {
-      setAudioPlayingUrl(null)
-      innerAudio.destroy()
-      innerAudioRef.current = null
-    })
-    innerAudio.play()
-  }
-
   if (!visible) return null
 
   const isDisambiguationResult = dictResult?.resultType === 'disambiguation'
@@ -807,9 +875,6 @@ export default function WordPopup({
         y={y}
         screenWidth={screenWidth}
         screenHeight={screenHeight}
-        audioVariants={audioVariants}
-        audioPlayingUrl={audioPlayingUrl}
-        onPlayAudio={playAudio}
         onClose={onClose}
         onExpand={onExpand}
         onAddVocab={onAddVocab}
@@ -833,9 +898,6 @@ export default function WordPopup({
         activeTab={activeTab}
         isSavedState={isSavedState}
         saveBtnCopy={saveBtnCopy}
-        audioVariants={audioVariants}
-        audioPlayingUrl={audioPlayingUrl}
-        onPlayAudio={playAudio}
         setActiveTab={setActiveTab}
         onClose={onClose}
         onAddVocab={onAddVocab}
